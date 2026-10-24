@@ -92,6 +92,7 @@ async function route() {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
     if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
     if (parts[0] === "import") { S.routeName = "import"; return await viewImport(view); }
+    if (parts[0] === "about") { S.routeName = "about"; return await viewAbout(view); }
     if (parts[0] === "b" && parts[1]) {
       await setBook(parts[1]);
       const sub = parts[2] || "overview";
@@ -158,6 +159,23 @@ function renderNav() {
 async function viewShelf(view) {
   const data = await api("GET", "/api/books");
   S.books = data.books;
+  if (!data.library) {
+    view.innerHTML = `
+      <div class="page-head"><div><h1>歡迎使用小說工作台</h1><div class="sub">先選一個資料夾當「書庫」</div></div></div>
+      <div class="card">
+        <p>書庫是放所有小說專案的資料夾，每本書是裡面的一個子資料夾；共用庫和插圖也會放在這裡。工作台程式和書庫是分開的，更新或重新下載工作台都不會動到你的書。</p>
+        <label class="f"><span>書庫資料夾</span><input type="text" id="lib-path" value="${esc(data.suggested)}"></label>
+        <div class="muted small" style="margin:-6px 0 12px">${data.suggested_exists ? "這個資料夾已經存在，裡面的書會出現在書架上。" : "資料夾不存在時會自動建立。"}之後可以在「設定」改。</div>
+        <div class="row"><button class="primary" id="lib-ok">使用這個資料夾</button></div>
+      </div>`;
+    attachPicker($("#lib-path"), { mode: "dir", title: "選擇書庫資料夾" });
+    $("#lib-ok").onclick = async () => {
+      const p = $("#lib-path").value.trim();
+      if (!p) return toast("請選擇資料夾", true);
+      try { await api("POST", "/api/config", { library: p, create_library: true }); refresh(); } catch (e) { fail(e); }
+    };
+    return;
+  }
   if (!data.exists) {
     view.innerHTML = `
       <div class="page-head"><div><h1>書架</h1><div class="sub">還沒有書庫資料夾</div></div></div>
@@ -775,6 +793,9 @@ async function viewSettings(view) {
     </div>
     <div class="row" style="margin-top:14px"><span class="grow"></span><button class="primary" id="c-save">儲存設定</button></div>`;
   renderIllSettings($("#ill-settings")).catch(fail);
+  attachPicker($("#c-lib"), { mode: "dir", title: "選擇書庫資料夾" });
+  attachPicker($("#c-cmd"), { mode: "file", title: "選擇 claude 執行檔" });
+  attachPicker($("#c-dirs"), { mode: "dir", title: "加入允許讀取的資料夾" }, true);
   const provs = JSON.parse(JSON.stringify((c.providers || []).filter((p) => p.type !== "claude_code")));
   const keys = {};
   const renderProvs = () => {
@@ -1231,14 +1252,14 @@ const tagAppend = (cur, add) => {
 async function pickStyles(selected, onDone) {
   let data;
   try { data = await api("GET", "/api/illust/styles"); } catch (e) { return fail(e); }
-  if (data.missing) return toast("還沒有設定樣式表：到「設定 → 插畫」填 ALL.xlsx 或 ALL.json 的路徑", true);
+  if (data.missing) return toast("找不到畫風樣式表：到「設定 → 插畫」選一個 .xlsx 或 .json", true);
   let sel = [...(selected || [])], cat = "", q = "", nsfw = false;
   const tops = [...new Set(data.categories.map(([c]) => c.split(" > ")[0]))];
   modal(`<h2>選畫風</h2>
     <div class="row" style="margin-bottom:8px"><input type="text" id="ps-q" placeholder="搜尋名稱、中文名、提示詞" style="flex:1">
       <label class="cb" style="margin:0"><input type="checkbox" id="ps-nsfw"> 顯示 nsfw 分類</label></div>
     <div class="ps-wrap"><div class="ps-cats" id="ps-cats"></div><div class="ps-list" id="ps-list"></div></div>
-    <div class="small muted" style="margin-top:8px">已選（依順序套用，和 Forge 的 StyleSelectorXL 規則相同）：<span id="ps-sel"></span></div>
+    <div class="small muted" style="margin-top:8px">已選（依順序套用）：<span id="ps-sel"></span></div>
     <div class="row" style="margin-top:12px"><button class="sm" id="ps-clear">全部取消</button><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="ps-ok">確定</button></div>`, async (el) => {
     const renderCats = () => {
       $("#ps-cats", el).innerHTML = [["", "全部"], ...tops.map((t) => [t, t])].map(([v, l]) => `<div class="ps-cat ${v === cat ? "on" : ""}" data-c="${esc(v)}">${esc(l)}</div>`).join("");
@@ -1358,7 +1379,7 @@ async function renderIllust(el, target, opts = {}) {
         <label class="f"><span>英文描述（兩三句）</span><textarea data-k="sentences" rows="3">${esc(D.sentences)}</textarea></label>
         <h3>${isCh ? "4. " : ""}畫風與出圖</h3>
         <div class="grid g2">
-          <div class="f"><span>畫風（樣式表）</span><div class="row"><span class="small">${D.styles.length ? D.styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span>
+          <div class="f"><span>畫風</span><div class="row"><span class="small">${D.styles.length ? D.styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span>
             <button class="sm" id="il-styles">選畫風…</button></div></div>
           <label class="f"><span>畫師標籤（會自動加 @）</span><input type="text" data-k="artist" value="${esc(D.artist)}"></label>
           <label class="f"><span>格式</span><select data-k="format">${[["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${D.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
@@ -1586,7 +1607,7 @@ async function viewIllust(view, t) {
     const draw = () => {
       body.innerHTML = `<div class="card" style="max-width:820px">
         <p class="muted small">這本書所有插圖的預設值；每張圖出圖時還可以再改。品質、分級、負面提示詞的全域預設在「設定 → 插畫」。</p>
-        <div class="f"><span>畫風（樣式表）</span><div class="row"><span>${styles.length ? styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span><button class="sm" id="bs-st">選畫風…</button></div></div>
+        <div class="f"><span>畫風</span><div class="row"><span>${styles.length ? styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span><button class="sm" id="bs-st">選畫風…</button></div></div>
         <div class="grid g2">
           <label class="f"><span>畫師標籤（會自動加 @）</span><input type="text" id="bs-artist" value="${esc(bs.artist || "")}"></label>
           <label class="f"><span>每張都加的標籤</span><input type="text" id="bs-extra" value="${esc(bs.extra || "")}"></label>
@@ -1641,7 +1662,7 @@ async function renderIllSettings(el) {
     <div class="grid g2">
       <label class="f"><span>品質標籤（放在最前面）</span><input type="text" id="il-q" value="${esc(c.quality)}"></label>
       <label class="f"><span>負面提示詞</span><input type="text" id="il-neg" value="${esc(c.negative)}"></label>
-      <label class="f"><span>樣式表（StyleSelectorXL 的 ALL.xlsx 或 ALL.json）</span><input type="text" id="il-sheet" value="${esc(c.style_sheet)}" placeholder="留空＝用專案附的範例（examples/styles.example.json）；例如 D:\\sd-webui-forge-neo\\extensions\\StyleSelectorXL\\ALL.xlsx"></label>
+      <label class="f"><span>畫風樣式表（.xlsx 或 .json，格式同 examples/styles.example.json）</span><input type="text" id="il-sheet" value="${esc(c.style_sheet)}" placeholder="留空＝用專案附的 examples/styles.example.json"></label>
       <label class="f"><span>樣式表用哪個欄位</span><select id="il-src">${[["prompt", "prompt（標籤）"], ["naturl_prompt", "naturl_prompt（自然語言）"], ["both", "prompt + naturl_prompt"]].map(([v, l]) => `<option value="${v}" ${c.style_source === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label class="f"><span>產生畫面描述預設用的 AI</span><select id="il-prov"><option value="">面板目前的執行者</option>${r.providers.map((p) => `<option value="${esc(p.id)}" ${c.provider === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
       <div class="f"><span>標籤對照表</span><div class="small">${r.tag_csv ? "✓ " + esc(r.tag_csv) : '<span class="muted">沒有（填 Forge 資料夾會自動找 tagcomplete 的 danbooru.csv）</span>'}<br>${r.tag_zh_csv ? "✓ " + esc(r.tag_zh_csv) : '<span class="muted">沒有中文對照表</span>'}</div></div>
@@ -1664,6 +1685,8 @@ async function renderIllSettings(el) {
       style_source: $("#il-src", el).value, provider: $("#il-prov", el).value, show_nsfw_styles: $("#il-nsfw", el).checked, save_in_forge: $("#il-save", el).checked };
     ILL.cfg = await api("POST", "/api/illust/config", body);
   };
+  attachPicker($("#il-dir", el), { mode: "dir", title: "選擇 Forge 資料夾" });
+  attachPicker($("#il-sheet", el), { mode: "file", exts: [".xlsx", ".json"], title: "選擇畫風樣式表" });
   $("#il-test", el).onclick = async () => { try { await save(); await test(); } catch (e) { fail(e); } };
   $("#il-fromforge", el).onclick = async () => {
     try {
@@ -1674,6 +1697,118 @@ async function renderIllSettings(el) {
     } catch (e) { fail(e); }
   };
   $("#il-savecfg", el).onclick = async () => { try { await save(); toast("已儲存插畫設定"); renderIllSettings(el); } catch (e) { fail(e); } };
+}
+
+/* ------------------------------------------------------------------ 選資料夾／檔案 */
+// opts: {mode: "dir"|"file", exts: [".xlsx", ".json"], start: "路徑", title: "標題"}；選好後呼叫 onPick(路徑)
+function pickPath(opts, onPick) {
+  const mode = opts.mode || "dir";
+  let cur = opts.start || "";
+  modal(`<h2>${esc(opts.title || (mode === "dir" ? "選擇資料夾" : "選擇檔案"))}</h2>
+    <div class="row" style="margin-bottom:8px"><button class="sm" id="pp-up">↑ 上一層</button>
+      <input type="text" id="pp-path" style="flex:1" placeholder="輸入路徑後按 Enter"></div>
+    <div class="pp-roots" id="pp-roots"></div>
+    <div class="pp-list" id="pp-list"></div>
+    <div class="row" style="margin-top:10px">
+      ${mode === "dir" ? '<button class="sm" id="pp-mk">＋ 新增資料夾</button>' : `<span class="muted small">${opts.exts && opts.exts.length ? "只顯示 " + esc(opts.exts.join("、")) : ""}</span>`}
+      <span class="grow"></span><button onclick="closeModal()">取消</button>
+      ${mode === "dir" ? '<button class="primary" id="pp-ok">選擇這個資料夾</button>' : ""}</div>`, (el) => {
+    let parent = null;
+    const load = async (p) => {
+      try {
+        const r = await api("GET", `/api/fs/list?mode=${mode}&exts=${enc((opts.exts || []).join(","))}&path=${enc(p || "")}`);
+        cur = r.path; parent = r.parent;
+        $("#pp-path", el).value = cur;
+        $("#pp-roots", el).innerHTML = r.roots.map((x) => `<span class="chip" data-p="${esc(x.path)}">${esc(x.name)}</span>`).join("");
+        el.querySelectorAll("#pp-roots .chip").forEach((c) => c.onclick = () => load(c.dataset.p));
+        const sep = r.sep || "\\";
+        const join = (n) => cur.endsWith(sep) ? cur + n : cur + sep + n;
+        $("#pp-list", el).innerHTML = !cur ? '<div class="muted small" style="padding:10px">從上面選一個起點。</div>'
+          : (r.dirs.map((d) => `<div class="pp-item dir" data-p="${esc(join(d))}">📁 ${esc(d)}</div>`).join("")
+            + r.files.map((f) => `<div class="pp-item file" data-p="${esc(join(f))}">📄 ${esc(f)}</div>`).join(""))
+            || '<div class="muted small" style="padding:10px">（空的）</div>';
+        el.querySelectorAll(".pp-item.dir").forEach((d) => d.onclick = () => load(d.dataset.p));
+        el.querySelectorAll(".pp-item.file").forEach((f) => f.onclick = () => { closeModal(); onPick(f.dataset.p); });
+        if ($("#pp-ok", el)) $("#pp-ok", el).disabled = !cur;
+      } catch (e) { fail(e); }
+    };
+    $("#pp-up", el).onclick = () => { if (parent) load(parent); };
+    $("#pp-path", el).onkeydown = (e) => { if (e.key === "Enter") load(e.target.value.trim()); };
+    if ($("#pp-ok", el)) $("#pp-ok", el).onclick = () => { closeModal(); onPick(cur); };
+    if ($("#pp-mk", el)) $("#pp-mk", el).onclick = async () => {
+      const name = prompt("新資料夾名稱");
+      if (!name) return;
+      try { const r = await api("POST", "/api/fs/mkdir", { path: cur, name }); load(r.path); } catch (e) { fail(e); }
+    };
+    load(cur);
+  });
+}
+window.pickPath = pickPath;
+
+// 在輸入框旁邊加「選擇…」按鈕；append=true 時把選到的路徑加到下一行（多行文字框）
+function attachPicker(input, opts, append) {
+  if (!input || input.dataset.picker) return;
+  input.dataset.picker = "1";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "sm"; btn.textContent = append ? "＋ 選擇…" : "選擇…";
+  const wrap = document.createElement("div");
+  wrap.className = "pick-wrap";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input); wrap.appendChild(btn);
+  btn.onclick = () => {
+    const lines = input.value.split("\n").map((s) => s.trim()).filter(Boolean);
+    const start = append ? (lines[lines.length - 1] || "") : input.value.trim();
+    pickPath(Object.assign({ start }, opts), (p) => {
+      input.value = append ? [...lines, p].join("\n") : p;
+      input.dispatchEvent(new Event("input"));
+    });
+  };
+}
+
+/* ------------------------------------------------------------------ 關於 */
+const ABOUT_LINKS = [
+  ["設計參考", [
+    ["oh-story-claudecode", "https://github.com/worldwonderer/oh-story-claudecode", "MIT", "novel-* skills 的部分設計概念改寫自此專案（授權全文見 plugin/THIRD_PARTY_NOTICES.md）"],
+    ["Chinese-WebNovel-Skill", "https://github.com/Tomsawyerhu/Chinese-WebNovel-Skill", "", "參考中文網文寫作 skill 的流程分工（只參考概念）"],
+    ["moshu 墨書", "https://github.com/huihuijiangqiang/moshu", "", "頁面分工與「AI 草稿先進候選區」的概念（未使用其程式碼）"],
+    ["Pagekin（AI-Novel-Writer）", "https://github.com/EthanYoQ/AI-Novel-Writer", "GPL-3.0", "思考強度分階段、寫稿前對帳、章綱核對、審查與修訂分開、恢復稿等做法（只參考概念，未使用其程式碼）"],
+  ]],
+  ["工作台使用的套件", [
+    ["FastAPI", "https://github.com/fastapi/fastapi", "MIT", "網頁伺服器"],
+    ["Uvicorn", "https://github.com/encode/uvicorn", "BSD-3-Clause", "網頁伺服器"],
+    ["PyYAML", "https://github.com/yaml/pyyaml", "MIT", "讀取設定檔的 frontmatter"],
+    ["OpenCC（opencc-python-reimplemented）", "https://github.com/yichen0831/opencc-python", "Apache-2.0", "匯入舊稿時簡體轉台灣繁體"],
+    ["marked", "https://github.com/markedjs/marked", "MIT", "在網頁上顯示 Markdown（static/vendor）"],
+  ]],
+  ["可以連接的 AI 與工具（不隨專案附帶）", [
+    ["Claude Code", "https://docs.claude.com/en/docs/claude-code/overview", "", "用 Claude 訂閱執行 novel-* skills"],
+    ["DeepSeek API", "https://api-docs.deepseek.com/", "", "OpenAI 相容服務"],
+    ["llama.cpp", "https://github.com/ggml-org/llama.cpp", "MIT", "本機模型（OpenAI 相容服務）"],
+    ["Stable Diffusion WebUI Forge – Neo", "https://github.com/Haoming02/sd-webui-forge-classic/tree/neo", "", "插圖出圖（需用 --api 啟動）"],
+    ["Anima", "https://huggingface.co/circlestone-labs/Anima", "", "提示詞格式依此模型的建議（標籤＋自然語言）"],
+    ["a1111-sd-webui-tagcomplete", "https://github.com/DominikDoom/a1111-sd-webui-tagcomplete", "MIT", "標籤檢查與中文對照表使用它附的 tags 檔案（從 Forge 資料夾讀取，不隨專案附帶）"],
+    ["StyleSelectorXL", "https://github.com/ahgsql/StyleSelectorXL", "MIT", "樣式表格式相容（範例在 examples/styles.example.json）"],
+    ["EPUBCheck", "https://github.com/w3c/epubcheck", "", "匯出的 EPUB 用它驗證過"],
+  ]],
+];
+
+async function viewAbout(view) {
+  let ver = "";
+  try { ver = (await api("GET", "/api/config")).version; } catch (e) { /* ignore */ }
+  view.innerHTML = `
+    <div class="page-head"><div><h1>關於小說工作台</h1><div class="sub">Novel Studio v${esc(ver)}　·　MIT 授權</div></div></div>
+    <div class="card about">
+      <p>用 AI 寫繁體中文長篇連載小說的本機工作台。小說資料（設定、大綱、追蹤、正文）全部是純 Markdown＋YAML，存在你自己的書庫資料夾；網頁介面負責專案管理，寫作流程可以交給 Claude Code，或 DeepSeek、llama.cpp 等 OpenAI 相容模型。</p>
+      <ul class="small">
+        <li>只在本機執行（127.0.0.1），不會對外開放；工作台本身不會把資料傳到任何地方，只有你按下 AI 動作時，才會把需要的內容送給你選的 AI 服務。</li>
+        <li>你的設定（config.json）與 API 金鑰（secrets.json）只存在工作台資料夾，不會進 git。</li>
+        <li>書庫、共用庫（書庫的 <code>_共用</code>）、插圖都在你的書庫資料夾，和工作台程式分開。</li>
+      </ul>
+      <p class="small muted">本專案以 MIT 授權發布，全文見專案根目錄的 <code>LICENSE</code>。</p>
+    </div>
+    ${ABOUT_LINKS.map(([group, rows]) => `<div class="card about" style="margin-top:14px"><h2 style="margin-bottom:10px">${esc(group)}</h2>
+      <table>${rows.map(([n, u, lic, d]) => `<tr><td class="nm"><a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}</a></td>
+        <td>${lic ? `<span class="badge">${esc(lic)}</span>` : ""}</td><td class="small">${esc(d)}</td></tr>`).join("")}</table></div>`).join("")}`;
 }
 
 /* ------------------------------------------------------------------ 匯出 */

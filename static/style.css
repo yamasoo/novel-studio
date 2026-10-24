@@ -159,6 +159,20 @@ pre.pre { white-space: pre-wrap; font-size: 12px; background: var(--side); paddi
 .ill-ov div { padding: 6px 10px; }
 label.btn { cursor: pointer; display: inline-flex; align-items: center; border: 1px solid var(--line-2); background: var(--paper); border-radius: 8px; }
 label.btn.sm { padding: 3px 9px; font-size: 12.5px; }
+/* 選資料夾／檔案 */
+.pick-wrap { display: flex; gap: 6px; align-items: flex-start; }
+.pick-wrap > input, .pick-wrap > textarea { flex: 1; min-width: 0; }
+.pick-wrap > button { white-space: nowrap; margin-top: 4px; }
+.pp-roots { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.pp-list { height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.pp-item { padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13.5px; }
+.pp-item:hover { background: var(--accent-soft); }
+.pp-item.file { color: var(--accent); }
+.modal-box:has(.pp-list) { width: min(760px, 100%); }
+.about table { table-layout: fixed; width: 100%; }
+.about td { padding: 6px 8px; vertical-align: top; overflow-wrap: anywhere; }
+.about td.nm { width: 32%; }
+.about td:nth-child(2) { width: 120px; }
 a.btn { display: inline-flex; align-items: center; text-decoration: none; color: inherit; border: 1px solid var(--line-2); background: var(--paper); border-radius: 8px; padding: 6px 12px; }
 a.btn:hover { border-color: var(--ink-3); }
 a.btn.sm { padding: 3px 9px; font-size: 12.5px; }

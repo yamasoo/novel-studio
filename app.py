@@ -10,6 +10,7 @@ import asyncio
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -30,7 +31,8 @@ VERSION = "1.3.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
-    "library": os.path.join(os.path.expanduser("~"), "Documents", "小說"),
+    # 書庫：第一次使用時由使用者在書架頁選擇（不自動用任何既有資料夾）
+    "library": "",
     "claude_cmd": "",
     "model": "",
     "permission_mode": "acceptEdits",
@@ -988,10 +990,80 @@ def get_actions():
 # ---------------------------------------------------------------------------
 # 書架
 # ---------------------------------------------------------------------------
+SUGGESTED_LIBRARY = os.path.join(os.path.expanduser("~"), "Documents", "小說")
+
+
 @app.get("/api/books")
 def books():
     lib = CONFIG.get("library")
-    return {"library": lib, "exists": os.path.isdir(lib or ""), "books": project.list_books(lib)}
+    return {"library": lib, "exists": os.path.isdir(lib or ""), "books": project.list_books(lib),
+            "suggested": SUGGESTED_LIBRARY, "suggested_exists": os.path.isdir(SUGGESTED_LIBRARY)}
+
+
+# ---------------------------------------------------------------------------
+# 選資料夾／檔案（只列名稱，不讀檔案內容；服務只開在本機）
+# ---------------------------------------------------------------------------
+def _fs_roots():
+    home = os.path.expanduser("~")
+    roots = [("使用者資料夾", home)]
+    for name, sub in (("文件", "Documents"), ("桌面", "Desktop"), ("下載", "Downloads")):
+        p = os.path.join(home, sub)
+        if os.path.isdir(p):
+            roots.append((name, p))
+    roots.append(("工作台資料夾", HERE))
+    if os.name == "nt":
+        import string
+        for L in string.ascii_uppercase:
+            d = L + ":\\"
+            if os.path.exists(d):
+                roots.append((L + ":", d))
+    else:
+        roots.append(("/", "/"))
+    return [{"name": n, "path": p} for n, p in roots]
+
+
+@app.get("/api/fs/list")
+def fs_list(path: str = "", mode: str = "dir", exts: str = ""):
+    want = [e.lower() if e.startswith(".") else "." + e.lower() for e in exts.split(",") if e.strip()]
+    out = {"roots": _fs_roots(), "path": "", "parent": None, "dirs": [], "files": []}
+    if not path:
+        return out
+    p = os.path.abspath(os.path.expandvars(os.path.expanduser(path)))
+    # 檔案就看它所在的資料夾；不存在的路徑往上找到第一個存在的資料夾
+    while p and not os.path.isdir(p):
+        up = os.path.dirname(p)
+        if up == p:
+            return out
+        p = up
+    if not p:
+        return out
+    try:
+        names = os.listdir(p)
+    except OSError as e:
+        raise HTTPException(400, "無法讀取這個資料夾：%s" % e)
+    for n in sorted(names, key=str.lower):
+        if n.startswith((".", "$")) or n in ("__pycache__", "System Volume Information"):
+            continue
+        full = os.path.join(p, n)
+        if os.path.isdir(full):
+            out["dirs"].append(n)
+        elif mode == "file" and (not want or os.path.splitext(n)[1].lower() in want):
+            out["files"].append(n)
+    parent = os.path.dirname(p)
+    out.update(path=p, parent=parent if parent and parent != p else None, sep=os.sep)
+    return out
+
+
+@app.post("/api/fs/mkdir")
+async def fs_mkdir(req: Request):
+    body = await req.json()
+    base = os.path.abspath(os.path.expanduser(body.get("path") or ""))
+    name = (body.get("name") or "").strip()
+    if not os.path.isdir(base) or not name or re.search(r'[\\/:*?"<>|]', name):
+        raise HTTPException(400, "資料夾名稱不合法")
+    d = os.path.join(base, name)
+    os.makedirs(d, exist_ok=True)
+    return {"path": d}
 
 
 @app.post("/api/books")

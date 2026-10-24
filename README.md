@@ -72,7 +72,7 @@
 3. **畫面描述**：
    - 「AI 產生畫面描述」只要模型回一小段 JSON（動作、場景、構圖標籤與兩三句英文），角色外觀、品質、畫風都由程式組裝。預設可以用 DeepSeek 或本機模型，不必用 Claude。
    - 「本機查標籤」用 tagcomplete 附的中文對照表，把片段裡的中文詞轉成 Danbooru 標籤建議，不用 AI。
-4. **組裝提示詞**：依 Anima 的格式組成「品質／分級／人數／畫師 → 角色（多人時分左右段落）→ 場景標籤 → 英文描述」，可選「標籤＋自然語言」「只有標籤」「自然語言為主」。可以套用 StyleSelectorXL 的樣式表（ALL.xlsx／ALL.json，規則與擴充相同：`{prompt}` 代換、`{A|B}` 隨機、可選 prompt／naturl_prompt／兩者）。組好後可以直接修改，或複製到 Forge 自己用。
+4. **組裝提示詞**：依 Anima 的格式組成「品質／分級／人數／畫師 → 角色（多人時分左右段落）→ 場景標籤 → 英文描述」，可選「標籤＋自然語言」「只有標籤」「自然語言為主」。可以套用畫風樣式表（.xlsx／.json，格式見 `examples/styles.example.json`：`{prompt}` 代換、`{A|B}` 隨機、可選 prompt／naturl_prompt／兩者）。組好後可以直接修改，或複製到 Forge 自己用。
 5. **送 Forge 出圖**：排隊依序送到 Forge Neo 的 API，顯示進度，可以停止；完成後自動存回書資料夾。
 
 **視覺卡**：角色、勢力、世界觀的設定檔可以加一節「## 繪圖提示」（英文標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。可以手動寫、用本機中文查標籤，或請 AI 從設定產生一次。
@@ -81,9 +81,9 @@
 
 1. Forge 的啟動參數（bat 檔裡的 `COMMANDLINE_ARGS`）加上 `--api`，重開 Forge。
 2. 工作台「設定 → 插畫」填 Forge 網址（預設 `http://127.0.0.1:7860`）與 Forge 資料夾，按「從 Forge 讀最近一次的參數」，會讀入 Forge 最後一次出圖用的取樣器、步數、CFG、Shift、模型與 Module 1／2（VAE、文字編碼器）。工作台送出時用 Forge 的 infotext 格式，由 Forge 自己切換模型與模組。
-3. 填 StyleSelectorXL 樣式表的路徑（選填，ALL.xlsx 或 ALL.json）。沒填的話會用專案附的範例 `examples/styles.example.json`（53 個一般向畫風：畫風、場景、髮型、傳統服裝等）。Forge 資料夾裡有 tagcomplete 擴充的話，標籤檢查和中文對照表會自動找到。
+3. 選畫風樣式表（選填，.xlsx 或 .json）。沒選的話會用專案附的範例 `examples/styles.example.json`（53 個一般向畫風：畫風、場景、髮型、傳統服裝等）。Forge 資料夾裡有 tagcomplete 擴充的話，標籤檢查和中文對照表會自動找到。
 
-**範例樣式表格式**（和 StyleSelectorXL 相同，`examples/` 裡有 JSON 與 xlsx 兩種）：
+**畫風樣式表格式**（`examples/` 裡有 JSON 與 xlsx 兩種範例；與 StyleSelectorXL 擴充的樣式表相容）：
 
 | 欄位 | 說明 |
 |---|---|
@@ -159,7 +159,7 @@
 1. 下載或 `git clone` 這個專案，放在任何地方。
 2. Windows 雙擊 `start.bat`；macOS／Linux 執行 `./start.sh`。第一次會自動建立虛擬環境並安裝套件（fastapi、uvicorn、pyyaml、opencc），之後會直接啟動；更新工作台後若 `requirements.txt` 有變動，會自動補裝。
 3. 瀏覽器會自動開啟 http://127.0.0.1:8765 。
-4. 書架頁會請你建立書庫資料夾（預設是「文件」底下的 `小說`），可以在「設定」改位置。
+4. 第一次開啟時，書架頁會請你選一個資料夾當書庫（建議「文件」底下的 `小說`，可以用「選擇…」按鈕挑資料夾），之後可以在「設定」改位置。工作台不會自動使用任何既有的資料夾。
 5. 想先看看介面，按「加入示範書」。
 
 ### 設定 DeepSeek
@@ -219,6 +219,7 @@ claude -p --output-format stream-json --verbose --plugin-dir <工作台>/plugin 
 ```
 novel-studio/
 ├── app.py              伺服器（FastAPI）
+├── LICENSE             MIT 授權
 ├── start.bat / start.sh
 ├── requirements.txt
 ├── studio/
@@ -271,7 +272,12 @@ novel-studio/
 
 ## 授權與致謝
 
+本專案以 [MIT 授權](LICENSE) 發布。工作台左下角的「關於」頁列出所有參考與使用的資源。
+
 - marked.js（MIT），見 `static/vendor/marked.LICENSE.md`
+- FastAPI（MIT）、Uvicorn（BSD-3-Clause）、PyYAML（MIT）、[opencc-python-reimplemented](https://github.com/yichen0831/opencc-python)（Apache-2.0）由 `requirements.txt` 安裝，不隨專案附帶
 - skills 的部分設計概念改寫自 [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode)（MIT），授權全文見 `plugin/THIRD_PARTY_NOTICES.md`
 - 介面規劃參考了 [moshu 墨書](https://github.com/huihuijiangqiang/moshu) 的頁面分工與「AI 草稿先進候選區」的概念（未使用其程式碼）
 - 思考強度分階段控制、寫稿前對帳、章綱核對、審查與修訂分開、恢復稿等設計參考了 [Pagekin（AI-Novel-Writer）](https://github.com/EthanYoQ/AI-Novel-Writer) 的做法（只參考概念，未使用其 GPL 程式碼）
+- 中文網文寫作流程的分工參考了 [Chinese-WebNovel-Skill](https://github.com/Tomsawyerhu/Chinese-WebNovel-Skill)（只參考概念）
+- 插圖功能可連接 [Stable Diffusion WebUI Forge – Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)；提示詞格式依 [Anima](https://huggingface.co/circlestone-labs/Anima) 的建議；標籤對照表使用 [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete)（MIT）附的檔案（從 Forge 資料夾讀取，不隨專案附帶）；畫風樣式表格式與 [StyleSelectorXL](https://github.com/ahgsql/StyleSelectorXL)（MIT）相容

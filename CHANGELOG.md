@@ -10,6 +10,9 @@
   - 連接 Forge Neo API：沿用 Forge 的參數行（含模型、Module 1／2、Shift），排隊出圖、顯示進度、可停止
   - 匯出 EPUB 時收錄封面與各章主圖
   - 附範例樣式表 `examples/styles.example.json`／`.xlsx`（53 個一般向畫風），沒設定樣式表時自動使用
+- 第一次啟動時由使用者選擇書庫資料夾，不再自動使用「文件\小說」
+- 書庫、Forge 資料夾、樣式表、claude 執行檔等路徑都可以用「選擇…」按鈕挑選
+- 新增「關於」頁，列出參考與使用的資源；專案改以 MIT 授權發布
 - 修正：Forge Neo 的 API 解析 infotext 時會因 styles 欄位出錯（`isinstance() argument 2 cannot be a parameterized generic`），改為明確指定這些欄位
 
 ## 1.2.0

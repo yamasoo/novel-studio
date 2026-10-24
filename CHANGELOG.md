@@ -1,5 +1,17 @@
 # 更新紀錄
 
+## 1.3.0
+
+- 新增插圖：每章、角色、勢力、世界觀項目、封面都可以有插圖（全部選用），存在書資料夾的 `插圖/`（預設不進 git）
+  - 上傳圖片、設主圖、刪除（移到備份）、全書插圖總覽
+  - 本機挑片段（精華／動作），本機中文→Danbooru 標籤查表（tagcomplete 對照表）、標籤檢查
+  - 視覺卡（設定檔的「## 繪圖提示」），可手動、查表或請 AI 產生一次
+  - AI 只產生一小段畫面描述 JSON，Anima 提示詞由程式組裝；可套用 StyleSelectorXL 樣式表（ALL.xlsx／ALL.json）
+  - 連接 Forge Neo API：沿用 Forge 的參數行（含模型、Module 1／2、Shift），排隊出圖、顯示進度、可停止
+  - 匯出 EPUB 時收錄封面與各章主圖
+  - 附範例樣式表 `examples/styles.example.json`／`.xlsx`（53 個一般向畫風），沒設定樣式表時自動使用
+- 修正：Forge Neo 的 API 解析 infotext 時會因 styles 欄位出錯（`isinstance() argument 2 cannot be a parameterized generic`），改為明確指定這些欄位
+
 ## 1.2.0
 
 - 新增「共用庫」（書庫的 `_共用/`，不進 git）

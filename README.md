@@ -19,6 +19,7 @@
 | 伏筆與時間線 | 伏筆表（標出久未出現與逾期）、時間線（標出未揭示）、角色狀態、狀態卡、名詞表 |
 | 任務紀錄 | 每次任務的完整過程、花費估算、恢復稿，可接續那次對話 |
 | 匯出 | 把正文、大綱、章綱、設定集、追蹤資料匯出成 EPUB 電子書或 TXT 純文字 |
+| 插圖 | 封面、各章與設定項目的插圖總覽、本書畫風；章節頁和設定集也有插圖區塊 |
 | 共用庫 | 所有書共用的文風、章節結構、作者偏好（左下角） |
 | 匯入舊稿 | 把 TXT、Markdown、Word 舊稿拆成章節放進書裡（左下角，或書架的「匯入舊稿」） |
 | AI 面板 | 切換執行者、所有動作的按鈕、即時輸出（含思考過程）、回覆 AI 的問題、停止任務 |
@@ -59,6 +60,41 @@
 - **EPUB**：可選直排（由右往左翻頁）；書資料夾裡有 `封面.jpg` 或 `封面.png` 時可當封面。
 - **TXT**：可選 UTF-8 或 UTF-8 含 BOM（給舊版記事本和部分閱讀器）。
 - 書名、作者和上次的選項會記住，下次匯出不用重選。
+
+### 插圖（Forge Neo）
+
+每一章、每個角色／勢力／世界觀項目、封面都可以有插圖，全部選用：沒有圖的地方什麼都不顯示。圖片存在書資料夾的 `插圖/`（附 `.gitignore`，預設不進 git），每張圖旁邊有同名 .json 記錄提示詞、seed、參數與取自哪一段。
+
+流程（每一步都可以跳過，也可以直接「上傳圖片」）：
+
+1. **挑片段**（章節）：程式在本機依動作詞、畫面詞、短句、章綱情節點打分，列出精華或動作最強的三段；也可以自己貼。
+2. **出場角色與地點**：自動找出片段裡提到的角色和地點，可以增減、指定左右位置和這張圖的動作。
+3. **畫面描述**：
+   - 「AI 產生畫面描述」只要模型回一小段 JSON（動作、場景、構圖標籤與兩三句英文），角色外觀、品質、畫風都由程式組裝。預設可以用 DeepSeek 或本機模型，不必用 Claude。
+   - 「本機查標籤」用 tagcomplete 附的中文對照表，把片段裡的中文詞轉成 Danbooru 標籤建議，不用 AI。
+4. **組裝提示詞**：依 Anima 的格式組成「品質／分級／人數／畫師 → 角色（多人時分左右段落）→ 場景標籤 → 英文描述」，可選「標籤＋自然語言」「只有標籤」「自然語言為主」。可以套用 StyleSelectorXL 的樣式表（ALL.xlsx／ALL.json，規則與擴充相同：`{prompt}` 代換、`{A|B}` 隨機、可選 prompt／naturl_prompt／兩者）。組好後可以直接修改，或複製到 Forge 自己用。
+5. **送 Forge 出圖**：排隊依序送到 Forge Neo 的 API，顯示進度，可以停止；完成後自動存回書資料夾。
+
+**視覺卡**：角色、勢力、世界觀的設定檔可以加一節「## 繪圖提示」（英文標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。可以手動寫、用本機中文查標籤，或請 AI 從設定產生一次。
+
+**連接 Forge Neo**：
+
+1. Forge 的啟動參數（bat 檔裡的 `COMMANDLINE_ARGS`）加上 `--api`，重開 Forge。
+2. 工作台「設定 → 插畫」填 Forge 網址（預設 `http://127.0.0.1:7860`）與 Forge 資料夾，按「從 Forge 讀最近一次的參數」，會讀入 Forge 最後一次出圖用的取樣器、步數、CFG、Shift、模型與 Module 1／2（VAE、文字編碼器）。工作台送出時用 Forge 的 infotext 格式，由 Forge 自己切換模型與模組。
+3. 填 StyleSelectorXL 樣式表的路徑（選填，ALL.xlsx 或 ALL.json）。沒填的話會用專案附的範例 `examples/styles.example.json`（53 個一般向畫風：畫風、場景、髮型、傳統服裝等）。Forge 資料夾裡有 tagcomplete 擴充的話，標籤檢查和中文對照表會自動找到。
+
+**範例樣式表格式**（和 StyleSelectorXL 相同，`examples/` 裡有 JSON 與 xlsx 兩種）：
+
+| 欄位 | 說明 |
+|---|---|
+| `name` | 樣式名稱（唯一） |
+| `prompt` | 標籤；`{prompt}` 會換成工作台組好的提示詞，`{A\|B}` 隨機選一個 |
+| `naturl_prompt` | 自然語言描述（選填，也接受 `natural_prompt`） |
+| `negative_prompt` | 負面提示詞（選填） |
+| `category` | 分類，用「大類 > 小類」，多個分類用逗號分隔（選填） |
+| `namezh`、`namejp`、`nameen` | 各語言顯示名稱（選填） |
+
+匯出 EPUB 時，「插圖 → 封面」的主圖會當封面，各章的主圖放在章首（可以關閉）。
 
 ### 共用庫
 
@@ -200,11 +236,14 @@ novel-studio/
 │   ├── export.py       匯出 EPUB、TXT
 │   ├── shared.py       共用庫：文風（含本機統計）、章節結構、共用作者偏好
 │   ├── importer.py     匯入舊稿：編碼判斷、簡轉繁、拆章
+│   ├── illust.py       插圖：存放、視覺卡、挑片段、標籤查表、樣式表、提示詞組裝
+│   ├── forge.py        Forge Neo API 與出圖佇列
 │   └── presets/結構/   內建的章節結構
 ├── plugin/             內建的 novel-* skills（Claude Code 外掛格式）
 │   ├── .claude-plugin/plugin.json
 │   └── skills/novel-setup、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
 ├── static/             網頁介面（index.html、app.js、style.css、marked.js）
+├── examples/           範例樣式表（styles.example.json／.xlsx）
 └── demo/退婚之後/       示範書
 ```
 

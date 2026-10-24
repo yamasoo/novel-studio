@@ -12,7 +12,7 @@ import re
 import uuid
 import zipfile
 
-from . import project
+from . import illust, project
 
 OUT_DIR = "匯出"
 PREFS = os.path.join(".studio", "匯出設定.json")
@@ -40,7 +40,7 @@ COVER_NAMES = ("封面.jpg", "封面.jpeg", "封面.png", "cover.jpg", "cover.jp
 
 DEFAULTS = {"format": "epub", "items": ["text"], "from": None, "to": None, "title": "", "author": "",
             "title_style": "arabic", "para_style": "indent", "encoding": "utf-8",
-            "vertical": False, "use_cover": True}
+            "vertical": False, "use_cover": True, "include_illust": True}
 
 
 class ExportError(project.ProjectError):
@@ -86,6 +86,10 @@ def book_title(book_dir):
 
 
 def find_cover(book_dir):
+    """封面：先用「插圖／封面」的主圖，沒有再找書資料夾裡的 封面.jpg／封面.png。回傳相對路徑。"""
+    main = illust.main_image(book_dir, "cover")
+    if main:
+        return os.path.relpath(main, book_dir).replace(os.sep, "/")
     for n in COVER_NAMES:
         if os.path.isfile(os.path.join(book_dir, n)):
             return n
@@ -183,7 +187,8 @@ def gather(book_dir, opts):
                 continue
             original, name, paras = _split_chapter(project.read_text(os.path.join(book_dir, r["text_file"])), r["no"])
             name = name or r["title"]
-            chapters.append({"no": r["no"], "title": chapter_heading(r["no"], name, original, opts.get("title_style")),
+            img = illust.main_image(book_dir, "chapter:%d" % r["no"]) if opts.get("include_illust", True) else None
+            chapters.append({"no": r["no"], "image": img, "title": chapter_heading(r["no"], name, original, opts.get("title_style")),
                              "paras": paras})
     if "outline" in items:
         rels = [x for x in _md_files(book_dir, "大綱") if os.path.basename(x).startswith("全書大綱")]
@@ -394,6 +399,8 @@ blockquote { margin: 0.8em 1.5em; color: #555; }
 .title-page h1 { font-size: 2em; margin-bottom: 1em; }
 .title-page .author { font-size: 1.1em; }
 .cover { text-align: center; margin: 0; padding: 0; }
+.illust { text-align: center; margin: 1em 0; text-indent: 0; }
+.illust img { max-width: 100%%; max-height: 90vh; }
 .cover img { max-width: 100%%; max-height: 100%%; }
 """
 
@@ -403,6 +410,9 @@ def _xhtml(title, body, lang="zh-TW", body_class=""):
             '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="%s" xml:lang="%s">\n'
             '<head><meta charset="utf-8"/><title>%s</title><link rel="stylesheet" type="text/css" href="../style.css"/></head>\n'
             '<body%s>\n%s\n</body>\n</html>\n') % (lang, lang, html.escape(title), ' class="%s"' % body_class if body_class else "", body)
+
+
+IMG_MT = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 
 
 def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, vertical, cover_path):
@@ -422,8 +432,8 @@ def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, 
     cover_item = None
     if cover_path:
         ext = os.path.splitext(cover_path)[1].lower()
-        mt = "image/png" if ext == ".png" else "image/jpeg"
-        cname = "images/cover" + (".png" if ext == ".png" else ".jpg")
+        mt = IMG_MT.get(ext, "image/jpeg")
+        cname = "images/cover" + (ext if ext in IMG_MT else ".jpg")
         with open(cover_path, "rb") as f:
             files["OEBPS/" + cname] = f.read()
         manifest.append('<item id="cover-image" href="%s" media-type="%s" properties="cover-image"/>' % (cname, mt))
@@ -457,8 +467,16 @@ def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, 
     ch_nav, ch_ncx = [], []
     for i, ch in enumerate(chapters, 1):
         fname = "c%04d.xhtml" % i
-        body = '<h1 class="chapter">%s</h1>\n%s' % (html.escape(ch["title"]),
-                                                    "\n".join("<p>%s</p>" % html.escape(p) for p in ch["paras"]))
+        pic = ""
+        if ch.get("image") and os.path.isfile(ch["image"]):
+            ext = os.path.splitext(ch["image"])[1].lower()
+            iname = "images/c%04d%s" % (i, ext if ext in IMG_MT else ".jpg")
+            with open(ch["image"], "rb") as f:
+                files["OEBPS/" + iname] = f.read()
+            manifest.append('<item id="img%04d" href="%s" media-type="%s"/>' % (i, iname, IMG_MT.get(ext, "image/jpeg")))
+            pic = '<div class="illust"><img src="../%s" alt="%s"/></div>\n' % (iname, html.escape(ch["title"]))
+        body = '<h1 class="chapter">%s</h1>\n%s%s' % (html.escape(ch["title"]), pic,
+                                                      "\n".join("<p>%s</p>" % html.escape(p) for p in ch["paras"]))
         add_page("c%04d" % i, fname, ch["title"], body, "ch")
         ch_nav.append('<li><a href="text/%s">%s</a></li>' % (fname, html.escape(ch["title"])))
         ch_ncx.append(point(ch["title"], "text/" + fname))
@@ -611,5 +629,6 @@ def meta(book_dir):
     rows = [r for r in project.scan_chapters(book_dir) if r["text_file"]]
     return {"items": ITEMS, "title_styles": TITLE_STYLES, "para_styles": PARA_STYLES, "encodings": ENCODINGS,
             "prefs": load_prefs(book_dir), "book_title": book_title(book_dir), "cover": find_cover(book_dir),
+            "illust_chapters": sum(1 for r in rows if illust.main_image(book_dir, "chapter:%d" % r["no"])),
             "chapters": [{"no": r["no"], "title": r["title"], "chars": r["chars"]} for r in rows],
             "exports": list_exports(book_dir)}

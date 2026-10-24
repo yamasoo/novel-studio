@@ -91,6 +91,8 @@ ACTIONS = {
     },
     "revise_notes": {"group": "品質", "label": "依意見修訂", "hidden": True, "fields": []},
     "recover_continue": {"group": "寫作", "label": "續寫恢復稿", "hidden": True, "fields": []},
+    "illust_prompt": {"group": "插圖", "label": "產生插圖提示詞", "hidden": True, "fields": []},
+    "visual_card": {"group": "插圖", "label": "產生視覺卡", "hidden": True, "fields": []},
     "goal_check": {
         "group": "品質", "label": "章綱核對",
         "fields": [{"key": "chapter", "label": "第幾章", "type": "number"},
@@ -179,6 +181,9 @@ def build(action, p, book_name):
 
     if action == "free":
         return ("自由指令", p.get("text", ""))
+    if action in ("illust_prompt", "visual_card"):
+        return ("產生插圖提示詞" if action == "illust_prompt" else "產生視覺卡：%s" % (p.get("file") or "").rsplit("/", 1)[-1][:-3],
+                "（由工作台組裝）")
     if action in ("review_notes", "revise_notes", "recover_continue"):
         return ({"review_notes": "審查第%s章", "revise_notes": "修訂第%s章", "recover_continue": "續寫恢復稿%s"}[action]
                 % (p.get("chapter") or ""), "（由工作台組裝）")

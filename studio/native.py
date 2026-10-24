@@ -8,7 +8,7 @@ import os
 import re
 import time
 
-from . import context, goals, native_files, project, providers, recovery, revision, shared, tracking
+from . import context, goals, illust, native_files, project, providers, recovery, revision, shared, tracking
 
 DELIM = "<<<匯報>>>"
 
@@ -20,7 +20,7 @@ SYSTEM = ("你是繁體中文長篇網路小說的寫作助手，與作者合作
 
 NATIVE_ACTIONS = {"write", "reject", "revise", "deslop", "accept", "sync_tracking", "review", "free", "reply",
                   "setup_check", "review_all", "goal_check", "review_notes", "revise_notes",
-                  "recover_continue"} | set(native_files.SPECS)
+                  "recover_continue", "illust_prompt", "visual_card"} | set(native_files.SPECS)
 
 
 class NativeError(Exception):
@@ -608,6 +608,92 @@ def act_recover_continue(c, p):
     c.job.result = "**第%d章已接著寫完，存成候選稿（%s）**\n\n%s\n\n%s" % (no, rel, report.strip(), chk)
 
 
+# ---------------------------------------------------------------------------
+# 插圖：場景描述、視覺卡（只要一小段 JSON，提示詞由工作台組裝）
+# ---------------------------------------------------------------------------
+def illust_inputs(book, p):
+    """回傳 (kind, passage, 角色項目, 地點項目)。"""
+    target = p.get("target") or ""
+    kind = "cover" if target == "cover" else "entity" if target.startswith("entity:") else "chapter"
+    ents = illust.entity_cards(book)
+    by = {e["name"]: e for e in ents}
+    chars = [by[n] for n in p.get("chars") or [] if n in by and by[n]["kind"] == "角色"]
+    places = [by[n] for n in p.get("places") or [] if n in by and by[n]["kind"] != "角色"]
+    passage = p.get("passage") or ""
+    if kind == "entity":
+        f = target.split(":", 1)[1]
+        passage = project.read_text(os.path.join(book, f))
+        own = next((e for e in ents if e["file"] == f), None)
+        if own and own["kind"] == "角色" and own not in chars:
+            chars.insert(0, own)
+        elif own and own["kind"] != "角色" and own not in places:
+            places.insert(0, own)
+    if kind == "chapter" and not passage.strip():
+        raise NativeError("請先挑一段要畫的片段")
+    return kind, passage, chars, places
+
+
+def save_illust_result(book, p, data, prov_id):
+    kind, passage, chars, places = illust_inputs(book, p)
+    target = p.get("target")
+    idx = illust.load_index(book, target)
+    draft = dict(idx.get("draft") or {})
+    draft["passage"] = passage if kind == "chapter" else draft.get("passage", "")
+    draft["places"] = [{"name": e["name"], "file": e["file"], "tags": (e.get("card") or {}).get("tags", ""),
+                        "description": (e.get("card") or {}).get("description", "")} for e in places]
+    draft = illust.merge_scene(draft, data, chars)
+    draft["provider"] = prov_id
+    illust.save_draft(book, target, draft)
+    lines = ["**插圖提示詞草稿已更新**（%s）" % illust.target_dir(book, target)[2]]
+    for c in draft.get("chars") or []:
+        lines.append("- %s（%s）：%s" % (c["name"], c.get("position") or "—", c.get("action") or ""))
+    for k, label in (("action_tags", "動作"), ("scene_tags", "場景"), ("composition", "構圖")):
+        if draft.get(k):
+            lines.append("- %s：%s" % (label, draft[k]))
+    if draft.get("sentences"):
+        lines.append("\n" + draft["sentences"])
+    missing = [e["name"] for e in chars if not e.get("card")]
+    if missing:
+        lines.append("\n提醒：%s 還沒有視覺卡，外觀會不穩定。可以在設定集幫他們產生視覺卡。" % "、".join(missing))
+    lines.append("\n到插圖區塊檢查、修改後按「送 Forge 出圖」。")
+    return "\n".join(lines)
+
+
+def act_illust_prompt(c, p):
+    kind, passage, chars, places = illust_inputs(c.book, p)
+    system, user = illust.ai_scene_prompt(c.book, p.get("target"), passage, chars, places, kind)
+    out = c.call([{"role": "system", "content": system}, {"role": "user", "content": user}], json_mode=True,
+                 max_tokens=_out_tokens(c), label="插圖提示詞", stage="structured")
+    c.job.result = save_illust_result(c.book, p, providers.parse_json(out), c.prov.get("id"))
+
+
+def save_card_result(book, p, data):
+    f = p.get("file") or ""
+    path = project.safe_path(book, f)
+    text = project.read_text(path)
+    tracking.backup(book, path, "視覺卡")
+    card = {"tags": str((data or {}).get("tags") or ""), "description": str((data or {}).get("description") or "")}
+    if not card["tags"] and not card["description"]:
+        raise NativeError("模型沒有回傳視覺卡內容")
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(illust.write_card(text, card))
+    return "**視覺卡已寫入 %s**\n- 標籤：%s\n- 描述：%s" % (f, illust.normalize_tags(card["tags"]), card["description"])
+
+
+def act_visual_card(c, p):
+    f = p.get("file") or ""
+    if not f.startswith(("設定/角色/", "設定/勢力/", "設定/世界觀/")):
+        raise NativeError("只有角色、勢力、世界觀的設定檔可以產生視覺卡")
+    text = context.read(c.book, f)
+    if not text:
+        raise NativeError("找不到 %s" % f)
+    kind = f.split("/")[1]
+    system, user = illust.ai_card_prompt(text, os.path.splitext(os.path.basename(f))[0], kind)
+    out = c.call([{"role": "system", "content": system}, {"role": "user", "content": user}], json_mode=True,
+                 max_tokens=_out_tokens(c), label="視覺卡", stage="structured")
+    c.job.result = save_card_result(c.book, p, providers.parse_json(out))
+
+
 HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "deslop": act_deslop,
             "accept": act_accept, "sync_tracking": act_sync, "review": act_review, "free": act_free,
             "reply": act_reply, "setup_check": native_files.act_setup_check,
@@ -615,7 +701,9 @@ HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "des
             "goal_check": lambda c, p: act_goal_check(c, p),
             "review_notes": lambda c, p: act_review_notes(c, p),
             "revise_notes": lambda c, p: act_revise_notes(c, p),
-            "recover_continue": lambda c, p: act_recover_continue(c, p)}
+            "recover_continue": lambda c, p: act_recover_continue(c, p),
+            "illust_prompt": lambda c, p: act_illust_prompt(c, p),
+            "visual_card": lambda c, p: act_visual_card(c, p)}
 for _k, _spec in native_files.SPECS.items():
     HANDLERS[_k] = (lambda s: (lambda c, p: native_files.run_spec(c, p, s, SYSTEM)))(_spec)
 

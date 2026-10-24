@@ -24,9 +24,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, context, export, goals, importer, native, native_files, project, providers, recovery, revision, runner as runner_mod, shared  # noqa: E402
+from studio import actions, context, export, forge, goals, illust, importer, native, native_files, project, providers, recovery, revision, runner as runner_mod, shared  # noqa: E402
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -686,6 +686,297 @@ async def import_commit(req: Request):
     return r
 
 
+# ---------------------------------------------------------------------------
+# 插圖（Forge Neo 出圖、上傳、主圖、提示詞組裝）
+# ---------------------------------------------------------------------------
+def illust_cfg():
+    cfg = dict(illust.DEFAULTS)
+    cfg.update(CONFIG.get("illust") or {})
+    return cfg
+
+
+FORGE_QUEUE = forge.Queue(illust_cfg)
+
+
+EXAMPLE_SHEET = os.path.join(HERE, "examples", "styles.example.json")
+
+
+def _sheet_path(cfg):
+    """樣式表：設定的路徑；沒填就用專案附的範例（examples/styles.example.json）。"""
+    p = cfg.get("style_sheet") or EXAMPLE_SHEET
+    return p if os.path.isfile(p) else ""
+
+
+@app.get("/api/illust/config")
+def illust_config():
+    cfg = illust_cfg()
+    t, z = illust.tag_dict_paths(cfg)
+    sheet = _sheet_path(cfg)
+    n = 0
+    err = ""
+    try:
+        n = len(illust.load_sheet(cfg.get("style_sheet") or sheet)) if (cfg.get("style_sheet") or sheet) else 0
+    except Exception as e:  # noqa: BLE001
+        err = str(e)
+    return {"config": cfg, "sizes": illust.SIZES, "tag_csv": t, "tag_zh_csv": z, "sheet": sheet, "sheet_count": n,
+            "sheet_is_example": bool(sheet) and not cfg.get("style_sheet"),
+            "sheet_error": err, "providers": [{"id": p["id"], "name": p.get("name"), "type": p.get("type")}
+                                              for p in CONFIG.get("providers") or []]}
+
+
+@app.post("/api/illust/config")
+async def illust_config_save(req: Request):
+    body = await req.json()
+    cur = dict(CONFIG.get("illust") or {})
+    for k in illust.DEFAULTS:
+        if k in body:
+            cur[k] = body[k]
+    for k in ("width", "height"):
+        if k in cur:
+            try:
+                cur[k] = max(256, min(4096, int(cur[k]) // 8 * 8))
+            except (TypeError, ValueError):
+                cur.pop(k)
+    CONFIG["illust"] = cur
+    save_config(CONFIG)
+    return illust_config()
+
+
+@app.get("/api/illust/forge/status")
+def illust_forge_status():
+    try:
+        return forge.status(illust_cfg().get("forge_url") or illust.DEFAULTS["forge_url"])
+    except forge.ForgeError as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/illust/forge/params")
+async def illust_forge_params(req: Request):
+    body = await req.json()
+    d = body.get("forge_dir") or illust_cfg().get("forge_dir")
+    line = wrap(lambda: illust.params_from_forge_dir(d))
+    raw = open(os.path.join(d, "params.txt"), encoding="utf-8", errors="replace").read()
+    w, h = illust.params_size(raw)
+    return {"params": line, "width": w, "height": h}
+
+
+@app.get("/api/illust/styles")
+def illust_styles(nsfw: bool = False):
+    cfg = illust_cfg()
+    path = cfg.get("style_sheet") or _sheet_path(cfg)
+    if not path:
+        return {"styles": [], "categories": [], "total": 0, "missing": True}
+    return wrap(lambda: illust.sheet_index(path, nsfw or bool(cfg.get("show_nsfw_styles"))))
+
+
+@app.get("/api/illust/queue")
+def illust_queue(book: str = None):
+    return FORGE_QUEUE.list(book)
+
+
+@app.post("/api/illust/queue/{qid}/cancel")
+def illust_queue_cancel(qid: str):
+    return {"ok": FORGE_QUEUE.cancel(qid)}
+
+
+@app.get("/api/books/{book_id}/illust")
+def book_illust(book_id: str, target: str):
+    d = book_dir(book_id)
+    info = wrap(lambda: illust.list_images(d, target))
+    info["style"] = illust.load_book_style(d)
+    return info
+
+
+@app.get("/api/books/{book_id}/illust/overview")
+def book_illust_overview(book_id: str):
+    d = book_dir(book_id)
+    return {"items": illust.overview(d), "style": illust.load_book_style(d),
+            "chapters": [{"no": r["no"], "title": r["title"]} for r in project.scan_chapters(d) if r["text_file"] or r["candidate_file"]]}
+
+
+@app.post("/api/books/{book_id}/illust/style")
+async def book_illust_style(book_id: str, req: Request):
+    return illust.save_book_style(book_dir(book_id), await req.json())
+
+
+@app.get("/api/books/{book_id}/illust/image")
+def book_illust_image(book_id: str, path: str):
+    p = wrap(lambda: illust.image_path(book_dir(book_id), path))
+    return FileResponse(p, headers={"Cache-Control": "max-age=86400"})
+
+
+@app.post("/api/books/{book_id}/illust/upload")
+async def book_illust_upload(book_id: str, req: Request):
+    body = await req.json()
+    return {"files": wrap(lambda: illust.upload(book_dir(book_id), body.get("target"), body.get("files")))}
+
+
+@app.post("/api/books/{book_id}/illust/main")
+async def book_illust_main(book_id: str, req: Request):
+    body = await req.json()
+    wrap(lambda: illust.set_main(book_dir(book_id), body.get("target"), body.get("file")))
+    return {"ok": True}
+
+
+@app.post("/api/books/{book_id}/illust/delete")
+async def book_illust_delete(book_id: str, req: Request):
+    body = await req.json()
+    wrap(lambda: illust.delete_image(book_dir(book_id), body.get("target"), body.get("file")))
+    return {"ok": True}
+
+
+@app.post("/api/books/{book_id}/illust/draft")
+async def book_illust_draft(book_id: str, req: Request):
+    body = await req.json()
+    wrap(lambda: illust.save_draft(book_dir(book_id), body.get("target"), body.get("draft") or {}))
+    return {"ok": True}
+
+
+@app.post("/api/books/{book_id}/illust/pick")
+async def book_illust_pick(book_id: str, req: Request):
+    """本機挑片段：依動作詞、畫面詞、章綱情節點打分，回傳前三段。"""
+    body = await req.json()
+    d = book_dir(book_id)
+    no = int(body.get("chapter"))
+    rel, text = context.chapter_text(d, no, ("正文", "候選"))
+    if not text:
+        raise HTTPException(400, "第%d章還沒有正文或候選稿" % no)
+    _, card = context.card_text(d, no)
+    return {"source": rel, "passages": illust.pick_passages(text, body.get("mode") or "highlight", card or "")}
+
+
+@app.post("/api/books/{book_id}/illust/detect")
+async def book_illust_detect(book_id: str, req: Request):
+    """片段裡出現的角色、地點，以及本機中文→標籤查表的結果。"""
+    body = await req.json()
+    d = book_dir(book_id)
+    text = body.get("text") or ""
+    target = body.get("target") or ""
+    ents = illust.mentioned(d, text) if text else []
+    if target.startswith("entity:"):
+        f = target.split(":", 1)[1]
+        own = [e for e in illust.entity_cards(d) if e["file"] == f]
+        ents = own + [e for e in ents if e["file"] != f]
+    cfg = illust_cfg()
+    t, z = illust.tag_dict_paths(cfg)
+    return {"entities": ents, "all": [{"name": e["name"], "kind": e["kind"], "file": e["file"], "has_card": bool(e["card"])}
+                                      for e in illust.entity_cards(d)],
+            "zh_tags": illust.zh_lookup(text, z, t) if text and z else [], "has_dict": bool(z)}
+
+
+@app.post("/api/books/{book_id}/illust/assemble")
+async def book_illust_assemble(book_id: str, req: Request):
+    body = await req.json()
+    d = book_dir(book_id)
+    cfg = illust_cfg()
+    spec = dict(body.get("draft") or {})
+    bs = illust.load_book_style(d)
+    if "styles" not in spec:
+        spec["styles"] = bs.get("styles") or []
+    if "artist" not in spec:
+        spec["artist"] = bs.get("artist") or ""
+    spec["extra"] = ", ".join(x for x in [spec.get("extra") or "", bs.get("extra") or ""] if x)
+    spec["negative_extra"] = ", ".join(x for x in [spec.get("negative_extra") or "", bs.get("negative_extra") or ""] if x)
+    r = wrap(lambda: illust.assemble(spec, cfg, _sheet_path(cfg)))
+    t, _ = illust.tag_dict_paths(cfg)
+    notes = []
+    if t:
+        tag_part = ", ".join(x for x in [spec.get("action_tags", ""), spec.get("scene_tags", ""), spec.get("composition", "")]
+                             + [c.get("action", "") for c in spec.get("chars") or []] if x)
+        _, notes = illust.check_tags(tag_part, t)
+    r["notes"] = notes
+    return r
+
+
+@app.post("/api/books/{book_id}/illust/generate")
+async def book_illust_generate(book_id: str, req: Request):
+    body = await req.json()
+    d = book_dir(book_id)
+    cfg = illust_cfg()
+    target = body.get("target")
+    _, _, label = wrap(lambda: illust.target_dir(d, target))
+    if not (body.get("positive") or "").strip():
+        raise HTTPException(400, "提示詞是空的")
+    bs = illust.load_book_style(d)
+    w = body.get("width") or (bs.get("cover_width") if target == "cover" else bs.get("width")) or cfg.get("width")
+    h = body.get("height") or (bs.get("cover_height") if target == "cover" else bs.get("height")) or cfg.get("height")
+    draft = body.get("draft") or {}
+    if draft:
+        illust.save_draft(d, target, draft)
+    meta = {"styles": draft.get("styles"), "passage": (draft.get("passage") or "")[:600], "target": target}
+    it = FORGE_QUEUE.add(book_id, d, target, label, body["positive"], body.get("negative") or "",
+                         body.get("params") if body.get("params") is not None else cfg.get("params") or "",
+                         body.get("seed", -1), w, h, body.get("count") or 1, meta)
+    return FORGE_QUEUE._pub(it)
+
+
+@app.post("/api/books/{book_id}/cards")
+async def book_card_save(book_id: str, req: Request):
+    """手動編輯視覺卡（寫進設定檔的「## 繪圖提示」一節）。"""
+    body = await req.json()
+    d = book_dir(book_id)
+    _guard_book(book_id)
+    f = body.get("file") or ""
+    if not f.startswith(("設定/角色/", "設定/勢力/", "設定/世界觀/")):
+        raise HTTPException(400, "只有角色、勢力、世界觀的設定檔可以加視覺卡")
+    p = wrap(lambda: project.safe_path(d, f))
+    text = project.read_text(p)
+    native.tracking.backup(d, p, "視覺卡")
+    with open(p, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
+    return {"card": illust.read_card(project.read_text(p))}
+
+
+@app.post("/api/illust/zh")
+async def illust_zh(req: Request):
+    """中文→Danbooru 標籤查表（本機）。"""
+    body = await req.json()
+    t, z = illust.tag_dict_paths(illust_cfg())
+    if not z:
+        return {"tags": [], "has_dict": False}
+    return {"tags": illust.zh_lookup(body.get("text") or "", z, t, limit=60), "has_dict": True}
+
+
+def claude_illust_job(book_id, d, prov, params):
+    try:
+        kind, passage, chars, places = native.illust_inputs(d, params)
+    except (native.NativeError, project.ProjectError) as e:
+        raise HTTPException(400, str(e))
+    system, user = illust.ai_scene_prompt(d, params.get("target"), passage, chars, places, kind)
+    prompt = system + "\n\n" + user + "\n\n不需要讀寫任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。"
+    job = runner_mod.Job(book_id, d, "產生插圖提示詞", prompt, provider=prov, meta={"action": "illust_prompt", "params": params})
+
+    def after(j):
+        try:
+            data = providers.parse_json(j.result or "")
+        except providers.ProviderError as e:
+            raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
+        j.result = native.save_illust_result(d, params, data, prov.get("id"))
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
+def claude_card_job(book_id, d, prov, params):
+    f = params.get("file") or ""
+    text = context.read(d, f)
+    if not text:
+        raise HTTPException(400, "找不到 %s" % f)
+    system, user = illust.ai_card_prompt(text, os.path.splitext(os.path.basename(f))[0], f.split("/")[1])
+    prompt = system + "\n\n" + user + "\n\n不需要讀寫任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。"
+    job = runner_mod.Job(book_id, d, "產生視覺卡", prompt, provider=prov, meta={"action": "visual_card", "params": params})
+
+    def after(j):
+        try:
+            data = providers.parse_json(j.result or "")
+        except providers.ProviderError as e:
+            raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
+        j.result = native.save_card_result(d, params, data)
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
 @app.get("/api/actions")
 def get_actions():
     cat = actions.catalog()
@@ -900,7 +1191,8 @@ async def start_job(book_id: str, req: Request):
         if resume and body.get("resume_provider") and body["resume_provider"] != prov["id"]:
             prov = get_provider(body["resume_provider"])   # 接續對話一定用原本的執行者
         special = {"goal_check": claude_goal_job, "review_notes": claude_review_job,
-                   "revise_notes": claude_revise_job, "recover_continue": claude_recover_job}
+                   "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
+                   "illust_prompt": claude_illust_job, "visual_card": claude_card_job}
         if action in special and prov.get("type") == "claude_code":
             job = RUNNER.start(special[action](book_id, d, prov, body.get("params") or {}))
         else:

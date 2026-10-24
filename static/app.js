@@ -105,6 +105,7 @@ async function route() {
       if (sub === "tracking") return await viewTracking(view, q.t);
       if (sub === "jobs") return await viewJobs(view);
       if (sub === "export") return await viewExport(view);
+      if (sub === "illust") return await viewIllust(view, q.t);
     }
     S.routeName = "shelf";
     await setBook(null, true);
@@ -145,7 +146,7 @@ function renderNav() {
     const base = "#/b/" + enc(S.book);
     const items = [
       ["overview", "◉", "總覽"], ["chapters", "☰", "章節"], ["outline", "⌘", "大綱"],
-      ["bible", "✦", "設定集"], ["tracking", "⟲", "伏筆與時間線"], ["jobs", "◷", "任務紀錄"], ["export", "⇩", "匯出"],
+      ["bible", "✦", "設定集"], ["tracking", "⟲", "伏筆與時間線"], ["jobs", "◷", "任務紀錄"], ["illust", "✎", "插圖"], ["export", "⇩", "匯出"],
     ];
     nav.innerHTML = items.map(([r, i, t]) =>
       `<a class="navlink ${S.routeName === r || (r === "chapters" && S.routeName === "ch") ? "active" : ""}" href="${base}/${r}"><span class="ico">${i}</span><span>${t}</span></a>`).join("");
@@ -314,6 +315,7 @@ async function viewChapter(view, no, tab) {
   if (c.candidate_file) tabs.push(["candidate", "候選稿", c.candidate_file]);
   if (c.summary_file) tabs.push(["summary", "摘要", c.summary_file]);
   if (rv) tabs.push(["revision", "修訂對照", null]);
+  if (c.text_file || c.candidate_file) tabs.push(["illust", "插圖", null]);
   if (!tab || !tabs.find((t) => t[0] === tab)) tab = (tabs.find((t) => t[0] === "candidate") || tabs.find((t) => t[0] === "text") || tabs[0] || [])[0];
   const cur = tabs.find((t) => t[0] === tab);
   const base = `#/b/${enc(S.book)}/ch/${no}`;
@@ -351,6 +353,7 @@ async function viewChapter(view, no, tab) {
     <div id="doc"></div>`;
   if (tab === "card") renderChapterStructure($("#struct-box"), no);
   if (tab === "revision") return renderRevision($("#doc"), no, rv);
+  if (tab === "illust") return renderIllust($("#doc"), "chapter:" + no, { chapter: no });
   if (c.card_file && (tab === "text" || tab === "candidate")) renderGoals($("#goal-box"), no, tab === "candidate", cur && cur[2]);
   if (tab === "text" || tab === "candidate") renderReview($("#review-box"), no, tab === "candidate", cur && cur[2]);
   if (cur) await docView($("#doc"), cur[2], { prose: tab === "text" || tab === "candidate", checkable: tab === "text" || tab === "candidate" });
@@ -624,10 +627,18 @@ async function viewBible(view, t, file) {
           <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${e.role ? `<span class="badge">${esc(e.role)}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
           ${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`).join("")
         : `<div class="muted">這裡還是空的。</div>`}</div>
-      <div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div>
+      <div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div>
+        <div id="ent-card" style="margin-top:14px"></div><div id="ent-ill" style="margin-top:14px"></div></div>
     </div>`;
   if (t === "章節結構") { $(".split", view).outerHTML = '<div id="bs-box"></div>'; return renderBookStructures($("#bs-box"), file); }
   if (file) await docView($("#doc"), file);
+  if (file && ["角色", "勢力", "世界觀"].includes(t)) {
+    try {
+      const f = await api("GET", B("/file?path=" + enc(file)));
+      await renderCard($("#ent-card"), file, f.text);
+      await renderIllust($("#ent-ill"), "entity:" + file, { entityText: f.text });
+    } catch (e) { /* ignore */ }
+  }
 }
 
 /* ------------------------------------------------------------------ 伏筆與時間線 */
@@ -754,6 +765,7 @@ async function viewSettings(view) {
       <label class="cb"><input type="checkbox" id="c-goal" ${c.goal_check_after_write !== false ? "checked" : ""}> 寫完候選稿後自動核對章綱（逐項附原文引句，由程式驗證）</label>
       <div class="muted small">用 Claude Code 寫稿時，對帳與核對寫在 novel-write skill 的流程裡；章節頁的「核對章綱」按鈕兩種執行者都能用。</div>
     </div>
+    <div class="card" id="ill-settings"></div>
     <div class="card">
       <h2 style="margin-bottom:12px">警示</h2>
       <div class="grid g2">
@@ -762,6 +774,7 @@ async function viewSettings(view) {
       </div>
     </div>
     <div class="row" style="margin-top:14px"><span class="grow"></span><button class="primary" id="c-save">儲存設定</button></div>`;
+  renderIllSettings($("#ill-settings")).catch(fail);
   const provs = JSON.parse(JSON.stringify((c.providers || []).filter((p) => p.type !== "claude_code")));
   const keys = {};
   const renderProvs = () => {
@@ -1189,6 +1202,480 @@ async function renderChapterStructure(el, no) {
   } catch (e) { el.innerHTML = ""; }
 }
 
+/* ------------------------------------------------------------------ 插圖 */
+const ILL = { cfg: null, styles: null };
+const imgUrl = (path) => B("/illust/image?path=" + enc(path));
+async function illCfg(force) {
+  if (!ILL.cfg || force) ILL.cfg = await api("GET", "/api/illust/config");
+  return ILL.cfg;
+}
+async function waitJob(id) {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1200));
+    const j = await api("GET", B(`/jobs/${id}`));
+    if (j.status !== "running") return j;
+  }
+}
+function illProvOptions(cfg, cur) {
+  const list = (cfg.providers || []);
+  const def = cur || cfg.config.provider || Panel.prov();
+  return list.map((p) => `<option value="${esc(p.id)}" ${p.id === def ? "selected" : ""}>${esc(p.name)}${p.type === "claude_code" ? "（用訂閱額度）" : ""}</option>`).join("");
+}
+const tagAppend = (cur, add) => {
+  const have = (cur || "").split(/\s*,\s*/).filter(Boolean);
+  add.split(/\s*,\s*/).filter(Boolean).forEach((t) => { if (!have.map((x) => x.toLowerCase()).includes(t.toLowerCase())) have.push(t); });
+  return have.join(", ");
+};
+
+// 畫風選擇（StyleSelectorXL 樣式表）
+async function pickStyles(selected, onDone) {
+  let data;
+  try { data = await api("GET", "/api/illust/styles"); } catch (e) { return fail(e); }
+  if (data.missing) return toast("還沒有設定樣式表：到「設定 → 插畫」填 ALL.xlsx 或 ALL.json 的路徑", true);
+  let sel = [...(selected || [])], cat = "", q = "", nsfw = false;
+  const tops = [...new Set(data.categories.map(([c]) => c.split(" > ")[0]))];
+  modal(`<h2>選畫風</h2>
+    <div class="row" style="margin-bottom:8px"><input type="text" id="ps-q" placeholder="搜尋名稱、中文名、提示詞" style="flex:1">
+      <label class="cb" style="margin:0"><input type="checkbox" id="ps-nsfw"> 顯示 nsfw 分類</label></div>
+    <div class="ps-wrap"><div class="ps-cats" id="ps-cats"></div><div class="ps-list" id="ps-list"></div></div>
+    <div class="small muted" style="margin-top:8px">已選（依順序套用，和 Forge 的 StyleSelectorXL 規則相同）：<span id="ps-sel"></span></div>
+    <div class="row" style="margin-top:12px"><button class="sm" id="ps-clear">全部取消</button><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="ps-ok">確定</button></div>`, async (el) => {
+    const renderCats = () => {
+      $("#ps-cats", el).innerHTML = [["", "全部"], ...tops.map((t) => [t, t])].map(([v, l]) => `<div class="ps-cat ${v === cat ? "on" : ""}" data-c="${esc(v)}">${esc(l)}</div>`).join("");
+      el.querySelectorAll(".ps-cat").forEach((d) => d.onclick = () => { cat = d.dataset.c; renderCats(); renderList(); });
+    };
+    const renderList = () => {
+      const ql = q.toLowerCase();
+      const rows = data.styles.filter((s) => (!cat || s.categories.some((c) => c === cat || c.startsWith(cat + " >")))
+        && (!ql || (s.name + s.zh + s.prompt + s.natural).toLowerCase().includes(ql))).slice(0, 300);
+      $("#ps-list", el).innerHTML = rows.map((s) => `<label class="ps-item"><input type="checkbox" data-n="${esc(s.name)}" ${sel.includes(s.name) ? "checked" : ""}>
+        <span><b>${esc(s.zh || s.name)}</b> <span class="muted small">${esc(s.name)}</span><br><span class="muted small">${esc(s.prompt || s.natural)}</span></span></label>`).join("")
+        || '<div class="muted small">沒有符合的畫風。</div>';
+      el.querySelectorAll("[data-n]").forEach((cb) => cb.onchange = () => {
+        sel = cb.checked ? [...sel, cb.dataset.n] : sel.filter((x) => x !== cb.dataset.n); renderSel();
+      });
+    };
+    const renderSel = () => { $("#ps-sel", el).textContent = sel.length ? sel.join("　＋　") : "（不套用）"; };
+    $("#ps-q", el).oninput = (e) => { q = e.target.value; renderList(); };
+    $("#ps-nsfw", el).onchange = async (e) => {
+      nsfw = e.target.checked;
+      try { data = await api("GET", "/api/illust/styles?nsfw=" + nsfw); } catch (er) { return fail(er); }
+      tops.splice(0, tops.length, ...new Set(data.categories.map(([c]) => c.split(" > ")[0]))); renderCats(); renderList();
+    };
+    $("#ps-clear", el).onclick = () => { sel = []; renderSel(); renderList(); };
+    $("#ps-ok", el).onclick = () => { closeModal(); onDone(sel); };
+    renderCats(); renderList(); renderSel();
+  });
+}
+
+function imageModal(target, img, reload, reuse) {
+  modal(`<div class="img-view"><img src="${imgUrl(img.path)}" alt=""></div>
+    <div class="row small muted" style="margin:8px 0">${esc(img.file)}　${img.width ? img.width + "×" + img.height : ""}　${img.seed ? "seed " + img.seed : ""}　${img.origin === "upload" ? "上傳" : "Forge"}</div>
+    ${img.prompt ? `<details><summary class="small">提示詞</summary><pre class="pre">${esc(img.prompt)}</pre>${img.negative ? `<pre class="pre muted">負面：${esc(img.negative)}</pre>` : ""}</details>` : ""}
+    <div class="row" style="margin-top:10px">
+      ${img.main ? '<span class="badge b-ok">主圖</span>' : '<button class="sm primary" id="iv-main">設為主圖</button>'}
+      ${img.prompt ? '<button class="sm" id="iv-copy">複製提示詞</button><button class="sm" id="iv-reuse">用這組提示詞再出圖</button>' : ""}
+      <a class="btn sm" href="${imgUrl(img.path)}" download="${esc(img.file)}">下載</a>
+      <span class="grow"></span><button class="sm danger" id="iv-del">刪除</button><button class="sm" onclick="closeModal()">關閉</button></div>`, (el) => {
+    if ($("#iv-main", el)) $("#iv-main", el).onclick = async () => { try { await api("POST", B("/illust/main"), { target, file: img.file }); closeModal(); reload(); } catch (e) { fail(e); } };
+    if ($("#iv-copy", el)) $("#iv-copy", el).onclick = () => { navigator.clipboard.writeText(img.prompt).then(() => toast("已複製")); };
+    if ($("#iv-reuse", el)) $("#iv-reuse", el).onclick = () => { closeModal(); reuse(img); };
+    $("#iv-del", el).onclick = async () => {
+      if (!confirm("刪除這張圖？（會移到 .studio/備份/插圖）")) return;
+      try { await api("POST", B("/illust/delete"), { target, file: img.file }); closeModal(); reload(); } catch (e) { fail(e); }
+    };
+  });
+}
+
+/* 插圖區塊：target = cover | chapter:N | entity:設定/角色/X.md */
+async function renderIllust(el, target, opts = {}) {
+  const cfgR = await illCfg();
+  let info;
+  try { info = await api("GET", B("/illust?target=" + enc(target))); } catch (e) { el.innerHTML = `<div class="card muted">${esc(e.message)}</div>`; return; }
+  const cfg = cfgR.config;
+  const bs = info.style || {};
+  const isCh = target.startsWith("chapter:"), isEnt = target.startsWith("entity:"), isCover = target === "cover";
+  const D = Object.assign({ passage: "", chars: [], places: [], action_tags: "", scene_tags: "", composition: "", sentences: "",
+    extra: "", format: cfg.format, styles: bs.styles || [], artist: bs.artist || "", seed: -1, count: 1 }, info.draft || {});
+  if (!info.draft || !info.draft.styles) D.styles = bs.styles || [];
+  if (!info.draft || info.draft.artist === undefined) D.artist = bs.artist || "";
+  let ents = null, picks = null, zh = null, final = null, open = opts.open || (isCh && !info.images.length);
+  const sizeW = D.width || (isCover ? bs.cover_width : bs.width) || cfg.width, sizeH = D.height || (isCover ? bs.cover_height : bs.height) || cfg.height;
+  D.width = sizeW; D.height = sizeH;
+  const reload = () => renderIllust(el, target, Object.assign({}, opts, { open }));
+
+  const gallery = () => info.images.length ? `<div class="ill-gallery">${info.images.map((im, i) => `
+      <div class="ill-thumb ${im.main ? "main" : ""}" data-i="${i}"><img loading="lazy" src="${imgUrl(im.path)}" alt="">
+        ${im.main ? '<span class="badge b-ok">主圖</span>' : ""}</div>`).join("")}</div>`
+    : `<div class="muted small">還沒有插圖。${isCh ? "可以挑一段來畫，或直接上傳。" : "可以產生提示詞送 Forge，或直接上傳。"}</div>`;
+
+  const charRows = () => {
+    if (!ents) return '<div class="muted small">載入中……</div>';
+    const pool = ents.all.filter((e) => e.kind === "角色");
+    const places = ents.all.filter((e) => e.kind !== "角色");
+    const onChars = D.chars.map((c) => c.name), onPlaces = (D.places || []).map((p) => p.name);
+    const card = (name) => (ents.cards[name] || {});
+    return `<div class="ill-chips">${pool.map((e) => `<label class="chip ${onChars.includes(e.name) ? "on" : ""}" title="${esc(card(e.name).tags || "沒有視覺卡")}">
+        <input type="checkbox" data-ch="${esc(e.name)}" ${onChars.includes(e.name) ? "checked" : ""}>${esc(e.name)}${e.has_card ? "" : ' <span class="warn-dot" title="沒有視覺卡">!</span>'}</label>`).join("") || '<span class="muted small">這本書還沒有角色設定檔。</span>'}</div>
+      ${D.chars.length ? `<table class="ill-chars">${D.chars.map((c, i) => `<tr>
+          <td class="nm">${esc(c.name)}</td>
+          <td><select data-pos="${i}">${[["", "自動"], ["left", "左"], ["right", "右"], ["center", "中"], ["back", "後方"]].map(([v, l]) => `<option value="${v}" ${(c.position || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+          <td><input type="text" data-act="${i}" value="${esc(c.action || "")}" placeholder="這張圖裡的動作、表情（英文標籤）"></td>
+          <td class="small muted">${c.tags ? esc(c.tags.slice(0, 60)) : `<a href="#/b/${enc(S.book)}/bible?t=${enc("角色")}&f=${enc(c.file || "")}">先建立視覺卡</a>`}</td></tr>`).join("")}</table>` : ""}
+      ${places.length ? `<div class="small muted" style="margin:8px 0 4px">地點、物件（有視覺卡的會帶入場景）</div><div class="ill-chips">${places.map((e) => `<label class="chip ${onPlaces.includes(e.name) ? "on" : ""}">
+        <input type="checkbox" data-pl="${esc(e.name)}" ${onPlaces.includes(e.name) ? "checked" : ""}>${esc(e.name)}${e.has_card ? "" : ' <span class="warn-dot" title="沒有視覺卡">!</span>'}</label>`).join("")}</div>` : ""}`;
+  };
+
+  const render = () => {
+    el.innerHTML = `<div class="card ill-card">
+      <div class="card-title"><h2>插圖 <span class="badge">${info.images.length}</span></h2>
+        <div class="row"><label class="btn sm">上傳圖片<input type="file" id="il-up" accept="image/png,image/jpeg,image/webp" multiple hidden></label>
+          <button class="sm ${open ? "" : "primary"}" id="il-toggle">${open ? "收起出圖" : "出圖"}</button></div></div>
+      ${gallery()}
+      <div id="il-q" class="small" style="margin-top:6px"></div>
+      ${open ? `<div class="ill-editor">
+        ${isCh ? `<h3>1. 要畫哪一段</h3>
+          <div class="row"><button class="sm" id="il-pick-h">挑精華段落</button><button class="sm" id="il-pick-a">挑動作最強的段落</button>
+            <span class="muted small">程式在本機依動作詞、畫面詞、章綱情節點打分，不用 AI；也可以直接貼上或修改下面的文字。</span></div>
+          ${picks ? `<div class="ill-picks">${picks.map((p, i) => `<div class="ill-pick" data-p="${i}"><div class="small muted">分數 ${p.score}　${esc(p.reasons)}</div>${esc(p.text.slice(0, 160))}${p.text.length > 160 ? "……" : ""}</div>`).join("")}</div>` : ""}
+          <textarea id="il-passage" rows="4" placeholder="要畫的片段">${esc(D.passage)}</textarea>` : ""}
+        <h3>${isCh ? "2. " : ""}出場角色與地點</h3>
+        <div id="il-chars">${charRows()}</div>
+        <h3>${isCh ? "3. " : ""}畫面描述</h3>
+        <div class="row" style="margin-bottom:8px">
+          <select id="il-prov">${illProvOptions(cfgR)}</select>
+          <button class="sm primary" id="il-ai">AI 產生畫面描述</button>
+          <button class="sm" id="il-zh">本機查標籤</button>
+          <span class="muted small">AI 只寫下面幾欄（一小段 JSON）；角色外觀、品質、畫風由程式組裝。</span></div>
+        ${zh ? `<div class="ill-chips" style="margin-bottom:8px">${zh.length ? zh.map((h) => `<span class="chip add" data-tag="${esc(h.tag)}" title="${esc(h.zh)}">${esc(h.zh)} → ${esc(h.tag)}</span>`).join("") : '<span class="muted small">對照表裡沒有查到。</span>'}</div>
+          <div class="muted small" style="margin:-4px 0 8px">點一下加進「場景標籤」。對照表是 tagcomplete 附的中文翻譯，有些詞不準，請挑著用。</div>` : ""}
+        <div class="grid g2">
+          <label class="f"><span>動作、互動標籤</span><input type="text" data-k="action_tags" value="${esc(D.action_tags)}"></label>
+          <label class="f"><span>場景標籤（地點、時間、光線）</span><input type="text" data-k="scene_tags" value="${esc(D.scene_tags)}"></label>
+          <label class="f"><span>構圖、鏡頭標籤</span><input type="text" data-k="composition" value="${esc(D.composition)}" placeholder="cowboy shot, from side, close-up"></label>
+          <label class="f"><span>額外標籤</span><input type="text" data-k="extra" value="${esc(D.extra)}"></label>
+        </div>
+        <label class="f"><span>英文描述（兩三句）</span><textarea data-k="sentences" rows="3">${esc(D.sentences)}</textarea></label>
+        <h3>${isCh ? "4. " : ""}畫風與出圖</h3>
+        <div class="grid g2">
+          <div class="f"><span>畫風（樣式表）</span><div class="row"><span class="small">${D.styles.length ? D.styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span>
+            <button class="sm" id="il-styles">選畫風…</button></div></div>
+          <label class="f"><span>畫師標籤（會自動加 @）</span><input type="text" data-k="artist" value="${esc(D.artist)}"></label>
+          <label class="f"><span>格式</span><select data-k="format">${[["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${D.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          <label class="f"><span>尺寸</span><select id="il-size">${cfgR.sizes.map(([n, w, h]) => `<option value="${w}x${h}" ${w === +D.width && h === +D.height ? "selected" : ""}>${n} ${w}×${h}</option>`).join("")}
+            ${cfgR.sizes.some(([, w, h]) => w === +D.width && h === +D.height) ? "" : `<option value="${D.width}x${D.height}" selected>目前 ${D.width}×${D.height}</option>`}</select></label>
+          <label class="f"><span>種子（-1＝隨機）</span><input type="number" data-k="seed" value="${esc(D.seed)}"></label>
+          <label class="f"><span>張數</span><select data-k="count">${[1, 2, 3, 4].map((n) => `<option ${+D.count === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        </div>
+        <div class="row"><button class="sm" id="il-asm">組裝提示詞</button><span class="muted small">組裝後可以直接修改最終提示詞，或複製到 Forge 自己用。</span></div>
+        ${final ? `<label class="f" style="margin-top:8px"><span>正向提示詞</span><textarea id="il-pos" rows="7">${esc(final.positive)}</textarea></label>
+          <label class="f"><span>負面提示詞</span><textarea id="il-neg" rows="2">${esc(final.negative)}</textarea></label>
+          ${final.notes && final.notes.length ? `<div class="small muted">標籤檢查：${final.notes.map(esc).join("；")}</div>` : ""}
+          <div class="row" style="margin-top:8px"><button class="sm" id="il-copy">複製正向提示詞</button><span class="grow"></span>
+            <button class="primary" id="il-gen">送 Forge 出圖</button></div>` : ""}
+      </div>` : ""}
+    </div>`;
+    bind();
+  };
+
+  const collect = () => {
+    el.querySelectorAll("[data-k]").forEach((i) => { D[i.dataset.k] = i.type === "number" ? parseInt(i.value) : i.value; });
+    if ($("#il-passage", el)) D.passage = $("#il-passage", el).value;
+    el.querySelectorAll("[data-act]").forEach((i) => { D.chars[+i.dataset.act].action = i.value; });
+    el.querySelectorAll("[data-pos]").forEach((i) => { D.chars[+i.dataset.pos].position = i.value; });
+    if ($("#il-size", el)) { const [w, h] = $("#il-size", el).value.split("x").map(Number); D.width = w; D.height = h; }
+  };
+
+  const loadEnts = async () => {
+    const text = isCh ? (D.passage || "") : "";
+    const r = await api("POST", B("/illust/detect"), { text, target });
+    const cards = {};
+    r.entities.forEach((e) => { cards[e.name] = e.card || {}; });
+    // 角色清單需要每個人的視覺卡：沒在片段裡出現的另外補
+    r.all.forEach((e) => { if (!cards[e.name]) cards[e.name] = null; });
+    ents = { all: r.all, cards, found: r.entities };
+    const full = {};
+    for (const e of r.entities) full[e.name] = e;
+    ents.full = full;
+    if (!D.chars.length && !info.draft.chars) {
+      D.chars = r.entities.filter((e) => e.kind === "角色").slice(0, 3).map((e) => ({ name: e.name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "", position: "", action: "" }));
+      D.places = r.entities.filter((e) => e.kind !== "角色").slice(0, 2).map((e) => ({ name: e.name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "" }));
+    }
+  };
+  const cardOf = async (name) => {
+    if (ents.full[name]) return ents.full[name];
+    const e = ents.all.find((x) => x.name === name);
+    const r = await api("POST", B("/illust/detect"), { text: name, target });
+    const hit = r.entities.find((x) => x.name === name) || e;
+    ents.full[name] = hit;
+    return hit;
+  };
+
+  const pollQueue = async () => {
+    for (;;) {
+      let list;
+      try { list = await api("GET", "/api/illust/queue?book=" + enc(S.book)); } catch (e) { return; }
+      const mine = list.filter((x) => x.target === target);
+      const active = mine.filter((x) => x.status === "queued" || x.status === "running");
+      const q = $("#il-q", el);
+      if (!q) return;
+      const others = list.filter((x) => x.target !== target && (x.status === "queued" || x.status === "running")).length;
+      q.innerHTML = active.map((x) => x.status === "running"
+        ? `<div class="ill-prog"><span>Forge 出圖中 ${Math.round(x.progress * 100)}%${x.eta ? `（約 ${Math.ceil(x.eta)} 秒）` : ""}</span><div class="bar"><i style="width:${Math.round(x.progress * 100)}%"></i></div><button class="sm" data-cancel="${x.id}">停止</button></div>`
+        : `<div>排隊中（seed ${x.seed}）<button class="sm" data-cancel="${x.id}">取消</button></div>`).join("")
+        + (others ? `<div class="muted">另外還有 ${others} 張在排隊</div>` : "")
+        + mine.filter((x) => x.status === "error" && Date.now() / 1000 - x.created < 600).slice(-1).map((x) => `<div class="err">出圖失敗：${esc(x.error)}</div>`).join("");
+      q.querySelectorAll("[data-cancel]").forEach((b) => b.onclick = () => api("POST", `/api/illust/queue/${b.dataset.cancel}/cancel`));
+      if (!active.length) {
+        const doneNow = mine.some((x) => x.status === "done" && x.files.some((f) => !info.images.find((im) => im.file === f)));
+        if (doneNow) { info = await api("GET", B("/illust?target=" + enc(target))); collect(); render(); }
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  };
+
+  const bind = () => {
+    el.querySelectorAll(".ill-thumb").forEach((t) => t.onclick = () => imageModal(target, info.images[+t.dataset.i], reload, (img) => {
+      open = true; final = { positive: img.prompt, negative: img.negative || "", notes: [] }; D.seed = img.seed || -1; render();
+    }));
+    $("#il-up", el).onchange = async (ev) => {
+      try { const files = await readFiles(ev.target); await api("POST", B("/illust/upload"), { target, files }); toast("已上傳 " + files.length + " 張"); reload(); } catch (e) { fail(e); }
+    };
+    $("#il-toggle", el).onclick = async () => { collect(); open = !open; if (open && !ents) await loadEnts(); render(); };
+    if (!open) return;
+    if (!ents) { loadEnts().then(() => { const c = $("#il-chars", el); if (c) { c.innerHTML = charRows(); bindChars(); } }).catch(fail); }
+    bindChars();
+    const pick = async (mode) => {
+      collect();
+      try { const r = await api("POST", B("/illust/pick"), { chapter: opts.chapter, mode }); picks = r.passages; render(); } catch (e) { fail(e); }
+    };
+    if ($("#il-pick-h", el)) $("#il-pick-h", el).onclick = () => pick("highlight");
+    if ($("#il-pick-a", el)) $("#il-pick-a", el).onclick = () => pick("action");
+    el.querySelectorAll(".ill-pick").forEach((d) => d.onclick = async () => {
+      collect(); D.passage = picks[+d.dataset.p].text; picks = null; D.chars = []; info.draft = {}; await loadEnts(); render();
+    });
+    $("#il-zh", el).onclick = async () => {
+      collect();
+      const text = isCh ? D.passage : (opts.entityText || "");
+      if (!text.trim()) return toast(isCh ? "請先挑一段片段" : "沒有可以查的文字", true);
+      try { const r = await api("POST", "/api/illust/zh", { text }); if (!r.has_dict) return toast("找不到中文對照表：到「設定 → 插畫」填 Forge 資料夾（會自動找 tagcomplete 的對照表）", true); zh = r.tags; render(); } catch (e) { fail(e); }
+    };
+    el.querySelectorAll(".chip.add").forEach((c) => c.onclick = () => { collect(); D.scene_tags = tagAppend(D.scene_tags, c.dataset.tag); render(); });
+    $("#il-styles", el).onclick = () => { collect(); pickStyles(D.styles, (sel) => { D.styles = sel; render(); }); };
+    $("#il-ai", el).onclick = async () => {
+      collect();
+      if (isCh && !D.passage.trim()) return toast("請先挑一段要畫的片段", true);
+      const prov = $("#il-prov", el).value;
+      const params = { target, passage: D.passage, chars: D.chars.map((c) => c.name), places: (D.places || []).map((p) => p.name) };
+      try {
+        await api("POST", B("/illust/draft"), { target, draft: D });
+        const job = await api("POST", B("/jobs"), { action: "illust_prompt", params, provider: prov });
+        Panel.attach(job);
+        const btn = $("#il-ai", el); if (btn) { btn.disabled = true; btn.textContent = "AI 產生中……"; }
+        const j = await waitJob(job.id);
+        if (j.status !== "done") { toast("產生失敗，詳情看右側面板", true); render(); return; }
+        info = await api("GET", B("/illust?target=" + enc(target)));
+        Object.assign(D, info.draft || {});
+        final = null; render();
+      } catch (e) { fail(e); render(); }
+    };
+    $("#il-asm", el).onclick = async () => {
+      collect();
+      try {
+        final = await api("POST", B("/illust/assemble"), { draft: D });
+        await api("POST", B("/illust/draft"), { target, draft: D });
+        render();
+      } catch (e) { fail(e); }
+    };
+    if ($("#il-copy", el)) $("#il-copy", el).onclick = () => navigator.clipboard.writeText($("#il-pos", el).value).then(() => toast("已複製"));
+    if ($("#il-gen", el)) $("#il-gen", el).onclick = async () => {
+      collect();
+      final.positive = $("#il-pos", el).value; final.negative = $("#il-neg", el).value;
+      try {
+        await api("POST", B("/illust/generate"), { target, positive: final.positive, negative: final.negative, seed: D.seed, count: +D.count,
+          width: D.width, height: D.height, draft: D });
+        toast("已送到 Forge");
+        pollQueue();
+      } catch (e) { fail(e); }
+    };
+  };
+  const bindChars = () => {
+    el.querySelectorAll("[data-ch]").forEach((cb) => cb.onchange = async () => {
+      collect();
+      const name = cb.dataset.ch;
+      if (cb.checked) {
+        const e = await cardOf(name);
+        D.chars.push({ name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "", position: "", action: "" });
+      } else D.chars = D.chars.filter((c) => c.name !== name);
+      final = null; render();
+    });
+    el.querySelectorAll("[data-pl]").forEach((cb) => cb.onchange = async () => {
+      collect();
+      const name = cb.dataset.pl;
+      if (cb.checked) {
+        const e = await cardOf(name);
+        D.places = [...(D.places || []), { name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "" }];
+      } else D.places = (D.places || []).filter((p) => p.name !== name);
+      final = null; render();
+    });
+  };
+  if (open) await loadEnts();
+  render();
+  pollQueue();
+}
+
+/* 視覺卡（角色、勢力、世界觀的「繪圖提示」） */
+async function renderCard(el, file, text) {
+  const cfgR = await illCfg();
+  const m = (text || "").match(/^## 繪圖提示[^\n]*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
+  const sec = m ? m[1].replace(/<!--[\s\S]*?-->/g, "") : "";
+  const get = (k) => ((sec.match(new RegExp("^-\\s*" + k + "\\s*[:：]\\s*(.*)$", "m")) || [])[1] || "").trim();
+  const card = { tags: get("標籤"), description: get("描述") };
+  const has = card.tags || card.description;
+  let editing = false, zh = null;
+  const render = () => {
+    el.innerHTML = `<div class="card ill-card">
+      <div class="card-title"><h2>視覺卡 ${has ? "" : '<span class="badge b-warn">還沒有</span>'}</h2>
+        <div class="row"><select id="vc-prov">${illProvOptions(cfgR)}</select><button class="sm" id="vc-ai">AI 從設定產生</button>
+          <button class="sm" id="vc-edit">${editing ? "取消" : "手動編輯"}</button></div></div>
+      <div class="muted small" style="margin-bottom:8px">固定不變的外觀（英文 Danbooru 標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。</div>
+      ${editing ? `<label class="f"><span>標籤</span><textarea id="vc-tags" rows="2" placeholder="1girl, long hair, black hair, red eyes, white hanfu">${esc(card.tags)}</textarea></label>
+        <div class="row" style="margin-bottom:8px"><input type="text" id="vc-zh-in" placeholder="輸入中文外觀（例如：黑色長髮、紅色眼睛、白色漢服），本機查標籤" style="flex:1"><button class="sm" id="vc-zh">查</button></div>
+        ${zh ? `<div class="ill-chips" style="margin-bottom:8px">${zh.map((h) => `<span class="chip add" data-tag="${esc(h.tag)}">${esc(h.zh)} → ${esc(h.tag)}</span>`).join("") || '<span class="muted small">沒有查到。</span>'}</div>` : ""}
+        <label class="f"><span>描述（英文）</span><textarea id="vc-desc" rows="2">${esc(card.description)}</textarea></label>
+        <div class="row"><span class="grow"></span><button class="primary sm" id="vc-save">儲存</button></div>`
+      : has ? `<div class="kv"><span class="k">標籤</span><span>${esc(card.tags)}</span><span class="k">描述</span><span>${esc(card.description)}</span></div>` : ""}
+    </div>`;
+    $("#vc-edit", el).onclick = () => { editing = !editing; render(); };
+    $("#vc-ai", el).onclick = async () => {
+      try {
+        const job = await api("POST", B("/jobs"), { action: "visual_card", params: { file }, provider: $("#vc-prov", el).value });
+        Panel.attach(job);
+        const j = await waitJob(job.id);
+        if (j.status === "done") { toast("視覺卡已寫入"); refresh(); } else toast("產生失敗，詳情看右側面板", true);
+      } catch (e) { fail(e); }
+    };
+    if (!editing) return;
+    $("#vc-zh", el).onclick = async () => {
+      card.tags = $("#vc-tags", el).value; card.description = $("#vc-desc", el).value;
+      try { const r = await api("POST", "/api/illust/zh", { text: $("#vc-zh-in", el).value }); if (!r.has_dict) return toast("找不到中文對照表：到「設定 → 插畫」填 Forge 資料夾", true); zh = r.tags; render(); } catch (e) { fail(e); }
+    };
+    el.querySelectorAll(".chip.add").forEach((c) => c.onclick = () => { card.tags = tagAppend($("#vc-tags", el).value, c.dataset.tag); card.description = $("#vc-desc", el).value; render(); });
+    $("#vc-save", el).onclick = async () => {
+      try { await api("POST", B("/cards"), { file, tags: $("#vc-tags", el).value, description: $("#vc-desc", el).value }); toast("已儲存視覺卡"); refresh(); } catch (e) { fail(e); }
+    };
+  };
+  render();
+}
+
+/* 書的插圖頁：封面、總覽、本書畫風 */
+async function viewIllust(view, t) {
+  t = t || "總覽";
+  const tabs = ["總覽", "封面", "本書畫風"];
+  view.innerHTML = `<div class="page-head"><div><h1>插圖</h1><div class="sub">每章、每個角色或地點都可以有插圖，全部選用。圖存在書資料夾的 <code>插圖</code> 裡（預設不進 git）</div></div></div>
+    <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/illust?t=${enc(x)}')">${x}</button>`).join("")}</div>
+    <div id="il-body"></div>`;
+  const body = $("#il-body");
+  const cfgR = await illCfg();
+  if (!cfgR.config.forge_url || cfgR.sheet_error) body.insertAdjacentHTML("beforebegin", `<div class="alert warn" style="margin-bottom:10px"><span class="t">${esc(cfgR.sheet_error || "")}</span></div>`);
+  if (t === "封面") return renderIllust(body, "cover", { open: true });
+  if (t === "本書畫風") {
+    const bs = (await api("GET", B("/illust/overview"))).style;
+    let styles = bs.styles || [];
+    const draw = () => {
+      body.innerHTML = `<div class="card" style="max-width:820px">
+        <p class="muted small">這本書所有插圖的預設值；每張圖出圖時還可以再改。品質、分級、負面提示詞的全域預設在「設定 → 插畫」。</p>
+        <div class="f"><span>畫風（樣式表）</span><div class="row"><span>${styles.length ? styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span><button class="sm" id="bs-st">選畫風…</button></div></div>
+        <div class="grid g2">
+          <label class="f"><span>畫師標籤（會自動加 @）</span><input type="text" id="bs-artist" value="${esc(bs.artist || "")}"></label>
+          <label class="f"><span>每張都加的標籤</span><input type="text" id="bs-extra" value="${esc(bs.extra || "")}"></label>
+          <label class="f"><span>每張都加的負面提示詞</span><input type="text" id="bs-neg" value="${esc(bs.negative_extra || "")}"></label>
+          <label class="f"><span>插圖尺寸</span><select id="bs-size"><option value="">用全域預設（${cfgR.config.width}×${cfgR.config.height}）</option>${cfgR.sizes.map(([n, w, h]) => `<option value="${w}x${h}" ${w === bs.width && h === bs.height ? "selected" : ""}>${n} ${w}×${h}</option>`).join("")}</select></label>
+          <label class="f"><span>封面尺寸</span><select id="bs-csize">${cfgR.sizes.map(([n, w, h]) => `<option value="${w}x${h}" ${w === bs.cover_width && h === bs.cover_height ? "selected" : ""}>${n} ${w}×${h}</option>`).join("")}</select></label>
+        </div>
+        <div class="row"><span class="grow"></span><button class="primary" id="bs-save">儲存</button></div></div>`;
+      $("#bs-st").onclick = () => pickStyles(styles, (sel) => { styles = sel; draw(); });
+      $("#bs-save").onclick = async () => {
+        const [w, h] = ($("#bs-size").value || "x").split("x").map((x) => parseInt(x) || null);
+        const [cw, ch] = $("#bs-csize").value.split("x").map(Number);
+        try {
+          await api("POST", B("/illust/style"), { styles, artist: $("#bs-artist").value.trim(), extra: $("#bs-extra").value.trim(),
+            negative_extra: $("#bs-neg").value.trim(), width: w, height: h, cover_width: cw, cover_height: ch });
+          toast("已儲存");
+        } catch (e) { fail(e); }
+      };
+    };
+    return draw();
+  }
+  const o = await api("GET", B("/illust/overview"));
+  const link = (it) => it.target === "cover" ? `#/b/${enc(S.book)}/illust?t=${enc("封面")}`
+    : it.target.startsWith("chapter:") ? `#/b/${enc(S.book)}/ch/${it.target.split(":")[1]}?tab=illust`
+      : `#/b/${enc(S.book)}/bible?t=${enc(it.target.split("/")[1])}&f=${enc(it.target.slice(7))}`;
+  body.innerHTML = o.items.length ? `<div class="ill-overview">${o.items.map((it) => `<a class="ill-ov" href="${link(it)}">
+      <img loading="lazy" src="${imgUrl(it.main)}" alt=""><div><b>${esc(it.label)}</b> <span class="muted small">${it.count} 張</span></div></a>`).join("")}</div>`
+    : `<div class="card empty"><div class="big">✎</div>還沒有任何插圖。<br>到章節頁的「插圖」分頁、設定集的角色，或這裡的「封面」開始。</div>`;
+}
+
+/* 設定頁：插畫（Forge Neo） */
+async function renderIllSettings(el) {
+  const r = await illCfg(true);
+  const c = r.config;
+  el.innerHTML = `
+    <h2 style="margin-bottom:4px">插畫（Forge Neo）</h2>
+    <div class="muted small" style="margin-bottom:12px">Forge 要用 <code>--api</code> 啟動（加在啟動 bat 的 COMMANDLINE_ARGS）。出圖參數用 Forge「PNG Info」最後一行的格式，Forge 會自己切換模型和 VAE／文字編碼器。</div>
+    <div class="grid g2">
+      <label class="f"><span>Forge 網址</span><div class="row"><input type="text" id="il-url" value="${esc(c.forge_url)}" style="flex:1"><button class="sm" id="il-test">測試連線</button></div></label>
+      <label class="f"><span>Forge 資料夾（選填：讀最近一次的參數、找 tagcomplete 的標籤對照表）</span><input type="text" id="il-dir" value="${esc(c.forge_dir)}" placeholder="例如 D:\\sd-webui-forge-neo"></label>
+    </div>
+    <div class="small" id="il-status" style="margin:-4px 0 10px"></div>
+    <label class="f"><span>出圖參數（Forge PNG Info 最後一行；Seed、Size 由工作台決定）</span>
+      <textarea id="il-params" rows="2">${esc(c.params)}</textarea></label>
+    <div class="row" style="margin:-6px 0 12px"><button class="sm" id="il-fromforge">從 Forge 讀最近一次的參數</button><span class="muted small">讀 Forge 資料夾裡的 params.txt</span></div>
+    <div class="grid g4">
+      <label class="f"><span>預設寬</span><input type="number" id="il-w" value="${esc(c.width)}" step="8"></label>
+      <label class="f"><span>預設高</span><input type="number" id="il-h" value="${esc(c.height)}" step="8"></label>
+      <label class="f"><span>分級標籤</span><select id="il-safe">${["safe", "sensitive", "nsfw", "explicit", ""].map((v) => `<option value="${v}" ${c.safety === v ? "selected" : ""}>${v || "（不加）"}</option>`).join("")}</select></label>
+      <label class="f"><span>格式</span><select id="il-fmt">${[["mixed", "標籤＋自然語言"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${c.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+    </div>
+    <div class="grid g2">
+      <label class="f"><span>品質標籤（放在最前面）</span><input type="text" id="il-q" value="${esc(c.quality)}"></label>
+      <label class="f"><span>負面提示詞</span><input type="text" id="il-neg" value="${esc(c.negative)}"></label>
+      <label class="f"><span>樣式表（StyleSelectorXL 的 ALL.xlsx 或 ALL.json）</span><input type="text" id="il-sheet" value="${esc(c.style_sheet)}" placeholder="留空＝用專案附的範例（examples/styles.example.json）；例如 D:\\sd-webui-forge-neo\\extensions\\StyleSelectorXL\\ALL.xlsx"></label>
+      <label class="f"><span>樣式表用哪個欄位</span><select id="il-src">${[["prompt", "prompt（標籤）"], ["naturl_prompt", "naturl_prompt（自然語言）"], ["both", "prompt + naturl_prompt"]].map(([v, l]) => `<option value="${v}" ${c.style_source === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      <label class="f"><span>產生畫面描述預設用的 AI</span><select id="il-prov"><option value="">面板目前的執行者</option>${r.providers.map((p) => `<option value="${esc(p.id)}" ${c.provider === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <div class="f"><span>標籤對照表</span><div class="small">${r.tag_csv ? "✓ " + esc(r.tag_csv) : '<span class="muted">沒有（填 Forge 資料夾會自動找 tagcomplete 的 danbooru.csv）</span>'}<br>${r.tag_zh_csv ? "✓ " + esc(r.tag_zh_csv) : '<span class="muted">沒有中文對照表</span>'}</div></div>
+    </div>
+    <div class="small muted" style="margin:-4px 0 8px">${r.sheet_error ? '<span class="err">' + esc(r.sheet_error) + "</span>" : r.sheet_count ? `樣式表共 ${r.sheet_count} 個畫風${r.sheet_is_example ? "（目前用專案附的範例）" : ""}` : ""}</div>
+    <label class="cb"><input type="checkbox" id="il-nsfw" ${c.show_nsfw_styles ? "checked" : ""}> 選畫風時預設顯示 nsfw 分類</label>
+    <label class="cb"><input type="checkbox" id="il-save" ${c.save_in_forge ? "checked" : ""}> 也在 Forge 的輸出資料夾存一份</label>
+    <div class="row"><span class="grow"></span><button class="primary" id="il-savecfg">儲存插畫設定</button></div>`;
+  const test = async () => {
+    const st = $("#il-status", el);
+    st.textContent = "連線中……";
+    const s = await api("GET", "/api/illust/forge/status");
+    st.innerHTML = s.ok ? `<span class="badge b-ok">已連線</span> 模型：${esc(s.model || "")}　模組：${esc((s.modules || []).join("、"))}　取樣器 ${s.samplers.length} 種`
+      : `<span class="badge b-bad">連不到</span> ${esc(s.error)}`;
+  };
+  const save = async () => {
+    const body = { forge_url: $("#il-url", el).value.trim(), forge_dir: $("#il-dir", el).value.trim(), params: $("#il-params", el).value.trim(),
+      width: parseInt($("#il-w", el).value), height: parseInt($("#il-h", el).value), safety: $("#il-safe", el).value, format: $("#il-fmt", el).value,
+      quality: $("#il-q", el).value.trim(), negative: $("#il-neg", el).value.trim(), style_sheet: $("#il-sheet", el).value.trim(),
+      style_source: $("#il-src", el).value, provider: $("#il-prov", el).value, show_nsfw_styles: $("#il-nsfw", el).checked, save_in_forge: $("#il-save", el).checked };
+    ILL.cfg = await api("POST", "/api/illust/config", body);
+  };
+  $("#il-test", el).onclick = async () => { try { await save(); await test(); } catch (e) { fail(e); } };
+  $("#il-fromforge", el).onclick = async () => {
+    try {
+      const p = await api("POST", "/api/illust/forge/params", { forge_dir: $("#il-dir", el).value.trim() });
+      $("#il-params", el).value = p.params;
+      if (p.width) { $("#il-w", el).value = p.width; $("#il-h", el).value = p.height; }
+      toast("已讀入，記得按「儲存插畫設定」");
+    } catch (e) { fail(e); }
+  };
+  $("#il-savecfg", el).onclick = async () => { try { await save(); toast("已儲存插畫設定"); renderIllSettings(el); } catch (e) { fail(e); } };
+}
+
 /* ------------------------------------------------------------------ 匯出 */
 const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
 
@@ -1231,7 +1718,9 @@ async function viewExport(view) {
         <div data-only="epub">
           <label class="cb"><input type="checkbox" id="x-vert" ${p.vertical ? "checked" : ""}> 直排（由右往左翻頁；章名建議用「第一章」格式）</label>
           <label class="cb"><input type="checkbox" id="x-cover" ${p.use_cover !== false ? "checked" : ""} ${m.cover ? "" : "disabled"}> 使用封面圖
-            <span class="muted small">${m.cover ? "（" + esc(m.cover) + "）" : "（把 封面.jpg 或 封面.png 放在書資料夾裡就會出現）"}</span></label>
+            <span class="muted small">${m.cover ? "（" + esc(m.cover) + "）" : "（到「插圖 → 封面」出圖或上傳，或把 封面.jpg 放在書資料夾）"}</span></label>
+          <label class="cb"><input type="checkbox" id="x-ill" ${p.include_illust !== false ? "checked" : ""} ${m.illust_chapters ? "" : "disabled"}> 在章首放插圖
+            <span class="muted small">（${m.illust_chapters ? `${m.illust_chapters} 章有主圖` : "還沒有章節插圖"}）</span></label>
         </div>
         <div class="row" style="margin-top:12px"><span class="grow"></span><button class="primary" id="x-go">匯出</button></div>
         <div id="x-result"></div>
@@ -1269,7 +1758,7 @@ async function viewExport(view) {
     const body = {
       format: fmt(), items, title: $("#x-title").value.trim(), author: $("#x-author").value.trim(),
       title_style: $("#x-ts").value, para_style: $("#x-ps").value, encoding: $("#x-enc").value,
-      vertical: $("#x-vert").checked, use_cover: $("#x-cover").checked,
+      vertical: $("#x-vert").checked, use_cover: $("#x-cover").checked, include_illust: $("#x-ill").checked,
       from: from && from !== first ? from : null, to: to && to !== last ? to : null,
     };
     if (body.title === m.book_title) body.title = "";

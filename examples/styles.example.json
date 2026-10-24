@@ -1,0 +1,532 @@
+[
+ {
+  "name": "base",
+  "prompt": ",",
+  "naturl_prompt": null,
+  "negative_prompt": ",",
+  "category": "base",
+  "namezh": "base",
+  "namejp": "base",
+  "nameen": "base"
+ },
+ {
+  "name": "2020年代日本動畫風格 / 2020s Japanese animation style",
+  "prompt": "2020s Japanese animation style, digitally drawn image, photographic composition and cinematic camera movement, realistic physically based lighting performance, appropriate volumetric light and depth-of-field blur, 3D CGI background, medium-high brightness tones, medium-high contrast, filter-like color grading.",
+  "naturl_prompt": "A medium shot captures a character standing in the center of the frame, viewed from eye level with a shallow depth-of-field blur softening the 3D CGI background. The lighting is bright and high-contrast, featuring realistic physically based illumination that casts distinct shadows while maintaining medium-high brightness tones. The character exhibits a polished 2020s Japanese animation style with filter-like color grading applied to the digitally drawn image. Cinematic camera movement suggests a dynamic perspective, focusing on the subject's physical presence against the stylized environment.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "2020年代日本動畫風格",
+  "namejp": "2020年代の日本のアニメーションスタイル",
+  "nameen": "2020s Japanese animation style"
+ },
+ {
+  "name": "工程設計圖 / Engineering design drawings",
+  "prompt": "Lines are soft and smooth, with artistic brushwork rather than precise engineering structure. Character design is shown in dynamic poses, with natural proportions and vivid expressions, emphasizing emotion and atmosphere. Mechanical design is presented with a complete appearance, details integrated into the whole, no longer broken down into parts or blueprints. The background is rich and layered, with relatively high color saturation, bringing visual tension. The overall image focuses on aesthetics and narrative; characters and machines merge into the scene, forming a complete atmosphere. Colors are diverse, and light and shadow changes are strong, making the image more immersive and dramatic.",
+  "naturl_prompt": "{A dynamic scene features a character in a vivid, expressive pose where mechanical design elements are fully integrated into their appearance, merging seamlessly with the rich, layered background. The composition utilizes strong light and shadow changes to create an immersive, dramatic atmosphere with high color saturation that emphasizes emotional tension. Soft, artistic brushwork defines the lines rather than precise engineering structures, giving the image a cohesive aesthetic focus where characters and machines form a complete narrative whole., | ,A dynamic scene features a character in a vivid, expressive pose where mechanical design elements are fully integrated into their appearance, merging seamlessly with the rich, layered background. The composition utilizes strong light and shadow changes to create an immersive, dramatic atmosphere with high color saturation that emphasizes emotional tension. Soft, artistic brushwork defines the lines rather than precise engineering structures, giving the image a cohesive aesthetic focus where characters and machines form a complete narrative whole.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "工程設計圖",
+  "namejp": "エンジニアリング設計図",
+  "nameen": "Engineering design drawings"
+ },
+ {
+  "name": "中世ヨーロッパ風/Medieval European Style",
+  "prompt": "medieval european style, { castle,| knight,}, { fantasy,| historical,}, { gothic,| romanesque,}, tapestry, { illuminated manuscript,| stained glass,}, earthy colors, detailed, old world",
+  "naturl_prompt": "{The scene is a full-body shot of a figure standing centrally against a backdrop that blends medieval European architecture with fantasy elements, rendered in the style of an illuminated manuscript. The character wears earthy-toned clothing consistent with historical or gothic aesthetics, featuring detailed textures reminiscent of tapestry and stained glass patterns. Warm, soft lighting highlights the intricate designs on the fabric and the surrounding stone structures, creating an old-world atmosphere. The composition balances the subject with the architectural details, maintaining a cohesive medieval theme throughout the image without specifying exact variations in location or specific attire beyond the general style., | ,The scene is a full-body shot of a figure standing centrally against a backdrop that blends medieval European architecture with fantasy elements, rendered in the style of an illuminated manuscript. The character wears earthy-toned clothing consistent with historical or gothic aesthetics, featuring detailed textures reminiscent of tapestry and stained glass patterns. Warm, soft lighting highlights the intricate designs on the fabric and the surrounding stone structures, creating an old-world atmosphere. The composition balances the subject with the architectural details, maintaining a cohesive medieval theme throughout the image without specifying exact variations in location or specific attire beyond the general style.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "中古歐洲風格",
+  "namejp": "中世ヨーロッパ風",
+  "nameen": "Medieval European Style"
+ },
+ {
+  "name": "中國仙俠小說 / Chinese fantasy novels.",
+  "prompt": "Young {female|male}, {1-2$$ Hanfu|armor}, ancient style, character lines fine and neat, background landscape uses ink wash diffusion, with virtual and real complementing each other. Colors mainly {{1-3$$ ink black|vermilion|azurite} as the main tone, elegant and profound|fusion of {1-3$$ dazzling colors|flowing light|neon purple|gilded}}{Symmetrical composition highlights majestic solemnity {sect|grand hall|landscape|sea of clouds|} background |diagonal composition emphasizes combat tension, such as sword aura crisscrossing and splitting the image}{1-2$$ yin-yang|Bagua|cursive script text|Taiji|{dragon|phoenix|Qilin}|{ancient books|bamboo slips|encircling flowing-light text}} holding weapon, holding {long sword, sword scabbard |dual swords|greatsword|spear|halberd|bow and arrow}",
+  "naturl_prompt": "{A young character stands centrally in the frame, their posture majestic and solemn with a weapon held firmly in hand. The composition is symmetrical, highlighting the grandeur of the scene against an ancient landscape background that blends ink wash diffusion with virtual elements. They wear either traditional Hanfu or armor, featuring fine and neat character lines with colors dominated by ink black, vermilion, or azurite, accented by flowing light or gilded details. Their expression is elegant and profound as they gaze forward, surrounded by symbolic elements like a dragon, phoenix, or cursive script text. The lighting emphasizes the fusion of dazzling colors and flowing light, creating an atmosphere where the ancient style meets modern artistic interpretation through a seamless blend of reality and fantasy., | ,A young character stands centrally in the frame, their posture majestic and solemn with a weapon held firmly in hand. The composition is symmetrical, highlighting the grandeur of the scene against an ancient landscape background that blends ink wash diffusion with virtual elements. They wear either traditional Hanfu or armor, featuring fine and neat character lines with colors dominated by ink black, vermilion, or azurite, accented by flowing light or gilded details. Their expression is elegant and profound as they gaze forward, surrounded by symbolic elements like a dragon, phoenix, or cursive script text. The lighting emphasizes the fusion of dazzling colors and flowing light, creating an atmosphere where the ancient style meets modern artistic interpretation through a seamless blend of reality and fantasy.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "中國仙俠小說",
+  "namejp": "中国のファンタジー小説",
+  "nameen": "Chinese fantasy novels."
+ },
+ {
+  "name": "手繪草稿 / Hand-drawn sketches",
+  "prompt": "Hand-drawn sketch feel, rough brushstrokes, non-digital, uneven coloring, flat composition, static viewpoint, no cinematic feel, lacking photographic composition, unrealistic lighting, no physical feel, unnatural light and shadow, no volumetric light, no depth-of-field blur, crude 2D background, no 3D elements, monotonous background, lacking spatial depth, low-brightness tones, low contrast, no filter effect, single color, flat colors",
+  "naturl_prompt": "{A single character stands centered in a flat, static composition with no cinematic depth or volumetric lighting. The rough brushstrokes and uneven coloring create a hand-drawn sketch feel, while low-brightness tones and single-color flat shading define the monotonous background. The viewpoint is fixed at eye level, capturing the figure in a simple pose without photographic composition or realistic shadows. This crude 2D artwork lacks physical texture and spatial depth, presenting an unnatural light and shadow scheme typical of non-digital, low-contrast illustrations., | ,A single character stands centered in a flat, static composition with no cinematic depth or volumetric lighting. The rough brushstrokes and uneven coloring create a hand-drawn sketch feel, while low-brightness tones and single-color flat shading define the monotonous background. The viewpoint is fixed at eye level, capturing the figure in a simple pose without photographic composition or realistic shadows. This crude 2D artwork lacks physical texture and spatial depth, presenting an unnatural light and shadow scheme typical of non-digital, low-contrast illustrations.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "手繪草稿",
+  "namejp": "手描きのスケッチ",
+  "nameen": "Hand-drawn sketches"
+ },
+ {
+  "name": "水彩画風/Watercolor Painting Style",
+  "prompt": "watercolor painting style, watercolor (medium), traditional media, soft shading, paper texture, wet on wet, { pastel colors,| vibrant colors,}, brush strokes, delicate, artistic, painterly, transparent, light wash",
+  "naturl_prompt": "A soft watercolor painting features delicate brush strokes and light washes on textured paper with wet-on-wet shading. The composition uses a traditional media style where transparent layers create a gentle, artistic look without specifying vibrant or pastel tones. Soft lighting enhances the painterly effect, allowing the focus to remain on the fluid blending of colors and the organic feel of the artwork.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "畫風_水彩畫",
+  "namejp": "水彩画風",
+  "nameen": "Watercolor Painting Style"
+ },
+ {
+  "name": "白黒版画風/Bold Line Monochrome Engraving",
+  "prompt": "(bold line:1.75), black and white, bw, high contrast, monochrome, negative space, flat design, vector arts, (engraving:1.3), (gray:-1), by maker, simple background, {white background, | black background, }",
+  "naturl_prompt": "The image presents a stark, high-contrast monochrome illustration featuring a character rendered in a flat, vector art style reminiscent of an engraving. The composition utilizes significant negative space against either a solid white or black background, emphasizing the bold outlines and simple shapes of the figure. The character stands centrally in a full-body shot at eye level, depicted with minimal detail to maintain the graphic aesthetic. Their pose is static and defined by sharp lines, lacking complex shading or texture, while their expression remains neutral within the two-tone palette. The overall effect is a clean, minimalist piece that relies on form and silhouette rather than atmospheric lighting or intricate environmental details.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "黑白版画风",
+  "namejp": "白黒版画風",
+  "nameen": "Bold Line Monochrome Engraving"
+ },
+ {
+  "name": "油絵/Oil Painting",
+  "prompt": "oil painting, traditional media, canvas texture, thick brush strokes, impasto, rich colors, { classical,| impressionist,}, detailed, painterly, artistic, fine art, realistic, masterpiece",
+  "naturl_prompt": "The artwork features a thickly painted figure rendered in rich, impasto brushstrokes that create a textured canvas surface. The composition is framed as an upper-body shot from an eye-level viewpoint, focusing on the subject's expressive face and torso. The character displays detailed facial features with a painterly style reminiscent of fine art masterpieces, utilizing bold, realistic colors to define form. Soft lighting highlights the heavy application of paint, emphasizing the artistic technique over photorealism. The overall scene conveys a sense of traditional media craftsmanship through its deliberate, thick strokes and classical color palette.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "油畫",
+  "namejp": "油絵",
+  "nameen": "Oil Painting"
+ },
+ {
+  "name": "美式漫畫 / American comics",
+  "prompt": "American comic, the image is full of tension and dynamic feel, mainly single-person full-frame images; multi-person scenes must focus on the protagonist, with fewer panels, and if there are panels they occupy a smaller part of the image. Colors are bright and saturated, commonly high-contrast tones such as red, blue, and yellow. Character poses are exaggerated and confident, and muscles are full and athletic; expressions are intense or even exaggerated, and characters are mainly Westerners. Panel layout is flexible, from grand panoramic views to tight close-ups, creating a cinematic narrative atmosphere. Print texture has a halftone dot texture; some elements are highlighted with partially colored. In action scenes, speed lines emphasize impact, and sound effects are directly embedded in the image. Background details are rich; urban, sci-fi, or cosmic stages often appear. The overall style is passionate, dramatic, and full of heroic spirit.",
+  "naturl_prompt": "A single Western character stands in the foreground with an exaggerated, confident pose, displaying full and athletic muscles while wearing bright, saturated clothing in high-contrast tones like red or blue. The camera captures a dynamic full-frame shot at eye level, emphasizing intense facial expressions and action-oriented movements within a rich urban or sci-fi background. Speed lines surround the figure to emphasize impact, while partially colored elements and embedded sound effects highlight key details against a backdrop of halftone dot textures. The scene is bathed in dramatic lighting that enhances the passionate, heroic atmosphere typical of American comics, creating a cinematic narrative filled with tension and energy.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "美式漫畫",
+  "namejp": "アメリカンコミック",
+  "nameen": "American comics"
+ },
+ {
+  "name": "彩水墨画風/Color Ink Wash Painting Style",
+  "prompt": "color ink wash painting style, sumi-e, ink wash, traditional chinese painting, brush strokes, { watercolor,| ink,}, soft gradients, paper texture, artistic, painterly, elegant, oriental, flowing",
+  "naturl_prompt": "{A single character stands in the center of the frame, captured in a full-body shot with a traditional sumi-e ink wash painting style. The artwork features flowing brush strokes and soft gradients on textured paper, creating an elegant and oriental atmosphere. The figure is depicted with a slender build, wearing loose, traditional robes that drape naturally around their form. Their hair flows gently, blending into the minimalist background which emphasizes the artistic medium over detailed scenery. The lighting is soft and diffused, highlighting the subtle variations in the ink tones without harsh shadows., | ,A single character stands in the center of the frame, captured in a full-body shot with a traditional sumi-e ink wash painting style. The artwork features flowing brush strokes and soft gradients on textured paper, creating an elegant and oriental atmosphere. The figure is depicted with a slender build, wearing loose, traditional robes that drape naturally around their form. Their hair flows gently, blending into the minimalist background which emphasizes the artistic medium over detailed scenery. The lighting is soft and diffused, highlighting the subtle variations in the ink tones without harsh shadows.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "畫風_彩水墨畫",
+  "namejp": "彩水墨画風",
+  "nameen": "Color Ink Wash Painting Style"
+ },
+ {
+  "name": "透明水彩 / Transparent watercolor",
+  "prompt": "Watercolor colors are light, thin, and transparent; pale color layers cover the paper like mist; the paper texture naturally shows through; color transitions are soft; edges naturally dissipate, without any line outlines; large areas of color spread evenly.",
+  "naturl_prompt": "A soft, misty wash of pale watercolor colors covers the paper, with natural texture showing through the thin, transparent layers. Soft color transitions blend without hard line outlines, creating large areas where pigment spreads evenly across the surface. The composition features a gentle, atmospheric scene where edges naturally dissipate into the background, maintaining a delicate and ethereal quality throughout the artwork.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "透明水彩",
+  "namejp": "透明水彩画",
+  "nameen": "Transparent watercolor"
+ },
+ {
+  "name": "電影畫面 / Movie stills",
+  "prompt": "The image uses highly saturated color combinations with neon-like radiance, creating a cinematic atmosphere. Lighting layers are distinct, accompanied by soft environmental mist, pastel gradients, and color highlights. Cool blue and purple halos strengthen the vivid color contrast. Composition uses cinematic angles and dynamic paneling, with dramatic spotlights highlighting scene depth. Wide-screen shots or close crops paired with a near-center subject add visual tension; the background presents a glowing or hazy effect, with rim light emphasizing the sense of flow. Motion blur highlights action; character design is stylized, showing a futuristic or pop-fashion feel. Facial expressions are delicate, poses confident, eyes shining, features soft, matching animation-style proportions. Exquisite accessories and emotional poses together create a cyber or fantasy aesthetic.",
+  "naturl_prompt": "A confident character stands near the center of a wide-screen composition, their body framed by dramatic spotlights that create deep depth and visual tension. The shot employs cinematic angles with soft environmental mist and pastel gradients, while cool blue and purple halos enhance the vivid color contrast against a glowing, hazy background. The character features delicate facial expressions and shining eyes, styled with soft animation proportions and exquisite accessories that evoke a futuristic pop-fashion aesthetic. Motion blur highlights dynamic action around them, and rim light emphasizes a sense of flow within the scene's highly saturated, neon-like radiance.",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "電影畫面",
+  "namejp": "映画のスチール写真",
+  "nameen": "Movie stills"
+ },
+ {
+  "name": "キャラクタープロフィール/character profile",
+  "prompt": "multiple views, cropped torso , character profile, {2-3$$ color assignment sheet, | reference inset, | reference text| character name, }",
+  "naturl_prompt": "{The image displays a cropped torso shot focusing on the character's profile from the chest up, with their head turned slightly away to reveal one side of their face. The composition is tight and centered, filling the frame with the subject while excluding any background details or full-body context. The character wears a simple outfit in a single bold color, their expression neutral as they gaze off-screen. Lighting is even and soft, highlighting the clean lines typical of an anime art style without dramatic shadows. The overall look resembles a professional character design sheet or reference material, emphasizing clear visibility of facial features and clothing details for artistic study., | ,The image displays a cropped torso shot focusing on the character's profile from the chest up, with their head turned slightly away to reveal one side of their face. The composition is tight and centered, filling the frame with the subject while excluding any background details or full-body context. The character wears a simple outfit in a single bold color, their expression neutral as they gaze off-screen. Lighting is even and soft, highlighting the clean lines typical of an anime art style without dramatic shadows. The overall look resembles a professional character design sheet or reference material, emphasizing clear visibility of facial features and clothing details for artistic study.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "角色檔案",
+  "namejp": "キャラクタープロフィール",
+  "nameen": "character profile"
+ },
+ {
+  "name": "コピックマーカーイラスト風/Copic Marker Illustration Style",
+  "prompt": "copic marker illustration style, { traditional media,| marker art,}, { vibrant colors,| pastel,}, smooth blending, { anime style,| character design,}, paper texture, { soft shading,| clean lines,}, illustration, hand-drawn",
+  "naturl_prompt": "{A hand-drawn illustration in anime style features a character rendered with smooth blending and paper texture. The artwork utilizes either vibrant colors or pastel tones, executed with clean lines and soft shading reminiscent of copic marker art. The composition presents the subject as a central figure within the frame, capturing their specific pose and expression without ambiguity. Traditional media techniques are applied to create a cohesive scene that highlights the character's design against a textured background., | ,A hand-drawn illustration in anime style features a character rendered with smooth blending and paper texture. The artwork utilizes either vibrant colors or pastel tones, executed with clean lines and soft shading reminiscent of copic marker art. The composition presents the subject as a central figure within the frame, capturing their specific pose and expression without ambiguity. Traditional media techniques are applied to create a cohesive scene that highlights the character's design against a textured background.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "麥克筆",
+  "namejp": "コピックマーカーイラスト風",
+  "nameen": "Copic Marker Illustration Style"
+ },
+ {
+  "name": "ペン素描風x/Pen Sketch Style x",
+  "prompt": "pen sketch style, { cross-hatching,| line art,}, black ink, { monochrome,| sepia,}, sketch, rough lines, detailed, hand-drawn, traditional media, illustration",
+  "naturl_prompt": "{A single character stands in the center of the frame, captured in a rough pen sketch style with detailed black ink lines. The image features traditional media illustration qualities with either cross-hatching or simple line art defining the forms. The figure is depicted in monochrome or sepia tones, showcasing a hand-drawn aesthetic where specific facial features and clothing details remain undefined due to the random selection of options. The composition focuses entirely on the character's silhouette and posture against a blank background, emphasizing the texture of the sketch. Lighting is implied through the density of the ink strokes rather than distinct light sources, maintaining a raw, artistic feel throughout the scene., | ,A single character stands in the center of the frame, captured in a rough pen sketch style with detailed black ink lines. The image features traditional media illustration qualities with either cross-hatching or simple line art defining the forms. The figure is depicted in monochrome or sepia tones, showcasing a hand-drawn aesthetic where specific facial features and clothing details remain undefined due to the random selection of options. The composition focuses entirely on the character's silhouette and posture against a blank background, emphasizing the texture of the sketch. Lighting is implied through the density of the ink strokes rather than distinct light sources, maintaining a raw, artistic feel throughout the scene.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "鋼筆素描風格x",
+  "namejp": "ペン素描風x",
+  "nameen": "Pen Sketch Style x"
+ },
+ {
+  "name": "ヨーロッパ水墨画風/European Ink Wash Painting Style",
+  "prompt": "european ink wash painting style, ink wash, { watercolor,| gouache,}, { european,| western,}, brush strokes, paper texture, monochrome, sepia, artistic, painterly, traditional media",
+  "naturl_prompt": "{A single character stands centrally in the frame, captured in a cowboy shot that emphasizes their full body against a textured paper background. The image is rendered as a monochrome ink wash painting with visible brush strokes and sepia tones, evoking a traditional European artistic style. The figure wears simple clothing suitable for an outdoor setting, with hair and facial features drawn in loose, painterly lines. Soft, diffused lighting highlights the subject without harsh shadows, maintaining the ethereal quality of the medium., | ,A single character stands centrally in the frame, captured in a cowboy shot that emphasizes their full body against a textured paper background. The image is rendered as a monochrome ink wash painting with visible brush strokes and sepia tones, evoking a traditional European artistic style. The figure wears simple clothing suitable for an outdoor setting, with hair and facial features drawn in loose, painterly lines. Soft, diffused lighting highlights the subject without harsh shadows, maintaining the ethereal quality of the medium.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "歐洲水墨畫風格",
+  "namejp": "ヨーロッパ水墨画風",
+  "nameen": "European Ink Wash Painting Style"
+ },
+ {
+  "name": "ローファイ芸術風/Lo-fi Art Style",
+  "prompt": "lo-fi art style, lofi aesthetic, { anime,| pixel art,}, soft colors, nostalgic, chill, retro, { city pop,| vaporwave,}, relaxed, calm, muted palette, grainy, 90s anime, cozy",
+  "naturl_prompt": "{The scene features a relaxed, cozy atmosphere rendered in a lo-fi art style with soft, muted colors and a grainy texture reminiscent of 90s anime. A character stands or sits in the center of the frame, exuding a calm and nostalgic vibe while wearing casual clothing that fits the retro aesthetic. The background suggests an urban setting with elements of city pop or vaporwave influences, perhaps featuring blurred buildings or neon lights that blend into the hazy environment. Warm, diffused lighting enhances the chill mood, casting gentle shadows that complement the overall serene composition. The image captures a moment of quiet reflection, emphasizing simplicity and emotional warmth through its stylized presentation., | ,The scene features a relaxed, cozy atmosphere rendered in a lo-fi art style with soft, muted colors and a grainy texture reminiscent of 90s anime. A character stands or sits in the center of the frame, exuding a calm and nostalgic vibe while wearing casual clothing that fits the retro aesthetic. The background suggests an urban setting with elements of city pop or vaporwave influences, perhaps featuring blurred buildings or neon lights that blend into the hazy environment. Warm, diffused lighting enhances the chill mood, casting gentle shadows that complement the overall serene composition. The image captures a moment of quiet reflection, emphasizing simplicity and emotional warmth through its stylized presentation.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "Lo-fi藝術風格",
+  "namejp": "ローファイ芸術風",
+  "nameen": "Lo-fi Art Style"
+ },
+ {
+  "name": "タロットアールヌーヴォー/Tarot Art Nouveau",
+  "prompt": "tarot, tarot card, art nouveau, fine art parody, leaves,flowers, animal, geometric pattern, english text, roman numeral, clockshow, stained glass,",
+  "naturl_prompt": "{A single tarot card stands upright in the center of the frame, featuring a detailed Art Nouveau illustration. The design incorporates intricate geometric patterns and floral motifs surrounding a central animal figure, reminiscent of stained glass art. English text and Roman numerals are visible on the card, along with a clock showing a specific time. The composition is framed by lush leaves, creating a fine art parody aesthetic with soft, diffused lighting that highlights the vibrant colors and delicate lines of the artwork., | ,A single tarot card stands upright in the center of the frame, featuring a detailed Art Nouveau illustration. The design incorporates intricate geometric patterns and floral motifs surrounding a central animal figure, reminiscent of stained glass art. English text and Roman numerals are visible on the card, along with a clock showing a specific time. The composition is framed by lush leaves, creating a fine art parody aesthetic with soft, diffused lighting that highlights the vibrant colors and delicate lines of the artwork.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "塔羅新藝術風格",
+  "namejp": "タロットアールヌーヴォー",
+  "nameen": "Tarot Art Nouveau"
+ },
+ {
+  "name": "低いお団子ヘア/Low Hair Bun",
+  "prompt": "{ low hair bun,| low hair bun, low bun, gathered at nape, loose strands, face framing, smooth, glossy, neat, elegant, mature, casual, formal, straight, wavy, { black,| brown,| blonde,| pink,}, medium, long,}",
+  "naturl_prompt": "The character stands centered in the frame with her hair gathered at the nape, featuring loose strands framing her face. The shot is a medium close-up capturing her upper body from an eye-level viewpoint against a soft, indistinct background. Her expression remains neutral while she gazes directly forward, wearing simple attire that complements her neat and elegant appearance. Gentle lighting highlights the glossy texture of her hair without casting harsh shadows, rendered in a clean anime art style typical of high-quality Danbooru illustrations.",
+  "negative_prompt": ",",
+  "category": "髮型",
+  "namezh": "低丸子頭",
+  "namejp": "低いお団子ヘア",
+  "nameen": "Low Hair Bun"
+ },
+ {
+  "name": "姫カット/Hime Cut",
+  "prompt": "{ hime cut,| hime cut, princess cut, straight hair, blunt bangs, side locks, cheek length, straight sidelocks, long back hair, sleek, glossy, { black,| brown,| blonde,| pink,}, traditional, elegant,}",
+  "naturl_prompt": "A young woman with a sleek, glossy hime cut hairstyle featuring blunt bangs and side locks stands centered in the frame. Her hair is a single solid color, styled traditionally and elegantly to frame her face. She gazes directly forward with a poised expression, her posture upright and still. The shot is an upper-body view capturing her from the chest up against a simple background. Soft lighting highlights the shine of her hair and the clean lines of her silhouette. The image is rendered in a high-quality anime style with sharp details and vibrant colors.",
+  "negative_prompt": ",",
+  "category": "髮型",
+  "namezh": "公主切",
+  "namejp": "姫カット",
+  "nameen": "Hime Cut"
+ },
+ {
+  "name": "編み込みポニーテール/Braid Ponytail",
+  "prompt": "{ braid ponytail,| braid ponytail, braided ponytail, ponytail, braid, woven, interlaced, hair tie, loose strands, face framing, { black,| brown,| blonde,| pink,| blue,}, long, medium, elegant, neat,}",
+  "naturl_prompt": "A young woman stands in the center of the frame, her long hair styled into a braid that flows down her back. She faces forward with a serene expression, her face framed by loose strands of hair that match one of several possible colors like black, brown, blonde, pink, or blue. The shot is an upper-body view capturing her elegant and neat appearance against a simple background. Soft lighting highlights the texture of her hair and the details of her face, rendered in a clean anime art style typical of high-quality character illustrations.",
+  "negative_prompt": ",",
+  "category": "髮型",
+  "namezh": "編髮馬尾",
+  "namejp": "編み込みポニーテール",
+  "nameen": "Braid Ponytail"
+ },
+ {
+  "name": "ショートボブ/Short Bob Hair",
+  "prompt": "{ short bob hair,| short bob hair, chin length, jaw length, straight, soft ends, rounded silhouette, airy bangs, side part, layered, lightweight, glossy, smooth, natural volume, casual, neat,}",
+  "naturl_prompt": "The character stands centered in the frame with a relaxed posture, her head slightly tilted as she gazes forward. The shot is an upper-body view capturing her from the chest up against a soft, indistinct background. She wears a simple outfit that complements her short bob hair, which features a rounded silhouette and glossy texture with natural volume. Warm lighting highlights the smooth strands of her hair, rendered in a clean anime art style typical of high-quality illustrations.",
+  "negative_prompt": ",",
+  "category": "髮型",
+  "namezh": "短鮑伯頭",
+  "namejp": "ショートボブ",
+  "nameen": "Short Bob Hair"
+ },
+ {
+  "name": "フレンチブレイド/French Braid",
+  "prompt": "{ french braid,| french braid, braided hair, woven, interlaced, along scalp, tight, neat, glossy, smooth, { blonde,| black,| brown,| pink,| blue,}, long, medium, elegant, classic, detailed,}",
+  "naturl_prompt": "A young woman stands in the center of the frame, her long hair styled in a neat, glossy braid that runs tightly along her scalp. She faces forward with a calm expression, her posture upright and elegant. The shot is an upper-body view capturing her from the chest up against a simple background. Her eyes are sharp and expressive, framed by the detailed texture of her woven hair which appears in a single bold color. Soft lighting highlights the smooth strands of her braid, rendered in a high-quality anime art style with clean lines and vibrant colors.",
+  "negative_prompt": ",",
+  "category": "髮型",
+  "namezh": "法式編髮",
+  "namejp": "フレンチブレイド",
+  "nameen": "French Braid"
+ },
+ {
+  "name": "まとめ髪/Piled Up Hair",
+  "prompt": "{ piled up hair,| piled up hair, updo, gathered hair, bun, chignon, pinned up, loose strands, face framing, elegant, mature, formal, { black,| brown,| blonde,| pink,}, glossy, smooth,}",
+  "naturl_prompt": "The character stands centered in the frame with an elegant, mature posture, her hair styled in a piled-up arrangement that frames her face while loose strands fall gently around her. She wears formal attire befitting her sophisticated appearance, gazing directly forward with a composed expression. The shot is a medium close-up capturing her upper body against a soft, indistinct background that keeps the focus entirely on her refined features and glossy hair texture. Warm lighting highlights the smoothness of her hair and the contours of her face, rendered in a clean anime art style typical of high-quality character illustrations.",
+  "negative_prompt": ",",
+  "category": "髮型",
+  "namezh": "盤髮",
+  "namejp": "まとめ髪",
+  "nameen": "Piled Up Hair"
+ },
+ {
+  "name": "山間旅人/traveller passing through the mountains",
+  "prompt": "in Peace mood, solo, hat, holding, standing, weapon, outdoors, boots, sky, day, cloud, hood, from behind, bag, blue sky, tree, bird, animal, brown footwear, hood down, backpack, cloudy sky, building, polearm, staff, 1other, scenery, flying, robe, holding staff, stairs, mountain, railing, facing away, fantasy, wide shot, bridge, mountainous horizon, ambiguous gender, crow, tower, landscape, brown bag, owl, eagle, flock",
+  "naturl_prompt": "A wide shot captures two figures standing on a stone bridge against a mountainous horizon under a cloudy blue sky. The foreground character stands facing away from the camera, wearing a robe and hood down while holding a polearm staff in one hand and a brown bag in the other. Beside them, another figure faces the same direction, also clad in a robe with a hood, gripping a staff and looking out toward the landscape. A crow flies near the railing as birds soar above the distant peaks and trees. The scene is illuminated by soft daylight, rendered in a fantasy anime style with detailed scenery including a tower and scattered clouds.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "山間旅人",
+  "namejp": "山間旅人",
+  "nameen": "traveller passing through the mountains"
+ },
+ {
+  "name": "中世の酒場/Medieval taverns.",
+  "prompt": "in medieval taverns, medieval fantasy, vaulted ceiling bar, {1girl |elf, pointy ears, } hair ornaments , jewelry, flower, earrings , hand up, necklace , color clothes, people, multiple boys, multiple girls, holding, :d, teeth, solo focus, indoors, cup, upper teeth only, alcohol, holding mugs, beer, beer mug, bread, steak, food, wine, soup, wooden mug, wooden table, fried egg,",
+  "naturl_prompt": "In a medieval tavern with a vaulted ceiling, a girl stands in the foreground holding a wooden mug filled with beer, her upper teeth visible in a smile as she looks toward the viewer. She wears colorful clothes adorned with jewelry and flower hair ornaments, while pointy ears peek out from her hair. Behind her, multiple boys and girls gather around a wooden table laden with food like steak, bread, fried eggs, and soup, some holding mugs or reaching for plates. The scene is lit by warm indoor lighting that highlights the lively atmosphere of the crowded bar. Rendered in an anime style, the image captures a moment of shared dining and laughter among the group.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "中世酒館",
+  "namejp": "中世の酒場",
+  "nameen": "Medieval taverns."
+ },
+ {
+  "name": "中世の港町/medieval port city",
+  "prompt": "relaxing mood, medieval fantasy harbor, very wide angle, from side, dutch angle sailboat, solo focus, white sail, outdoors, sky, day, cloud, water, blue sky, tree, no humans, window, bird, ocean, animal, cloudy sky, plant, building, scenery, city, flag, fantasy, ultiple others, watercraft, house, ship, boat, seagull, town, barrel, clock tower, crate, flock, chimney, pier, lighthouse, mast, dock,",
+  "naturl_prompt": "A wide-angle shot from a low, dutch angle captures a solitary white sailboat drifting on calm blue water under a cloudy sky. The vessel is positioned slightly off-center in the foreground, with its mast reaching toward the upper frame against a backdrop of a medieval fantasy harbor featuring a clock tower, lighthouse, and various buildings along the pier. Seagulls fly near the boat while distant trees and chimneys rise behind the town scenery. The scene is bathed in soft daylight, rendered in a clean anime style that emphasizes the peaceful, empty atmosphere of the watercraft and surrounding city without any human presence.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "中世港町",
+  "namejp": "中世の港町",
+  "nameen": "medieval port city"
+ },
+ {
+  "name": "光るキノコの森\\Luminous mushroom forests",
+  "prompt": "bioluminescence, night, plant, mushroom forest, luminous mushroom forests, butterfly, fireflies, light particles,",
+  "naturl_prompt": "A lone butterfly hovers in the center foreground, its wings slightly spread as it drifts through a dense forest of glowing mushrooms. The scene is captured from a low angle looking up, emphasizing the towering, bioluminescent fungi that fill the background with soft, ethereal light. Tiny fireflies and floating light particles dance around the insect, creating a magical atmosphere against the dark night sky. The image features a serene, dreamlike expression on the butterfly, rendered in a vibrant anime style with detailed textures on the mushroom caps and delicate wings.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "發光蘑菇森林",
+  "namejp": "光るキノコの森",
+  "nameen": "Luminous mushroom forests"
+ },
+ {
+  "name": "焼きたてパンの香りに包まれる朝/morning with the smell of freshly baked bread",
+  "prompt": "medieval fantasy, morning with the smell of freshly baked bread , 1girl, food, day, indoors, window, light particles, sunlight, basket, bread, dappled sunlight, shelf, jar, shop, color apron, pastry, window shade, baguette, pie, croissant",
+  "naturl_prompt": "A young woman stands in the center of a cozy medieval shop, bathed in warm morning sunlight streaming through a window with a partially drawn shade. She wears a vibrant color apron over her clothes and holds a basket filled with fresh pastries like baguettes and pies, while dappled light and floating particles dance around her. The background features wooden shelves lined with various jars and goods, creating a rich, inviting atmosphere typical of anime art styles.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "現烤麵包香氣中的早晨",
+  "namejp": "焼きたてパンの香りに包まれる朝",
+  "nameen": "morning with the smell of freshly baked bread"
+ },
+ {
+  "name": "落葉と風車/ wind lift, falling_leaves and windmill",
+  "prompt": "{negative space, |} medieval fantasy, wind lift, falling leaves, ( windmill:1.3) , 1girl hair ornaments , jewelry, flower, earrings , hand up, necklace , color clothes, sitting, outdoors, sky, day, medium hair, cloud, blurry, black dress, from side, blue sky, tree, looking to the side, book, sash, floating hair, leaf, cloudy sky, building, wind, scenery, mountain, house, mountainous horizon, landscape, hill, town, wind lift, falling leaves and windmill",
+  "naturl_prompt": "A girl sits outdoors against a backdrop of mountains, trees, and a cloudy blue sky with a distant windmill. She is positioned slightly off-center in a medium shot, facing to the side with her head turned to look away from the camera. Her medium-length hair floats upward as if caught in a strong wind, lifting flower ornaments and jewelry near her ears while leaves drift around her. She wears a black dress with colorful details and a sash, sitting calmly with one hand raised. The scene is framed by falling leaves and hints of a town below, illuminated by soft daylight that highlights the dynamic movement of her hair and the surrounding nature.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "落葉與風車",
+  "namejp": "落葉と風車",
+  "nameen": "wind lift, falling_leaves and windmill"
+ },
+ {
+  "name": "霧深き森に灯/Lights in the misty fog forest",
+  "prompt": "Lights in the misty fog forest , loneliness mood, night , medieval fantasy, {1girl , |1girl, animal girl, animal ears, extra ears, } hair ornaments , jewelry, flower, earrings , hand up, necklace , color clothes, holding, outdoors, gloves, belt, hood, cape, tree, animal, nature, cloak, hood up, forest, lantern, ears through headwear, hooded cloak, { fox, | wolf| dog}, color cloak, hooded cape, vial, holding lantern, {belt, | corset, } , {starry sky, | moon, | crescent, } spot light, mystic theme,",
+  "naturl_prompt": "A lone female character stands in the center foreground of a misty, fog-covered forest at night, her hood pulled up to obscure part of her face while she holds a glowing lantern high in one hand. She wears a colorful cloak with a hood that frames her head, adorned with jewelry and flower hair ornaments, and her gaze is directed forward into the darkness. The composition is a medium shot capturing her full figure against a backdrop of ancient trees and a sky illuminated by either stars or a soft moonlight spot. A mystical atmosphere envelops the scene, with the warm light from the lantern cutting through the cool, damp air of the medieval fantasy setting.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "霧深森林之燈",
+  "namejp": "霧深き森に灯",
+  "nameen": "Lights in the misty fog forest"
+ },
+ {
+  "name": "ランプ工房/Lamp Workshop",
+  "prompt": "medieval fantasy, lamp workshop, crystal lamp, lamps, gem, aura, light particles, calm mood, 1girl, {blush, smile| }, hair ornaments , jewelry, flower, earrings , indoors, hand up, necklace , bottle, plant, gem, light particles, floating, lantern, bookshelf, lamp, color gemstone, shelf, floating object, jar, levitation, a lot of lamp, color clothes,",
+  "naturl_prompt": "A young woman stands in the center of a cozy indoor lamp workshop, surrounded by shelves filled with jars, bottles, and floating lanterns. She wears colorful clothes adorned with jewelry, flower hair ornaments, and earrings, her hand raised as if interacting with the glowing crystals and light particles drifting around her. The scene is captured from an eye-level medium shot that frames her calm expression and the magical aura emanating from the gemstones. Soft lighting highlights the intricate details of the crystal lamps and plants scattered throughout the room, creating a serene atmosphere reminiscent of high-quality anime art.",
+  "negative_prompt": ",",
+  "category": "場景 > medieval fantasy,場景",
+  "namezh": "燈具工房",
+  "namejp": "ランプ工房",
+  "nameen": "Lamp Workshop"
+ },
+ {
+  "name": "巴士站/bus stop",
+  "prompt": "1girl, smile, short hair, shirt, skirt, black hair, 1boy, sitting, standing, school uniform, white shirt, ahoge, ponytail, short sleeves, outdoors, pleated skirt, necktie, sky, shoes, collared shirt, socks, pants, day, cloud, black skirt, looking at another, bag, blue sky, black pants, ocean, brown footwear, white socks, arms behind back, cloudy sky, loafers, scenery, eye contact, blue necktie, school bag, shirt tucked in, sign, horizon, bench, summer, road sign, train station, on bench, umulonimbus cloud, sitting on bench, bus stop",
+  "naturl_prompt": "A girl with short black hair and a smile stands in the foreground, leaning slightly forward while looking at a boy seated on a bench behind her. The boy sits with his arms behind his back, wearing a school uniform with a white shirt, blue necktie, and pleated skirt, gazing back at her with eye contact. They are positioned outdoors under a cloudy sky with scattered cumulonimbus clouds, near a road sign and train station scenery that includes an ocean horizon. The scene is captured in a medium shot during the day, featuring natural lighting and a summer atmosphere typical of anime art styles.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "巴士站",
+  "namejp": "バス停",
+  "nameen": "bus stop"
+ },
+ {
+  "name": "仰望星空天空 / looking up star sky",
+  "prompt": "star (sky), solo focus, looking up, facing away, hoodie, hooded jacket, jeans, shoes, pants, hood, hood down, sitting, outdoors, sky, cloud, water, night, ocean, beach, backpack, night sky, starry sky, shooting star, shore, cliff, from behind, blue theme, wide shot, bag, cloudy sky, denim, scenery, motor vehicle, rock, horizon, motorcycle, waves, on motorcycle,",
+  "naturl_prompt": "A lone figure sits on a rocky shore facing away from the camera, gazing upward at a vast night sky filled with stars and clouds. The character wears a hooded jacket with the hood down, paired with jeans and shoes, while a backpack rests nearby. From behind in a wide shot, the composition frames the subject against the horizon where the ocean meets the dark water, with waves crashing softly below. A motorcycle is parked on the sand near the cliff edge, adding to the solitary atmosphere under the shooting star. The scene is bathed in cool blue lighting, capturing the serene beauty of the night outdoors.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "仰望星空",
+  "namejp": "星空を見上げる",
+  "nameen": "looking up star sky"
+ },
+ {
+  "name": "老台北巷弄 / old taipei back alley",
+  "prompt": "air conditioner, Roller shutter, {back alley, trash bag, cans, brick road| road , cars, }, cement wall, water stain, rust, water pipe, wire",
+  "naturl_prompt": "The scene is captured in a gritty, urban setting featuring a prominent roller shutter and an air conditioner unit mounted against a weathered cement wall marked by water stains and rust. A water pipe runs alongside the wall, accompanied by exposed wires that add to the industrial atmosphere. The ground consists of a rough brick road cluttered with trash bags and cans, suggesting a neglected back alley environment. The lighting appears dim and natural, casting soft shadows that emphasize the textures of the peeling paint and dirty surfaces. The overall aesthetic mimics a realistic, slightly desaturated anime style common in slice-of-life or urban exploration genres, focusing on the decay and mundane details of city infrastructure without any human presence.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "老台北巷弄",
+  "namejp": "老台北巷弄",
+  "nameen": "old taipei back alley"
+ },
+ {
+  "name": "図書館/Library",
+  "prompt": "ibrary, indoor, bookshelves, books, wooden furniture, The interior of a library fills the scene with tall bookshelves lining the walls and rows of books , reading table and chair,",
+  "naturl_prompt": "The scene is a close-up shot of an indoor library interior, framed by tall wooden bookshelves lining the walls and filled with rows of books. A reading table and chair occupy the center of the composition, though no characters are present to describe specific poses or expressions. The environment features classic wooden furniture creating a warm, scholarly atmosphere under soft, ambient lighting that highlights the texture of the wood and paper. The art style mimics a detailed anime illustration with clean lines and rich colors typical of high-quality Danbooru-tagged artwork.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "圖書館",
+  "namejp": "図書館",
+  "nameen": "Library"
+ },
+ {
+  "name": "林間斑駁陽光 / dappled sunlight in forest",
+  "prompt": "impressionism, brush stroke, dappled sunlight , trees, leaves, wind lift, falling petals, floating hair, floating clothes,",
+  "naturl_prompt": "A young woman stands in the center of the frame, her body slightly turned as dappled sunlight filters through surrounding trees. She has floating hair and clothes caught in a gentle breeze, with wind lifting leaves and falling petals around her. The scene is bathed in impressionistic brush strokes that capture the movement of nature. Her expression is serene as she gazes forward amidst the swaying foliage.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "林間斑駁陽光",
+  "namejp": "林間斑駁陽光",
+  "nameen": "dappled sunlight in forest"
+ },
+ {
+  "name": "雨の十字路/Rainy crossroads.",
+  "prompt": "Rainy crossroads, from side, crosswalk , reflection, walking, different reflection, faceless, 1girl, {long|short} hair, shirt, color hair, long sleeves, standing, color hair, jacket, color hair, male focus, outdoors, multiple boys, sky, shoes, socks, pants, day, hood, 2boys, color footwear, looking at another, water, bag, color jacket, hoodie, color pants, color footwear, color jacket, color shirt, building, hand in pocket, city, hands in pockets, road, puddle, reflective water,",
+  "naturl_prompt": "A rainy city crosswalk scene features a single girl standing in the foreground on the left, wearing a hooded jacket and long sleeves with her hands deep in her pockets. Behind her to the right, two boys stand near a puddle, their reflections visible in the wet asphalt as they look toward one another. The composition is a medium shot taken from eye level, capturing the verticality of nearby buildings against a gray sky. The girl has color hair that falls past her shoulders, while the boys wear color pants and footwear, all set under soft, overcast daylight that highlights the reflective water on the road.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "雨中十字路",
+  "namejp": "雨の十字路",
+  "nameen": "Rainy crossroads."
+ },
+ {
+  "name": "城市燈光散景 / city lights bokeh",
+  "prompt": "city lights, bokeh, {letterboxed| cross road |building |Skyscrapt }",
+  "naturl_prompt": "The scene captures a vibrant cityscape at night, illuminated by glowing streetlights and neon signs that create a soft bokeh effect in the background. The view is framed with a letterboxed aspect ratio, giving the image a cinematic, widescreen feel that emphasizes the depth of the urban environment. Tall skyscrapers rise majestically against the dark sky, their windows twinkling like stars, while the foreground features blurred lights from passing vehicles or distant intersections. The overall composition blends modern architecture with atmospheric lighting, evoking a sense of bustling energy and mystery typical of anime-style cityscapes.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "城市燈光散景",
+  "namejp": "城市燈光散景",
+  "nameen": "city lights bokeh"
+ },
+ {
+  "name": "屋内カフェ/cafe indoors",
+  "prompt": "espresso machine , steam , coffee mug, cafe, food, bread slice, glancing,",
+  "naturl_prompt": "A young woman stands in the foreground holding a steaming coffee mug, her gaze directed toward an espresso machine emitting visible steam. She is positioned slightly to the left of the frame, leaning forward with one hand gripping the handle of the mug while the other rests near her side. The scene captures a cozy cafe atmosphere with a slice of bread visible on a nearby surface. Warm lighting highlights the texture of the steam and the details of her casual clothing. The image features a soft anime art style with vibrant colors and a shallow depth of field that keeps the focus on the character and the immediate objects around her.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "室內咖啡廳",
+  "namejp": "屋内カフェ",
+  "nameen": "cafe indoors"
+ },
+ {
+  "name": "雪の降るバス停/snowing bus stop",
+  "prompt": "1girl, sitting, bench, fur-trimmed coat, earmuffs, scarf, fur-trimmed boots, boots, black skirt, black footwear, scarf, fur coat, sleeves past wrists, fur trim, full body, outdoors, winter, snow, white theme, snowing, looking at viewer, bus stop,",
+  "naturl_prompt": "A young woman sits alone on a bench at a snowy bus stop, her body angled slightly forward as she looks directly at the viewer. She wears a heavy fur-trimmed coat and matching boots, with a thick scarf wrapped around her neck and earmuffs covering her ears against the winter chill. The scene is framed as a full-body shot from eye level, capturing her black skirt and sleeves that extend past her wrists amidst falling snowflakes. Soft, diffused daylight illuminates the white theme of the environment, highlighting the texture of the fur and the quiet atmosphere of the outdoors.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "下雪的巴士站",
+  "namejp": "雪の降るバス停",
+  "nameen": "snowing bus stop"
+ },
+ {
+  "name": "森林鉄道/forest railroad",
+  "prompt": "outdoors, railroad tracks, train station, train, sky, day, cloud, tree, no humans, window, cloudy sky, chair, grass, plant, building, scenery, nature, forest, stairs, sign, bush, cable, bench, architecture, house, power lines, utility pole, traffic light,",
+  "naturl_prompt": "The scene captures a quiet outdoor view of a train station surrounded by nature, featuring railroad tracks stretching into the distance under a cloudy sky. A lone bench sits near the platform area, flanked by grass, bushes, and trees that frame the architecture of the nearby building and house. Power lines and utility poles crisscross the upper portion of the frame against the backdrop of the day's overcast light. The composition uses a wide shot to emphasize the empty scenery, with no humans present, allowing the focus to remain on the stillness of the forest edge, the distant train, and the subtle details like the window and traffic light in the background.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "森林鐵道",
+  "namejp": "森林鉄道",
+  "nameen": "forest railroad"
+ },
+ {
+  "name": "湖畔垂釣 / lake fishing",
+  "prompt": ", solo, holding, sitting, solo focus, outdoors, sky, day, cloud, water, blue sky, cloudy sky, scenery, reflection, wide shot, ripples, mountainous horizon, lake, fishing rod, reflective water, different reflection, fishing, holding fishing rod, cumulonimbus cloud, fishing line, dock, silhouette, from behind,",
+  "naturl_prompt": "A lone figure sits on a dock with their back to the viewer, gazing out at a vast lake under a wide blue sky filled with cumulonimbus clouds. The person holds a fishing rod extended forward, casting a line into the water that reflects the dramatic scenery and mountainous horizon. The shot is a wide view from behind, capturing the silhouette against the bright daylight as ripples disturb the reflective surface below.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "湖畔垂釣",
+  "namejp": "湖畔垂釣",
+  "nameen": "lake fishing"
+ },
+ {
+  "name": "櫻枝麻雀/sparrow on cherry branch",
+  "prompt": "branch, no humans, cherry blossoms, spring , leaves, partially colored, negative space, upside-down, bird sitting on branch, sparrow, no humans, traditioal media, oil painting, textured, layered, rich, classic, timeless, blurry background, soft color, impasto, wuguanzhong, zhang daqian, qi baishi, simple background, gradient background, sparrow on cherry branch",
+  "naturl_prompt": "A sparrow perches on a cherry blossom branch that extends diagonally across the frame, filling the center with textured, layered brushstrokes. The composition utilizes significant negative space against a soft, gradient background that blurs into a simple backdrop, emphasizing the bird and flowers. Rendered in an oil painting style reminiscent of traditional Chinese masters like Zhang Daqian, the image features rich impasto textures and partially colored areas that suggest a timeless, classic aesthetic. Warm spring light filters through the leaves, highlighting the delicate petals while maintaining a gentle, atmospheric mood without any human presence.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "櫻枝麻雀",
+  "namejp": "桜の枝に雀",
+  "nameen": "sparrow on cherry branch"
+ },
+ {
+  "name": "ウィンターコーヒー/winter coffee",
+  "prompt": "1girl, solo, looking at viewer, blush, smile, long sleeves, hat, holding, upper body, outdoors, parted lips, sky, day, hood, scarf, coat, sweater, blue sky, cup, lips, hood down, holding cup, building, steam, snow, color coat, red scarf, pink lips, beanie, winter clothes, disposable cup, winter, winter coat, coffee cup, color scarf, down jacket",
+  "naturl_prompt": "A single girl stands in the foreground against a backdrop of buildings and a bright blue sky, wearing winter clothes including a color coat, a hood down around her shoulders, and a red scarf. She faces the viewer directly with a gentle smile and parted lips, holding a disposable coffee cup in her hands while steam rises from it in the cold air. Her long sleeves are visible as she looks forward, framed by an upper body shot that captures her blush and pink lips clearly. The scene is set outdoors on a snowy day, with natural daylight illuminating her cheerful expression and the surrounding urban environment.",
+  "negative_prompt": ",",
+  "category": "場景 > lofi,場景",
+  "namezh": "冬季咖啡",
+  "namejp": "ウィンターコーヒー",
+  "nameen": "winter coffee"
+ },
+ {
+  "name": "武士刀出鞘戰鬥姿勢 / Unsheathing Katana",
+  "prompt": "unsheathing, fighting stance, holding, holding weapon, holding helt of {sword, | katana} ,",
+  "naturl_prompt": "A character stands in a dynamic fighting stance, unsheathing a weapon held firmly in one hand while the other remains ready. The figure is positioned centrally in the frame, captured from an eye-level angle that emphasizes their tense posture and focused expression. Their hair flows slightly, framing a determined face with sharp eyes fixed on an unseen opponent. The background is blurred to keep attention on the action, suggesting an outdoor setting with soft, natural lighting. Rendered in a crisp anime style with vibrant colors and clean lines, the scene conveys immediate tension and readiness for combat.",
+  "negative_prompt": ",",
+  "category": "基礎戰鬥 > 刀劍,基礎戰鬥",
+  "namezh": "武士刀出鞘戰鬥姿勢",
+  "namejp": "刀を抜く戦闘ポーズ",
+  "nameen": "Unsheathing Katana"
+ },
+ {
+  "name": "中式服裝 / Chinese clothes",
+  "prompt": "Chinese clothes, traditional Chinese clothing, hanfu, qipao, cheongsam, tangzhuang, changshan, ruqun, aoqun, cross-collar, wide sleeves, mandarin collar, frog buttons, silk fabric, brocade, embroidery, cloud pattern, dragon pattern, floral pattern, sash, tassel, traditional attire",
+  "naturl_prompt": "{A young woman stands centrally in the frame, wearing a traditional Chinese garment with wide sleeves and intricate embroidery featuring cloud or floral patterns. The fabric appears to be rich silk or brocade, adorned with frog buttons and a decorative sash that flows down her side. She faces forward with a serene expression, her posture upright yet graceful, embodying the elegance of classic attire. The shot is taken at eye level as a medium full-body view, capturing the detailed mandarin collar and cross-collar design against a softly blurred background. Warm, diffused lighting highlights the texture of the clothing and the delicate tassels hanging from the hem, rendered in a high-quality anime art style with vibrant colors and smooth shading., | ,A young woman stands centrally in the frame, wearing a traditional Chinese garment with wide sleeves and intricate embroidery featuring cloud or floral patterns. The fabric appears to be rich silk or brocade, adorned with frog buttons and a decorative sash that flows down her side. She faces forward with a serene expression, her posture upright yet graceful, embodying the elegance of classic attire. The shot is taken at eye level as a medium full-body view, capturing the detailed mandarin collar and cross-collar design against a softly blurred background. Warm, diffused lighting highlights the texture of the clothing and the delicate tassels hanging from the hem, rendered in a high-quality anime art style with vibrant colors and smooth shading.}",
+  "negative_prompt": ",",
+  "category": "衣服 > COS服裝 > 傳統服裝,衣服 > COS服裝,衣服",
+  "namezh": "中式服裝",
+  "namejp": "中式服裝",
+  "nameen": "Chinese clothes"
+ },
+ {
+  "name": "宋代の服/Song Dynasty Clothing",
+  "prompt": ", song dynasty clothing, hanfu, beizi, straight-collar jacket, parallel collar, aoqun, qixiong ruqun, baidie skirt, pleated skirt, wide sleeves, narrow sleeves, silk, cotton, plain colors, delicate embroidery, floral pattern, traditional Chinese attire, hanfu,",
+  "naturl_prompt": "{A young woman stands center frame in a full-body shot, wearing traditional Song dynasty Hanfu consisting of a straight-collar jacket with parallel collars over a qixiong ruqun. She wears an aoqun or baidie skirt that flows around her legs, featuring wide sleeves made of silk and cotton with delicate floral embroidery on plain colors. Her hair is styled traditionally to match the historical attire, and she gazes forward with a serene expression. The scene is set against a softly blurred background that suggests a peaceful garden or courtyard, illuminated by warm, natural daylight. The image is rendered in a clean anime style that emphasizes the intricate details of the fabric folds and the elegance of the traditional Chinese clothing., | ,A young woman stands center frame in a full-body shot, wearing traditional Song dynasty Hanfu consisting of a straight-collar jacket with parallel collars over a qixiong ruqun. She wears an aoqun or baidie skirt that flows around her legs, featuring wide sleeves made of silk and cotton with delicate floral embroidery on plain colors. Her hair is styled traditionally to match the historical attire, and she gazes forward with a serene expression. The scene is set against a softly blurred background that suggests a peaceful garden or courtyard, illuminated by warm, natural daylight. The image is rendered in a clean anime style that emphasizes the intricate details of the fabric folds and the elegance of the traditional Chinese clothing.}",
+  "negative_prompt": ",",
+  "category": "衣服 > COS服裝 > 傳統服裝,衣服 > COS服裝,衣服",
+  "namezh": "宋代服飾",
+  "namejp": "宋代の服",
+  "nameen": "Song Dynasty Clothing"
+ },
+ {
+  "name": "和服、日式服裝 / kimono,japanese clothes",
+  "prompt": "kimono, japanese clothes, traditional japanese clothing, long sleeves, wide sleeves, obi, sash, {floral|simple| geometric} pattern, silk fabric, layered fabric, collar, wrap front, japanese style, traditional attire, hair ornament,",
+  "naturl_prompt": "{A young woman stands centrally in the frame, wearing a traditional Japanese kimono with long, wide sleeves and an obi sash. The garment features layered fabric with a collar and wrap front, displaying a pattern that could be floral, simple, or geometric. Her hair is adorned with an ornate hair ornament, and she faces forward with a calm expression. The shot captures her from the waist up at eye level, emphasizing the texture of the silk material. Soft lighting highlights the folds of the fabric and the intricate details of the attire against a neutral background. The art style mimics high-quality anime illustrations with vibrant colors and clean lines., | ,A young woman stands centrally in the frame, wearing a traditional Japanese kimono with long, wide sleeves and an obi sash. The garment features layered fabric with a collar and wrap front, displaying a pattern that could be floral, simple, or geometric. Her hair is adorned with an ornate hair ornament, and she faces forward with a calm expression. The shot captures her from the waist up at eye level, emphasizing the texture of the silk material. Soft lighting highlights the folds of the fabric and the intricate details of the attire against a neutral background. The art style mimics high-quality anime illustrations with vibrant colors and clean lines.}",
+  "negative_prompt": ",",
+  "category": "衣服 > COS服裝 > 傳統服裝,衣服 > COS服裝,衣服",
+  "namezh": "和服、日式服裝",
+  "namejp": "和服、日式服裝",
+  "nameen": "kimono,japanese clothes"
+ },
+ {
+  "name": "明代の服/Ming Dynasty Clothing",
+  "prompt": "ming dynasty clothing, hanfu, aoqun, short jacket, (mamianqun:1.3), ( long skirt, pleated skirt:0.7), bijia ( long, sleeveless mongolian jacket), sleeveless vest, daopao, cloak, cross-collar, wide sleeves, pipa sleeves, silk, brocade, gold embroidery, cloud pattern, floral pattern, traditional Chinese attire",
+  "naturl_prompt": "{A young woman stands centered in the frame, wearing a layered ensemble of traditional Chinese attire that includes a short jacket over a sleeveless vest and a long, pleated skirt. Her posture is upright with wide sleeves hanging naturally at her sides, and she gazes forward with a serene expression. The composition features an eye-level medium shot that captures her full figure against a softly blurred background, emphasizing the intricate details of her clothing. Rich gold embroidery and cloud patterns adorn the silk and brocade fabrics, creating a vibrant display of cultural heritage. Warm, diffused lighting highlights the textures of the garments, rendered in a high-quality anime style with sharp lines and vivid colors., | ,A young woman stands centered in the frame, wearing a layered ensemble of traditional Chinese attire that includes a short jacket over a sleeveless vest and a long, pleated skirt. Her posture is upright with wide sleeves hanging naturally at her sides, and she gazes forward with a serene expression. The composition features an eye-level medium shot that captures her full figure against a softly blurred background, emphasizing the intricate details of her clothing. Rich gold embroidery and cloud patterns adorn the silk and brocade fabrics, creating a vibrant display of cultural heritage. Warm, diffused lighting highlights the textures of the garments, rendered in a high-quality anime style with sharp lines and vivid colors.}",
+  "negative_prompt": ",",
+  "category": "衣服 > COS服裝 > 傳統服裝,衣服 > COS服裝,衣服",
+  "namezh": "明代服飾",
+  "namejp": "明代の服",
+  "nameen": "Ming Dynasty Clothing"
+ },
+ {
+  "name": "漢服 / Hanfu",
+  "prompt": "Hanfu, traditional clothes, chinese clothes,",
+  "naturl_prompt": "{A young woman stands center frame in a full-body shot, wearing a flowing Hanfu with traditional Chinese design elements. Her posture is upright and graceful, with her hands resting gently at her sides as she gazes directly forward. The scene is set against a softly blurred background that hints at an ancient courtyard or garden, allowing the detailed fabric of her attire to remain the focal point. Warm, natural lighting illuminates her face and the intricate patterns on her clothing, rendered in a clean anime art style typical of high-quality character illustrations., | ,A young woman stands center frame in a full-body shot, wearing a flowing Hanfu with traditional Chinese design elements. Her posture is upright and graceful, with her hands resting gently at her sides as she gazes directly forward. The scene is set against a softly blurred background that hints at an ancient courtyard or garden, allowing the detailed fabric of her attire to remain the focal point. Warm, natural lighting illuminates her face and the intricate patterns on her clothing, rendered in a clean anime art style typical of high-quality character illustrations.}",
+  "negative_prompt": ",",
+  "category": "衣服 > COS服裝 > 民族服裝,衣服 > COS服裝,衣服",
+  "namezh": "漢服",
+  "namejp": "漢服",
+  "nameen": "Hanfu"
+ },
+ {
+  "name": "デザインスケッチ三面図/Design Sketch Three-View",
+  "prompt": "The image presents the atmosphere of a design sketch, with clean and precise lines, carrying an engineering-drawing-like sense of structure. Character design is shown in front view, side view, and three-view sheets, with clear proportions and stable poses, emphasizing structure rather than emotion. Mechanical design parts display exploded views and arrangements of detailed components, organized like industrial blueprints. The background remains simple, with blank space highlighting the subject, allowing viewers to focus on lines and structure. Colors tend toward monochrome or low saturation, often presented in grayscale or pale blue tones, creating a technical and calm atmosphere. The overall image emphasizes functionality and readability; the proportions, joints, and connection points of characters and machines are finely marked, with the professional feel of a design sketch.",
+  "naturl_prompt": "{The image displays character designs and mechanical parts arranged like technical blueprints, featuring front, side, and three-view sheets with clear proportions. The subjects are depicted in stable poses emphasizing structure over emotion, with finely marked joints and connection points. The composition maintains a simple background with blank space to highlight the precise lines and organized components. Colors remain monochromatic or low saturation, often appearing in grayscale or pale blue tones to create a calm, functional atmosphere. The art style mimics engineering drawings with clean, precise lines that convey a professional sense of readability and structural stability., | ,The image displays character designs and mechanical parts arranged like technical blueprints, featuring front, side, and three-view sheets with clear proportions. The subjects are depicted in stable poses emphasizing structure over emotion, with finely marked joints and connection points. The composition maintains a simple background with blank space to highlight the precise lines and organized components. Colors remain monochromatic or low saturation, often appearing in grayscale or pale blue tones to create a calm, functional atmosphere. The art style mimics engineering drawings with clean, precise lines that convey a professional sense of readability and structural stability.}",
+  "negative_prompt": ",",
+  "category": "藝術形式",
+  "namezh": "設計草圖三視圖",
+  "namejp": "デザインスケッチ三面図",
+  "nameen": "Design Sketch Three-View"
+ }
+]

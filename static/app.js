@@ -101,6 +101,7 @@ async function route() {
       if (sub === "bible") return await viewBible(view, q.t, q.f);
       if (sub === "tracking") return await viewTracking(view, q.t);
       if (sub === "jobs") return await viewJobs(view);
+      if (sub === "export") return await viewExport(view);
     }
     S.routeName = "shelf";
     await setBook(null, true);
@@ -141,7 +142,7 @@ function renderNav() {
     const base = "#/b/" + enc(S.book);
     const items = [
       ["overview", "◉", "總覽"], ["chapters", "☰", "章節"], ["outline", "⌘", "大綱"],
-      ["bible", "✦", "設定集"], ["tracking", "⟲", "伏筆與時間線"], ["jobs", "◷", "任務紀錄"],
+      ["bible", "✦", "設定集"], ["tracking", "⟲", "伏筆與時間線"], ["jobs", "◷", "任務紀錄"], ["export", "⇩", "匯出"],
     ];
     nav.innerHTML = items.map(([r, i, t]) =>
       `<a class="navlink ${S.routeName === r || (r === "chapters" && S.routeName === "ch") ? "active" : ""}" href="${base}/${r}"><span class="ico">${i}</span><span>${t}</span></a>`).join("");
@@ -704,6 +705,15 @@ async function viewSettings(view) {
   view.innerHTML = `
     <div class="page-head"><div><h1>設定</h1><div class="sub">小說工作台 v${esc(r.version)}</div></div></div>
     <div class="card">
+      <h2 style="margin-bottom:12px">服務</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="f" style="margin:0;width:160px"><span>連接埠</span><input type="number" id="c-port" value="${esc(r.port)}" min="1024" max="65535"></label>
+        <span class="grow muted small">目前網址 <code>${esc(location.origin)}</code>${r.port !== r.running_port && r.running_port ? `　<span class="badge b-warn">已改成 ${esc(r.port)}，重新啟動後生效</span>` : ""}</span>
+        <button id="c-restart" ${r.can_restart ? "" : "disabled"}>重新啟動服務</button>
+      </div>
+      <div class="muted small" style="margin-top:8px">改了連接埠、更新了工作台的程式檔，或服務怪怪的時候用。有任務在執行時無法重新啟動。${r.can_restart ? "" : "<br>目前的啟動方式不支援自動重新啟動，請關閉黑色視窗後重新執行 start.bat。"}</div>
+    </div>
+    <div class="card">
       <h2 style="margin-bottom:12px">書庫</h2>
       <label class="f"><span>書庫資料夾（每本書是裡面的一個子資料夾）</span><input type="text" id="c-lib" value="${esc(c.library)}"></label>
       <div class="muted small">${r.library_exists ? "✓ 資料夾存在" : "✗ 資料夾不存在，儲存時會自動建立"}</div>
@@ -723,7 +733,7 @@ async function viewSettings(view) {
     </div>
     <div class="card">
       <h2 style="margin-bottom:4px">AI 執行者</h2>
-      <div class="muted small" style="margin-bottom:12px">Claude Code 用你的訂閱，會自己讀寫檔案，所有功能都能用。其他模型（DeepSeek、本機 llama.cpp 等 OpenAI 相容服務）由工作台組裝資料再送出，目前支援寫章節、改稿、退回重寫、去 AI 味、審查、採用回寫、補齊追蹤、自由問答。</div>
+      <div class="muted small" style="margin-bottom:12px">Claude Code 用你的訂閱，會自己讀寫檔案，所有功能都能用。其他模型（DeepSeek、本機 llama.cpp 等 OpenAI 相容服務）由工作台組裝資料再送出，所有按鈕都能用，結果由工作台檢查後寫檔。</div>
       <label class="f"><span>預設執行者</span><select id="c-defprov">${(c.providers || []).map((p) => `<option value="${esc(p.id)}" ${p.id === c.default_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
       <div id="prov-list"></div>
       <button class="sm" id="prov-add">＋ 新增 OpenAI 相容服務</button>
@@ -808,6 +818,13 @@ async function viewSettings(view) {
     provs.push({ id: "custom" + n, type: "openai", name: "自訂服務 " + n, base_url: "", model: "", key_env: "", context_tokens: 32768, max_output: 4096, temperature: 0.8, json_mode: true, price_in: 0, price_out: 0, extra: {} });
     renderProvs();
   };
+  $("#c-restart").onclick = async () => {
+    const newPort = parseInt($("#c-port").value);
+    if (newPort && newPort !== r.port) {
+      try { await api("POST", "/api/config", { port: newPort }); } catch (e) { return fail(e); }
+    }
+    restartServer();
+  };
   $("#c-save").onclick = async () => {
     try {
       await saveProvs();
@@ -818,6 +835,7 @@ async function viewSettings(view) {
         add_dirs: $("#c-dirs").value.split("\n").map((s) => s.trim()).filter(Boolean),
         reconcile_before_write: $("#c-recon").checked, goal_check_after_write: $("#c-goal").checked,
         stale_foreshadow: parseInt($("#c-sf").value) || 10, stale_character: parseInt($("#c-sc").value) || 15, create_library: true,
+        port: parseInt($("#c-port").value) || r.port,
       });
       S.config = r2.config; S.claudeFound = r2.claude_found; S.keyStatus = r2.key_status;
       S.books = (await api("GET", "/api/books")).books;
@@ -826,6 +844,131 @@ async function viewSettings(view) {
     } catch (e) { fail(e); }
   };
 }
+
+/* ------------------------------------------------------------------ 匯出 */
+const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+
+async function viewExport(view) {
+  const m = await api("GET", B("/export"));
+  const p = m.prefs;
+  const chs = m.chapters;
+  const first = chs.length ? chs[0].no : "", last = chs.length ? chs[chs.length - 1].no : "";
+  const sel = (id, obj, cur) => `<select id="${id}">${Object.entries(obj).map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
+  view.innerHTML = `
+    <div class="page-head"><div><h1>匯出</h1><div class="sub">把正文和資料整理成一個檔案，存在書資料夾的 <code>匯出</code> 裡</div></div></div>
+    <div class="grid exp-grid">
+      <div class="card">
+        <h2 style="margin-bottom:12px">格式</h2>
+        <div class="seg" id="x-fmt">
+          <label><input type="radio" name="x-fmt" value="epub" ${p.format !== "txt" ? "checked" : ""}><span><b>EPUB 電子書</b><small>有目錄，可放進電子書閱讀器、Apple Books、Google Play 圖書</small></span></label>
+          <label><input type="radio" name="x-fmt" value="txt" ${p.format === "txt" ? "checked" : ""}><span><b>TXT 純文字</b><small>任何地方都能開，適合貼到連載平台或手機閱讀器</small></span></label>
+        </div>
+        <h2 style="margin:18px 0 10px">內容</h2>
+        ${m.items.map(([k, label]) => `<label class="cb"><input type="checkbox" data-item="${k}" ${p.items.includes(k) ? "checked" : ""}> ${esc(label)}${k === "bible" ? '<span class="muted small">（不含設定草稿）</span>' : ""}</label>`).join("")}
+        <div class="row" style="margin:4px 0 0 26px">
+          <span class="small muted">章節範圍</span>
+          <input type="number" id="x-from" class="num-in" value="${esc(first)}" min="${esc(first)}" max="${esc(last)}"> <span class="small muted">到</span>
+          <input type="number" id="x-to" class="num-in" value="${esc(last)}" min="${esc(first)}" max="${esc(last)}">
+          <span class="small muted">（正文共 ${chs.length} 章，${fmtNum(chs.reduce((a, c) => a + c.chars, 0))} 字；章綱也套用這個範圍）</span>
+        </div>
+        ${chs.length ? "" : '<div class="muted small" style="margin:6px 0 0 26px">還沒有採用的正文。候選稿要先採用才會匯出。</div>'}
+      </div>
+      <div class="card">
+        <h2 style="margin-bottom:12px">書籍資訊與排版</h2>
+        <div class="grid g2">
+          <label class="f"><span>書名</span><input type="text" id="x-title" value="${esc(p.title || m.book_title)}"></label>
+          <label class="f"><span>作者（選填）</span><input type="text" id="x-author" value="${esc(p.author)}"></label>
+          <label class="f"><span>章名格式</span>${sel("x-ts", m.title_styles, p.title_style)}</label>
+          <label class="f"><span>段落格式</span>${sel("x-ps", m.para_styles, p.para_style)}</label>
+        </div>
+        <div data-only="txt">
+          <label class="f"><span>文字編碼</span>${sel("x-enc", m.encodings, p.encoding)}</label>
+        </div>
+        <div data-only="epub">
+          <label class="cb"><input type="checkbox" id="x-vert" ${p.vertical ? "checked" : ""}> 直排（由右往左翻頁；章名建議用「第一章」格式）</label>
+          <label class="cb"><input type="checkbox" id="x-cover" ${p.use_cover !== false ? "checked" : ""} ${m.cover ? "" : "disabled"}> 使用封面圖
+            <span class="muted small">${m.cover ? "（" + esc(m.cover) + "）" : "（把 封面.jpg 或 封面.png 放在書資料夾裡就會出現）"}</span></label>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="grow"></span><button class="primary" id="x-go">匯出</button></div>
+        <div id="x-result"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title"><h2>匯出紀錄</h2><span class="muted small">檔案在書資料夾的 <code>匯出</code> 裡</span></div>
+      <div id="x-list"></div>
+    </div>`;
+  const fmt = () => document.querySelector('input[name="x-fmt"]:checked').value;
+  const sync = () => {
+    document.querySelectorAll("[data-only]").forEach((el) => { el.hidden = el.dataset.only !== fmt(); });
+    const textOn = $('[data-item="text"]').checked || $('[data-item="cards"]').checked;
+    ["#x-from", "#x-to"].forEach((s) => { $(s).disabled = !textOn; });
+  };
+  document.querySelectorAll('input[name="x-fmt"], [data-item]').forEach((el) => el.onchange = sync);
+  sync();
+  const renderList = (list) => {
+    $("#x-list").innerHTML = list.length ? `<table>${list.map((x) => `<tr>
+        <td>${esc(x.file)}</td><td class="num">${fmtSize(x.size)}</td><td class="muted">${fmtTime(x.mtime)}</td>
+        <td class="num"><a class="btn sm" href="${B("/exports/" + enc(x.file))}" download="${esc(x.file)}">下載</a>
+        <button class="sm danger" data-del="${esc(x.file)}">刪除</button></td></tr>`).join("")}</table>`
+      : '<div class="muted small">還沒有匯出過。</div>';
+    document.querySelectorAll("[data-del]").forEach((b) => b.onclick = async () => {
+      if (!confirm("刪除 " + b.dataset.del + "？")) return;
+      try { await api("DELETE", B("/exports/" + enc(b.dataset.del))); renderList((await api("GET", B("/export"))).exports); } catch (e) { fail(e); }
+    });
+  };
+  renderList(m.exports);
+  $("#x-go").onclick = async () => {
+    const items = [...document.querySelectorAll("[data-item]:checked")].map((el) => el.dataset.item);
+    const from = parseInt($("#x-from").value), to = parseInt($("#x-to").value);
+    if (!items.length) return toast("請至少勾選一項內容", true);
+    if (from && to && from > to) return toast("章節範圍的起點不能大於終點", true);
+    const body = {
+      format: fmt(), items, title: $("#x-title").value.trim(), author: $("#x-author").value.trim(),
+      title_style: $("#x-ts").value, para_style: $("#x-ps").value, encoding: $("#x-enc").value,
+      vertical: $("#x-vert").checked, use_cover: $("#x-cover").checked,
+      from: from && from !== first ? from : null, to: to && to !== last ? to : null,
+    };
+    if (body.title === m.book_title) body.title = "";
+    const btn = $("#x-go");
+    btn.disabled = true; btn.textContent = "匯出中……";
+    try {
+      const r = await api("POST", B("/export"), body);
+      const parts = [];
+      if (r.chapters) parts.push(`${r.chapters} 章、${fmtNum(r.chars)} 字`);
+      if (r.docs) parts.push(`${r.docs} 份資料`);
+      $("#x-result").innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="k">完成</span>
+        <span class="t">${esc(r.file)}（${parts.join("，")}，${fmtSize(r.size)}）</span>
+        <a class="btn sm primary" href="${B("/exports/" + enc(r.file))}" download="${esc(r.file)}">下載</a></div>`;
+      renderList((await api("GET", B("/export"))).exports);
+    } catch (e) { fail(e); } finally { btn.disabled = false; btn.textContent = "匯出"; }
+  };
+}
+
+/* ------------------------------------------------------------------ 重新啟動 */
+async function restartServer(port) {
+  if (!confirm("重新啟動服務？頁面會在幾秒後自動重新連上。")) return;
+  let r;
+  try { r = await api("POST", "/api/restart"); } catch (e) { return fail(e); }
+  const target = new URL(r.url);
+  modal(`<h2>重新啟動中……</h2><p class="muted" id="rs-msg">等待服務重新開啟${target.port !== location.port ? `（新的網址：${esc(target.origin)}）` : ""}</p>`);
+  const start = Date.now();
+  await new Promise((res) => setTimeout(res, 1500));
+  while (Date.now() - start < 40000) {
+    try {
+      if (target.origin === location.origin) {
+        const x = await fetch("/api/config", { cache: "no-store" });
+        if (x.ok) { location.reload(); return; }
+      } else {
+        await fetch(target.origin + "/api/config", { mode: "no-cors", cache: "no-store" });
+        location.href = target.origin + "/" + location.hash; return;
+      }
+    } catch (e) { /* 還沒好 */ }
+    await new Promise((res) => setTimeout(res, 700));
+  }
+  const msg = $("#rs-msg");
+  if (msg) msg.innerHTML = `服務沒有在預期時間內回來。請看一下啟動工作台的黑色視窗有沒有錯誤訊息，或手動開啟 <a href="${esc(target.origin)}">${esc(target.origin)}</a>。`;
+}
+window.restartServer = restartServer;
 
 /* ------------------------------------------------------------------ Claude 面板 */
 const Panel = {

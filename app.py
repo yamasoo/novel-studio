@@ -10,6 +10,7 @@ import asyncio
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -17,14 +18,15 @@ import webbrowser
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, context, goals, native, project, providers, recovery, revision, runner as runner_mod  # noqa: E402
+from studio import actions, context, export, goals, native, project, providers, recovery, revision, runner as runner_mod  # noqa: E402
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -127,6 +129,7 @@ async def http_err(request, exc):
 def get_config():
     exe = runner_mod.find_claude(CONFIG.get("claude_cmd"))
     return {"config": CONFIG, "claude_found": exe, "version": VERSION,
+            "port": int(CONFIG.get("port", 8765)), "running_port": RUNNING_PORT, "can_restart": SERVER is not None,
             "library_exists": os.path.isdir(CONFIG.get("library") or ""),
             "key_status": {p["id"]: providers.key_status(HERE, p) for p in CONFIG.get("providers") or []}}
 
@@ -139,6 +142,14 @@ async def set_config(req: Request):
               "reconcile_before_write", "goal_check_after_write"):
         if k in body:
             CONFIG[k] = body[k]
+    if "port" in body:
+        try:
+            port = int(body["port"])
+        except (TypeError, ValueError):
+            raise HTTPException(400, "連接埠要是數字")
+        if not 1024 <= port <= 65535:
+            raise HTTPException(400, "連接埠要在 1024～65535 之間")
+        CONFIG["port"] = port
     if body.get("create_library") and CONFIG.get("library"):
         os.makedirs(CONFIG["library"], exist_ok=True)
     save_config(CONFIG)
@@ -369,6 +380,63 @@ def claude_recover_job(book_id, d, prov, params):
     job = runner_mod.Job(book_id, d, "續寫第%d章" % no, prompt, provider=prov, meta={"action": "recover_continue", "params": params})
     job.after = lambda j: recovery.discard(d, rec["id"]) if project._scan_dir(os.path.join(d, "候選")).get(no) else None
     return job
+
+
+@app.get("/api/books/{book_id}/export")
+def export_meta(book_id: str):
+    return export.meta(book_dir(book_id))
+
+
+@app.post("/api/books/{book_id}/export")
+async def export_run(book_id: str, req: Request):
+    d = book_dir(book_id)
+    opts = await req.json()
+    return wrap(lambda: export.export(d, opts))
+
+
+@app.get("/api/books/{book_id}/exports/{name}")
+def export_download(book_id: str, name: str):
+    p = wrap(lambda: export.export_path(book_dir(book_id), name))
+    mt = "application/epub+zip" if name.endswith(".epub") else "text/plain; charset=utf-8"
+    return FileResponse(p, media_type=mt,
+                        headers={"Content-Disposition": "attachment; filename=\"novel%s\"; filename*=UTF-8''%s"
+                                 % (os.path.splitext(name)[1], quote(name))})
+
+
+@app.delete("/api/books/{book_id}/exports/{name}")
+def export_delete(book_id: str, name: str):
+    wrap(lambda: export.delete_export(book_dir(book_id), name))
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# 重新啟動
+# ---------------------------------------------------------------------------
+SERVER = None          # 由 serve() 設定的 uvicorn.Server
+RUNNING_PORT = None
+RESTART_CODE = 75
+_restart = {"requested": False}
+
+
+@app.post("/api/restart")
+def restart_server():
+    if SERVER is None:
+        raise HTTPException(400, "這個執行方式無法自動重新啟動，請手動關閉後再開。")
+    running = [j for j in RUNNER.jobs.values() if j.status == "running"]
+    if running:
+        raise HTTPException(409, "還有 %d 個任務在執行（%s），請等它結束或先停止。" % (
+            len(running), "、".join(j.title for j in running[:3])))
+    _restart["requested"] = True
+
+    def stop():
+        time.sleep(0.4)
+        SERVER.should_exit = True
+        time.sleep(6)
+        SERVER.force_exit = True   # 有連線遲遲不關時強制結束
+    threading.Thread(target=stop, daemon=True).start()
+    host = CONFIG.get("host", "127.0.0.1")
+    port = int(CONFIG.get("port", 8765))
+    return {"ok": True, "url": "http://%s:%d/" % ("127.0.0.1" if host in ("0.0.0.0", "") else host, port)}
 
 
 @app.get("/api/actions")
@@ -661,14 +729,48 @@ def index():
                         headers={"Cache-Control": "no-cache"})
 
 
-def main():
+def serve():
+    """實際執行伺服器。要求重新啟動時以 RESTART_CODE 結束，由外層再啟動一次。"""
+    global SERVER, RUNNING_PORT
     host = CONFIG.get("host", "127.0.0.1")
     port = int(CONFIG.get("port", 8765))
     url = "http://%s:%d" % ("127.0.0.1" if host in ("0.0.0.0", "") else host, port)
-    if "--no-browser" not in sys.argv:
+    if "--open-browser" in sys.argv:
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
-    print("小說工作台 %s 已啟動：%s（按 Ctrl+C 結束）" % (VERSION, url))
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    print("小說工作台 %s 已啟動：%s（按 Ctrl+C 結束）" % (VERSION, url), flush=True)
+    SERVER = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning",
+                                           timeout_graceful_shutdown=3))
+    RUNNING_PORT = port
+    try:
+        SERVER.run()
+    except KeyboardInterrupt:
+        return
+    if _restart["requested"]:
+        print("重新啟動中……", flush=True)
+        sys.exit(RESTART_CODE)
+
+
+def main():
+    if "--serve" in sys.argv:
+        return serve()
+    # 外層：啟動伺服器子程序；子程序以 RESTART_CODE 結束時再啟動一次
+    args = [sys.executable, os.path.abspath(__file__), "--serve"]
+    first = "--no-browser" not in sys.argv
+    while True:
+        proc = subprocess.Popen(args + (["--open-browser"] if first else []))
+        first = False
+        try:
+            code = proc.wait()
+        except KeyboardInterrupt:
+            try:
+                code = proc.wait(timeout=10)
+            except (KeyboardInterrupt, subprocess.TimeoutExpired):
+                proc.kill()
+            code = 0
+            break
+        if code != RESTART_CODE:
+            break
+    sys.exit(code if code not in (None, RESTART_CODE) else 0)
 
 
 if __name__ == "__main__":

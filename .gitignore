@@ -1,0 +1,23 @@
+# 本機設定與金鑰（含個人路徑、API 金鑰，不要提交）
+config.json
+secrets.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# 工作台執行時產生的資料（任務紀錄、備份、恢復稿……）
+.studio/
+
+# 系統與編輯器
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# 打包檔與記錄
+*.zip
+*.log

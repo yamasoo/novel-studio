@@ -171,6 +171,51 @@ def load_whitelist(book_root):
     return items
 
 
+def parse_banned(text, source=""):
+    """讀「## 禁用詞」一節：每行「- 詞 → 建議」，/.../ 代表正規表示式。回傳 [(regex, 顯示, 建議)]。"""
+    out = []
+    m = re.search(r"(?ms)^##+\s*禁用詞[^\n]*\n(.*?)(?=^##\s|\Z)", text or "")
+    if not m:
+        return out
+    sec = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S)
+    for line in sec.split("\n"):
+        s = line.strip()
+        if not s.startswith(("-", "*")):
+            continue
+        s = s[1:].strip()
+        if not s:
+            continue
+        parts = re.split(r"\s*(?:→|->)\s*", s, maxsplit=1)
+        word, hint = parts[0], (parts[1] if len(parts) > 1 else "")
+        word = word.strip().strip("「」")
+        if not word:
+            continue
+        if len(word) > 2 and word.startswith("/") and word.endswith("/"):
+            try:
+                rx = re.compile(word[1:-1])
+            except re.error:
+                continue
+            show = word[1:-1]
+        else:
+            rx = re.compile(re.escape(word))
+            show = word
+        out.append((rx, show, (hint.strip() or "作者設定的禁用詞") + ("（%s）" % source if source else "")))
+    return out
+
+
+def load_banned(book_root):
+    """本書 設定/作者偏好.md 與書庫 _共用/作者偏好.md 的禁用詞。"""
+    items = []
+    if not book_root:
+        return items
+    for path, src in ((os.path.join(book_root, "設定", "作者偏好.md"), "本書作者偏好"),
+                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_共用", "作者偏好.md"), "共用作者偏好")):
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                items += parse_banned(f.read(), src)
+    return items
+
+
 def guess_book_root(path):
     p = os.path.abspath(path)
     d = p if os.path.isdir(p) else os.path.dirname(p)
@@ -233,9 +278,11 @@ def fix_punct(text):
     return text, n
 
 
-def check_file(path, whitelist):
+def check_file(path, whitelist, banned=None):
     with open(path, encoding="utf-8") as f:
         text = f.read()
+    if banned is None:
+        banned = load_banned(guess_book_root(path))
     lines = text.split("\n")
     start = strip_frontmatter(lines)
     findings = []
@@ -280,6 +327,11 @@ def check_file(path, whitelist):
             continue
         if whitelisted:
             continue
+
+        # 2.5 作者設定的禁用詞
+        for rx, show, hint in banned:
+            for m in rx.finditer(line):
+                add("建議修", "禁用詞", lineno, m.group(0) if m.group(0) == show else "%s（%s）" % (m.group(0), show), hint)
 
         # 3. 大陸用語
         for term, tw, level in MAINLAND_TERMS:

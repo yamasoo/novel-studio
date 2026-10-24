@@ -18,7 +18,7 @@ description: 小說去 AI 味與台灣繁體中文校正：找出並改寫套話
 
 ## 開始前
 
-1. 若在小說專案中，讀 `設定/文風.md`（特別是「允許的例外」）與 `設定/作者偏好.md`。作者明確允許的寫法不是問題。
+1. 若在小說專案中，讀 `設定/文風.md`（特別是「允許的例外」）與 `設定/作者偏好.md`，以及書庫的 `_共用/作者偏好.md`（書目錄的上一層；存在的話）。作者明確允許的寫法不是問題；作者列的禁用詞，檢查腳本會自動標出。
 2. 讀 [references/ai-signals.md](references/ai-signals.md)。
 3. 涉及用語或標點時，讀 [references/tw-terms.md](references/tw-terms.md)。
 4. 需要改寫示範時，讀 [references/rewrite-examples.md](references/rewrite-examples.md)。

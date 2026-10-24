@@ -24,9 +24,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, context, export, goals, native, project, providers, recovery, revision, runner as runner_mod  # noqa: E402
+from studio import actions, context, export, goals, importer, native, native_files, project, providers, recovery, revision, runner as runner_mod, shared  # noqa: E402
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -439,6 +439,253 @@ def restart_server():
     return {"ok": True, "url": "http://%s:%d/" % ("127.0.0.1" if host in ("0.0.0.0", "") else host, port)}
 
 
+# ---------------------------------------------------------------------------
+# 共用庫（書庫/_共用/）：文風、章節結構、共用作者偏好
+# ---------------------------------------------------------------------------
+def library():
+    lib = CONFIG.get("library")
+    if not lib or not os.path.isdir(lib):
+        raise HTTPException(400, "書庫資料夾不存在，請先在設定中指定。")
+    return lib
+
+
+def _book_list():
+    return [b["id"] for b in project.list_books(CONFIG.get("library")) if b.get("is_book")]
+
+
+def _sample_text(body):
+    """文風分析的樣本：貼上的文字、上傳的檔案，或某本書的正文。"""
+    src = body.get("source")
+    if src == "book":
+        d = book_dir(body.get("book") or "")
+        a = int(body["from"]) if body.get("from") else None
+        b = int(body["to"]) if body.get("to") else None
+        text = shared.book_sample(d, a, b)
+        if not text.strip():
+            raise HTTPException(400, "這本書在這個範圍內沒有正文")
+        return text, shared.book_names(d)
+    if src in ("text", "files"):
+        payload = {"text": body.get("text") or ""} if src == "text" else {"files": body.get("files") or []}
+        parts = wrap(lambda: importer.load_sources(payload))
+        return "\n\n".join(p[1] for p in parts), []
+    return None, []
+
+
+def _guard_book(book_id):
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "這本書有任務在執行，請等它結束再套用。")
+
+
+@app.get("/api/shared")
+def shared_overview():
+    lib = library()
+    d = shared.shared_dir(lib)
+    prefs = os.path.join(d, "作者偏好.md")
+    banned = check_text.parse_banned(project.read_text(prefs)) if os.path.isfile(prefs) else []
+    return {"dir": d, "exists": os.path.isdir(d), "styles": wrap(lambda: shared.list_styles(lib)),
+            "structures": wrap(lambda: shared.list_structures(lib)),
+            "prefs": {"exists": os.path.isfile(prefs), "banned": len(banned),
+                      "active": bool(os.path.isfile(prefs) and shared._meaningful(project.read_text(prefs)))},
+            "books": _book_list()}
+
+
+@app.post("/api/shared/init")
+def shared_init():
+    d = wrap(lambda: shared.shared_dir(library(), create=True))
+    return {"dir": d}
+
+
+@app.get("/api/shared/file")
+def shared_file(path: str):
+    lib = library()
+    if path.startswith("preset:"):
+        p = os.path.join(shared.PRESET_DIR, os.path.basename(path[7:]))
+        readonly = True
+    else:
+        p = wrap(lambda: shared.safe_shared_path(lib, path))
+        readonly = False
+    if not os.path.isfile(p):
+        raise HTTPException(404, "檔案不存在")
+    text = project.read_text(p)
+    return {"path": path, "text": text, "mtime": os.path.getmtime(p), "chars": project.count_chars(text),
+            "readonly": readonly, "metrics": shared.parse_metrics(text)}
+
+
+@app.put("/api/shared/file")
+async def shared_file_put(req: Request):
+    body = await req.json()
+    path = body.get("path") or ""
+    if path.startswith("preset:"):
+        raise HTTPException(400, "內建結構不能直接修改，請先「複製到我的結構」")
+    p = wrap(lambda: shared.safe_shared_path(library(), path))
+    if not p.endswith(".md"):
+        raise HTTPException(400, "只能編輯 .md 檔案")
+    if os.path.isfile(p) and body.get("mtime") and abs(os.path.getmtime(p) - float(body["mtime"])) > 0.001:
+        raise HTTPException(409, "檔案在你編輯期間被修改過了。請複製你的修改，重新載入後再存。")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write(body.get("text", ""))
+    return {"ok": True, "mtime": os.path.getmtime(p)}
+
+
+@app.post("/api/shared/styles")
+async def shared_style_new(req: Request):
+    body = await req.json()
+    lib = library()
+    src = body.get("source") or "blank"
+    if src == "copy_book":
+        d = book_dir(body.get("book") or "")
+        return wrap(lambda: shared.create_style(lib, body.get("name"), source=("book", d)))
+    text, names = _sample_text(body)
+    if text:
+        wrap(lambda: shared.analyze(text, names))  # 樣本太短時先報錯
+    return wrap(lambda: shared.create_style(lib, body.get("name"), sample_text=text, exclude=names))
+
+
+@app.post("/api/shared/styles/{name}/restat")
+async def shared_style_restat(name: str, req: Request):
+    body = await req.json()
+    text, names = _sample_text(body)
+    if not text:
+        raise HTTPException(400, "請提供樣本文字")
+    p = os.path.join(shared.shared_dir(library()), "文風", name + ".md")
+    if not os.path.isfile(p):
+        raise HTTPException(404, "找不到這個文風")
+    m = wrap(lambda: shared.analyze(text, names))
+    t = shared.put_metrics(project.read_text(p), m)
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write(t)
+    return {"metrics": m}
+
+
+@app.post("/api/shared/styles/{name}/apply")
+async def shared_style_apply(name: str, req: Request):
+    body = await req.json()
+    _guard_book(body.get("book"))
+    return {"path": wrap(lambda: shared.apply_style(library(), name, book_dir(body.get("book") or "")))}
+
+
+@app.post("/api/shared/styles/{name}/compare")
+async def shared_style_compare(name: str, req: Request):
+    body = await req.json()
+    p = os.path.join(shared.shared_dir(library()), "文風", name + ".md")
+    if not os.path.isfile(p):
+        raise HTTPException(404, "找不到這個文風")
+    target = shared.parse_metrics(project.read_text(p))
+    if not target:
+        raise HTTPException(400, "這個文風還沒有文字指標，請先「重新統計」")
+    text, names = _sample_text(dict(body, source=body.get("source") or "book"))
+    actual = wrap(lambda: shared.analyze(text, names))
+    return {"rows": shared.compare(target, actual), "actual": actual}
+
+
+@app.post("/api/shared/styles/save")
+async def shared_style_save(req: Request):
+    body = await req.json()
+    return wrap(lambda: shared.save_style_from_book(library(), body.get("name"), book_dir(body.get("book") or ""),
+                                                    bool(body.get("overwrite"))))
+
+
+@app.delete("/api/shared/{kind}/{name}")
+def shared_delete(kind: str, name: str):
+    if kind not in ("styles", "structures"):
+        raise HTTPException(404, "不支援")
+    wrap(lambda: shared.delete_item(library(), "style" if kind == "styles" else "structure", name))
+    return {"ok": True}
+
+
+@app.post("/api/shared/structures")
+async def shared_structure_new(req: Request):
+    body = await req.json()
+    if body.get("copy_preset"):
+        return wrap(lambda: shared.copy_preset(library(), body["copy_preset"], body.get("name")))
+    return wrap(lambda: shared.new_structure(library(), body.get("name")))
+
+
+@app.post("/api/shared/structures/{name}/apply")
+async def shared_structure_apply(name: str, req: Request):
+    body = await req.json()
+    _guard_book(body.get("book"))
+    d = book_dir(body.get("book") or "")
+    return {"path": wrap(lambda: shared.apply_structure(library(), name, body.get("origin") or "mine", d,
+                                                        bool(body.get("default"))))}
+
+
+@app.get("/api/books/{book_id}/structures")
+def book_structures(book_id: str, chapter: int = None):
+    d = book_dir(book_id)
+    out = {"list": shared.book_structures(d)}
+    if chapter:
+        name, _, src = shared.structure_for(d, chapter)
+        _, card = context.card_text(d, chapter)
+        fm = project.split_frontmatter(card)[0] if card else {}
+        out["chapter"] = {"assigned": str(fm.get("結構") or ""), "effective": name, "from": src, "has_card": bool(card)}
+    return out
+
+
+@app.post("/api/books/{book_id}/structures/default")
+async def book_structure_default(book_id: str, req: Request):
+    body = await req.json()
+    _guard_book(book_id)
+    wrap(lambda: shared.set_book_default(book_dir(book_id), body.get("name") or None))
+    return {"ok": True}
+
+
+@app.post("/api/books/{book_id}/chapters/{no}/structure")
+async def chapter_structure(book_id: str, no: int, req: Request):
+    body = await req.json()
+    _guard_book(book_id)
+    wrap(lambda: shared.set_chapter_structure(book_dir(book_id), no, body.get("name") or None))
+    return {"ok": True}
+
+
+@app.post("/api/books/{book_id}/style-compare")
+async def book_style_compare(book_id: str, req: Request):
+    """本書的 設定/文風.md 文字指標 vs 正文實際統計。"""
+    body = await req.json()
+    d = book_dir(book_id)
+    sp = os.path.join(d, "設定", "文風.md")
+    target = shared.parse_metrics(project.read_text(sp)) if os.path.isfile(sp) else {}
+    text, names = _sample_text(dict(body, source="book", book=book_id))
+    actual = wrap(lambda: shared.analyze(text, names))
+    return {"rows": shared.compare(target, actual) if target else [], "actual": actual, "has_target": bool(target)}
+
+
+# ---------------------------------------------------------------------------
+# 匯入舊稿
+# ---------------------------------------------------------------------------
+@app.get("/api/import/info")
+def import_info():
+    return {"has_opencc": importer.has_opencc(), "books": _book_list()}
+
+
+@app.post("/api/import/preview")
+async def import_preview(req: Request):
+    body = await req.json()
+    return wrap(lambda: importer.preview(body.get("payload") or {}, body.get("opts") or {}))
+
+
+@app.post("/api/import/commit")
+async def import_commit(req: Request):
+    body = await req.json()
+    lib = library()
+    opts = body.get("opts") or {}
+    if body.get("new_book"):
+        name = (body.get("new_book") or "").strip()
+        wrap(lambda: importer.plan(body.get("payload") or {}, opts))  # 先確認拆得出章節，再建書
+        d = wrap(lambda: project.create_book(lib, name))
+        native_files.ensure_skeleton(d, PLUGIN_DIR)
+        importer.make_claude_md(d, PLUGIN_DIR, name)
+        book_id = os.path.basename(d)
+    else:
+        book_id = body.get("book") or ""
+        d = book_dir(book_id)
+        _guard_book(book_id)
+    r = wrap(lambda: importer.commit(d, body.get("payload") or {}, opts, check_text))
+    r["book"] = book_id
+    return r
+
+
 @app.get("/api/actions")
 def get_actions():
     cat = actions.catalog()
@@ -585,7 +832,11 @@ async def check_file(book_id: str, req: Request):
     if not os.path.isfile(p):
         raise HTTPException(404, "檔案不存在")
     wl = check_text.load_whitelist(d)
-    return check_text.check_file(p, wl)
+    res = check_text.check_file(p, wl)
+    rel = project.rel_of(d, p)
+    if rel.startswith(("正文", "候選")):
+        res["問題"] += shared.style_deviation_findings(d, project.read_text(p))
+    return res
 
 
 # ---------------------------------------------------------------------------

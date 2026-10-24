@@ -5,7 +5,7 @@
 import os
 import re
 
-from . import project
+from . import project, shared
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -135,6 +135,10 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
     pk.add(0, "第%d章章綱（唯一劇情藍圖）" % no, body(card))
     pk.add(1, "本書文風（優先於一般寫作技法）", body(read(book_dir, "設定/文風.md")))
     pk.add(1, "作者偏好", body(read(book_dir, "設定/作者偏好.md")))
+    pk.add(1, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
+    sname, stext, sfrom = shared.structure_for(book_dir, no)
+    if sname:
+        pk.add(1, "本章結構：%s（%s；節拍參考，章綱的情節點與章末停點優先，篇幅比例不必精確）" % (sname, sfrom), stext)
     pk.add(2, "狀態卡（目前局勢）", body(read(book_dir, "追蹤/狀態卡.md")))
     # 上一章結尾
     prev_path, prev = chapter_text(book_dir, no - 1, ("候選", "正文") if prev_from_candidate else ("正文", "候選"))
@@ -181,6 +185,7 @@ def for_review(book_dir, plugin_dir, a, b, budget):
     pk = Pack(budget)
     pk.add(0, "審查清單", skill_ref(plugin_dir, "novel-review/references/checklist.md"))
     pk.add(0, "本書規則", book_rules(book_dir))
+    pk.add(1, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     joined = ""
     for n in range(a, b + 1):
         path, t = chapter_text(book_dir, n, ("正文", "候選"))
@@ -209,6 +214,7 @@ def for_deslop(book_dir, plugin_dir, budget):
     pk = Pack(budget)
     pk.add(0, "本書文風（作者允許的寫法不要改）", body(read(book_dir, "設定/文風.md")))
     pk.add(0, "作者偏好", body(read(book_dir, "設定/作者偏好.md")))
+    pk.add(0, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     pk.add(1, "AI 味信號", skill_ref(plugin_dir, "novel-deslop/references/ai-signals.md"))
     pk.add(2, "改寫示範", skill_ref(plugin_dir, "novel-deslop/references/rewrite-examples.md"))
     pk.add(3, "兩岸用語與標點", skill_ref(plugin_dir, "novel-deslop/references/tw-terms.md"))

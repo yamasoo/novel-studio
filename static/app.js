@@ -85,10 +85,13 @@ function parseHash() {
 }
 
 async function route() {
+  if (!$("#modal").hidden) closeModal();
   const { parts, q } = parseHash();
   const view = $("#view");
   try {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
+    if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
+    if (parts[0] === "import") { S.routeName = "import"; return await viewImport(view); }
     if (parts[0] === "b" && parts[1]) {
       await setBook(parts[1]);
       const sub = parts[2] || "overview";
@@ -182,6 +185,7 @@ async function viewShelf(view) {
           <div class="meta">更新於 ${fmtTime(b.updated) || "—"}</div>
         </div>`).join("")}
       <div class="card book new" id="new-book"><div class="plus">＋</div><div>開新書</div></div>
+      <div class="card book new" onclick="go('#/import')"><div class="plus">⇪</div><div>匯入舊稿</div></div>
     </div>
     ${books.length ? "" : `<div class="card" style="margin-top:16px"><h3>第一次使用？</h3><p class="muted">可以先放一本示範書《退婚之後》進書架，看看各頁面長什麼樣子。示範書只是資料夾，隨時可以刪掉。</p><button id="add-demo">加入示範書</button></div>`}
     ${others.length ? `<hr class="sep"><div class="muted small">書庫裡還有這些資料夾（沒有 CLAUDE.md，不是小說專案）：</div>
@@ -341,9 +345,11 @@ async function viewChapter(view, no, tab) {
         <button class="sm" onclick="recoverView('${esc(r.id)}')">查看</button>
         <button class="sm danger" onclick="recoverDiscard('${esc(r.id)}')">捨棄</button></div>`).join("")}
     ${rv && tab !== "revision" ? `<div class="alert info" style="margin-bottom:10px"><span class="k">待確認修訂</span><span class="t">有一份修訂（${rv.changes} 處變更）等你逐段確認。</span><button class="sm" onclick="go('${base}?tab=revision')">開啟</button></div>` : ""}
+    <div id="struct-box"></div>
     <div id="goal-box"></div>
     <div id="review-box"></div>
     <div id="doc"></div>`;
+  if (tab === "card") renderChapterStructure($("#struct-box"), no);
   if (tab === "revision") return renderRevision($("#doc"), no, rv);
   if (c.card_file && (tab === "text" || tab === "candidate")) renderGoals($("#goal-box"), no, tab === "candidate", cur && cur[2]);
   if (tab === "text" || tab === "candidate") renderReview($("#review-box"), no, tab === "candidate", cur && cur[2]);
@@ -370,8 +376,9 @@ async function viewChapter(view, no, tab) {
 
 /* ------------------------------------------------------------------ 文件檢視／編輯 */
 async function docView(el, path, opts = {}) {
+  const fbase = opts.base || B("");
   let f;
-  try { f = await api("GET", B("/file?path=" + enc(path))); }
+  try { f = await api("GET", fbase + "/file?path=" + enc(path)); }
   catch (e) { el.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; return; }
   let editing = false, findings = null;
   let fm, body;
@@ -386,7 +393,7 @@ async function docView(el, path, opts = {}) {
             <span class="path">${esc(f.path)}</span>${opts.prose ? `<span class="badge">${fmtNum(f.chars)} 字</span>` : ""}
             <span class="grow"></span>
             ${opts.checkable ? `<button class="sm" data-a="check">檢查用語與 AI 味</button>` : ""}
-            ${editing ? `<button class="sm" data-a="cancel">取消</button><button class="sm primary" data-a="save">儲存</button>`
+            ${f.readonly || opts.readonly ? "" : editing ? `<button class="sm" data-a="cancel">取消</button><button class="sm primary" data-a="save">儲存</button>`
               : `<button class="sm" data-a="edit">編輯</button>`}
           </div>
           ${editing ? `<textarea class="editor ${opts.prose ? "prose" : ""}" spellcheck="false">${esc(f.text)}</textarea>`
@@ -430,9 +437,9 @@ async function docView(el, path, opts = {}) {
     } else if (a === "save") {
       const text = $("textarea.editor", el).value;
       try {
-        const r = await api("PUT", B("/file"), { path: f.path, text, mtime: f.mtime });
+        const r = await api("PUT", fbase + "/file", { path: f.path, text, mtime: f.mtime });
         toast("已儲存");
-        f = await api("GET", B("/file?path=" + enc(path)));
+        f = await api("GET", fbase + "/file?path=" + enc(path));
         [fm, body] = splitFM(f.text);
         editing = false;
         if (findings) findings = await api("POST", B("/check"), { path: f.path });
@@ -595,7 +602,7 @@ async function viewOutline(view, file) {
 async function viewBible(view, t, file) {
   const b = await api("GET", B("/bible"));
   t = t || "角色";
-  const tabs = ["角色", "勢力", "世界觀", "核心", "草稿"];
+  const tabs = ["角色", "勢力", "世界觀", "核心", "章節結構", "草稿"];
   const list = b[t] || [];
   if (!file && list.length) file = list[0].file;
   const btns = {
@@ -604,7 +611,9 @@ async function viewBible(view, t, file) {
     "世界觀": `<button onclick="Panel.openForm('free',{text:'請使用 novel-bible skill 設計世界觀：'})">設計世界觀</button>`,
     "核心": `<button onclick="Panel.openForm('style')">分析／調整文風</button><button onclick="Panel.openForm('preference')">記錄偏好</button>`,
     "草稿": `<button onclick="Panel.openForm('gen_drafts')">生成草稿</button><button class="primary" onclick="Panel.openForm('promote_drafts')">草稿轉正式</button>`,
+    "章節結構": `<button onclick="go('#/shared?t=${enc("章節結構")}')">到共用庫選結構</button>`,
   };
+  if (t === "核心") btns["核心"] = `<button onclick="go('#/shared?t=${enc("文風")}')">共用文風庫</button>` + btns["核心"];
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
       <div class="row">${btns[t] || ""}<button onclick="Panel.openForm('intake')">整理內容入庫</button></div></div>
@@ -617,6 +626,7 @@ async function viewBible(view, t, file) {
         : `<div class="muted">這裡還是空的。</div>`}</div>
       <div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div>
     </div>`;
+  if (t === "章節結構") { $(".split", view).outerHTML = '<div id="bs-box"></div>'; return renderBookStructures($("#bs-box"), file); }
   if (file) await docView($("#doc"), file);
 }
 
@@ -843,6 +853,340 @@ async function viewSettings(view) {
       toast("已儲存"); refresh();
     } catch (e) { fail(e); }
   };
+}
+
+/* ------------------------------------------------------------------ 共用庫 */
+const readFiles = (input) => Promise.all([...input.files].map((f) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res({ name: f.name, data: String(r.result).split(",")[1] || "" });
+  r.onerror = () => rej(new Error("讀取 " + f.name + " 失敗"));
+  r.readAsDataURL(f);
+})));
+const bookOpts = (books, cur) => books.map((b) => `<option value="${esc(b)}" ${b === cur ? "selected" : ""}>${esc(b)}</option>`).join("");
+
+// 文風樣本來源（建立、重新統計、比較共用）
+function sampleSourceHtml(books, kinds) {
+  const labels = { book: "某本書的正文", text: "貼上文字", files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 設定/文風.md", blank: "空白範本（自己填）" };
+  return `<div class="seg compact" id="ss-kind">${kinds.map((k, i) => `<label><input type="radio" name="ss-kind" value="${k}" ${i === 0 ? "checked" : ""}><span>${labels[k]}</span></label>`).join("")}</div>
+    <div data-ss="book copy_book" class="row" style="margin-top:8px">
+      <select id="ss-book">${bookOpts(books, S.book)}</select>
+      <span data-ss="book" class="row"><span class="small muted">章節</span><input type="number" id="ss-from" class="num-in" placeholder="全部"><span class="small muted">到</span><input type="number" id="ss-to" class="num-in" placeholder="全部"></span>
+    </div>
+    <div data-ss="text" style="margin-top:8px"><textarea id="ss-text" rows="7" placeholder="貼上一段你想參考的文字。至少 300 字，建議 3000 字以上統計才有參考價值。"></textarea></div>
+    <div data-ss="files" style="margin-top:8px"><input type="file" id="ss-files" multiple accept=".txt,.md,.docx"></div>
+    <div class="muted small" style="margin-top:6px" data-ss="book text files">程式會在本機統計句長、段長、對白比例、標點習慣、高頻詞組等，寫進文風檔的「文字指標」一節；不呼叫 AI。</div>`;
+}
+function sampleSourceBind(el) {
+  const sync = () => {
+    const k = el.querySelector('input[name="ss-kind"]:checked').value;
+    el.querySelectorAll("[data-ss]").forEach((x) => { x.hidden = !x.dataset.ss.split(" ").includes(k); });
+  };
+  el.querySelectorAll('input[name="ss-kind"]').forEach((x) => x.onchange = sync);
+  sync();
+}
+async function sampleSourceValue(el) {
+  const k = el.querySelector('input[name="ss-kind"]:checked').value;
+  const v = { source: k };
+  if (k === "book" || k === "copy_book") { v.book = $("#ss-book", el).value; v.from = parseInt($("#ss-from", el).value) || null; v.to = parseInt($("#ss-to", el).value) || null; }
+  if (k === "text") v.text = $("#ss-text", el).value;
+  if (k === "files") { v.files = await readFiles($("#ss-files", el)); if (!v.files.length) throw new Error("請選擇檔案"); }
+  return v;
+}
+
+function compareTable(rows) {
+  if (!rows.length) return '<div class="muted small">沒有可以比較的指標。</div>';
+  return `<table><tr><th>指標</th><th class="num">文風目標</th><th class="num">實際</th><th class="num">差距</th><th></th></tr>
+    ${rows.map((r) => `<tr><td>${esc(r["指標"])}</td><td class="num">${esc(r["目標"])}</td><td class="num">${esc(r["實際"])}</td><td class="num">${esc(r["差距"])}</td>
+      <td>${r["偏離"] === "明顯" ? '<span class="badge b-bad">差很多</span>' : r["偏離"] ? '<span class="badge b-warn">有點差</span>' : '<span class="badge b-ok">接近</span>'}</td></tr>`).join("")}</table>`;
+}
+
+async function viewShared(view, t, file) {
+  const o = await api("GET", "/api/shared");
+  S.sharedBooks = o.books;
+  t = t || "文風";
+  const tabs = ["文風", "章節結構", "共用作者偏好"];
+  if (!o.exists) {
+    view.innerHTML = `
+      <div class="page-head"><div><h1>共用庫</h1><div class="sub">所有書都能用的文風、章節結構與作者偏好</div></div></div>
+      <div class="card"><p>共用庫是書庫裡的 <code>_共用</code> 資料夾，跟著你的小說資料走，不在工作台的程式資料夾裡，所以不會被推上 GitHub。</p>
+        <ul class="muted small"><li>文風：可以重複使用、從範例文字統計出文字指標</li><li>章節結構：起承轉合、壓抑爆發等節拍範本，寫章節和排章綱時參考</li><li>共用作者偏好：跨書的長期偏好、常犯的毛病、禁用詞（禁用詞由程式檢查）</li></ul>
+        <p class="muted small">位置：<code>${esc(o.dir)}</code></p>
+        <button class="primary" id="sh-init">建立共用庫</button></div>`;
+    $("#sh-init").onclick = async () => { try { await api("POST", "/api/shared/init"); refresh(); } catch (e) { fail(e); } };
+    return;
+  }
+  const base = "#/shared";
+  let list = [], side = "";
+  if (t === "文風") {
+    list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.has_metrics ? `已統計 ${fmtNum(+s.sample)} 字` : "" }));
+  } else if (t === "章節結構") {
+    list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", scope: s.scope, origin: s.origin }));
+  } else {
+    file = "作者偏好.md";
+  }
+  if (!file && list.length) file = list[0].file;
+  const curItem = list.find((x) => x.file === file);
+  const headBtns = {
+    "文風": `<button class="primary" id="sh-new-style">新增文風</button>`,
+    "章節結構": `<button class="primary" id="sh-new-struct">新增結構</button>`,
+    "共用作者偏好": "",
+  };
+  view.innerHTML = `
+    <div class="page-head"><div><h1>共用庫</h1><div class="sub">所有書都能用；放在書庫的 <code>_共用</code> 資料夾，不會進 git</div></div>
+      <div class="row">${headBtns[t]}</div></div>
+    <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('${base}?t=${enc(x)}')">${x}${x === "共用作者偏好" && o.prefs.active ? ' <span class="badge b-ok">生效中</span>' : ""}</button>`).join("")}</div>
+    ${t === "共用作者偏好" ? `<div class="alert info" style="margin-bottom:12px"><span class="k">怎麼生效</span><span class="t">
+        寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 設定/作者偏好.md 衝突時以書為準）。
+        「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 <b>${o.prefs.banned}</b> 個。各書的 設定/作者偏好.md 也可以加「## 禁用詞」一節。</span></div>
+      <div id="doc"></div>` : `
+    <div class="split">
+      <div class="list">${list.length ? list.map((e) => `
+        <div class="item ${e.file === file ? "active" : ""}" onclick="go('${base}?t=${enc(t)}&f=${enc(e.file)}')">
+          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${e.badge ? `<span class="badge">${esc(e.badge)}</span>` : ""}</div>
+          ${e.desc ? `<div class="ds">${esc(e.desc)}</div>` : ""}${e.scope ? `<div class="ds">適用：${esc(e.scope)}</div>` : ""}</div>`).join("")
+        : `<div class="muted">還沒有${t}。按右上角新增。</div>`}</div>
+      <div><div id="sh-actions"></div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div></div>
+    </div>`}`;
+  const books = o.books;
+  if (t === "文風") {
+    $("#sh-new-style").onclick = () => modal(`<h2>新增文風</h2>
+      <label class="f"><span>名稱</span><input type="text" id="ns-name" placeholder="例如：冷調短句、古風權謀"></label>
+      <div class="f"><span>從哪裡建立</span></div>${sampleSourceHtml(books, ["book", "text", "files", "copy_book", "blank"])}
+      <div class="row" style="margin-top:14px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="ns-go">建立</button></div>`, (el) => {
+      sampleSourceBind(el);
+      $("#ns-go", el).onclick = async () => {
+        try {
+          const v = await sampleSourceValue(el);
+          v.name = $("#ns-name", el).value.trim();
+          if (!v.name) return toast("請輸入名稱", true);
+          const r = await api("POST", "/api/shared/styles", v);
+          closeModal(); toast("已建立文風「" + r.name + "」");
+          go(`${base}?t=${enc("文風")}&f=${enc(r.file)}`);
+        } catch (e) { fail(e); }
+      };
+    });
+    if (curItem) {
+      const name = curItem.name;
+      $("#sh-actions").innerHTML = `<div class="row" style="margin-bottom:10px">
+        <button class="primary sm" id="st-apply">套用到書…</button><button class="sm" id="st-compare">和某本書的正文比較</button>
+        <button class="sm" id="st-restat">重新統計文字指標</button><span class="grow"></span><button class="sm danger" id="st-del">刪除</button></div>`;
+      $("#st-apply").onclick = () => modal(`<h2>把「${esc(name)}」套用到書</h2>
+        <p class="muted small">會複製成那本書的 <code>設定/文風.md</code>。原本的文風檔會先備份到 <code>.studio/備份</code>。之後在書裡修改不會影響共用庫。</p>
+        <label class="f"><span>套用到</span><select id="ap-book">${bookOpts(books, S.book)}</select></label>
+        <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="ap-go">套用</button></div>`, (el) => {
+        $("#ap-go", el).onclick = async () => {
+          try { await api("POST", `/api/shared/styles/${enc(name)}/apply`, { book: $("#ap-book", el).value }); closeModal(); toast("已套用到《" + $("#ap-book", el).value + "》"); } catch (e) { fail(e); }
+        };
+      });
+      $("#st-compare").onclick = () => modal(`<h2>「${esc(name)}」和正文比較</h2>
+        <p class="muted small">在本機統計那本書的正文，和這個文風的文字指標並排比較。</p>
+        <div class="row"><select id="cp-book">${bookOpts(books, S.book)}</select><span class="small muted">章節</span>
+          <input type="number" id="cp-from" class="num-in" placeholder="全部"><span class="small muted">到</span><input type="number" id="cp-to" class="num-in" placeholder="全部">
+          <button class="primary sm" id="cp-go">比較</button></div><div id="cp-out" style="margin-top:12px"></div>`, (el) => {
+        $("#cp-go", el).onclick = async () => {
+          try {
+            const r = await api("POST", `/api/shared/styles/${enc(name)}/compare`, { book: $("#cp-book", el).value, from: parseInt($("#cp-from", el).value) || null, to: parseInt($("#cp-to", el).value) || null });
+            $("#cp-out", el).innerHTML = compareTable(r.rows) + `<div class="muted small" style="margin-top:8px">正文高頻詞組：${esc(r.actual["高頻詞組"])}</div>`;
+          } catch (e) { fail(e); }
+        };
+      });
+      $("#st-restat").onclick = () => modal(`<h2>重新統計「${esc(name)}」的文字指標</h2>
+        <p class="muted small">只會更新「文字指標」一節，你寫的其他內容不動。</p>${sampleSourceHtml(books, ["book", "text", "files"])}
+        <div class="row" style="margin-top:14px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="rs-go">統計</button></div>`, (el) => {
+        sampleSourceBind(el);
+        $("#rs-go", el).onclick = async () => {
+          try { await api("POST", `/api/shared/styles/${enc(name)}/restat`, await sampleSourceValue(el)); closeModal(); toast("已更新文字指標"); refresh(); } catch (e) { fail(e); }
+        };
+      });
+      $("#st-del").onclick = async () => {
+        if (!confirm(`刪除文風「${name}」？（會移到 _共用/.刪除，不會永久刪除）`)) return;
+        try { await api("DELETE", `/api/shared/styles/${enc(name)}`); go(`${base}?t=${enc("文風")}`); } catch (e) { fail(e); }
+      };
+    }
+  }
+  if (t === "章節結構") {
+    $("#sh-new-struct").onclick = () => modal(`<h2>新增章節結構</h2>
+      <label class="f"><span>名稱</span><input type="text" id="nt-name" placeholder="例如：雙線交錯"></label>
+      <p class="muted small">會建立一份節拍表範本，之後直接編輯。也可以選左邊的內建結構，按「複製到我的結構」再修改。</p>
+      <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="nt-go">建立</button></div>`, (el) => {
+      $("#nt-go", el).onclick = async () => {
+        try { const r = await api("POST", "/api/shared/structures", { name: $("#nt-name", el).value.trim() }); closeModal(); go(`${base}?t=${enc("章節結構")}&f=${enc("結構/" + r.name + ".md")}`); } catch (e) { fail(e); }
+      };
+    });
+    if (curItem) {
+      const name = curItem.name, origin = curItem.origin;
+      $("#sh-actions").innerHTML = `<div class="row" style="margin-bottom:10px">
+        <button class="primary sm" id="sc-apply">套用到書…</button>
+        ${origin === "preset" ? '<button class="sm" id="sc-copy">複製到我的結構</button>' : ""}
+        <span class="grow"></span>${origin === "mine" ? '<button class="sm danger" id="sc-del">刪除</button>' : '<span class="muted small">內建結構不能直接修改</span>'}</div>`;
+      $("#sc-apply").onclick = () => modal(`<h2>把「${esc(name)}」套用到書</h2>
+        <p class="muted small">會複製到那本書的 <code>設定/章節結構/</code>。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。</p>
+        <label class="f"><span>套用到</span><select id="sa-book">${bookOpts(books, S.book)}</select></label>
+        <label class="cb"><input type="checkbox" id="sa-def" ${curItem.scope && curItem.scope.includes("卷") ? "" : "checked"}> 設為全書預設</label>
+        <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="sa-go">套用</button></div>`, (el) => {
+        $("#sa-go", el).onclick = async () => {
+          try { await api("POST", `/api/shared/structures/${enc(name)}/apply`, { book: $("#sa-book", el).value, origin, default: $("#sa-def", el).checked }); closeModal(); toast("已套用到《" + $("#sa-book", el).value + "》"); } catch (e) { fail(e); }
+        };
+      });
+      if ($("#sc-copy")) $("#sc-copy").onclick = async () => {
+        const nn = prompt("新的名稱", name);
+        if (!nn) return;
+        try { const r = await api("POST", "/api/shared/structures", { copy_preset: name, name: nn }); go(`${base}?t=${enc("章節結構")}&f=${enc("結構/" + r.name + ".md")}`); } catch (e) { fail(e); }
+      };
+      if ($("#sc-del")) $("#sc-del").onclick = async () => {
+        if (!confirm(`刪除結構「${name}」？（會移到 _共用/.刪除；已套用到書裡的複本不受影響）`)) return;
+        try { await api("DELETE", `/api/shared/structures/${enc(name)}`); go(`${base}?t=${enc("章節結構")}`); } catch (e) { fail(e); }
+      };
+    }
+  }
+  if (file) await docView($("#doc"), file.startsWith("preset:") ? file : file, { base: "/api/shared", readonly: file.startsWith("preset:") });
+}
+
+/* ------------------------------------------------------------------ 匯入舊稿 */
+const IMP = { files: [], preview: null };
+async function viewImport(view) {
+  const info = await api("GET", "/api/import/info");
+  IMP.files = []; IMP.preview = null;
+  view.innerHTML = `
+    <div class="page-head"><div><h1>匯入舊稿</h1><div class="sub">把已經寫好的 TXT、Markdown、Word（.docx）拆成章節放進書裡；全部在本機處理，不呼叫 AI</div></div></div>
+    <div class="grid exp-grid">
+      <div class="card">
+        <h2 style="margin-bottom:10px">1. 選擇稿子</h2>
+        <label class="f"><span>檔案（可以一次選多個；一個檔案一章也可以）</span><input type="file" id="im-files" multiple accept=".txt,.md,.markdown,.docx"></label>
+        <label class="f"><span>或直接貼上</span><textarea id="im-text" rows="6" placeholder="第一章 ……&#10;正文……&#10;&#10;第二章 ……"></textarea></label>
+        <div class="muted small">編碼會自動判斷（UTF-8、Big5、GB18030）。舊版 .doc 請先在 Word 另存成 .docx。</div>
+      </div>
+      <div class="card">
+        <h2 style="margin-bottom:10px">2. 怎麼拆章</h2>
+        <div class="grid g2">
+          <label class="f"><span>章節標題</span><select id="im-mode">
+            <option value="auto">自動（第X章、Chapter N、楔子、番外；找不到再用 # 標題）</option>
+            <option value="chapter">只認「第X章／第X回」這類標題</option>
+            <option value="markdown">只認 Markdown 的 # 標題</option></select></label>
+          <label class="f"><span>章號</span><select id="im-num">
+            <option value="auto">照標題上的章號（不連續時自動改成依順序）</option>
+            <option value="sequential">依順序重新編號</option></select></label>
+          <label class="f"><span>依順序編號時從第幾章開始</span><input type="number" id="im-start" value="1" min="1"></label>
+        </div>
+        <label class="cb"><input type="checkbox" id="im-conv" ${info.has_opencc ? "" : "disabled"}> 簡體轉成台灣繁體（含用語，例如「軟件」→「軟體」）
+          ${info.has_opencc ? "" : '<span class="badge b-warn">需要 OpenCC：關閉工作台後重新執行 start.bat 會自動安裝</span>'}</label>
+        <label class="cb"><input type="checkbox" id="im-pre"> 把第一個章節標題之前的文字當成一章（例如楔子）</label>
+        <label class="cb"><input type="checkbox" id="im-punct" checked> 修正標點（西式引號改「」、半形逗號改全形等）</label>
+        <div class="row"><span class="grow"></span><button class="primary" id="im-preview">預覽拆章結果</button></div>
+      </div>
+    </div>
+    <div id="im-out"></div>`;
+  const opts = () => ({ mode: $("#im-mode").value, numbering: $("#im-num").value, start: parseInt($("#im-start").value) || 1,
+    convert: $("#im-conv").checked, preface_as_chapter: $("#im-pre").checked, fix_punct: $("#im-punct").checked });
+  const payload = () => ({ files: IMP.files, text: $("#im-text").value });
+  $("#im-files").onchange = async (ev) => { try { IMP.files = await readFiles(ev.target); } catch (e) { fail(e); } };
+  $("#im-preview").onclick = async () => {
+    const btn = $("#im-preview"); btn.disabled = true; btn.textContent = "處理中……";
+    try {
+      const r = await api("POST", "/api/import/preview", { payload: payload(), opts: opts() });
+      IMP.preview = r;
+      renderImportPreview(r, info, payload, opts);
+    } catch (e) { fail(e); } finally { btn.disabled = false; btn.textContent = "預覽拆章結果"; }
+  };
+}
+
+function renderImportPreview(r, info, payload, opts) {
+  const total = r.chapters.reduce((a, c) => a + c.chars, 0);
+  const guessName = (IMP.files[0] && IMP.files[0].name.replace(/\.[^.]+$/, "").replace(/^\d+[\s._\-、]*/, "")) || "";
+  $("#im-out").innerHTML = `
+    <div class="card" style="margin-top:14px">
+      <div class="card-title"><h2>拆章結果：${r.chapters.length} 章，${fmtNum(total)} 字</h2>
+        <span class="muted small">${r.numbered_by_title ? "章號照標題" : "章號依順序"}</span></div>
+      <div class="row small muted" style="margin-bottom:8px">${r.sources.map((s) => `<span class="badge">${esc(s.name)}：${esc(s.encoding)}${s.simplified ? `，簡體字約 ${s.simplified}` : ""}</span>`).join("")}</div>
+      ${r.warnings.map((w) => `<div class="alert warn"><span class="t">${esc(w)}</span></div>`).join("")}
+      ${r.preface.map((p) => `<div class="muted small" style="margin:6px 0">開頭文字（${esc(p.name)}，${p.chars} 字）：${esc(p.preview)}……</div>`).join("")}
+      <div class="table-wrap" style="max-height:360px"><table>
+        <tr><th class="num">章</th><th>章名</th><th class="num">字數</th><th>開頭</th></tr>
+        ${r.chapters.map((c) => `<tr class="${c.chars < 50 ? "warn-row" : ""}"><td class="num">${c.no}</td><td>${esc(c.title) || '<span class="muted">（無章名）</span>'}</td>
+          <td class="num">${fmtNum(c.chars)}</td><td class="muted small">${esc(c.head)}</td></tr>`).join("")}
+      </table></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2 style="margin-bottom:10px">3. 放到哪裡</h2>
+      <div class="seg compact"><label><input type="radio" name="im-dest" value="new" ${info.books.length ? "" : "checked"}><span>建立新書</span></label>
+        <label><input type="radio" name="im-dest" value="old" ${info.books.length ? "checked" : ""} ${info.books.length ? "" : "disabled"}><span>放進現有的書</span></label></div>
+      <div class="grid g2" style="margin-top:10px">
+        <label class="f" data-dest="new"><span>書名</span><input type="text" id="im-name" value="${esc(guessName)}"></label>
+        <label class="f" data-dest="old"><span>書</span><select id="im-book">${bookOpts(info.books, S.book)}</select></label>
+        <label class="f"><span>放進</span><select id="im-target"><option value="正文">正文（直接當成定稿）</option><option value="候選">候選稿（逐章審閱後再採用）</option></select></label>
+        <label class="f" data-dest="old"><span>書裡已經有同一章時</span><select id="im-conflict"><option value="skip">跳過，保留書裡的</option><option value="overwrite">覆蓋（原檔先備份）</option></select></label>
+      </div>
+      <div class="row"><span class="grow"></span><button class="primary" id="im-go">匯入 ${r.chapters.length} 章</button></div>
+      <div id="im-result"></div>
+    </div>`;
+  const sync = () => {
+    const d = document.querySelector('input[name="im-dest"]:checked').value;
+    document.querySelectorAll("[data-dest]").forEach((x) => { x.hidden = x.dataset.dest !== d; });
+  };
+  document.querySelectorAll('input[name="im-dest"]').forEach((x) => x.onchange = sync);
+  sync();
+  $("#im-go").onclick = async () => {
+    const isNew = document.querySelector('input[name="im-dest"]:checked').value === "new";
+    const body = { payload: payload(), opts: Object.assign(opts(), { target: $("#im-target").value, conflict: $("#im-conflict").value }) };
+    if (isNew) { body.new_book = $("#im-name").value.trim(); if (!body.new_book) return toast("請輸入書名", true); }
+    else body.book = $("#im-book").value;
+    const btn = $("#im-go"); btn.disabled = true;
+    try {
+      const res = await api("POST", "/api/import/commit", body);
+      S.books = (await api("GET", "/api/books")).books;
+      $("#im-result").innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="k">完成</span><span class="t">
+        匯入 ${res.written.length} 章（${fmtNum(res.chars)} 字）到《${esc(res.book)}》的${esc(res.target)}。
+        ${res.skipped.length ? `跳過已存在的第 ${res.skipped.join("、")} 章。` : ""}${res.replaced.length ? `覆蓋了第 ${res.replaced.join("、")} 章（原檔已備份）。` : ""}</span>
+        <button class="sm primary" onclick="go('#/b/${enc(res.book)}')">開啟這本書</button></div>
+        <div class="muted small" style="margin-top:8px">下一步建議：${res.target === "正文"
+          ? "到書的總覽按「補齊追蹤」，讓 AI 從正文建立章節摘要、狀態卡、角色狀態；也可以到「共用庫 → 文風」用這本書的正文統計文風。"
+          : "到章節頁逐章審閱候選稿，按「採用」移入正文並回寫追蹤。"}</div>`;
+      renderNav();
+    } catch (e) { fail(e); } finally { btn.disabled = false; }
+  };
+}
+
+/* ------------------------------------------------------------------ 本書章節結構 */
+async function renderBookStructures(el, file) {
+  const r = await api("GET", B("/structures"));
+  const list = r.list;
+  if (!file && list.length) file = list[0].file;
+  const cur = list.find((x) => x.file === file);
+  el.innerHTML = `<div class="split">
+      <div class="list">${list.length ? list.map((s) => `
+        <div class="item ${s.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc("章節結構")}&f=${enc(s.file)}')">
+          <div class="row"><span class="nm">${esc(s.name)}</span><span class="grow"></span>${s.default ? '<span class="badge b-ok">全書預設</span>' : ""}</div>
+          ${s.summary ? `<div class="ds">${esc(s.summary)}</div>` : ""}</div>`).join("")
+        : `<div class="muted">這本書還沒有章節結構。<br><a href="#/shared?t=${enc("章節結構")}">到共用庫套用一個 →</a></div>`}</div>
+      <div><div id="bs-actions"></div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>章節結構是寫章節時參考的節拍表。<br>到共用庫選一個套用到這本書。</div>'}</div></div>
+    </div>`;
+  if (cur) {
+    $("#bs-actions").innerHTML = `<div class="row" style="margin-bottom:10px">
+      ${cur.default ? '<button class="sm" id="bs-undef">取消全書預設</button>' : '<button class="sm primary" id="bs-def">設為全書預設</button>'}
+      <span class="muted small">個別章節要用別的結構，到該章的「章綱」分頁選。</span></div>`;
+    const set = async (name) => { try { await api("POST", B("/structures/default"), { name }); refresh(); } catch (e) { fail(e); } };
+    if ($("#bs-def")) $("#bs-def").onclick = () => set(cur.name);
+    if ($("#bs-undef")) $("#bs-undef").onclick = () => set(null);
+    await docView($("#doc"), cur.file);
+  }
+}
+
+async function renderChapterStructure(el, no) {
+  try {
+    const r = await api("GET", B(`/structures?chapter=${no}`));
+    const ch = r.chapter || {};
+    if (!ch.has_card) { el.innerHTML = ""; return; }
+    const def = r.list.find((s) => s.default);
+    el.innerHTML = `<div class="row struct-row">
+      <span class="small"><b>本章結構</b></span>
+      <select id="cs-sel"><option value="">${def ? `用全書預設（${esc(def.name)}）` : "不指定"}</option>
+        ${r.list.map((s) => `<option value="${esc(s.name)}" ${s.name === ch.assigned ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>
+      <span class="muted small">${r.list.length ? "寫這章時會參考這個節拍表；章綱的情節點優先。" : `這本書還沒有章節結構，<a href="#/shared?t=${enc("章節結構")}">到共用庫套用</a>。`}</span>
+    </div>`;
+    $("#cs-sel", el).onchange = async (ev) => {
+      try { await api("POST", B(`/chapters/${no}/structure`), { name: ev.target.value || null }); toast("已更新本章結構"); refresh(); } catch (e) { fail(e); }
+    };
+  } catch (e) { el.innerHTML = ""; }
 }
 
 /* ------------------------------------------------------------------ 匯出 */

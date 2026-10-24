@@ -91,7 +91,7 @@ def list_books(library):
         return books
     for name in sorted(os.listdir(library)):
         d = os.path.join(library, name)
-        if not os.path.isdir(d) or name.startswith("."):
+        if not os.path.isdir(d) or name.startswith(".") or name == "_共用":
             continue
         info = {"id": name, "name": name, "is_book": is_book(d)}
         if info["is_book"]:

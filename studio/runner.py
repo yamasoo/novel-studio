@@ -161,8 +161,9 @@ class Runner:
         exe = find_claude(cfg.get("claude_cmd"))
         if not exe:
             raise FileNotFoundError("找不到 claude 指令。請確認已安裝 Claude Code，或在設定中填入 claude 的完整路徑。")
+        from . import shared
         cmd = [exe, "-p", "--output-format", "stream-json", "--verbose",
-               "--append-system-prompt", STUDIO_SYSTEM]
+               "--append-system-prompt", STUDIO_SYSTEM + shared.claude_note(job.book_dir)]
         mode = cfg.get("permission_mode") or "acceptEdits"
         cmd += ["--permission-mode", mode]
         tools = cfg.get("allowed_tools") or []
@@ -171,6 +172,10 @@ class Runner:
         if self.plugin_dir and os.path.isdir(self.plugin_dir):
             # 工作台內建的 novel-* skills（不依賴 ~/.claude/skills）
             cmd += ["--plugin-dir", self.plugin_dir, "--add-dir", self.plugin_dir]
+        sd = shared.shared_of_book(job.book_dir)
+        if os.path.isdir(sd):
+            # 書庫的 _共用/（共用作者偏好），讓 Claude 讀得到
+            cmd += ["--add-dir", sd]
         for d in cfg.get("add_dirs") or []:
             d = os.path.expandvars(os.path.expanduser(d))
             if os.path.isdir(d):

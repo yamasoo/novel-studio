@@ -8,7 +8,7 @@ import os
 import re
 import time
 
-from . import context, goals, native_files, project, providers, recovery, revision, tracking
+from . import context, goals, native_files, project, providers, recovery, revision, shared, tracking
 
 DELIM = "<<<匯報>>>"
 
@@ -529,6 +529,7 @@ def act_review_notes(c, p):
     pk.add(0, "審查清單", context.skill_ref(c.plugin_dir, "novel-review/references/checklist.md"))
     pk.add(0, "本書規則", context.book_rules(c.book))
     pk.add(1, "本書文風（作者允許的寫法不算問題）", context.body(context.read(c.book, "設定/文風.md")))
+    pk.add(1, "共用作者偏好（「常犯的毛病」要特別檢查）", shared.prefs_for_context(c.book))
     _, card = context.card_text(c.book, no)
     pk.add(1, "第%d章章綱" % no, context.body(card))
     prev_path, prev = context.chapter_text(c.book, no - 1, ("正文",))

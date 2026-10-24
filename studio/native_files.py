@@ -13,7 +13,7 @@ import re
 import shutil
 import time
 
-from . import context, project, tracking
+from . import context, project, shared, tracking
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -179,6 +179,10 @@ def add_book_core(pk, c, light=False):
     pk.add(1, "故事核心", rd("設定/故事核心.md"))
     pk.add(2, "本書文風", rd("設定/文風.md"))
     pk.add(2, "作者偏好", rd("設定/作者偏好.md"))
+    pk.add(2, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(c.book))
+    sname, stext, _ = shared.structure_for(c.book)
+    if sname and not light:
+        pk.add(3, "本書預設章節結構：%s（排章綱時用來安排每章的節拍；章綱可在 frontmatter 用「結構: 名稱」改用 設定/章節結構/ 裡的其他結構）" % sname, stext)
     if not light:
         pk.add(3, "狀態卡（已寫章節的目前局勢）", rd("追蹤/狀態卡.md"))
         pk.add(4, "名詞表", rd("設定/名詞表.md"))

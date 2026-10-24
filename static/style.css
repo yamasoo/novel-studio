@@ -111,6 +111,11 @@ label.cb { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .seg span { display: flex; flex-direction: column; gap: 2px; }
 .seg small { color: var(--ink-3); font-size: 12.5px; }
 input.num-in { width: 76px; }
+.seg.compact { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg.compact label { padding: 6px 10px; align-items: center; }
+.seg.compact input { margin-top: 0; }
+.struct-row { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
+tr.warn-row td { background: var(--warn-soft); }
 a.btn { display: inline-flex; align-items: center; text-decoration: none; color: inherit; border: 1px solid var(--line-2); background: var(--paper); border-radius: 8px; padding: 6px 12px; }
 a.btn:hover { border-color: var(--ink-3); }
 a.btn.sm { padding: 3px 9px; font-size: 12.5px; }

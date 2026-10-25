@@ -25,6 +25,14 @@ def read_text(path):
         return f.read()
 
 
+def _read_maybe(path):
+    """讀檔；檔案剛好被搬走或刪掉時（例如自動流程正在把候選稿移到正文）回傳 None。"""
+    try:
+        return read_text(path)
+    except (FileNotFoundError, PermissionError):
+        return None
+
+
 def split_frontmatter(text):
     """回傳 (dict, body)。frontmatter 格式錯誤時回傳空 dict。"""
     if text.startswith("---"):
@@ -173,9 +181,10 @@ def scan_chapters(book_dir):
                "card_target": None, "text_file": None, "chars": 0,
                "candidate_file": None, "candidate_chars": 0,
                "summary_file": None, "func": ""}
-        if n in cards:
+        card_text = _read_maybe(os.path.join(book_dir, "大綱", "章綱", cards[n])) if n in cards else None
+        if card_text is not None:
             p = os.path.join(book_dir, "大綱", "章綱", cards[n])
-            fm, body = split_frontmatter(read_text(p))
+            fm, body = split_frontmatter(card_text)
             row["card_file"] = rel_of(book_dir, p)
             row["card_status"] = fm.get("狀態")
             row["card_target"] = fm.get("字數目標")
@@ -183,19 +192,22 @@ def scan_chapters(book_dir):
             m = re.search(r"-\s*功能：([^\n<]*)", body)
             if m:
                 row["func"] = m.group(1).strip()
-        if n in texts:
+        text = _read_maybe(os.path.join(book_dir, "正文", texts[n])) if n in texts else None
+        if text is not None:
             p = os.path.join(book_dir, "正文", texts[n])
             row["text_file"] = rel_of(book_dir, p)
-            row["chars"] = count_chars(read_text(p))
+            row["chars"] = count_chars(text)
             row["title"] = row["title"] or chapter_title_from_filename(texts[n])
-        if n in cands:
+        cand = _read_maybe(os.path.join(book_dir, "候選", cands[n])) if n in cands else None
+        if cand is not None:
             p = os.path.join(book_dir, "候選", cands[n])
             row["candidate_file"] = rel_of(book_dir, p)
-            row["candidate_chars"] = count_chars(read_text(p))
+            row["candidate_chars"] = count_chars(cand)
             row["title"] = row["title"] or chapter_title_from_filename(cands[n])
         if n in sums:
             row["summary_file"] = rel_of(book_dir, os.path.join(book_dir, "追蹤", "章節摘要", sums[n]))
-        rows.append(row)
+        if row["card_file"] or row["text_file"] or row["candidate_file"]:
+            rows.append(row)
     return rows
 
 

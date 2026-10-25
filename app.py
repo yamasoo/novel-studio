@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {

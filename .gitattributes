@@ -1,3 +1,17 @@
-* text=auto
-*.sh text eol=lf
+# 換行統一用 LF（Windows 上的 git 也不會轉成 CRLF，避免出現 "LF will be replaced by CRLF" 警告）
+* text=auto eol=lf
+
+# Windows 批次檔一定要 CRLF，否則 cmd 執行時可能出錯
 *.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二進位檔不要動
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.xlsx binary
+*.docx binary
+*.epub binary
+*.zip binary

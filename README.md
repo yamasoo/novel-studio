@@ -199,7 +199,7 @@
 3. 按「測試連線／抓模型清單」，從清單選模型。
 4. 依官方文件填「上下文長度」和價格（選填，用來估算費用）。
 
-金鑰存在工作台資料夾的 `secrets.json`，已列在 `.gitignore`，不會被 git 提交。
+API 金鑰預設存進作業系統的金鑰庫（Windows 認證管理員、macOS 鑰匙圈），由系統加密並綁定你的登入帳號，專案資料夾裡不留金鑰檔。沒有金鑰庫可用時才存在工作台資料夾的 `secrets.json`（已列在 `.gitignore`）。舊版留下的 secrets.json，設定頁會提示一鍵搬進金鑰庫，搬完自動刪除。也可以改用環境變數。讀取順序：金鑰庫 → secrets.json → 環境變數。
 
 ### 設定 llama.cpp
 
@@ -281,7 +281,7 @@ novel-studio/
 └── demo/退婚之後/       示範書
 ```
 
-執行後才會產生、不進 git 的檔案：`config.json`（設定）、`secrets.json`（API 金鑰）、`.venv/`。
+執行後才會產生、不進 git 的檔案：`config.json`（設定）、`secrets.json`（沒有系統金鑰庫時才會產生）、`.venv/`。
 
 ## 常見問題
 

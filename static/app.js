@@ -907,6 +907,7 @@ async function viewSettings(view) {
       <h2 style="margin-bottom:4px">AI 執行者</h2>
       <div class="muted small" style="margin-bottom:12px">Claude Code 用你的訂閱，會自己讀寫檔案，所有功能都能用。其他模型（DeepSeek、本機 llama.cpp 等 OpenAI 相容服務）由工作台組裝資料再送出，所有按鈕都能用，結果由工作台檢查後寫檔。</div>
       <label class="f"><span>預設執行者</span><select id="c-defprov">${(c.providers || []).map((p) => `<option value="${esc(p.id)}" ${p.id === c.default_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <div id="key-store" style="margin-bottom:10px"></div>
       <div id="prov-list"></div>
       <button class="sm" id="prov-add">＋ 新增 OpenAI 相容服務</button>
     </div>
@@ -952,7 +953,7 @@ async function viewSettings(view) {
           <label class="f"><span>顯示名稱</span><input type="text" data-k="name" value="${esc(p.name)}"></label>
           <label class="f"><span>網址（Base URL）</span><input type="text" data-k="base_url" value="${esc(p.base_url)}" placeholder="https://api.deepseek.com 或 http://127.0.0.1:8080/v1"></label>
           <label class="f"><span>模型名稱</span><input type="text" data-k="model" value="${esc(p.model)}" list="ml-${i}" placeholder="按「測試連線」可以選"><datalist id="ml-${i}"></datalist></label>
-          <label class="f"><span>API 金鑰 ${S.keyStatus && S.keyStatus[p.id] ? `<span class="badge b-ok">${esc(S.keyStatus[p.id])}</span>` : ""}</span>
+          <label class="f"><span>API 金鑰 ${S.keyStatus && S.keyStatus[p.id] ? `<span class="badge ${S.keyStatus[p.id].startsWith("secrets.json") ? "b-warn" : "b-ok"}">${esc(S.keyStatus[p.id])}</span>` : ""}</span>
             <input type="password" data-key="1" value="${esc(keys[p.id] || "")}" placeholder="${S.keyStatus && S.keyStatus[p.id] ? "留空＝不變更" : "本機服務可留空"}"></label>
           <label class="f"><span>或用環境變數名稱</span><input type="text" data-k="key_env" value="${esc(p.key_env || "")}" placeholder="例如 DEEPSEEK_API_KEY"></label>
           <label class="f"><span>上下文長度（tokens）</span><input type="number" data-k="context_tokens" value="${esc(p.context_tokens)}"></label>
@@ -995,6 +996,23 @@ async function viewSettings(view) {
       };
     });
   };
+  const renderKeyStore = () => {
+    const box = $("#key-store");
+    if (!box) return;
+    box.innerHTML = r.key_store
+      ? (r.secrets_pending ? `<div class="alert warn"><span class="k">金鑰</span><span class="t">secrets.json 裡還有 ${r.secrets_pending} 個 API 金鑰。搬進${esc(r.key_store)}後，由系統加密並綁定你的登入帳號，專案資料夾裡就不會留金鑰檔。</span>
+          <button class="sm primary" id="key-mig">搬進${esc(r.key_store)}</button></div>`
+        : `<div class="muted small">新輸入的 API 金鑰會存進${esc(r.key_store)}（由系統加密，綁定你的登入帳號），不放在專案資料夾。</div>`)
+      : `<div class="muted small">這台電腦沒有可用的系統金鑰庫，API 金鑰存在工作台資料夾的 secrets.json（不會進 git）。</div>`;
+    if ($("#key-mig")) $("#key-mig").onclick = async () => {
+      try {
+        const m = await api("POST", "/api/secrets/migrate");
+        Object.assign(r, m); S.keyStatus = m.key_status;
+        toast(m.left ? `搬了 ${m.moved} 個，還有 ${m.left} 個沒搬成功` : `已搬進${m.key_store}，secrets.json 已刪除`, !!m.left);
+        renderKeyStore(); renderProvs();
+      } catch (e) { fail(e); }
+    };
+  };
   const saveProvs = async () => {
     const r = await api("POST", "/api/providers", { providers: provs, keys });
     S.config = r.config; S.keyStatus = r.key_status;
@@ -1002,6 +1020,7 @@ async function viewSettings(view) {
     return r;
   };
   renderProvs();
+  renderKeyStore();
   $("#prov-add").onclick = () => {
     let n = 1; while (provs.find((p) => p.id === "custom" + n)) n++;
     provs.push({ id: "custom" + n, type: "openai", name: "自訂服務 " + n, base_url: "", model: "", key_env: "", context_tokens: 32768, max_output: 4096, temperature: 0.8, json_mode: true, price_in: 0, price_out: 0, extra: {} });

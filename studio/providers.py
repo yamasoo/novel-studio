@@ -5,6 +5,7 @@ Ollama、LM Studio、OpenRouter……都適用）。只用標準函式庫。
 """
 import json
 import os
+import sys
 import socket
 import urllib.error
 import urllib.parse
@@ -75,8 +76,69 @@ class Cancelled(Exception):
 
 
 # ---------------------------------------------------------------------------
-# 金鑰：secrets.json（不進 git）或環境變數
+# 金鑰：優先存在作業系統的金鑰庫（Windows 認證管理員／macOS 鑰匙圈／Linux Secret Service），
+# 由作業系統加密、綁定登入帳號，專案資料夾裡不留金鑰。
+# 沒有金鑰庫可用時才用 secrets.json（不進 git）。也可以用環境變數。
+# 讀取順序：系統金鑰庫 → secrets.json → 環境變數。
 # ---------------------------------------------------------------------------
+KEYRING_SERVICE = "novel-studio"
+_KR = None
+
+
+def _keyring():
+    """回傳可用的 keyring 模組；沒安裝或沒有可用的後端時回傳 None。"""
+    global _KR
+    if _KR is None:
+        _KR = False
+        try:
+            import keyring
+            from keyring.backends import fail
+            kr = keyring.get_keyring()
+            if not isinstance(kr, fail.Keyring) and getattr(kr, "priority", 1) > 0:
+                _KR = keyring
+        except Exception:
+            _KR = False
+    return _KR or None
+
+
+def store_name():
+    """系統金鑰庫的名稱（給介面顯示）；沒有就回傳空字串。"""
+    if not _keyring():
+        return ""
+    if sys.platform.startswith("win"):
+        return "Windows 認證管理員"
+    if sys.platform == "darwin":
+        return "macOS 鑰匙圈"
+    return "系統金鑰庫"
+
+
+def _kr_get(pid):
+    kr = _keyring()
+    if not kr:
+        return ""
+    try:
+        return kr.get_password(KEYRING_SERVICE, pid) or ""
+    except Exception:
+        return ""
+
+
+def _kr_set(pid, key):
+    kr = _keyring()
+    if not kr:
+        return False
+    try:
+        if key:
+            kr.set_password(KEYRING_SERVICE, pid, key)
+            return kr.get_password(KEYRING_SERVICE, pid) == key
+        try:
+            kr.delete_password(KEYRING_SERVICE, pid)
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
 def load_secrets(home):
     p = os.path.join(home, SECRETS_NAME)
     if os.path.isfile(p):
@@ -88,17 +150,55 @@ def load_secrets(home):
     return {}
 
 
+def _write_secrets(home, s):
+    p = os.path.join(home, SECRETS_NAME)
+    if not s:
+        if os.path.isfile(p):
+            os.remove(p)
+        return
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(s, f, ensure_ascii=False, indent=2)
+
+
 def save_secret(home, pid, key):
+    """存金鑰（空字串＝刪除）。有系統金鑰庫就存那裡，並移除 secrets.json 裡的舊值。回傳存放位置名稱。"""
     s = load_secrets(home)
+    if _keyring() and _kr_set(pid, key):
+        if pid in s:
+            s.pop(pid)
+            _write_secrets(home, s)
+        return store_name() if key else ""
     if key:
         s[pid] = key
     else:
         s.pop(pid, None)
-    with open(os.path.join(home, SECRETS_NAME), "w", encoding="utf-8") as f:
-        json.dump(s, f, ensure_ascii=False, indent=2)
+    _write_secrets(home, s)
+    return SECRETS_NAME if key else ""
+
+
+def migrate_secrets(home):
+    """把 secrets.json 的金鑰搬進系統金鑰庫；全部搬完就刪掉 secrets.json。回傳 (搬了幾個, 剩幾個)。"""
+    if not _keyring():
+        return 0, len(load_secrets(home))
+    s = load_secrets(home)
+    moved = 0
+    for pid in list(s):
+        if s[pid] and _kr_set(pid, s[pid]):
+            s.pop(pid)
+            moved += 1
+    _write_secrets(home, s)
+    return moved, len(s)
+
+
+def pending_secrets(home):
+    """secrets.json 裡還有幾個金鑰可以搬進系統金鑰庫。"""
+    return len([k for k, v in load_secrets(home).items() if v]) if _keyring() else 0
 
 
 def api_key(home, prov):
+    k = _kr_get(prov["id"])
+    if k:
+        return k
     s = load_secrets(home)
     if s.get(prov["id"]):
         return s[prov["id"]]
@@ -106,14 +206,20 @@ def api_key(home, prov):
     return os.environ.get(env, "") if env else ""
 
 
+def _tail(k):
+    return "（…%s）" % k[-4:] if len(k) > 8 else ""
+
+
 def key_status(home, prov):
+    k = _kr_get(prov["id"])
+    if k:
+        return store_name() + _tail(k)
     s = load_secrets(home)
     if s.get(prov["id"]):
-        k = s[prov["id"]]
-        return "已設定（…%s）" % k[-4:] if len(k) > 8 else "已設定"
+        return "secrets.json" + _tail(s[prov["id"]])
     env = prov.get("key_env")
     if env and os.environ.get(env):
-        return "使用環境變數 %s" % env
+        return "環境變數 %s" % env
     return ""
 
 

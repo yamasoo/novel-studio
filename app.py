@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -137,7 +137,8 @@ def get_config():
     return {"config": CONFIG, "claude_found": exe, "version": VERSION,
             "port": int(CONFIG.get("port", 8765)), "running_port": RUNNING_PORT, "can_restart": SERVER is not None,
             "library_exists": os.path.isdir(CONFIG.get("library") or ""),
-            "key_status": {p["id"]: providers.key_status(HERE, p) for p in CONFIG.get("providers") or []}}
+            "key_status": {p["id"]: providers.key_status(HERE, p) for p in CONFIG.get("providers") or []},
+            "key_store": providers.store_name(), "secrets_pending": providers.pending_secrets(HERE)}
 
 
 @app.post("/api/config")
@@ -201,6 +202,17 @@ async def set_providers(req: Request):
             providers.save_secret(HERE, pid, key.strip())
     save_config(CONFIG)
     return get_config()
+
+
+@app.post("/api/secrets/migrate")
+def secrets_migrate():
+    """把 secrets.json 的金鑰搬進系統金鑰庫（Windows 認證管理員等）。"""
+    if not providers.store_name():
+        raise HTTPException(400, "這台電腦沒有可用的系統金鑰庫（需要 keyring 套件），金鑰會繼續存在 secrets.json。")
+    moved, left = providers.migrate_secrets(HERE)
+    r = get_config()
+    r["moved"], r["left"] = moved, left
+    return r
 
 
 @app.post("/api/providers/{pid}/models")

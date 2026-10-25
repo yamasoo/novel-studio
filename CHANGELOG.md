@@ -1,5 +1,12 @@
 # 更新紀錄
 
+## 1.7.0
+
+- API 金鑰改存作業系統的金鑰庫（Windows 認證管理員／macOS 鑰匙圈／Linux Secret Service，使用 keyring 套件），由系統加密、綁定登入帳號，專案資料夾裡不留金鑰
+  - 沒有金鑰庫可用時才退回 secrets.json
+  - 設定頁偵測到 secrets.json 有金鑰時，提示一鍵搬進金鑰庫，搬完自動刪除 secrets.json
+  - 設定頁顯示每個金鑰存在哪裡（金鑰庫／secrets.json／環境變數）
+
 ## 1.6.0
 
 - 插圖新增 ComfyUI 後端（設定 → 插畫 → 出圖後端），和 Forge Neo 共用排隊、停止、存圖、樣式表

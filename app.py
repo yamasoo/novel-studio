@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
+from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -782,9 +782,83 @@ async def illust_config_save(req: Request):
                 cur[k] = max(256, min(4096, int(cur[k]) // 8 * 8))
             except (TypeError, ValueError):
                 cur.pop(k)
+    if "comfy_profiles" in body:
+        cur["comfy_profiles"] = _clean_profiles(body["comfy_profiles"])
+    if cur.get("backend") not in ("forge", "comfy"):
+        cur["backend"] = "forge"
     CONFIG["illust"] = cur
     save_config(CONFIG)
     return illust_config()
+
+
+PROFILE_KEYS = ("id", "name", "kind", "workflow", "unet", "clip", "vae", "upsampler", "upsampler_clip", "negative")
+
+
+def _clean_profiles(items):
+    out, seen = [], set()
+    for i, p in enumerate(items or []):
+        if not isinstance(p, dict):
+            continue
+        q = {k: p.get(k, "") for k in PROFILE_KEYS}
+        q["kind"] = q["kind"] if q["kind"] in comfy.KINDS else "anima"
+        q["upsampler"] = bool(p.get("upsampler"))
+        q["name"] = str(q["name"] or comfy.KINDS[q["kind"]]["label"]).strip()[:40]
+        pid = re.sub(r"[^\w-]", "", str(q["id"] or "")) or "p%d" % (i + 1)
+        while pid in seen:
+            pid += "_"
+        seen.add(pid)
+        q["id"] = pid
+        for k in ("workflow", "unet", "clip", "vae", "upsampler_clip", "negative"):
+            q[k] = str(q[k] or "").strip()
+        out.append(q)
+    return out or list(illust.DEFAULTS["comfy_profiles"])
+
+
+def comfy_profile(cfg, pid=None):
+    profs = cfg.get("comfy_profiles") or illust.DEFAULTS["comfy_profiles"]
+    pid = pid or cfg.get("comfy_profile")
+    return next((p for p in profs if p.get("id") == pid), profs[0])
+
+
+@app.get("/api/illust/comfy/status")
+def illust_comfy_status():
+    """連線 ComfyUI：版本、可選的模型檔、各出圖設定的 workflow 檢查結果。"""
+    cfg = illust_cfg()
+    base = cfg.get("comfy_url") or illust.DEFAULTS["comfy_url"]
+    try:
+        stats = comfy.system_stats(base)
+        info = comfy.object_info(base)
+    except comfy.ComfyError as e:
+        return {"ok": False, "error": str(e)}
+    lists = comfy.model_lists(info)
+    profs = []
+    for p in cfg.get("comfy_profiles") or illust.DEFAULTS["comfy_profiles"]:
+        r = {"id": p["id"], "guess": comfy.guess_models(p.get("kind"), lists)}
+        try:
+            path = p.get("workflow") or comfy.template_path(p.get("kind"))
+            r["summary"] = comfy.summary(comfy.load_workflow(path), info)
+            if p.get("upsampler") and "TextGenerate" not in info:
+                r["summary"]["missing"].append("TextGenerate（Prompt Upsampler 需要較新的 ComfyUI）")
+        except (comfy.ComfyError, OSError) as e:
+            r["error"] = str(e)
+        profs.append(r)
+    sysinfo = stats.get("system") or {}
+    devs = stats.get("devices") or []
+    return {"ok": True, "version": sysinfo.get("comfyui_version") or "", "device": devs[0].get("name") if devs else "",
+            "lists": lists, "profiles": profs}
+
+
+@app.post("/api/illust/comfy/inspect")
+async def illust_comfy_inspect(req: Request):
+    """檢查一份 workflow（不需要連線 ComfyUI）。"""
+    body = await req.json()
+    path = (body.get("workflow") or "").strip() or comfy.template_path(body.get("kind") or "anima")
+    if not os.path.isfile(path):
+        raise HTTPException(400, "找不到檔案：%s" % path)
+    try:
+        return comfy.summary(comfy.load_workflow(path))
+    except comfy.ComfyError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/api/illust/forge/status")
@@ -909,6 +983,22 @@ async def book_illust_detect(book_id: str, req: Request):
             "zh_tags": illust.zh_lookup(text, z, t) if text and z else [], "has_dict": bool(z)}
 
 
+def _backend_cfg(cfg, spec, backend=None, profile=None):
+    """依出圖後端調整提示詞格式：MOSS-Image 用自然語言、不加品質與分級標籤、不用畫師標籤。"""
+    cfg = dict(cfg)
+    if (backend or cfg.get("backend")) != "comfy":
+        return cfg
+    p = comfy_profile(cfg, profile)
+    if p.get("negative"):
+        cfg["negative"] = p["negative"]
+    if p.get("kind") == "moss":
+        spec["format"] = "natural"
+        spec["quality"], spec["safety"], spec["artist"] = "", "", ""
+        cfg.update(format="natural", quality="", safety="", style_source="naturl_prompt",
+                   negative=p.get("negative") or comfy.MOSS_NEGATIVE)
+    return cfg
+
+
 @app.post("/api/books/{book_id}/illust/assemble")
 async def book_illust_assemble(book_id: str, req: Request):
     body = await req.json()
@@ -922,6 +1012,7 @@ async def book_illust_assemble(book_id: str, req: Request):
         spec["artist"] = bs.get("artist") or ""
     spec["extra"] = ", ".join(x for x in [spec.get("extra") or "", bs.get("extra") or ""] if x)
     spec["negative_extra"] = ", ".join(x for x in [spec.get("negative_extra") or "", bs.get("negative_extra") or ""] if x)
+    cfg = _backend_cfg(cfg, spec, body.get("backend"), body.get("profile"))
     r = wrap(lambda: illust.assemble(spec, cfg, _sheet_path(cfg)))
     t, _ = illust.tag_dict_paths(cfg)
     notes = []
@@ -949,9 +1040,13 @@ async def book_illust_generate(book_id: str, req: Request):
     if draft:
         illust.save_draft(d, target, draft)
     meta = {"styles": draft.get("styles"), "passage": (draft.get("passage") or "")[:600], "target": target}
+    backend = body.get("backend") or cfg.get("backend") or "forge"
+    prof = comfy_profile(cfg, body.get("profile")) if backend == "comfy" else None
+    if prof:
+        w, h = int(w) // 16 * 16, int(h) // 16 * 16   # MOSS／Flux2 系的 latent 要 16 的倍數
     it = FORGE_QUEUE.add(book_id, d, target, label, body["positive"], body.get("negative") or "",
                          body.get("params") if body.get("params") is not None else cfg.get("params") or "",
-                         body.get("seed", -1), w, h, body.get("count") or 1, meta)
+                         body.get("seed", -1), w, h, body.get("count") or 1, meta, backend=backend, profile=prof)
     return FORGE_QUEUE._pub(it)
 
 

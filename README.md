@@ -109,6 +109,19 @@
 
 匯出 EPUB 時，「插圖 → 封面」的主圖會當封面，各章的主圖放在章首（可以關閉）。
 
+### 插圖（ComfyUI）
+
+到「設定 → 插畫」把出圖後端切成 ComfyUI，填網址（預設 `http://127.0.0.1:8188`），按「測試連線」。
+
+- **只用內建節點**：工作台透過 ComfyUI 的 API 送出 workflow，不需要裝任何自訂節點。
+- **出圖設定**：預設有「Anima」和「MOSS-Image」兩組，可以新增。每組可以：
+  - 選 workflow：留空用專案附的範本（`examples/comfy/anima.api.json`、`moss.api.json`）；用自己的 workflow 時，請在 ComfyUI 選單「Export (API)」匯出（沒有這個選項的話到 ComfyUI 設定開啟開發者模式）。
+  - 選模型、文字編碼器、VAE：測試連線後從 ComfyUI 的清單選，並依檔名建議；留空就照 workflow。
+  - 開 Prompt Upsampler：送出前用 LLM（MOSS 的 Qwen3.5 9B）把提示詞改寫得更完整，需要較新的 ComfyUI。
+- **工作台只改五樣**：正向、負向、seed、尺寸、張數。要改哪個節點由程式從 KSampler 往回找；workflow 裡組提示詞用的自訂節點、預覽節點會自動略過，取樣器、步數、CFG 照你的 workflow。設定頁會列出找到哪些節點、略過哪些、ComfyUI 缺哪些。
+- **提示詞格式**：Anima 和 Forge 一樣是標籤＋自然語言；MOSS-Image 自動改成英文自然語言，不加品質、分級與畫師標籤。
+- 你自己的 workflow 只記路徑在 `config.json`（不進 git），檔案本身不會被複製進專案。
+
 ### 共用庫
 
 放在書庫資料夾的 `_共用/` 裡，跟著你的小說資料走，不在工作台的程式資料夾，所以不會被推上 GitHub。
@@ -257,13 +270,14 @@ novel-studio/
 │   ├── pipeline.py     整章自動流程
 │   ├── importer.py     匯入舊稿：編碼判斷、簡轉繁、拆章
 │   ├── illust.py       插圖：存放、視覺卡、挑片段、標籤查表、樣式表、提示詞組裝
-│   ├── forge.py        Forge Neo API 與出圖佇列
+│   ├── forge.py        Forge Neo API 與出圖佇列（也負責 ComfyUI 的排隊）
+│   ├── comfy.py        ComfyUI API 與 workflow 處理
 │   └── presets/結構/   內建的章節結構
 ├── plugin/             內建的 novel-* skills（Claude Code 外掛格式）
 │   ├── .claude-plugin/plugin.json
 │   └── skills/novel-setup、novel-style、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
 ├── static/             網頁介面（index.html、app.js、style.css、marked.js）
-├── examples/           範例樣式表（styles.example.json／.xlsx）、完整文風範例
+├── examples/           範例樣式表（styles.example.json／.xlsx）、完整文風範例、ComfyUI 範本 workflow（comfy/）
 └── demo/退婚之後/       示範書
 ```
 

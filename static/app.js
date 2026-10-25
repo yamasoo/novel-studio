@@ -1525,7 +1525,7 @@ async function pickStyles(selected, onDone) {
 
 function imageModal(target, img, reload, reuse) {
   modal(`<div class="img-view"><img src="${imgUrl(img.path)}" alt=""></div>
-    <div class="row small muted" style="margin:8px 0">${esc(img.file)}　${img.width ? img.width + "×" + img.height : ""}　${img.seed ? "seed " + img.seed : ""}　${img.origin === "upload" ? "上傳" : "Forge"}</div>
+    <div class="row small muted" style="margin:8px 0">${esc(img.file)}　${img.width ? img.width + "×" + img.height : ""}　${img.seed ? "seed " + img.seed : ""}　${img.origin === "upload" ? "上傳" : img.origin === "comfy" ? "ComfyUI" + (img.comfy_profile ? "・" + esc(img.comfy_profile) : "") : "Forge"}</div>
     ${img.prompt ? `<details><summary class="small">提示詞</summary><pre class="pre">${esc(img.prompt)}</pre>${img.negative ? `<pre class="pre muted">負面：${esc(img.negative)}</pre>` : ""}</details>` : ""}
     <div class="row" style="margin-top:10px">
       ${img.main ? '<span class="badge b-ok">主圖</span>' : '<button class="sm primary" id="iv-main">設為主圖</button>'}
@@ -1552,6 +1552,11 @@ async function renderIllust(el, target, opts = {}) {
   const isCh = target.startsWith("chapter:"), isEnt = target.startsWith("entity:"), isCover = target === "cover";
   const D = Object.assign({ passage: "", chars: [], places: [], action_tags: "", scene_tags: "", composition: "", sentences: "",
     extra: "", format: cfg.format, styles: bs.styles || [], artist: bs.artist || "", seed: -1, count: 1 }, info.draft || {});
+  const isComfy = cfg.backend === "comfy";
+  const profs = cfg.comfy_profiles || [];
+  if (!profs.find((p) => p.id === D.profile)) D.profile = cfg.comfy_profile || (profs[0] || {}).id;
+  const curProf = () => profs.find((p) => p.id === D.profile) || profs[0] || {};
+  const genName = () => isComfy ? "ComfyUI" : "Forge";
   if (!info.draft || !info.draft.styles) D.styles = bs.styles || [];
   if (!info.draft || info.draft.artist === undefined) D.artist = bs.artist || "";
   let ents = null, picks = null, zh = null, final = null, open = opts.open || (isCh && !info.images.length);
@@ -1616,18 +1621,20 @@ async function renderIllust(el, target, opts = {}) {
           <div class="f"><span>畫風</span><div class="row"><span class="small">${D.styles.length ? D.styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span>
             <button class="sm" id="il-styles">選畫風…</button></div></div>
           <label class="f"><span>畫師標籤（會自動加 @）</span><input type="text" data-k="artist" value="${esc(D.artist)}"></label>
-          <label class="f"><span>格式</span><select data-k="format">${[["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${D.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          ${isComfy ? `<label class="f"><span>ComfyUI 出圖設定</span><select data-k="profile" id="il-prof">${profs.map((p) => `<option value="${esc(p.id)}" ${p.id === D.profile ? "selected" : ""}>${esc(p.name)}${p.upsampler ? "（Upsampler）" : ""}</option>`).join("")}</select></label>` : ""}
+          ${isComfy && curProf().kind === "moss" ? `<div class="f"><span>格式</span><div class="small muted">MOSS-Image 用英文自然語言，不加品質、分級與畫師標籤</div></div>`
+            : `<label class="f"><span>格式</span><select data-k="format">${[["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${D.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>`}
           <label class="f"><span>尺寸</span><select id="il-size">${cfgR.sizes.map(([n, w, h]) => `<option value="${w}x${h}" ${w === +D.width && h === +D.height ? "selected" : ""}>${n} ${w}×${h}</option>`).join("")}
             ${cfgR.sizes.some(([, w, h]) => w === +D.width && h === +D.height) ? "" : `<option value="${D.width}x${D.height}" selected>目前 ${D.width}×${D.height}</option>`}</select></label>
           <label class="f"><span>種子（-1＝隨機）</span><input type="number" data-k="seed" value="${esc(D.seed)}"></label>
           <label class="f"><span>張數</span><select data-k="count">${[1, 2, 3, 4].map((n) => `<option ${+D.count === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         </div>
-        <div class="row"><button class="sm" id="il-asm">組裝提示詞</button><span class="muted small">組裝後可以直接修改最終提示詞，或複製到 Forge 自己用。</span></div>
+        <div class="row"><button class="sm" id="il-asm">組裝提示詞</button><span class="muted small">組裝後可以直接修改最終提示詞，或複製到 ${genName()} 自己用。</span></div>
         ${final ? `<label class="f" style="margin-top:8px"><span>正向提示詞</span><textarea id="il-pos" rows="7">${esc(final.positive)}</textarea></label>
           <label class="f"><span>負面提示詞</span><textarea id="il-neg" rows="2">${esc(final.negative)}</textarea></label>
           ${final.notes && final.notes.length ? `<div class="small muted">標籤檢查：${final.notes.map(esc).join("；")}</div>` : ""}
           <div class="row" style="margin-top:8px"><button class="sm" id="il-copy">複製正向提示詞</button><span class="grow"></span>
-            <button class="primary" id="il-gen">送 Forge 出圖</button></div>` : ""}
+            <button class="primary" id="il-gen">送 ${genName()} 出圖</button></div>` : ""}
       </div>` : ""}
     </div>`;
     bind();
@@ -1676,7 +1683,9 @@ async function renderIllust(el, target, opts = {}) {
       if (!q) return;
       const others = list.filter((x) => x.target !== target && (x.status === "queued" || x.status === "running")).length;
       q.innerHTML = active.map((x) => x.status === "running"
-        ? `<div class="ill-prog"><span>Forge 出圖中 ${Math.round(x.progress * 100)}%${x.eta ? `（約 ${Math.ceil(x.eta)} 秒）` : ""}</span><div class="bar"><i style="width:${Math.round(x.progress * 100)}%"></i></div><button class="sm" data-cancel="${x.id}">停止</button></div>`
+        ? (x.backend === "comfy"
+          ? `<div class="ill-prog"><span>ComfyUI ${x.phase === "pending" ? "排隊中" : "出圖中"}（${esc(x.profile)}，${x.elapsed || 0} 秒）</span><div class="bar indet"><i></i></div><button class="sm" data-cancel="${x.id}">停止</button></div>`
+          : `<div class="ill-prog"><span>Forge 出圖中 ${Math.round(x.progress * 100)}%${x.eta ? `（約 ${Math.ceil(x.eta)} 秒）` : ""}</span><div class="bar"><i style="width:${Math.round(x.progress * 100)}%"></i></div><button class="sm" data-cancel="${x.id}">停止</button></div>`)
         : `<div>排隊中（seed ${x.seed}）<button class="sm" data-cancel="${x.id}">取消</button></div>`).join("")
         + (others ? `<div class="muted">另外還有 ${others} 張在排隊</div>` : "")
         + mine.filter((x) => x.status === "error" && Date.now() / 1000 - x.created < 600).slice(-1).map((x) => `<div class="err">出圖失敗：${esc(x.error)}</div>`).join("");
@@ -1691,6 +1700,7 @@ async function renderIllust(el, target, opts = {}) {
   };
 
   const bind = () => {
+    if ($("#il-prof", el)) $("#il-prof", el).onchange = () => { collect(); final = null; render(); };
     el.querySelectorAll(".ill-thumb").forEach((t) => t.onclick = () => imageModal(target, info.images[+t.dataset.i], reload, (img) => {
       open = true; final = { positive: img.prompt, negative: img.negative || "", notes: [] }; D.seed = img.seed || -1; render();
     }));
@@ -1738,7 +1748,7 @@ async function renderIllust(el, target, opts = {}) {
     $("#il-asm", el).onclick = async () => {
       collect();
       try {
-        final = await api("POST", B("/illust/assemble"), { draft: D });
+        final = await api("POST", B("/illust/assemble"), { draft: D, profile: isComfy ? D.profile : null });
         await api("POST", B("/illust/draft"), { target, draft: D });
         render();
       } catch (e) { fail(e); }
@@ -1749,8 +1759,8 @@ async function renderIllust(el, target, opts = {}) {
       final.positive = $("#il-pos", el).value; final.negative = $("#il-neg", el).value;
       try {
         await api("POST", B("/illust/generate"), { target, positive: final.positive, negative: final.negative, seed: D.seed, count: +D.count,
-          width: D.width, height: D.height, draft: D });
-        toast("已送到 Forge");
+          width: D.width, height: D.height, draft: D, profile: isComfy ? D.profile : null });
+        toast("已送到 " + genName());
         pollQueue();
       } catch (e) { fail(e); }
     };
@@ -1872,12 +1882,22 @@ async function viewIllust(view, t) {
     : `<div class="card empty"><div class="big">✎</div>還沒有任何插圖。<br>到章節頁的「插圖」分頁、設定集的角色，或這裡的「封面」開始。</div>`;
 }
 
-/* 設定頁：插畫（Forge Neo） */
+/* 設定頁：插畫（Forge Neo／ComfyUI） */
+const COMFY_KINDS = [["anima", "Anima（標籤＋自然語言）"], ["moss", "MOSS-Image（自然語言）"]];
 async function renderIllSettings(el) {
   const r = await illCfg(true);
   const c = r.config;
+  const profs = JSON.parse(JSON.stringify(c.comfy_profiles || []));
+  let cst = null;   // ComfyUI 測試連線結果
+  const be = c.backend === "comfy" ? "comfy" : "forge";
   el.innerHTML = `
-    <h2 style="margin-bottom:4px">插畫（Forge Neo）</h2>
+    <h2 style="margin-bottom:4px">插畫（Forge Neo／ComfyUI）</h2>
+    <div class="f"><span>出圖後端</span></div>
+    <div class="seg compact" id="il-be" style="margin-bottom:12px">
+      <label><input type="radio" name="il-be" value="forge" ${be === "forge" ? "checked" : ""}><span>Forge Neo</span></label>
+      <label><input type="radio" name="il-be" value="comfy" ${be === "comfy" ? "checked" : ""}><span>ComfyUI</span></label>
+    </div>
+    <div data-be="forge">
     <div class="muted small" style="margin-bottom:12px">Forge 要用 <code>--api</code> 啟動（加在啟動 bat 的 COMMANDLINE_ARGS）。出圖參數用 Forge「PNG Info」最後一行的格式，Forge 會自己切換模型和 VAE／文字編碼器。</div>
     <div class="grid g2">
       <label class="f"><span>Forge 網址</span><div class="row"><input type="text" id="il-url" value="${esc(c.forge_url)}" style="flex:1"><button class="sm" id="il-test">測試連線</button></div></label>
@@ -1887,6 +1907,19 @@ async function renderIllSettings(el) {
     <label class="f"><span>出圖參數（Forge PNG Info 最後一行；Seed、Size 由工作台決定）</span>
       <textarea id="il-params" rows="2">${esc(c.params)}</textarea></label>
     <div class="row" style="margin:-6px 0 12px"><button class="sm" id="il-fromforge">從 Forge 讀最近一次的參數</button><span class="muted small">讀 Forge 資料夾裡的 params.txt</span></div>
+    <label class="cb"><input type="checkbox" id="il-save" ${c.save_in_forge ? "checked" : ""}> 也在 Forge 的輸出資料夾存一份</label>
+    </div>
+    <div data-be="comfy">
+      <div class="muted small" style="margin-bottom:10px">工作台用 ComfyUI 的 API 出圖，只會用到 ComfyUI 內建節點。每個「出圖設定」是一份 workflow：留空就用專案附的範本（<code>examples/comfy/</code>）；
+        要用自己的 workflow，請在 ComfyUI 選單用「Export (API)」匯出（沒有這個選項的話，到 ComfyUI 設定開啟開發者模式）。工作台只改正向、負向、seed、尺寸、張數，組提示詞用的自訂節點會自動略過。</div>
+      <label class="f"><span>ComfyUI 網址</span><div class="row"><input type="text" id="cf-url" value="${esc(c.comfy_url)}" style="flex:1"><button class="sm" id="cf-test">測試連線</button></div></label>
+      <div class="small" id="cf-status" style="margin:-4px 0 10px"></div>
+      <div id="cf-profs"></div>
+      <div class="row" style="margin:6px 0 10px"><button class="sm" id="cf-add">＋ 新增出圖設定</button>
+        <label class="f" style="margin:0 0 0 auto;flex-direction:row;align-items:center;gap:6px"><span>預設使用</span><select id="cf-def"></select></label></div>
+      <label class="cb"><input type="checkbox" id="cf-keep" ${c.comfy_keep_output ? "checked" : ""}> 也在 ComfyUI 的 output 資料夾存一份（不勾就只放 ComfyUI 的暫存）</label>
+    </div>
+    <h3 style="margin:14px 0 8px">提示詞</h3>
     <div class="grid g4">
       <label class="f"><span>預設寬</span><input type="number" id="il-w" value="${esc(c.width)}" step="8"></label>
       <label class="f"><span>預設高</span><input type="number" id="il-h" value="${esc(c.height)}" step="8"></label>
@@ -1901,10 +1934,61 @@ async function renderIllSettings(el) {
       <label class="f"><span>產生畫面描述預設用的 AI</span><select id="il-prov"><option value="">面板目前的執行者</option>${r.providers.map((p) => `<option value="${esc(p.id)}" ${c.provider === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
       <div class="f"><span>標籤對照表</span><div class="small">${r.tag_csv ? "✓ " + esc(r.tag_csv) : '<span class="muted">沒有（填 Forge 資料夾會自動找 tagcomplete 的 danbooru.csv）</span>'}<br>${r.tag_zh_csv ? "✓ " + esc(r.tag_zh_csv) : '<span class="muted">沒有中文對照表</span>'}</div></div>
     </div>
-    <div class="small muted" style="margin:-4px 0 8px">${r.sheet_error ? '<span class="err">' + esc(r.sheet_error) + "</span>" : r.sheet_count ? `樣式表共 ${r.sheet_count} 個畫風${r.sheet_is_example ? "（目前用專案附的範例）" : ""}` : ""}</div>
+    <div class="small muted" style="margin:-4px 0 8px">${r.sheet_error ? '<span class="err">' + esc(r.sheet_error) + "</span>" : r.sheet_count ? `樣式表共 ${r.sheet_count} 個畫風${r.sheet_is_example ? "（目前用專案附的範例）" : ""}` : ""}　MOSS-Image 會自動改用自然語言，不加品質、分級與畫師標籤。</div>
     <label class="cb"><input type="checkbox" id="il-nsfw" ${c.show_nsfw_styles ? "checked" : ""}> 選畫風時預設顯示 nsfw 分類</label>
-    <label class="cb"><input type="checkbox" id="il-save" ${c.save_in_forge ? "checked" : ""}> 也在 Forge 的輸出資料夾存一份</label>
     <div class="row"><span class="grow"></span><button class="primary" id="il-savecfg">儲存插畫設定</button></div>`;
+  const syncBe = () => {
+    const v = el.querySelector('input[name="il-be"]:checked').value;
+    el.querySelectorAll("[data-be]").forEach((x) => { x.hidden = x.dataset.be !== v; });
+  };
+  el.querySelectorAll('input[name="il-be"]').forEach((x) => x.onchange = syncBe);
+  syncBe();
+
+  const modelField = (p, i, key, label) => {
+    const list = cst && cst.ok ? cst.lists[key === "upsampler_clip" ? "clip" : key] || [] : null;
+    const guess = cst && cst.ok ? ((cst.profiles.find((x) => x.id === p.id) || {}).guess || {})[key] : "";
+    if (!list) return `<label class="f"><span>${label}</span><input type="text" data-pf="${i}" data-key="${key}" value="${esc(p[key] || "")}" placeholder="${key === "upsampler_clip" ? "例如 qwen3.5_9b_w4a8_gptq.safetensors" : "照 workflow（按測試連線後可以從清單選）"}"></label>`;
+    const cur = p[key] || "";
+    return `<label class="f"><span>${label}</span><select data-pf="${i}" data-key="${key}">
+      <option value="">${key === "upsampler_clip" ? "（請選擇）" : "照 workflow"}</option>
+      ${list.map((f) => `<option value="${esc(f)}" ${f === cur ? "selected" : ""}>${esc(f)}${f === guess && !cur ? "（建議）" : ""}</option>`).join("")}
+      ${cur && !list.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}（ComfyUI 找不到）</option>` : ""}</select></label>`;
+  };
+  const renderProfs = () => {
+    $("#cf-profs", el).innerHTML = profs.map((p, i) => {
+      const st = cst && cst.ok ? cst.profiles.find((x) => x.id === p.id) : null;
+      const sm = st && st.summary;
+      return `<div class="prov-box" style="margin-bottom:10px">
+        <div class="row"><b>${esc(p.name || "未命名")}</b><span class="grow"></span>${profs.length > 1 ? `<button class="sm danger" data-del="${i}">刪除</button>` : ""}</div>
+        <div class="grid g3">
+          <label class="f"><span>名稱</span><input type="text" data-pf="${i}" data-key="name" value="${esc(p.name)}"></label>
+          <label class="f"><span>模型種類（決定提示詞格式）</span><select data-pf="${i}" data-key="kind">${COMFY_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          <label class="f"><span>workflow（API 格式 .json）</span><input type="text" data-pf="${i}" data-key="workflow" value="${esc(p.workflow)}" placeholder="留空＝專案附的範本"></label>
+          ${modelField(p, i, "unet", "模型")}${modelField(p, i, "clip", "文字編碼器")}${modelField(p, i, "vae", "VAE")}
+        </div>
+        <label class="f"><span>負面提示詞（留空＝${p.kind === "moss" ? "MOSS 官方建議" : "用下方「提示詞」的設定"}）</span><input type="text" data-pf="${i}" data-key="negative" value="${esc(p.negative)}"></label>
+        <label class="cb"><input type="checkbox" data-pf="${i}" data-key="upsampler" ${p.upsampler ? "checked" : ""}> Prompt Upsampler：送出前用 LLM 把提示詞改寫成更完整的描述（多約 6 GB VRAM、每張多 10～30 秒）</label>
+        ${p.upsampler && p.kind !== "moss" ? `<div class="grid g3">${modelField(p, i, "upsampler_clip", "改寫用的文字編碼器（MOSS 的 Qwen3.5 9B）")}</div>` : ""}
+        ${p.upsampler && p.kind === "moss" ? '<div class="muted small">MOSS 直接用自己的文字編碼器改寫。</div>' : ""}
+        <div class="small" style="margin-top:6px">${st ? (st.error ? `<span class="badge b-bad">workflow 有問題</span> ${esc(st.error)}`
+          : `<span class="badge ${sm.missing.length ? "b-bad" : "b-ok"}">${sm.missing.length ? "ComfyUI 缺少節點" : "workflow 可以用"}</span>
+             ${sm.missing.length ? "缺：" + sm.missing.map(esc).join("、") + "　" : ""}<span class="muted">正向：${sm.positive.map(esc).join("、")}　負向：${sm.negative.map(esc).join("、") || "無"}　尺寸：${sm.latent.map(esc).join("、") || "無"}${sm.removed.length ? "　略過：" + sm.removed.map(esc).join("、") : ""}</span>`) : ""}</div>
+      </div>`;
+    }).join("");
+    $("#cf-def", el).innerHTML = profs.map((p) => `<option value="${esc(p.id)}" ${p.id === (c.comfy_profile || profs[0].id) ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+    el.querySelectorAll("[data-pf]").forEach((x) => {
+      x.onchange = () => {
+        const p = profs[+x.dataset.pf];
+        p[x.dataset.key] = x.type === "checkbox" ? x.checked : x.value.trim();
+        if (["kind", "upsampler"].includes(x.dataset.key)) renderProfs();
+      };
+    });
+    el.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => { profs.splice(+b.dataset.del, 1); renderProfs(); });
+    el.querySelectorAll('[data-key="workflow"]').forEach((x) => attachPicker(x, { mode: "file", exts: [".json"], title: "選擇 ComfyUI workflow（API 格式）" }));
+  };
+  renderProfs();
+  $("#cf-add", el).onclick = () => { profs.push({ id: "p" + Date.now().toString(36), name: "新的出圖設定", kind: "anima", workflow: "", unet: "", clip: "", vae: "", upsampler: false, upsampler_clip: "", negative: "" }); renderProfs(); };
+
   const test = async () => {
     const st = $("#il-status", el);
     st.textContent = "連線中……";
@@ -1913,15 +1997,38 @@ async function renderIllSettings(el) {
       : `<span class="badge b-bad">連不到</span> ${esc(s.error)}`;
   };
   const save = async () => {
-    const body = { forge_url: $("#il-url", el).value.trim(), forge_dir: $("#il-dir", el).value.trim(), params: $("#il-params", el).value.trim(),
+    c.comfy_profile = $("#cf-def", el).value;
+    const body = { backend: el.querySelector('input[name="il-be"]:checked').value,
+      forge_url: $("#il-url", el).value.trim(), forge_dir: $("#il-dir", el).value.trim(), params: $("#il-params", el).value.trim(),
       width: parseInt($("#il-w", el).value), height: parseInt($("#il-h", el).value), safety: $("#il-safe", el).value, format: $("#il-fmt", el).value,
       quality: $("#il-q", el).value.trim(), negative: $("#il-neg", el).value.trim(), style_sheet: $("#il-sheet", el).value.trim(),
-      style_source: $("#il-src", el).value, provider: $("#il-prov", el).value, show_nsfw_styles: $("#il-nsfw", el).checked, save_in_forge: $("#il-save", el).checked };
+      style_source: $("#il-src", el).value, provider: $("#il-prov", el).value, show_nsfw_styles: $("#il-nsfw", el).checked, save_in_forge: $("#il-save", el).checked,
+      comfy_url: $("#cf-url", el).value.trim(), comfy_profiles: profs, comfy_profile: c.comfy_profile, comfy_keep_output: $("#cf-keep", el).checked };
     ILL.cfg = await api("POST", "/api/illust/config", body);
+    const saved = ILL.cfg.config.comfy_profiles;
+    profs.splice(0, profs.length, ...JSON.parse(JSON.stringify(saved)));
+  };
+  const ctest = async () => {
+    const st = $("#cf-status", el);
+    st.textContent = "連線中……";
+    cst = await api("GET", "/api/illust/comfy/status");
+    if (cst.ok) {
+      // 沒選模型的，帶入建議
+      let filled = 0;
+      for (const p of profs) {
+        const g = (cst.profiles.find((x) => x.id === p.id) || {}).guess || {};
+        if (!p.workflow) for (const k of ["unet", "clip", "vae"]) if (!p[k] && g[k]) { p[k] = g[k]; filled++; }
+        if (p.upsampler && p.kind !== "moss" && !p.upsampler_clip && g.upsampler_clip) { p.upsampler_clip = g.upsampler_clip; filled++; }
+      }
+      st.innerHTML = `<span class="badge b-ok">已連線</span> ComfyUI ${esc(cst.version)}　${esc(cst.device || "")}　模型 ${cst.lists.unet.length}、文字編碼器 ${cst.lists.clip.length}、VAE ${cst.lists.vae.length} 個`
+        + (filled ? `　<span class="muted">已依檔名帶入建議的模型，確認後按「儲存插畫設定」</span>` : "");
+    } else st.innerHTML = `<span class="badge b-bad">連不到</span> ${esc(cst.error)}`;
+    renderProfs();
   };
   attachPicker($("#il-dir", el), { mode: "dir", title: "選擇 Forge 資料夾" });
   attachPicker($("#il-sheet", el), { mode: "file", exts: [".xlsx", ".json"], title: "選擇畫風樣式表" });
   $("#il-test", el).onclick = async () => { try { await save(); await test(); } catch (e) { fail(e); } };
+  $("#cf-test", el).onclick = async () => { try { await save(); await ctest(); } catch (e) { fail(e); } };
   $("#il-fromforge", el).onclick = async () => {
     try {
       const p = await api("POST", "/api/illust/forge/params", { forge_dir: $("#il-dir", el).value.trim() });
@@ -2023,6 +2130,7 @@ const ABOUT_LINKS = [
     ["DeepSeek API", "https://api-docs.deepseek.com/", "", "OpenAI 相容服務"],
     ["llama.cpp", "https://github.com/ggml-org/llama.cpp", "MIT", "本機模型（OpenAI 相容服務）"],
     ["Stable Diffusion WebUI Forge – Neo", "https://github.com/Haoming02/sd-webui-forge-classic/tree/neo", "", "插圖出圖（需用 --api 啟動）"],
+    ["ComfyUI", "https://github.com/comfyanonymous/ComfyUI", "GPL-3.0", "插圖出圖的另一個後端（透過 API，只用內建節點）"],
     ["Anima", "https://huggingface.co/circlestone-labs/Anima", "", "提示詞格式依此模型的建議（標籤＋自然語言）"],
     ["a1111-sd-webui-tagcomplete", "https://github.com/DominikDoom/a1111-sd-webui-tagcomplete", "MIT", "標籤檢查與中文對照表使用它附的 tags 檔案（從 Forge 資料夾讀取，不隨專案附帶）"],
     ["StyleSelectorXL", "https://github.com/ahgsql/StyleSelectorXL", "MIT", "樣式表格式相容（範例在 examples/styles.example.json）"],

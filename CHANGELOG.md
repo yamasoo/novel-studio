@@ -1,5 +1,15 @@
 # 更新紀錄
 
+## 1.6.0
+
+- 插圖新增 ComfyUI 後端（設定 → 插畫 → 出圖後端），和 Forge Neo 共用排隊、停止、存圖、樣式表
+  - 透過 ComfyUI API 出圖，只用內建節點；workflow 用 API 格式（「Export (API)」匯出），也可以用專案附的範本 `examples/comfy/`
+  - 工作台只改正向、負向、seed、尺寸、張數；要改的節點由程式從 KSampler 往回找，組提示詞用的自訂節點與預覽節點會自動略過
+  - 「出圖設定」可以有好幾個（預設 Anima、MOSS-Image）：各自選 workflow、模型、文字編碼器、VAE；測試連線時從 ComfyUI 的清單選，並依檔名建議
+  - MOSS-Image 自動改用英文自然語言，不加品質、分級與畫師標籤，負面提示詞用官方建議
+  - Prompt Upsampler（預設關）：送出前用內建的 TextGenerate 把提示詞改寫成更完整的描述
+  - 預設只放 ComfyUI 暫存，可勾選也存一份在 ComfyUI 的 output
+
 ## 1.5.0
 
 - 新增「整章自動流程」：章綱 → 寫章節（候選稿）→ 章綱核對 → 去 AI 味 → 審查意見 → 自動勾選意見 → 依勾選意見修訂 → 全部套用修訂 → 定稿並回寫追蹤

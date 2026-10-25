@@ -46,6 +46,18 @@ DEFAULTS = {
     "show_nsfw_styles": False,
     "save_in_forge": False,       # 也存一份在 Forge 的 outputs 資料夾
     "provider": "",               # 產生提示詞用的 AI（空白＝面板目前的執行者）
+    # 出圖後端：forge＝Forge Neo；comfy＝ComfyUI
+    "backend": "forge",
+    "comfy_url": "http://127.0.0.1:8188",
+    "comfy_profile": "anima",
+    "comfy_keep_output": False,   # 也存一份在 ComfyUI 的 output 資料夾（否則只放暫存）
+    # ComfyUI 出圖設定：workflow 留空＝用 examples/comfy/ 的範本；模型留空＝照 workflow
+    "comfy_profiles": [
+        {"id": "anima", "name": "Anima", "kind": "anima", "workflow": "", "unet": "", "clip": "", "vae": "",
+         "upsampler": False, "upsampler_clip": "", "negative": ""},
+        {"id": "moss", "name": "MOSS-Image", "kind": "moss", "workflow": "", "unet": "", "clip": "", "vae": "",
+         "upsampler": False, "upsampler_clip": "", "negative": ""},
+    ],
 }
 SIZES = [("直式", 896, 1152), ("橫式", 1152, 896), ("方形", 1024, 1024), ("寬螢幕", 1344, 768), ("長直式", 768, 1344)]
 

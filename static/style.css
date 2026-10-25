@@ -394,3 +394,8 @@ mark.ins { background: var(--ok-soft); color: var(--ok); }
 .pstep.failed { background: var(--bad-soft); }
 .pstep.failed .pi { color: var(--bad); }
 @keyframes pblink { 50% { opacity: .3; } }
+
+/* ---------- ComfyUI ---------- */
+.prov-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper); }
+.ill-prog .bar.indet i { width: 35%; animation: indet 1.4s infinite ease-in-out; }
+@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }

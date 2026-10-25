@@ -6,6 +6,7 @@ Forge 要用 --api 啟動。參數用 infotext 格式（Steps: …, Sampler: …
 """
 import base64
 import json
+import os
 import random
 import threading
 import time
@@ -13,7 +14,7 @@ import urllib.error
 import urllib.request
 import uuid
 
-from . import illust
+from . import comfy, illust
 
 
 class ForgeError(Exception):
@@ -106,14 +107,16 @@ class Queue:
         self.current = None
         threading.Thread(target=self._loop, daemon=True).start()
 
-    def add(self, book_id, book_dir, target, label, positive, negative, params_line, seed, width, height, count, meta):
+    def add(self, book_id, book_dir, target, label, positive, negative, params_line, seed, width, height, count, meta,
+            backend="forge", profile=None):
         seed = int(seed) if str(seed).lstrip("-").isdigit() else -1
         if seed < 0:
             seed = random.randint(1, 2 ** 31 - 1)
         it = {"id": uuid.uuid4().hex[:10], "book_id": book_id, "book_dir": book_dir, "target": target, "label": label,
               "positive": positive, "negative": negative, "params": params_line, "seed": seed,
               "width": int(width), "height": int(height), "count": max(1, min(4, int(count or 1))), "meta": meta or {},
-              "status": "queued", "progress": 0, "eta": None, "error": "", "files": [], "created": time.time()}
+              "status": "queued", "progress": 0, "eta": None, "error": "", "files": [], "created": time.time(),
+              "backend": backend, "profile": profile or {}, "elapsed": 0, "phase": ""}
         with self.lock:
             self.items.append(it)
             self.items = [x for x in self.items if x["status"] in ("queued", "running") or time.time() - x["created"] < 3600][-200:]
@@ -126,8 +129,10 @@ class Queue:
 
     @staticmethod
     def _pub(x):
-        return {k: x[k] for k in ("id", "book_id", "target", "label", "seed", "width", "height", "count", "status",
-                                  "progress", "eta", "error", "files", "created")}
+        d = {k: x[k] for k in ("id", "book_id", "target", "label", "seed", "width", "height", "count", "status",
+                               "progress", "eta", "error", "files", "created", "backend", "elapsed", "phase")}
+        d["profile"] = (x.get("profile") or {}).get("name", "")
+        return d
 
     def cancel(self, qid):
         with self.lock:
@@ -137,7 +142,8 @@ class Queue:
                         x["status"] = "cancelled"
                     elif x["status"] == "running":
                         x["cancel"] = True
-                        interrupt(self._base())
+                        if x.get("backend") != "comfy":   # ComfyUI 由執行迴圈自己中斷
+                            interrupt(self._base())
                     return True
         return False
 
@@ -158,6 +164,8 @@ class Queue:
                 self._run(it)
 
     def _run(self, it):
+        if it.get("backend") == "comfy":
+            return self._run_comfy(it)
         cfg = self.get_cfg()
         base = self._base()
         result = {}
@@ -203,3 +211,44 @@ class Queue:
         it["status"] = "done" if files else "error"
         if not files and not it["error"]:
             it["error"] = "Forge 沒有回傳圖片"
+
+    # ------------------------------------------------------------------ ComfyUI
+    def _run_comfy(self, it):
+        cfg = self.get_cfg()
+        base = (cfg.get("comfy_url") or illust.DEFAULTS["comfy_url"]).rstrip("/")
+        prof = it.get("profile") or {}
+        try:
+            path = prof.get("workflow") or comfy.template_path(prof.get("kind") or "anima")
+            if not os.path.isfile(path):
+                raise comfy.ComfyError("找不到 workflow 檔：%s" % path)
+            wf, out_id = comfy.prepare(comfy.load_workflow(path), prof, it["positive"], it["negative"], it["seed"],
+                                       it["width"], it["height"], it["count"], bool(cfg.get("comfy_keep_output")),
+                                       "novel-studio/%s" % (prof.get("kind") or "image"))
+
+            def tick(elapsed, state):
+                it["elapsed"], it["phase"] = int(elapsed), state
+
+            images, pid = comfy.run(base, wf, out_id, lambda: bool(it.get("cancel")), tick)
+        except comfy.ComfyError as e:
+            if it.get("cancel"):
+                it["status"] = "cancelled"
+                return
+            it["status"], it["error"] = "error", str(e)
+            return
+        except Exception as e:  # noqa: BLE001
+            it["status"], it["error"] = "error", "程式錯誤：%s" % e
+            return
+        files = []
+        for i, data in enumerate(images):
+            meta = dict(it["meta"], origin="comfy", prompt=it["positive"], negative=it["negative"], seed=it["seed"],
+                        batch_index=i, width=it["width"], height=it["height"], comfy_profile=prof.get("name"),
+                        comfy_kind=prof.get("kind"), upsampler=bool(prof.get("upsampler")), comfy_prompt_id=pid)
+            try:
+                files.append(illust.save_image(it["book_dir"], it["target"], data, meta))
+            except Exception as e:  # noqa: BLE001
+                it["error"] = str(e)
+        it["files"] = files
+        it["progress"] = 1
+        it["status"] = "done" if files else "error"
+        if not files and not it["error"]:
+            it["error"] = "ComfyUI 沒有回傳圖片"

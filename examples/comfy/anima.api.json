@@ -1,0 +1,138 @@
+{
+ "1": {
+  "class_type": "UNETLoader",
+  "_meta": {
+   "title": "Anima 模型"
+  },
+  "inputs": {
+   "unet_name": "",
+   "weight_dtype": "default"
+  }
+ },
+ "2": {
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "文字編碼器（Qwen3 0.6B）"
+  },
+  "inputs": {
+   "clip_name": "",
+   "type": "lumina2",
+   "device": "default"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "VAE"
+  },
+  "inputs": {
+   "vae_name": ""
+  }
+ },
+ "4": {
+  "class_type": "ModelSamplingAuraFlow",
+  "_meta": {
+   "title": "Shift"
+  },
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "shift": 5
+  }
+ },
+ "5": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "正向提示詞"
+  },
+  "inputs": {
+   "clip": [
+    "2",
+    0
+   ],
+   "text": ""
+  }
+ },
+ "6": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "負向提示詞"
+  },
+  "inputs": {
+   "clip": [
+    "2",
+    0
+   ],
+   "text": "score_1, score_2, score_3, score_4, score_5, jpeg artifacts, worst_quality, bad_quality, bad_hands, very_displeasing, lowres, extra_digit, fewer_digits, jpeg, watermark, instagram_username, twitter_username, patreon_username, frame, comic_frame"
+  }
+ },
+ "7": {
+  "class_type": "EmptySD3LatentImage",
+  "_meta": {
+   "title": "尺寸"
+  },
+  "inputs": {
+   "width": 896,
+   "height": 1152,
+   "batch_size": 1
+  }
+ },
+ "8": {
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "取樣"
+  },
+  "inputs": {
+   "model": [
+    "4",
+    0
+   ],
+   "positive": [
+    "5",
+    0
+   ],
+   "negative": [
+    "6",
+    0
+   ],
+   "latent_image": [
+    "7",
+    0
+   ],
+   "seed": 1,
+   "steps": 12,
+   "cfg": 1.8,
+   "sampler_name": "er_sde",
+   "scheduler": "beta",
+   "denoise": 1
+  }
+ },
+ "9": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "8",
+    0
+   ],
+   "vae": [
+    "3",
+    0
+   ]
+  }
+ },
+ "10": {
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "存檔"
+  },
+  "inputs": {
+   "images": [
+    "9",
+    0
+   ],
+   "filename_prefix": "novel-studio/anima"
+  }
+ }
+}

@@ -202,6 +202,7 @@ class Runner:
             job.emit("error", text=str(e))
             job.status = "error"
             job.ended = time.time()
+            job.emit("end", status=job.status)
             job.save()
             return
         job.emit("start", text="開始執行" + ("（接續上一輪對話）" if job.resume else ""))
@@ -222,6 +223,7 @@ class Runner:
             job.emit("error", text="無法啟動 Claude Code：%s" % e)
             job.status = "error"
             job.ended = time.time()
+            job.emit("end", status=job.status)
             job.save()
             return
 

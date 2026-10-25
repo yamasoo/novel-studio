@@ -320,6 +320,11 @@ def spec_chapter_cards(c, p):
     pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
+    if p.get("auto"):   # 整章自動流程：直接寫入，不先確認
+        task = ("寫第%d～%d章的章綱，直接為每一章輸出一個 大綱/章綱/第NNN章.md（章號補零到三位數，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；"
+                "frontmatter 的狀態填「已確認」）。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。%s"
+                % (a, b, ("\n作者補充：" + note) if note else ""))
+        return "寫章綱 %d～%d" % (a, b), task, pk, False
     task = ("排第%d～%d章的章綱。先給作者看單元總覽表（一章一行：章號、章名、一句話、功能、鉤子類型），作者確認後，"
             "再為每一章各輸出一個 大綱/章綱/第NNN章.md（章號補零到三位數，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；"
             "frontmatter 的狀態填「已確認」）。回收重要伏筆、新的大反轉或新角色要先問作者。%s" % (a, b, ("\n作者補充：" + note) if note else ""))

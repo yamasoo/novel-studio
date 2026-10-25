@@ -374,3 +374,23 @@ mark.del { background: var(--bad-soft); color: var(--bad); text-decoration: line
 mark.ins { background: var(--ok-soft); color: var(--ok); }
 .modal-box:has(.ps-wrap), .modal-box:has(.img-view) { width: min(920px, 100%); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; }
+.alert.bad { background: var(--bad-soft); }
+
+/* ---------- 整章自動流程 ---------- */
+.pipe-box:empty { display: none; }
+.pipe-box { margin-bottom: 12px; }
+.card.pipe { border-left: 3px solid var(--accent); }
+.card.pipe.failed { border-left-color: var(--bad); }
+.card.pipe.paused, .card.pipe.done { border-left-color: var(--ok); }
+.card.pipe.stopped { border-left-color: var(--warn); }
+.psteps { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 10px; }
+.pstep { display: grid; grid-template-columns: 18px 1fr; column-gap: 4px; padding: 6px 8px; border-radius: 8px; background: var(--side); font-size: 12.5px; }
+.pstep .pi { grid-row: span 2; font-weight: 700; color: var(--ink-3); }
+.pstep .pn { color: var(--ink-3); font-size: 11.5px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pstep.done .pi { color: var(--ok); }
+.pstep.skipped { opacity: .6; }
+.pstep.running { background: var(--accent-soft); }
+.pstep.running .pi { color: var(--accent); animation: pblink 1.2s infinite; }
+.pstep.failed { background: var(--bad-soft); }
+.pstep.failed .pi { color: var(--bad); }
+@keyframes pblink { 50% { opacity: .3; } }

@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, context, export, forge, goals, illust, importer, native, native_files, project, providers, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
+from studio import actions, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -43,6 +43,8 @@ DEFAULT_CONFIG = {
     "default_provider": "claude_code",
     "reconcile_before_write": True,     # 非 Claude 模型寫稿前先做定稿對帳
     "goal_check_after_write": True,     # 非 Claude 模型寫完候選稿後自動核對章綱
+    "pipeline_severities": ["必須修", "建議修"],   # 整章自動流程：自動勾選哪些等級的審查意見
+    "pipeline_mode": "stop",            # 整章自動流程：stop＝每章定稿後停下來；continue＝連續寫到最後一章
     "stale_foreshadow": 10,
     "stale_character": 15,
     "host": "127.0.0.1",
@@ -87,6 +89,8 @@ check_text = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_text)
 
 RUNNER = runner_mod.Runner(lambda: CONFIG, HERE, PLUGIN_DIR, check_text)
+PIPES = pipeline.Manager()
+CLAUDE_SPECIAL = {}   # 動作 → 建立 Claude Code 特殊任務的函式（各函式定義後登記）
 
 
 def get_provider(pid=None):
@@ -141,7 +145,7 @@ async def set_config(req: Request):
     body = await req.json()
     for k in ("library", "claude_cmd", "model", "permission_mode", "allowed_tools", "add_dirs",
               "stale_foreshadow", "stale_character", "default_provider",
-              "reconcile_before_write", "goal_check_after_write"):
+              "reconcile_before_write", "goal_check_after_write", "pipeline_severities", "pipeline_mode"):
         if k in body:
             CONFIG[k] = body[k]
     if "port" in body:
@@ -266,6 +270,7 @@ def revision_result(book_id: str, no: int):
 @app.post("/api/books/{book_id}/revision/{no}/apply")
 async def revision_apply(book_id: str, no: int, req: Request):
     d = book_dir(book_id)
+    _guard_pipeline(book_id)
     if RUNNER.running_for(book_id):
         raise HTTPException(409, "還有任務在執行，請稍後再套用。")
     body = await req.json()
@@ -1017,6 +1022,11 @@ def claude_card_job(book_id, d, prov, params):
     return job
 
 
+CLAUDE_SPECIAL.update({"goal_check": claude_goal_job, "review_notes": claude_review_job,
+                       "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
+                       "illust_prompt": claude_illust_job, "visual_card": claude_card_job})
+
+
 @app.get("/api/actions")
 def get_actions():
     cat = actions.catalog()
@@ -1246,6 +1256,7 @@ async def check_file(book_id: str, req: Request):
 @app.post("/api/books/{book_id}/candidate/{no}/accept")
 def accept(book_id: str, no: int, provider: str = None):
     d = book_dir(book_id)
+    _guard_pipeline(book_id)
     prov = get_provider(provider)
     if RUNNER.running_for(book_id):
         raise HTTPException(409, "還有任務在執行，請稍後再採用。")
@@ -1260,6 +1271,7 @@ def accept(book_id: str, no: int, provider: str = None):
 @app.post("/api/books/{book_id}/candidate/{no}/reject")
 async def reject(book_id: str, no: int, req: Request):
     d = book_dir(book_id)
+    _guard_pipeline(book_id)
     body = await req.json()
     params = {"chapter": no, "note": body.get("note", "")}
     title, prompt = actions.build("reject", params, book_id)
@@ -1281,36 +1293,154 @@ def discard(book_id: str, no: int):
 # ---------------------------------------------------------------------------
 # 任務
 # ---------------------------------------------------------------------------
-@app.post("/api/books/{book_id}/jobs")
-async def start_job(book_id: str, req: Request):
-    d = book_dir(book_id)
-    body = await req.json()
-    action = body.get("action", "free")
-    resume = body.get("resume")
+def launch_job(book_id, d, action, params, prov, resume=None, text=None):
+    """建立並啟動一個任務（面板按鈕和整章自動流程共用）。失敗時丟 HTTPException。"""
     try:
         if action == "reply":
-            title, prompt = "回覆", body.get("params", {}).get("text", "")
+            title, prompt = "回覆", text or ""
         else:
-            title, prompt = actions.build(action, body.get("params") or {}, book_id)
+            title, prompt = actions.build(action, params or {}, book_id)
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(400, "參數不完整：%s" % e)
     if not prompt.strip():
         raise HTTPException(400, "指令是空的")
     try:
-        prov = get_provider(body.get("provider"))
-        if resume and body.get("resume_provider") and body["resume_provider"] != prov["id"]:
-            prov = get_provider(body["resume_provider"])   # 接續對話一定用原本的執行者
-        special = {"goal_check": claude_goal_job, "review_notes": claude_review_job,
-                   "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
-                   "illust_prompt": claude_illust_job, "visual_card": claude_card_job}
-        if action in special and prov.get("type") == "claude_code":
-            job = RUNNER.start(special[action](book_id, d, prov, body.get("params") or {}))
-        else:
-            job = RUNNER.start(runner_mod.Job(book_id, d, title, prompt, resume=resume, provider=prov,
-                                              meta={"action": action, "params": body.get("params") or {}}))
+        if action in CLAUDE_SPECIAL and prov.get("type") == "claude_code":
+            return RUNNER.start(CLAUDE_SPECIAL[action](book_id, d, prov, params or {}))
+        return RUNNER.start(runner_mod.Job(book_id, d, title, prompt, resume=resume, provider=prov,
+                                           meta={"action": action, "params": params or {}}))
     except RuntimeError as e:
         raise HTTPException(409, str(e))
-    return job.to_dict()
+
+
+def _guard_pipeline(book_id):
+    if PIPES.active(book_id):
+        raise HTTPException(409, "這本書正在跑整章自動流程，請等它結束或先停止流程。")
+
+
+@app.post("/api/books/{book_id}/jobs")
+async def start_job(book_id: str, req: Request):
+    d = book_dir(book_id)
+    _guard_pipeline(book_id)
+    body = await req.json()
+    action = body.get("action", "free")
+    resume = body.get("resume")
+    prov = get_provider(body.get("provider"))
+    if resume and body.get("resume_provider") and body["resume_provider"] != prov["id"]:
+        prov = get_provider(body["resume_provider"])   # 接續對話一定用原本的執行者
+    params = body.get("params") or {}
+    return launch_job(book_id, d, action, params, prov, resume=resume, text=params.get("text", "")).to_dict()
+
+
+# ---------------------------------------------------------------------------
+# 整章自動流程
+# ---------------------------------------------------------------------------
+def _pipe_hooks(book_id, d, prov_id):
+    def launch(action, params):
+        return launch_job(book_id, d, action, params, get_provider(prov_id))
+    return {"launch": launch, "cancel": RUNNER.cancel, "checker": check_text,
+            "busy": lambda: RUNNER.running_for(book_id) is not None}
+
+
+def _pipe_view(book_id, d):
+    p = PIPES.get(book_id) or PIPES.restore(book_id, d, _pipe_hooks(book_id, d, CONFIG.get("default_provider")))
+    return p.to_dict() if p else None
+
+
+@app.get("/api/books/{book_id}/pipeline")
+def pipeline_get(book_id: str):
+    d = book_dir(book_id)
+    return {"pipeline": _pipe_view(book_id, d), "steps": [{"key": k, "label": v} for k, v in pipeline.STEPS],
+            "severities": revision.SEVERITIES,
+            "defaults": {"severities": CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES,
+                         "mode": CONFIG.get("pipeline_mode") or "stop"}}
+
+
+@app.post("/api/books/{book_id}/pipeline")
+async def pipeline_start(book_id: str, req: Request):
+    d = book_dir(book_id)
+    body = await req.json()
+    if PIPES.active(book_id):
+        raise HTTPException(409, "這本書已經有整章自動流程在執行")
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "還有任務在執行，請等它結束再開始。")
+    try:
+        a = int(body.get("from"))
+        b = int(body.get("to") or a)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "請輸入章號")
+    a, b = min(a, b), max(a, b)
+    if a < 1:
+        raise HTTPException(400, "章號要從 1 開始")
+    if b - a >= 50:
+        raise HTTPException(400, "一次最多 50 章")
+    texts = project._scan_dir(os.path.join(d, "正文"))
+    cands = project._scan_dir(os.path.join(d, "候選"))
+    done = [n for n in range(a, b + 1) if n in texts and n not in cands]
+    if done:
+        raise HTTPException(400, "這些章節已經定稿了：%s。整章自動流程只處理還沒定稿的章節（已有候選稿的會從核對開始）。"
+                            % "、".join("第%d章" % n for n in done))
+    prov = get_provider(body.get("provider"))
+    mode = body.get("mode") or CONFIG.get("pipeline_mode") or "stop"
+    sev = body.get("severities")
+    if sev is None:
+        sev = CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES
+    p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"))
+    try:
+        PIPES.put(p)
+    except pipeline.PipelineError as e:
+        raise HTTPException(409, str(e))
+    p.start()
+    return {"pipeline": p.to_dict()}
+
+
+@app.post("/api/books/{book_id}/pipeline/resume")
+async def pipeline_resume(book_id: str, req: Request):
+    """從停下來（失敗、停止）的那一步繼續；暫停（每章停）時開始下一章。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    _pipe_view(book_id, d)
+    p = PIPES.get(book_id)
+    if not p:
+        raise HTTPException(404, "沒有可以繼續的流程")
+    if p.s["status"] == "running":
+        raise HTTPException(409, "流程正在執行")
+    if p.s["status"] == "done":
+        raise HTTPException(400, "流程已經全部完成")
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "還有任務在執行，請等它結束再繼續。")
+    if body.get("provider"):
+        p.s["provider"] = get_provider(body["provider"])["id"]
+    if body.get("mode") in ("stop", "continue"):
+        p.s["mode"] = body["mode"]
+    if p.s["status"] == "paused" and p.s["chapter"] > p.s["to"]:
+        p.s["to"] = p.s["chapter"]
+    p.h = _pipe_hooks(book_id, d, p.s["provider"])
+    p.start()
+    return {"pipeline": p.to_dict()}
+
+
+@app.post("/api/books/{book_id}/pipeline/stop")
+def pipeline_stop(book_id: str):
+    book_dir(book_id)
+    p = PIPES.get(book_id)
+    if not p or p.s["status"] != "running":
+        raise HTTPException(400, "沒有執行中的流程")
+    p.stop()
+    return {"ok": True}
+
+
+@app.post("/api/books/{book_id}/pipeline/clear")
+def pipeline_clear(book_id: str):
+    d = book_dir(book_id)
+    p = PIPES.get(book_id)
+    if p and p.s["status"] == "running":
+        raise HTTPException(409, "流程正在執行，請先停止")
+    PIPES.pipes.pop(book_id, None)
+    sp = os.path.join(d, ".studio", "流程", "目前.json")
+    if os.path.isfile(sp):
+        os.remove(sp)
+    return {"ok": True}
 
 
 @app.get("/api/books/{book_id}/jobs")

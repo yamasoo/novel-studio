@@ -255,6 +255,7 @@ async function viewOverview(view) {
   const seg = (n, cls) => n ? `<div class="${cls}" style="width:${(n / total) * 100}%"></div>` : "";
   const [, stateBody] = splitFM(ov.state_card || "");
   const next = ov.next;
+  setTimeout(() => renderPipe(), 0);
   view.innerHTML = `
     <div class="page-head">
       <div><h1>${esc(S.book)}</h1><div class="sub">${esc(ov.hook || "")}</div></div>
@@ -262,9 +263,11 @@ async function viewOverview(view) {
         ${next.has_card
           ? `<button class="primary" onclick="Panel.openForm('write',{from:${next.no},to:${next.no}})">寫第${next.no}章${next.title ? "《" + esc(next.title) + "》" : ""}</button>`
           : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}章起的章綱</button>`}
+        <button onclick="pipeModal(${next.no})">⚡ 整章自動</button>
         <button onclick="Panel.openForm('review',{from:${Math.max(1, ov.latest - 4)},to:${Math.max(1, ov.latest)}})">審查最近章節</button>
       </div>
     </div>
+    <div class="pipe-box"></div>
     <div class="grid g4">
       <div class="card stat"><div class="num">${ov.written}</div><div class="lbl">已寫章數</div></div>
       <div class="card stat"><div class="num">${fmtNum(ov.chars)}</div><div class="lbl">正文字數</div></div>
@@ -303,9 +306,11 @@ function alertHtml(a) {
 /* ------------------------------------------------------------------ 章節列表 */
 async function viewChapters(view) {
   const chs = await api("GET", B("/chapters"));
+  setTimeout(() => renderPipe(), 0);
   view.innerHTML = `
     <div class="page-head"><div><h1>章節</h1><div class="sub">共 ${chs.length} 章　·　點一列開啟</div></div>
-      <div class="row"><button onclick="Panel.openForm('chapter_cards')">排章綱</button><button class="primary" onclick="Panel.openForm('write')">寫章節</button></div></div>
+      <div class="row"><button onclick="Panel.openForm('chapter_cards')">排章綱</button><button onclick="pipeModal()">⚡ 整章自動</button><button class="primary" onclick="Panel.openForm('write')">寫章節</button></div></div>
+    <div class="pipe-box"></div>
     <div class="card">
       ${chs.length ? `<div class="table-wrap"><table>
         <thead><tr><th>章</th><th>章名</th><th>功能</th><th>章綱</th><th style="text-align:right">正文字數</th><th>候選稿</th></tr></thead>
@@ -350,6 +355,7 @@ async function viewChapter(view, no, tab) {
     <div class="row" style="margin-bottom:12px">
       ${!c.text_file && !c.candidate_file && c.card_file ? `<button class="primary" onclick="Panel.openForm('write',{from:${no},to:${no}})">寫這章</button>` : ""}
       ${!c.card_file ? `<button onclick="Panel.openForm('chapter_cards',{from:${no},to:${no}})">補章綱</button>` : ""}
+      ${!c.text_file || c.candidate_file ? `<button onclick="pipeModal(${no})">⚡ 整章自動${c.candidate_file ? "（從核對開始）" : ""}</button>` : ""}
       ${c.text_file ? `<button onclick="Panel.openForm('revise',{chapter:${no}})">改稿</button>
         <button onclick="Panel.run('review_notes',{chapter:${no}})">審查</button>
         <button onclick="Panel.openForm('deslop',{chapter:${no}})">去 AI 味</button>` : ""}
@@ -366,10 +372,12 @@ async function viewChapter(view, no, tab) {
         <button class="sm" onclick="recoverView('${esc(r.id)}')">查看</button>
         <button class="sm danger" onclick="recoverDiscard('${esc(r.id)}')">捨棄</button></div>`).join("")}
     ${rv && tab !== "revision" ? `<div class="alert info" style="margin-bottom:10px"><span class="k">待確認修訂</span><span class="t">有一份修訂（${rv.changes} 處變更）等你逐段確認。</span><button class="sm" onclick="go('${base}?tab=revision')">開啟</button></div>` : ""}
+    <div class="pipe-box"></div>
     <div id="struct-box"></div>
     <div id="goal-box"></div>
     <div id="review-box"></div>
     <div id="doc"></div>`;
+  renderPipe();
   if (tab === "card") renderChapterStructure($("#struct-box"), no);
   if (tab === "revision") return renderRevision($("#doc"), no, rv);
   if (tab === "illust") return renderIllust($("#doc"), "chapter:" + no, { chapter: no });
@@ -395,6 +403,130 @@ async function viewChapter(view, no, tab) {
     };
   }
 }
+
+/* ------------------------------------------------------------------ 整章自動流程 */
+const PIPE = { data: null, timer: null, book: null, lastJob: null, lastStatus: null };
+const PIPE_ICON = { done: "✓", skipped: "–", running: "●", failed: "✗", pending: "○" };
+const PIPE_STATUS = { running: ["執行中", "b-accent"], paused: ["這章完成，等你繼續", "b-ok"], done: ["全部完成", "b-ok"],
+  failed: ["停在失敗的步驟", "b-bad"], stopped: ["已停止", "b-warn"] };
+
+async function pipeFetch() {
+  if (!S.book) return null;
+  const book = S.book;
+  try {
+    const r = await api("GET", B("/pipeline"));
+    if (book !== S.book) return null;
+    PIPE.meta = r; PIPE.data = r.pipeline; PIPE.book = book;
+  } catch (e) { PIPE.data = null; }
+  return PIPE.data;
+}
+async function renderPipe() {
+  const boxes = document.querySelectorAll(".pipe-box");
+  if (!boxes.length || !S.book) return;
+  const p = PIPE.book === S.book && PIPE.data && PIPE.data.status === "running" ? PIPE.data : await pipeFetch();
+  boxes.forEach((el) => { el.innerHTML = p ? pipeHtml(p) : ""; });
+  pipeWatch(p);
+}
+function pipeHtml(p) {
+  const [label, cls] = PIPE_STATUS[p.status] || [p.status, ""];
+  const rng = p.from === p.to ? `第${p.from}章` : `第${p.from}～${p.to}章`;
+  const steps = p.steps.map((s) => `<div class="pstep ${s.status}" title="${esc(s.note || "")}">
+      <span class="pi">${PIPE_ICON[s.status] || "○"}</span><span class="pl">${esc(s.label)}</span>
+      ${s.note ? `<span class="pn">${esc(s.note)}</span>` : ""}</div>`).join("");
+  const btns = [];
+  if (p.status === "running") {
+    if (p.job) btns.push(`<button class="sm" onclick="pipeShowJob('${esc(p.job)}')">看目前這一步</button>`);
+    btns.push(`<button class="sm danger" onclick="pipeStop()">停止</button>`);
+  } else {
+    if (p.status === "failed" || p.status === "stopped") btns.push(`<button class="sm primary" onclick="pipeResume()">從這一步繼續</button>`);
+    if (p.status === "paused") btns.push(`<button class="sm primary" onclick="pipeResume()">繼續下一章（第${p.chapter}章）</button>`);
+    btns.push(`<button class="sm ghost" onclick="pipeClear()">關閉</button>`);
+  }
+  return `<div class="card pipe ${p.status}">
+    <div class="row"><b>⚡ 整章自動流程</b><span class="muted small">${rng}${p.status === "running" || p.status === "failed" || p.status === "stopped" ? `　·　目前第${p.chapter}章` : ""}　·　${p.mode === "continue" ? "連續寫" : "寫一章停一章"}　·　自動勾選：${esc((p.severities || []).join("、") || "無")}</span>
+      <span class="badge ${cls}">${label}</span><span class="grow"></span>${btns.join("")}</div>
+    ${p.status === "paused" || p.status === "done" ? `<div class="muted small" style="margin-top:6px">${esc(p.message || "")}${p.done_chapters && p.done_chapters.length ? `　已定稿：${p.done_chapters.map((n) => `<a href="#/b/${enc(S.book)}/ch/${n}?tab=text">第${n}章</a>`).join("、")}` : ""}</div>` : ""}
+    ${p.status === "failed" ? `<div class="alert bad" style="margin:8px 0 0"><span class="k">失敗</span><span class="t">${esc(p.error)}</span></div>` : ""}
+    ${p.status === "stopped" && p.message ? `<div class="muted small" style="margin-top:6px">${esc(p.message)}</div>` : ""}
+    ${p.status === "paused" || p.status === "done" ? "" : `<div class="psteps">${steps}</div>`}
+  </div>`;
+}
+function pipeWatch(p) {
+  const running = p && p.status === "running";
+  if (running && !PIPE.timer) PIPE.timer = setInterval(pipeTick, 1500);
+  if (!running && PIPE.timer) { clearInterval(PIPE.timer); PIPE.timer = null; }
+  if (p && running && p.job && p.job !== PIPE.lastJob) {
+    PIPE.lastJob = p.job;
+    if (!S.job || S.job.id !== p.job || S.job.status !== "running") pipeShowJob(p.job, true);
+  }
+}
+async function pipeTick() {
+  const before = PIPE.data && PIPE.data.status;
+  const p = await pipeFetch();
+  document.querySelectorAll(".pipe-box").forEach((el) => { el.innerHTML = p ? pipeHtml(p) : ""; });
+  pipeWatch(p);
+  if (before === "running" && (!p || p.status !== "running")) {
+    if (p && p.status === "failed") toast("整章自動流程停住了：" + p.error, true);
+    else if (p && (p.status === "paused" || p.status === "done")) toast(p.message || "完成");
+    if (!document.querySelector("textarea.editor")) refresh();
+  }
+}
+async function pipeShowJob(id, quiet) {
+  try {
+    const j = await api("GET", B("/jobs/" + id));
+    if (j.status === "running") Panel.attach(j, quiet, !!quiet);
+    else if (!quiet || !S.job || S.job.status !== "running") Panel.show(id);
+  } catch (e) { /* ignore */ }
+}
+async function pipeStop() {
+  if (!confirm("停止整章自動流程？目前這一步會中斷，之後可以從這一步繼續。")) return;
+  try { await api("POST", B("/pipeline/stop")); toast("正在停止……"); } catch (e) { fail(e); }
+}
+async function pipeResume() {
+  try { const r = await api("POST", B("/pipeline/resume"), { provider: Panel.prov() }); PIPE.data = r.pipeline; renderPipe(); } catch (e) { fail(e); }
+}
+async function pipeClear() {
+  try { await api("POST", B("/pipeline/clear")); PIPE.data = null; renderPipe(); } catch (e) { fail(e); }
+}
+async function pipeModal(no) {
+  const [r, chs] = await Promise.all([api("GET", B("/pipeline")), api("GET", B("/chapters"))]);
+  if (r.pipeline && r.pipeline.status === "running") return toast("已經有整章自動流程在執行", true);
+  const firstOpen = (chs.find((c) => !c.text_file || c.candidate_file) || { no: (chs.length ? chs[chs.length - 1].no + 1 : 1) }).no;
+  no = no || firstOpen;
+  const lastCard = Math.max(no, ...chs.filter((c) => c.card_file).map((c) => c.no));
+  const d = r.defaults;
+  modal(`<h2>⚡ 整章自動流程</h2>
+    <p class="muted small">每章依序：${r.steps.map((s) => esc(s.label)).join(" → ")}。<br>已有章綱就不重寫；已有候選稿就從核對開始。每一步各自呼叫一次 AI；任何一步失敗都會停在那一步，修正後可以從那一步繼續。</p>
+    <div class="row"><span class="small muted">從第</span><input type="number" id="pp-from" class="num-in" value="${no}" min="1"><span class="small muted">章到第</span>
+      <input type="number" id="pp-to" class="num-in" value="${no}" min="1"><span class="small muted">章</span>
+      <span class="muted small">（章綱寫到第${lastCard}章）</span></div>
+    <div class="f" style="margin-top:12px"><span>跑法</span></div>
+    <div class="seg compact" id="pp-mode">
+      <label><input type="radio" name="pp-mode" value="stop" ${d.mode !== "continue" ? "checked" : ""}><span>寫一章停一章</span></label>
+      <label><input type="radio" name="pp-mode" value="continue" ${d.mode === "continue" ? "checked" : ""}><span>連續寫到最後一章</span></label>
+    </div>
+    <div class="f" style="margin-top:12px"><span>自動勾選哪些等級的審查意見（交給修訂）</span></div>
+    <div class="row" id="pp-sev">${r.severities.map((x) => `<label class="cb"><input type="checkbox" value="${x}" ${d.severities.includes(x) ? "checked" : ""}> ${x}</label>`).join("")}</div>
+    <label class="f" style="margin-top:8px"><span>對整個流程的要求（選填，每一步都會帶上）</span><textarea id="pp-note" rows="2" placeholder="例如：這幾章節奏要快；不要新增角色"></textarea></label>
+    <label class="f"><span>執行者</span>${provSelectHtml("pp-prov")}</label>
+    <div class="row" style="margin-top:14px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="pp-go">開始</button></div>`, (el) => {
+    $("#pp-go", el).onclick = async () => {
+      try {
+        const body = { from: parseInt($("#pp-from", el).value), to: parseInt($("#pp-to", el).value) || parseInt($("#pp-from", el).value),
+          mode: el.querySelector('input[name="pp-mode"]:checked').value,
+          severities: [...el.querySelectorAll("#pp-sev input:checked")].map((x) => x.value),
+          note: $("#pp-note", el).value, provider: $("#pp-prov", el).value };
+        if (!body.from) return toast("請輸入章號", true);
+        const res = await api("POST", B("/pipeline"), body);
+        closeModal();
+        PIPE.data = res.pipeline; PIPE.book = S.book; PIPE.lastJob = null;
+        toast("開始整章自動流程");
+        if (!document.querySelector(".pipe-box")) go(`#/b/${enc(S.book)}/ch/${body.from}`); else renderPipe();
+      } catch (e) { fail(e); }
+    };
+  });
+}
+window.pipeModal = pipeModal; window.pipeStop = pipeStop; window.pipeResume = pipeResume; window.pipeClear = pipeClear; window.pipeShowJob = pipeShowJob;
 
 /* ------------------------------------------------------------------ 文件檢視／編輯 */
 async function docView(el, path, opts = {}) {
@@ -784,6 +916,18 @@ async function viewSettings(view) {
       <label class="cb"><input type="checkbox" id="c-goal" ${c.goal_check_after_write !== false ? "checked" : ""}> 寫完候選稿後自動核對章綱（逐項附原文引句，由程式驗證）</label>
       <div class="muted small">用 Claude Code 寫稿時，對帳與核對寫在 novel-write skill 的流程裡；章節頁的「核對章綱」按鈕兩種執行者都能用。</div>
     </div>
+    <div class="card">
+      <h2 style="margin-bottom:12px">整章自動流程</h2>
+      <div class="muted small" style="margin-bottom:8px">章綱 → 寫章節（候選稿）→ 章綱核對 → 去 AI 味 → 審查意見 → 自動勾選 → 依勾選意見修訂 → 全部套用 → 定稿並回寫追蹤。每一步各自呼叫一次 AI，不會一次塞太多內容。</div>
+      <div class="f"><span>自動勾選哪些等級的審查意見</span></div>
+      <div class="row" id="c-psev">${["必須修", "建議修", "提醒"].map((x) => `<label class="cb"><input type="checkbox" value="${x}" ${(c.pipeline_severities || ["必須修", "建議修"]).includes(x) ? "checked" : ""}> ${x}</label>`).join("")}</div>
+      <div class="f" style="margin-top:8px"><span>預設跑法</span></div>
+      <div class="seg compact" id="c-pmode">
+        <label><input type="radio" name="c-pmode" value="stop" ${c.pipeline_mode !== "continue" ? "checked" : ""}><span>寫一章停一章</span></label>
+        <label><input type="radio" name="c-pmode" value="continue" ${c.pipeline_mode === "continue" ? "checked" : ""}><span>連續寫到最後一章</span></label>
+      </div>
+      <div class="muted small" style="margin-top:6px">章綱核對發現沒寫到的情節點，會一併交給修訂。開始時也可以臨時改這兩項。</div>
+    </div>
     <div class="card" id="ill-settings"></div>
     <div class="card">
       <h2 style="margin-bottom:12px">警示</h2>
@@ -879,6 +1023,8 @@ async function viewSettings(view) {
         permission_mode: $("#c-perm").value, allowed_tools: $("#c-tools").value.split("\n").map((s) => s.trim()).filter(Boolean),
         add_dirs: $("#c-dirs").value.split("\n").map((s) => s.trim()).filter(Boolean),
         reconcile_before_write: $("#c-recon").checked, goal_check_after_write: $("#c-goal").checked,
+        pipeline_severities: [...document.querySelectorAll("#c-psev input:checked")].map((x) => x.value),
+        pipeline_mode: document.querySelector('input[name="c-pmode"]:checked').value,
         stale_foreshadow: parseInt($("#c-sf").value) || 10, stale_character: parseInt($("#c-sc").value) || 15, create_library: true,
         port: parseInt($("#c-port").value) || r.port,
       });

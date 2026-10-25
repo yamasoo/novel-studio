@@ -148,6 +148,10 @@ def build(action, p, book_name):
         return ("第%s卷卷綱" % v, "請使用 novel-outline skill 規劃第%s卷的卷綱。先給我看卷契約和劇情單元總覽，確認後再寫入。%s" % (v, extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
+        if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入
+            rng = "第%d章" % a if a == b else "第%d～%d章" % (a, b)
+            return ("寫%s章綱" % rng, "請使用 novel-outline skill 寫%s的章綱，直接寫入 大綱/章綱/（照章綱範本，frontmatter 狀態填「已確認」），"
+                    "不用先給我看總覽。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。%s" % (rng, extra))
         return ("排章綱 %d～%d" % (a, b), "請使用 novel-outline skill 排第%d～%d章的章綱。先給我看單元總覽表（一章一行），我確認後再寫入各章檔案。%s" % (a, b, extra))
 
     if action == "character":

@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, context, export, forge, goals, illust, importer, native, native_files, project, providers, recovery, revision, runner as runner_mod, shared  # noqa: E402
+from studio import actions, context, export, forge, goals, illust, importer, native, native_files, project, providers, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -579,6 +579,44 @@ async def shared_style_compare(name: str, req: Request):
     text, names = _sample_text(dict(body, source=body.get("source") or "book"))
     actual = wrap(lambda: shared.analyze(text, names))
     return {"rows": shared.compare(target, actual), "actual": actual}
+
+
+@app.post("/api/shared/styles/design")
+async def shared_style_design(req: Request):
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）。"""
+    body = await req.json()
+    lib = library()
+    params = {k: body.get(k) for k in ("mode", "name", "genre", "feel", "refs", "pov", "readers", "avoid", "note", "overwrite")}
+    text, names = _sample_text(body)
+    params["sample"] = text or ""
+    params["exclude"] = ",".join(names)
+    shared.shared_dir(lib, create=True)
+    d = book_dir(shared.SHARED)
+    try:
+        info = style_design.prepare(lib, params)
+    except (style_design.DesignError, shared.SharedError) as e:
+        raise HTTPException(400, str(e))
+    prov = get_provider(body.get("provider"))
+    title = actions.build("style_design", params, shared.SHARED)[0]
+    try:
+        if prov.get("type") == "claude_code":
+            job = runner_mod.Job(shared.SHARED, d, title, style_design.claude_prompt(info, params, PLUGIN_DIR),
+                                 provider=prov, meta={"action": "style_design", "params": {k: v for k, v in params.items() if k != "sample"}})
+
+            def after(j):
+                try:
+                    j.result = style_design.finish(lib, info, j.result or "")
+                except style_design.DesignError as e:
+                    raise RuntimeError(str(e))
+                j.emit("result", text=j.result)
+            job.after = after
+        else:
+            job = runner_mod.Job(shared.SHARED, d, title, "（由工作台組裝）", provider=prov,
+                                 meta={"action": "style_design", "params": params})
+        job = RUNNER.start(job)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return job.to_dict()
 
 
 @app.post("/api/shared/styles/save")

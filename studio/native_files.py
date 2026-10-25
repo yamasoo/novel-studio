@@ -216,13 +216,39 @@ def spec_setup_new(c, p):
 
 
 def spec_style(c, p):
+    text = p.get("text", "")
+    m = None
+    if len(shared.CJK.findall(text or "")) >= 300:   # 貼的是樣本：先用程式統計
+        try:
+            m = shared.analyze(text, shared.book_names(c.book))
+        except shared.SharedError:
+            m = None
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "目前的 設定/文風.md", context.read(c.book, "設定/文風.md") or tpl(c, "文風.md"))
-    pk.add(1, "處理寫作樣本的方法", ref(c, "novel-setup/references/interview.md"))
+    pk.add(0, "文風範本（缺的章節照這個補）", tpl(c, "文風.md"))
+    pk.add(1, "文風的十三個面向", ref(c, "novel-style/references/style-dimensions.md"))
+    pk.add(2, "類型線索表", ref(c, "novel-style/references/genre-cues.md"))
+    if m:
+        pk.add(0, "樣本的文字指標（程式統計）", shared.metrics_md(m))
     pk.add(2, "本書規則", context.book_rules(c.book))
-    task = ("分析或更新本書文風。作者提供的內容：\n%s\n\n依「處理寫作樣本」的方法，把具體、照著就能寫的規則寫進 設定/文風.md（輸出完整檔案，保留作者原本寫的內容）。"
-            "作者貼了樣本就放進「範例段落」並附一句好在哪；沒有樣本就寫一段約 150 字的示範段落放在匯報裡請作者判斷。匯報列出改了什麼。" % p.get("text", ""))
+    task = ("分析、設計或調整本書文風（設定/文風.md，輸出完整檔案，保留作者原本寫的內容）。作者提供的內容：\n%s\n\n"
+            "判斷作者給的是什麼：寫作樣本 → 歸納特徵寫成規則，範例段落優先節錄樣本，附「我喜歡它哪裡」；"
+            "類型或感覺的描述 → 依十三個面向與類型線索設計；修改意見 → 只改相關條目。\n"
+            "原則：規則具體到能拿來檢查一段文字；給範圍不給死數字；只寫深與眾不同的五到八項；禁忌附替代做法；"
+            "分清 建議做法／本書禁忌／允許的例外；參考作品只學特徵，不抄原文與專有名詞；範例段落至少三段有場景標籤；整份 1500～3000 字。"
+            "不要自己寫「## 文字指標（程式統計）」一節（程式會補上）。不要提問，不確定的地方在匯報列出。匯報列出改了什麼。" % text)
+    if m:
+        c.after_files = lambda done: _style_metrics_after(c, m, done)
     return "分析文風", task, pk, False
+
+
+def _style_metrics_after(c, m, done):
+    if not any(x.endswith("設定/文風.md") for x in done):
+        return
+    fp = os.path.join(c.book, "設定", "文風.md")
+    t = shared.put_metrics(project.read_text(fp), m)
+    with open(fp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(t)
 
 
 def spec_preference(c, p):
@@ -376,6 +402,10 @@ def run_spec(c, p, spec, system):
     if c.truncated:
         report += "\n\n⚠ 這次輸出被截斷，最後一個檔案可能沒寫完（沒寫完的檔案不會寫入）。請調高「最大輸出」後再執行一次。"
     done, skipped = apply_blocks(c.book, files, dels) if (files or dels) else ([], [])
+    hook = getattr(c, "after_files", None)
+    if hook:
+        c.after_files = None
+        hook(done)
     msgs.append({"role": "assistant", "content": out})
     c.save_messages(msgs, {"kind": "files", "stage": "plan"})
     c.job.result = result_text(report, done, skipped)

@@ -8,7 +8,7 @@ import os
 import re
 import time
 
-from . import context, goals, illust, native_files, project, providers, recovery, revision, shared, tracking
+from . import context, goals, illust, native_files, project, providers, recovery, revision, shared, style_design, tracking
 
 DELIM = "<<<匯報>>>"
 
@@ -20,7 +20,7 @@ SYSTEM = ("你是繁體中文長篇網路小說的寫作助手，與作者合作
 
 NATIVE_ACTIONS = {"write", "reject", "revise", "deslop", "accept", "sync_tracking", "review", "free", "reply",
                   "setup_check", "review_all", "goal_check", "review_notes", "revise_notes",
-                  "recover_continue", "illust_prompt", "visual_card"} | set(native_files.SPECS)
+                  "recover_continue", "illust_prompt", "visual_card", "style_design"} | set(native_files.SPECS)
 
 
 class NativeError(Exception):
@@ -694,6 +694,27 @@ def act_visual_card(c, p):
     c.job.result = save_card_result(c.book, p, providers.parse_json(out))
 
 
+def act_style_design(c, p):
+    """共用庫的文風設計／調整／試寫。c.book 是 書庫/_共用。"""
+    library = os.path.dirname(c.book)
+    try:
+        info = style_design.prepare(library, p)
+    except (style_design.DesignError, shared.SharedError) as e:
+        raise NativeError(str(e))
+    out_tok = _out_tokens(c)
+    ctx_text, used, dropped = style_design.reference_pack(info, c.plugin_dir, c.budget(out_tok)).build()
+    if dropped:
+        c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
+    system = SYSTEM + "這次的工作是設計與修改文風檔，不是寫正文。"
+    out = c.call([{"role": "system", "content": system},
+                  {"role": "user", "content": ctx_text + "\n\n【任務】" + style_design.task_text(info, p)}],
+                 max_tokens=out_tok, label=style_design.MODES[info["mode"]], stage="plan")
+    try:
+        c.job.result = style_design.finish(library, info, out, c.truncated)
+    except style_design.DesignError as e:
+        raise NativeError(str(e))
+
+
 HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "deslop": act_deslop,
             "accept": act_accept, "sync_tracking": act_sync, "review": act_review, "free": act_free,
             "reply": act_reply, "setup_check": native_files.act_setup_check,
@@ -703,7 +724,8 @@ HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "des
             "revise_notes": lambda c, p: act_revise_notes(c, p),
             "recover_continue": lambda c, p: act_recover_continue(c, p),
             "illust_prompt": lambda c, p: act_illust_prompt(c, p),
-            "visual_card": lambda c, p: act_visual_card(c, p)}
+            "visual_card": lambda c, p: act_visual_card(c, p),
+            "style_design": lambda c, p: act_style_design(c, p)}
 for _k, _spec in native_files.SPECS.items():
     HANDLERS[_k] = (lambda s: (lambda c, p: native_files.run_spec(c, p, s, SYSTEM)))(_spec)
 

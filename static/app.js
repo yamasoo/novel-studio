@@ -35,6 +35,7 @@ async function api(method, url, body) {
   return data;
 }
 const B = (path) => `/api/books/${enc(S.book)}${path}`;
+const JB = (job, path) => `/api/books/${enc((job && job.book) || S.book)}${path}`;  // 任務所屬的書（共用庫任務掛在 _共用）
 
 function toast(msg, err) {
   const el = document.createElement("div");
@@ -900,7 +901,7 @@ const bookOpts = (books, cur) => books.map((b) => `<option value="${esc(b)}" ${b
 
 // 文風樣本來源（建立、重新統計、比較共用）
 function sampleSourceHtml(books, kinds) {
-  const labels = { book: "某本書的正文", text: "貼上文字", files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 設定/文風.md", blank: "空白範本（自己填）" };
+  const labels = { none: "不附樣本", book: "某本書的正文", text: "貼上文字", files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 設定/文風.md", blank: "空白範本（自己填）" };
   return `<div class="seg compact" id="ss-kind">${kinds.map((k, i) => `<label><input type="radio" name="ss-kind" value="${k}" ${i === 0 ? "checked" : ""}><span>${labels[k]}</span></label>`).join("")}</div>
     <div data-ss="book copy_book" class="row" style="margin-top:8px">
       <select id="ss-book">${bookOpts(books, S.book)}</select>
@@ -920,7 +921,7 @@ function sampleSourceBind(el) {
 }
 async function sampleSourceValue(el) {
   const k = el.querySelector('input[name="ss-kind"]:checked').value;
-  const v = { source: k };
+  const v = { source: k === "none" ? null : k };
   if (k === "book" || k === "copy_book") { v.book = $("#ss-book", el).value; v.from = parseInt($("#ss-from", el).value) || null; v.to = parseInt($("#ss-to", el).value) || null; }
   if (k === "text") v.text = $("#ss-text", el).value;
   if (k === "files") { v.files = await readFiles($("#ss-files", el)); if (!v.files.length) throw new Error("請選擇檔案"); }
@@ -933,6 +934,88 @@ function compareTable(rows) {
     ${rows.map((r) => `<tr><td>${esc(r["指標"])}</td><td class="num">${esc(r["目標"])}</td><td class="num">${esc(r["實際"])}</td><td class="num">${esc(r["差距"])}</td>
       <td>${r["偏離"] === "明顯" ? '<span class="badge b-bad">差很多</span>' : r["偏離"] ? '<span class="badge b-warn">有點差</span>' : '<span class="badge b-ok">接近</span>'}</td></tr>`).join("")}</table>`;
 }
+
+/* 請 AI 設計／調整／試寫文風（共用庫） */
+const STYLE_GENRES = ["本格推理", "冷硬派", "心理驚悚", "恐怖怪談", "仙俠修真", "武俠", "西式奇幻", "科幻", "現代言情", "古言宮鬥",
+  "都市爽文", "歷史架空", "都市寫實", "輕小說", "黑色幽默", "鄉土地域", "太空歌劇"];
+function provSelectHtml(id) {
+  const ps = (S.config && S.config.providers) || [{ id: "claude_code", name: "Claude Code" }];
+  const cur = Panel.prov();
+  return `<select id="${id}">${ps.map((p) => `<option value="${esc(p.id)}" ${p.id === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
+}
+function styleAiModal(mode, books, name) {
+  const titles = { design: "請 AI 設計文風", revise: `請 AI 調整「${esc(name || "")}」`, test: `照「${esc(name || "")}」試寫一段` };
+  let body = "";
+  if (mode === "design") {
+    body = `<p class="muted small">AI 會依照文風的十三個面向（視角距離、敘述者立場、用詞、句子、段落、描寫、修辭、對白、情緒、轉場、連載慣例……）寫出完整文風檔，含有標籤的原創範例段落。只填名稱也可以，填越多越準。</p>
+      <div class="grid g2">
+        <label class="f"><span>名稱</span><input type="text" id="sa-name" placeholder="例如：冷調推理、雅致仙俠"></label>
+        <label class="f"><span>執行者</span>${provSelectHtml("sa-prov")}</label>
+      </div>
+      <label class="f"><span>類型（可以點下面的標籤，也可以自己寫；混合類型請寫「骨架＋調味」）</span><input type="text" id="sa-genre" placeholder="例如：本格推理＋校園"></label>
+      <div class="chips" id="sa-chips">${STYLE_GENRES.map((g) => `<button type="button" class="chip sm">${esc(g)}</button>`).join("")}</div>
+      <label class="f"><span>想要的感覺</span><textarea id="sa-feel" rows="2" placeholder="例如：冷靜、克制、線索藏在日常裡；讀起來像在跟偵探一起看現場"></textarea></label>
+      <div class="grid g2">
+        <label class="f"><span>參考作品或作者（只學特徵，不抄文字）</span><input type="text" id="sa-refs" placeholder="例如：東野圭吾的推理段落、松本清張的社會描寫"></label>
+        <label class="f"><span>敘事視角</span><input type="text" id="sa-pov" placeholder="例如：第一人稱助手視角（不填由 AI 建議）"></label>
+        <label class="f"><span>讀者與平台</span><input type="text" id="sa-readers" placeholder="例如：連載平台，手機閱讀，每章三千字"></label>
+        <label class="f"><span>一定不要</span><input type="text" id="sa-avoid" placeholder="例如：不要翻譯腔、不要偵探耍帥"></label>
+      </div>
+      <details style="margin:6px 0 10px"><summary class="small">附上寫作樣本（選填：AI 會從樣本歸納規則，程式會統計文字指標）</summary>
+        <div style="margin-top:8px">${sampleSourceHtml(books, ["none", "text", "files", "book"])}</div></details>
+      <label class="cb"><input type="checkbox" id="sa-over"> 同名文風已存在時覆蓋（舊版會備份到 _共用/.備份）</label>`;
+  } else if (mode === "revise") {
+    body = `<p class="muted small">只改和你意見相關的條目，其他原樣保留；完成後會列出「舊 → 新」。舊版會備份到 <code>_共用/.備份</code>。</p>
+      <label class="f"><span>要怎麼調整</span><textarea id="sa-note" rows="5" placeholder="例如：對白再口語一點；比喻太多，一場最多一個；補一段打鬥的範例；這份太簡單了，照十三個面向補完整"></textarea></label>
+      <details style="margin:6px 0 10px"><summary class="small">附上寫作樣本（選填）</summary>
+        <div style="margin-top:8px">${sampleSourceHtml(books, ["none", "text", "files", "book"])}</div></details>
+      <label class="f"><span>執行者</span>${provSelectHtml("sa-prov")}</label>`;
+  } else {
+    body = `<p class="muted small">照這份文風寫 200～300 字，附上自評：示範了哪些規則、哪條規則難以遵守。試寫不會改動文風檔。</p>
+      <label class="f"><span>情境（選填）</span><textarea id="sa-note" rows="3" placeholder="例如：偵探第一次走進命案現場，和刑警有一段對話。不填由 AI 挑最能考驗文風的情境。"></textarea></label>
+      <label class="f"><span>執行者</span>${provSelectHtml("sa-prov")}</label>`;
+  }
+  modal(`<h2>${titles[mode]}</h2>${body}
+    <div class="row" style="margin-top:14px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="sa-go">${mode === "test" ? "試寫" : "開始"}</button></div>`, (el) => {
+    if ($("#ss-kind", el)) sampleSourceBind(el);
+    el.querySelectorAll("#sa-chips .chip").forEach((c) => c.onclick = () => {
+      const inp = $("#sa-genre", el), g = c.textContent;
+      const parts = inp.value.split(/[＋+、,，]/).map((x) => x.trim()).filter(Boolean);
+      inp.value = parts.includes(g) ? parts.filter((x) => x !== g).join("＋") : parts.concat(g).join("＋");
+      c.classList.toggle("on", !parts.includes(g));
+      if (!$("#sa-name", el).value.trim()) $("#sa-name", el).placeholder = inp.value || "例如：冷調推理、雅致仙俠";
+    });
+    $("#sa-go", el).onclick = async () => {
+      try {
+        const v = $("#ss-kind", el) ? await sampleSourceValue(el) : {};
+        v.mode = mode;
+        v.provider = $("#sa-prov", el).value;
+        const val = (id) => ($("#" + id, el) ? $("#" + id, el).value.trim() : "");
+        if (mode === "design") {
+          v.name = val("sa-name") || val("sa-genre");
+          if (!v.name) return toast("請輸入名稱或類型", true);
+          Object.assign(v, { genre: val("sa-genre"), feel: val("sa-feel"), refs: val("sa-refs"), pov: val("sa-pov"),
+            readers: val("sa-readers"), avoid: val("sa-avoid"), overwrite: $("#sa-over", el).checked });
+        } else {
+          v.name = name; v.note = val("sa-note");
+          if (mode === "revise" && !v.note) return toast("請寫下要怎麼調整", true);
+        }
+        const job = await api("POST", "/api/shared/styles/design", v);
+        closeModal();
+        S.styleJobTarget = mode === "test" ? null : v.name;
+        Panel.attach(job);
+      } catch (e) { fail(e); }
+    };
+  });
+}
+S.onSharedJob = (job) => {
+  if (job.status !== "done") return;
+  const n = S.styleJobTarget;
+  if (n) toast("文風「" + n + "」已更新");
+  if (location.hash.startsWith("#/shared")) {
+    if (n) go(`#/shared?t=${enc("文風")}&f=${enc("文風/" + n + ".md")}`); else refresh();
+  }
+};
 
 async function viewShared(view, t, file) {
   const o = await api("GET", "/api/shared");
@@ -961,7 +1044,7 @@ async function viewShared(view, t, file) {
   if (!file && list.length) file = list[0].file;
   const curItem = list.find((x) => x.file === file);
   const headBtns = {
-    "文風": `<button class="primary" id="sh-new-style">新增文風</button>`,
+    "文風": `<button id="sh-ai-style">✦ 請 AI 設計文風</button><button class="primary" id="sh-new-style">新增文風</button>`,
     "章節結構": `<button class="primary" id="sh-new-struct">新增結構</button>`,
     "共用作者偏好": "",
   };
@@ -983,6 +1066,7 @@ async function viewShared(view, t, file) {
     </div>`}`;
   const books = o.books;
   if (t === "文風") {
+    $("#sh-ai-style").onclick = () => styleAiModal("design", books);
     $("#sh-new-style").onclick = () => modal(`<h2>新增文風</h2>
       <label class="f"><span>名稱</span><input type="text" id="ns-name" placeholder="例如：冷調短句、古風權謀"></label>
       <div class="f"><span>從哪裡建立</span></div>${sampleSourceHtml(books, ["book", "text", "files", "copy_book", "blank"])}
@@ -1003,7 +1087,11 @@ async function viewShared(view, t, file) {
       const name = curItem.name;
       $("#sh-actions").innerHTML = `<div class="row" style="margin-bottom:10px">
         <button class="primary sm" id="st-apply">套用到書…</button><button class="sm" id="st-compare">和某本書的正文比較</button>
-        <button class="sm" id="st-restat">重新統計文字指標</button><span class="grow"></span><button class="sm danger" id="st-del">刪除</button></div>`;
+        <button class="sm" id="st-restat">重新統計文字指標</button>
+        <button class="sm" id="st-ai-rev">✦ 請 AI 調整</button><button class="sm" id="st-ai-test">✦ 試寫一段</button>
+        <span class="grow"></span><button class="sm danger" id="st-del">刪除</button></div>`;
+      $("#st-ai-rev").onclick = () => styleAiModal("revise", books, name);
+      $("#st-ai-test").onclick = () => styleAiModal("test", books, name);
       $("#st-apply").onclick = () => modal(`<h2>把「${esc(name)}」套用到書</h2>
         <p class="muted small">會複製成那本書的 <code>設定/文風.md</code>。原本的文風檔會先備份到 <code>.studio/備份</code>。之後在書裡修改不會影響共用庫。</p>
         <label class="f"><span>套用到</span><select id="ap-book">${bookOpts(books, S.book)}</select></label>
@@ -1772,6 +1860,10 @@ const ABOUT_LINKS = [
     ["Chinese-WebNovel-Skill", "https://github.com/Tomsawyerhu/Chinese-WebNovel-Skill", "", "參考中文網文寫作 skill 的流程分工（只參考概念）"],
     ["moshu 墨書", "https://github.com/huihuijiangqiang/moshu", "", "頁面分工與「AI 草稿先進候選區」的概念（未使用其程式碼）"],
     ["Pagekin（AI-Novel-Writer）", "https://github.com/EthanYoQ/AI-Novel-Writer", "GPL-3.0", "思考強度分階段、寫稿前對帳、章綱核對、審查與修訂分開、恢復稿等做法（只參考概念，未使用其程式碼）"],
+    ["Novelcrafter：effective style entries", "https://www.novelcrafter.com/courses/codex-cookbook/effective-style-entries", "", "文風寫「怎麼寫」、給彈性範圍不給死數字（novel-style 參考概念）"],
+    ["Sudowrite：Style", "https://docs.sudowrite.com/using-sudowrite/1ow1qkGqof9rtcyGnrWUBS/style/4gqKgVVjdN6XTKo71HChqV", "", "依場景類型給有標籤的範例段落（參考概念）"],
+    ["Scriveno：STYLE-GUIDE", "https://cdn.jsdelivr.net/npm/scriveno@3.8.0/templates/STYLE-GUIDE.md", "", "文風的面向分類與 Always／Never／Consider 三分（參考概念）"],
+    ["Leech & Short 文體分析清單", "https://www.lancaster.ac.uk/fass/projects/stylistics/topic10/12method.htm", "", "《Style in Fiction》的詞彙、語法、修辭、銜接分析框架（參考概念）"],
   ]],
   ["工作台使用的套件", [
     ["FastAPI", "https://github.com/fastapi/fastapi", "MIT", "網頁伺服器"],
@@ -2017,8 +2109,18 @@ const Panel = {
     const text = $("#reply-text").value.trim();
     if (!text || !S.job) return;
     if (S.job.status === "running") { toast("還在執行，請等這一輪結束", true); return; }
+    const sp = S.job.meta && S.job.meta.action === "style_design" && S.job.meta.params;
+    if (sp && sp.name) {   // 文風任務：回覆就當成「請 AI 調整」
+      try {
+        const job = await api("POST", "/api/shared/styles/design", { mode: "revise", name: sp.name, note: text, provider: S.job.provider || this.prov() });
+        $("#reply-text").value = "";
+        S.styleJobTarget = sp.name;
+        this.attach(job, false, true);
+      } catch (e) { fail(e); }
+      return;
+    }
     try {
-      const job = await api("POST", B("/jobs"), { action: "reply", resume: S.job.session_id, resume_provider: S.job.provider, provider: S.job.provider || this.prov(), params: { text } });
+      const job = await api("POST", JB(S.job, "/jobs"), { action: "reply", resume: S.job.session_id, resume_provider: S.job.provider, provider: S.job.provider || this.prov(), params: { text } });
       $("#reply-text").value = "";
       this.attach(job, false, true);
     } catch (e) { fail(e); }
@@ -2101,11 +2203,12 @@ const Panel = {
   async finish() {
     this.setRunning(false);
     try {
-      const j = await api("GET", B("/jobs/" + S.job.id));
+      const j = await api("GET", JB(S.job, "/jobs/" + S.job.id));
       S.job.status = j.status; S.job.session_id = j.session_id;
     } catch (e) { /* ignore */ }
     S.books = (await api("GET", "/api/books").catch(() => ({ books: S.books }))).books;
     if (document.querySelector("textarea.editor")) toast("任務完成。你正在編輯，所以頁面沒有自動重新整理。");
+    else if (S.job && S.job.book === "_共用") { if (typeof S.onSharedJob === "function") S.onSharedJob(S.job); }
     else if (S.book) refresh();
     $("#reply-text").focus();
   },

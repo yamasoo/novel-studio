@@ -93,6 +93,7 @@ ACTIONS = {
     "recover_continue": {"group": "寫作", "label": "續寫恢復稿", "hidden": True, "fields": []},
     "illust_prompt": {"group": "插圖", "label": "產生插圖提示詞", "hidden": True, "fields": []},
     "visual_card": {"group": "插圖", "label": "產生視覺卡", "hidden": True, "fields": []},
+    "style_design": {"group": "專案", "label": "設計文風", "hidden": True, "fields": []},
     "goal_check": {
         "group": "品質", "label": "章綱核對",
         "fields": [{"key": "chapter", "label": "第幾章", "type": "number"},
@@ -132,7 +133,9 @@ def build(action, p, book_name):
     if action == "setup_check":
         return ("檢查專案結構", "請使用 novel-setup skill 檢查目前這個小說專案：缺哪些資料夾或範本、哪些核心檔案還是空白。缺的範本補上，不要覆蓋既有內容。")
     if action == "style":
-        return ("分析文風", "請使用 novel-setup skill 分析或更新本書文風（設定/文風.md）。\n作者提供的內容：\n%s" % p.get("text", ""))
+        return ("分析文風", "請使用 novel-style skill 分析、設計或調整本書文風（設定/文風.md）。"
+                "作者貼的是寫作樣本就照「分析樣本」做；是描述就照「從描述設計」或「依意見修改」做。不要提問，不確定的地方在匯報列出。\n"
+                "作者提供的內容：\n%s" % p.get("text", ""))
     if action == "preference":
         return ("記錄偏好", "請使用 novel-setup skill 記錄作者的長期偏好到 設定/作者偏好.md：\n%s" % p.get("text", ""))
 
@@ -181,6 +184,9 @@ def build(action, p, book_name):
 
     if action == "free":
         return ("自由指令", p.get("text", ""))
+    if action == "style_design":
+        return ({"revise": "調整文風", "test": "試寫文風"}.get(p.get("mode"), "設計文風") + "：%s" % (p.get("name") or ""),
+                "（由工作台組裝）")
     if action in ("illust_prompt", "visual_card"):
         return ("產生插圖提示詞" if action == "illust_prompt" else "產生視覺卡：%s" % (p.get("file") or "").rsplit("/", 1)[-1][:-3],
                 "（由工作台組裝）")

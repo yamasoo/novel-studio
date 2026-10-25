@@ -81,7 +81,7 @@
 
 1. Forge 的啟動參數（bat 檔裡的 `COMMANDLINE_ARGS`）加上 `--api`，重開 Forge。
 2. 工作台「設定 → 插畫」填 Forge 網址（預設 `http://127.0.0.1:7860`）與 Forge 資料夾，按「從 Forge 讀最近一次的參數」，會讀入 Forge 最後一次出圖用的取樣器、步數、CFG、Shift、模型與 Module 1／2（VAE、文字編碼器）。工作台送出時用 Forge 的 infotext 格式，由 Forge 自己切換模型與模組。
-3. 選畫風樣式表（選填，.xlsx 或 .json）。沒選的話會用專案附的範例 `examples/styles.example.json`（53 個一般向畫風：畫風、場景、髮型、傳統服裝等）。Forge 資料夾裡有 tagcomplete 擴充的話，標籤檢查和中文對照表會自動找到。
+3. 選畫風樣式表（選填，.xlsx 或 .json）。沒選的話會用專案附的範例 `examples/styles.example.json`（55 個一般向畫風：畫風、場景、髮型、傳統服裝等）。Forge 資料夾裡有 tagcomplete 擴充的話，標籤檢查和中文對照表會自動找到。
 
 **畫風樣式表格式**（`examples/` 裡有 JSON 與 xlsx 兩種範例；與 StyleSelectorXL 擴充的樣式表相容）：
 
@@ -105,6 +105,10 @@
   - 「文字指標」由程式在本機統計：句長、段長、對白比例、標點習慣、「的／地」密度、AI 套語密度、高頻詞組（分析某本書時會排除那本書的人名、地名）。AI 寫稿時會參考這些數字。
   - 「套用到書」會複製成那本書的 `設定/文風.md`（原檔先備份）；「和某本書的正文比較」會並排顯示目標與實際。
   - 書的 `設定/文風.md` 有文字指標時，章節頁的「檢查用語與 AI 味」會順便提醒和文風差很多的地方。
+  - **請 AI 設計文風**：輸入名稱、類型（可點標籤，例如「本格推理」「仙俠修真」，混合類型寫「骨架＋調味」）、想要的感覺、參考作品、視角等，AI 依文風的十三個面向寫出完整文風檔，含有場景標籤的原創範例段落與一段反例；附樣本的話會先在本機統計文字指標，再從樣本歸納規則。
+  - **請 AI 調整**：寫下意見（例如「比喻太多」「照十三個面向補完整」），只改相關條目並列出「舊 → 新」；舊版備份在 `_共用/.備份/`。在面板回覆也等於請 AI 調整。
+  - **試寫一段**：照文風寫 200～300 字並自評，用來檢查規則好不好用；不會改動文風檔。
+  - 完整範例：`examples/文風範例_心理驚悚.md`。
 - **章節結構**：節拍表範本。內建「起承轉合」「壓抑爆發」「懸疑揭露」「日常感情」「三幕式」，可以複製後修改或自己新增。
   - 「套用到書」會複製到那本書的 `設定/章節結構/`，可設為全書預設；個別章節在章節頁的「章綱」分頁另選。
   - 寫章節和排章綱時，AI 會參考指定的結構；章綱的情節點優先。
@@ -236,15 +240,16 @@ novel-studio/
 │   ├── recovery.py     恢復稿
 │   ├── export.py       匯出 EPUB、TXT
 │   ├── shared.py       共用庫：文風（含本機統計）、章節結構、共用作者偏好
+│   ├── style_design.py 請 AI 設計／調整／試寫文風
 │   ├── importer.py     匯入舊稿：編碼判斷、簡轉繁、拆章
 │   ├── illust.py       插圖：存放、視覺卡、挑片段、標籤查表、樣式表、提示詞組裝
 │   ├── forge.py        Forge Neo API 與出圖佇列
 │   └── presets/結構/   內建的章節結構
 ├── plugin/             內建的 novel-* skills（Claude Code 外掛格式）
 │   ├── .claude-plugin/plugin.json
-│   └── skills/novel-setup、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
+│   └── skills/novel-setup、novel-style、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
 ├── static/             網頁介面（index.html、app.js、style.css、marked.js）
-├── examples/           範例樣式表（styles.example.json／.xlsx）
+├── examples/           範例樣式表（styles.example.json／.xlsx）、完整文風範例
 └── demo/退婚之後/       示範書
 ```
 
@@ -279,5 +284,6 @@ novel-studio/
 - skills 的部分設計概念改寫自 [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode)（MIT），授權全文見 `plugin/THIRD_PARTY_NOTICES.md`
 - 介面規劃參考了 [moshu 墨書](https://github.com/huihuijiangqiang/moshu) 的頁面分工與「AI 草稿先進候選區」的概念（未使用其程式碼）
 - 思考強度分階段控制、寫稿前對帳、章綱核對、審查與修訂分開、恢復稿等設計參考了 [Pagekin（AI-Novel-Writer）](https://github.com/EthanYoQ/AI-Novel-Writer) 的做法（只參考概念，未使用其 GPL 程式碼）
+- 文風檔的面向與寫法參考了 [Novelcrafter](https://www.novelcrafter.com/courses/codex-cookbook/effective-style-entries) 的文風條目建議、[Sudowrite](https://docs.sudowrite.com/using-sudowrite/1ow1qkGqof9rtcyGnrWUBS/style/4gqKgVVjdN6XTKo71HChqV) 的 Style 欄位與分場景範例、[Scriveno](https://cdn.jsdelivr.net/npm/scriveno@3.8.0/templates/STYLE-GUIDE.md) 的 Voice DNA／STYLE-GUIDE 範本，以及 Leech & Short《Style in Fiction》的[文體分析清單](https://www.lancaster.ac.uk/fass/projects/stylistics/topic10/12method.htm)（只參考概念，內容為原創）
 - 中文網文寫作流程的分工參考了 [Chinese-WebNovel-Skill](https://github.com/Tomsawyerhu/Chinese-WebNovel-Skill)（只參考概念）
 - 插圖功能可連接 [Stable Diffusion WebUI Forge – Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)；提示詞格式依 [Anima](https://huggingface.co/circlestone-labs/Anima) 的建議；標籤對照表使用 [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete)（MIT）附的檔案（從 Forge 資料夾讀取，不隨專案附帶）；畫風樣式表格式與 [StyleSelectorXL](https://github.com/ahgsql/StyleSelectorXL)（MIT）相容

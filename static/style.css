@@ -373,3 +373,4 @@ summary { cursor: pointer; color: var(--ink-2); }
 mark.del { background: var(--bad-soft); color: var(--bad); text-decoration: line-through; }
 mark.ins { background: var(--ok-soft); color: var(--ok); }
 .modal-box:has(.ps-wrap), .modal-box:has(.img-view) { width: min(920px, 100%); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; }

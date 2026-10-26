@@ -97,6 +97,9 @@
 1. Forge 的啟動參數（bat 檔裡的 `COMMANDLINE_ARGS`）加上 `--api`，重開 Forge。
 2. 工作台「設定 → 插畫」填 Forge 網址（預設 `http://127.0.0.1:7860`）與 Forge 資料夾，按「從 Forge 讀最近一次的參數」，會讀入 Forge 最後一次出圖用的取樣器、步數、CFG、Shift、模型與 Module 1／2（VAE、文字編碼器）。工作台送出時用 Forge 的 infotext 格式，由 Forge 自己切換模型與模組。
 3. 選畫風樣式表（選填，.xlsx 或 .json）。沒選的話會用專案附的範例 `examples/styles.example.json`（55 個一般向畫風：畫風、場景、髮型、傳統服裝等）。Forge 資料夾裡有 tagcomplete 擴充的話，標籤檢查和中文對照表會自動找到。
+4. LoRA（選填）：按「測試連線」後，在 Forge 區塊的 LoRA 清單打字搜尋、選檔案。出圖時會在正向提示詞最後加上 `<lora:名稱:強度>` 和觸發詞；提示詞裡已經有同一個 `<lora:名稱:` 的話不重複加，已經有的詞也不重複加。
+
+**LoRA 觸發詞**（Forge 與 ComfyUI 都一樣）：選好 LoRA 後，工作台會讀同目錄的同名 `.json`（Forge「Edit metadata」存的格式），觸發詞取 `activation text` 的前 3 個詞，強度用 `preferred weight`（0＝沒設，用 1）；沒有 JSON 或 `activation text` 空白時，觸發詞用 LoRA 檔名。帶入後可以自己改，不需要觸發詞的 LoRA 清空即可。不會讀 `negative text`。
 
 **畫風樣式表格式**（`examples/` 裡有 JSON 與 xlsx 兩種範例；與 StyleSelectorXL 擴充的樣式表相容）：
 
@@ -120,7 +123,7 @@
   - 選 workflow：留空用專案附的範本（`examples/comfy/anima.api.json`、`moss.api.json`）；用自己的 workflow 時，請在 ComfyUI 選單「Export (API)」匯出（沒有這個選項的話到 ComfyUI 設定開啟開發者模式）。
   - 選模型、文字編碼器、VAE：測試連線後從 ComfyUI 的清單選，並依檔名建議；留空就照 workflow。
   - 開 Prompt Upsampler：送出前用 LLM（MOSS 的 Qwen3.5 9B）把提示詞改寫得更完整，需要較新的 ComfyUI。
-  - 加 LoRA（最多 8 個）：選檔案、強度（-4～4）、是否使用，可填觸發詞（會接在正向提示詞後面）。工作台用內建的 LoraLoaderModelOnly，從 KSampler 的 model 往回找到載入模型的節點，串在它後面，不用改 workflow。出圖紀錄會記下用了哪些 LoRA。
+  - 加 LoRA（最多 8 個）：選檔案（可以打字搜尋）、強度（-4～4）、是否使用，觸發詞自動從同名 JSON 帶入（見上方「LoRA 觸發詞」）；讀 JSON 需要知道 LoRA 資料夾，留空會問 ComfyUI，問不到就在設定填「LoRA 資料夾」。工作台用內建的 LoraLoaderModelOnly，從 KSampler 的 model 往回找到載入模型的節點，串在它後面，不用改 workflow。出圖紀錄會記下用了哪些 LoRA。
 - **工作台只改這幾樣**：正向、負向、seed、尺寸、張數，以及出圖設定裡的模型與 LoRA。要改哪個節點由程式從 KSampler 往回找；workflow 裡組提示詞用的自訂節點、預覽節點會自動略過，取樣器、步數、CFG 照你的 workflow。設定頁會列出找到哪些節點、略過哪些、ComfyUI 缺哪些。
 - **提示詞格式**：Anima 和 Forge 一樣是標籤＋自然語言；MOSS-Image 自動改成英文自然語言，不加品質、分級與畫師標籤。
 - 你自己的 workflow 只記路徑在 `config.json`（不進 git），檔案本身不會被複製進專案。

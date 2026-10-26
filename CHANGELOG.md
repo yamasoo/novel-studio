@@ -1,5 +1,13 @@
 # 更新紀錄
 
+## 1.9.1
+
+- Forge Neo 也可以加 LoRA（設定 → 插畫 → Forge）：從 Forge 的 LoRA 清單選，出圖時在提示詞加上 `<lora:名稱:強度>` 與觸發詞；提示詞裡已經寫了同一個 LoRA 就不重複加
+- 選 LoRA 時自動讀同目錄同名 `.json`（Forge「Edit metadata」格式）：觸發詞取 `activation text` 前 3 個詞、強度用 `preferred weight`；沒有就用檔名。不讀 `negative text`
+  - ComfyUI 的 LoRA 資料夾先問 ComfyUI（`/internal/folder_paths`），問不到可以在設定填
+- LoRA 選擇改成可以打字搜尋，選項旁顯示子資料夾
+- 觸發詞改成逐詞比對：提示詞裡已經有的詞（例如 1girl）不重複加
+
 ## 1.9.0
 
 - 整章自動流程可以替每個步驟各自指定執行者（設定 → 整章自動流程）

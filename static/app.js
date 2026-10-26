@@ -1934,6 +1934,43 @@ async function viewIllust(view, t) {
 }
 
 /* 設定頁：插畫（Forge Neo／ComfyUI） */
+// LoRA 列表（Forge 與 ComfyUI 共用）：可以打字搜尋；選好後讀同名 JSON 帶入觸發詞（前 3 個詞）與強度
+function loraRowsHtml(items, list, key, title, who) {
+  const dl = `lora-dl-${key}`;
+  const rows = items.map((x, j) => {
+    const nm = x.name || "";
+    const miss = list && nm && !list.some((f) => f.name === nm);
+    return `<div class="row" style="gap:6px;margin-bottom:4px;align-items:center">
+      <input type="checkbox" data-lr="${key}:${j}" data-lk="on" ${x.on !== false ? "checked" : ""} title="使用這個 LoRA">
+      <input type="text" list="${dl}" data-lr="${key}:${j}" data-lk="name" value="${esc(nm)}" style="flex:2" placeholder="${list ? "打字搜尋 LoRA" : "LoRA 名稱（按測試連線後可以搜尋清單）"}" title="${miss ? who + " 找不到這個 LoRA" : ""}">
+      <input type="number" data-lr="${key}:${j}" data-lk="strength" value="${esc(x.strength ?? 1)}" step="0.05" min="-4" max="4" style="width:80px" title="強度">
+      <input type="text" data-lr="${key}:${j}" data-lk="trigger" value="${esc(x.trigger || "")}" placeholder="觸發詞（選填，接在正向提示詞後面）" style="flex:2">
+      <button class="sm danger" data-lrdel="${key}:${j}">刪除</button></div>${miss ? `<div class="err small" style="margin:-2px 0 4px 24px">${esc(who)} 找不到「${esc(nm)}」</div>` : ""}`;
+  }).join("");
+  return `<div class="f" style="margin-top:6px"><span>${title}</span>
+    ${list ? `<datalist id="${dl}">${list.map((f) => `<option value="${esc(f.name)}">${esc(f.folder || "")}</option>`).join("")}</datalist>` : ""}
+    ${rows || '<div class="muted small">沒有使用 LoRA。</div>'}
+    <div><button class="sm" data-lradd="${key}">＋ LoRA</button>${list ? `<span class="muted small">　共 ${list.length} 個；選好後會讀同名 JSON 帶入觸發詞（前 3 個詞）與建議強度，沒有 JSON 就用檔名</span>` : ""}</div></div>`;
+}
+function bindLoraRows(root, getList, backend, rerender) {
+  root.querySelectorAll("[data-lr]").forEach((x) => {
+    x.onchange = async () => {
+      const [key, j] = x.dataset.lr.split(":");
+      const lr = getList(key)[+j];
+      const k = x.dataset.lk;
+      lr[k] = k === "on" ? x.checked : k === "strength" ? (parseFloat(x.value) || 0) : x.value.trim();
+      if (k === "name" && lr.name) {
+        try {
+          const h = await api("POST", "/api/illust/lora_hint", { backend, name: lr.name });
+          lr.trigger = h.trigger; lr.strength = h.strength;
+        } catch (e) { /* 讀不到就保留原值 */ }
+        rerender();
+      }
+    };
+  });
+  root.querySelectorAll("[data-lradd]").forEach((b) => b.onclick = () => { getList(b.dataset.lradd).push({ name: "", strength: 1, on: true, trigger: "" }); rerender(); });
+  root.querySelectorAll("[data-lrdel]").forEach((b) => b.onclick = () => { const [key, j] = b.dataset.lrdel.split(":"); getList(key).splice(+j, 1); rerender(); });
+}
 const COMFY_KINDS = [["anima", "Anima（標籤＋自然語言）"], ["moss", "MOSS-Image（自然語言）"]];
 async function renderIllSettings(el) {
   const r = await illCfg(true);
@@ -1959,6 +1996,7 @@ async function renderIllSettings(el) {
       <textarea id="il-params" rows="2">${esc(c.params)}</textarea></label>
     <div class="row" style="margin:-6px 0 12px"><button class="sm" id="il-fromforge">從 Forge 讀最近一次的參數</button><span class="muted small">讀 Forge 資料夾裡的 params.txt</span></div>
     <label class="cb"><input type="checkbox" id="il-save" ${c.save_in_forge ? "checked" : ""}> 也在 Forge 的輸出資料夾存一份</label>
+    <div id="il-loras"></div>
     </div>
     <div data-be="comfy">
       <div class="muted small" style="margin-bottom:10px">工作台用 ComfyUI 的 API 出圖，只會用到 ComfyUI 內建節點。每個「出圖設定」是一份 workflow：留空就用專案附的範本（<code>examples/comfy/</code>）；
@@ -1969,6 +2007,7 @@ async function renderIllSettings(el) {
       <div class="row" style="margin:6px 0 10px"><button class="sm" id="cf-add">＋ 新增出圖設定</button>
         <label class="f" style="margin:0 0 0 auto;flex-direction:row;align-items:center;gap:6px"><span>預設使用</span><select id="cf-def"></select></label></div>
       <label class="cb"><input type="checkbox" id="cf-keep" ${c.comfy_keep_output ? "checked" : ""}> 也在 ComfyUI 的 output 資料夾存一份（不勾就只放 ComfyUI 的暫存）</label>
+      <label class="f"><span>LoRA 資料夾（讀同名 JSON 的觸發詞用；留空＝問 ComfyUI）</span><input type="text" id="cf-loradir" value="${esc(c.comfy_lora_dir || "")}" placeholder="例如 D:\\ComfyUI\\models\\loras"></label>
     </div>
     <h3 style="margin:14px 0 8px">提示詞</h3>
     <div class="grid g4">
@@ -1988,6 +2027,14 @@ async function renderIllSettings(el) {
     <div class="small muted" style="margin:-4px 0 8px">${r.sheet_error ? '<span class="err">' + esc(r.sheet_error) + "</span>" : r.sheet_count ? `樣式表共 ${r.sheet_count} 個畫風${r.sheet_is_example ? "（目前用專案附的範例）" : ""}` : ""}　MOSS-Image 會自動改用自然語言，不加品質、分級與畫師標籤。</div>
     <label class="cb"><input type="checkbox" id="il-nsfw" ${c.show_nsfw_styles ? "checked" : ""}> 選畫風時預設顯示 nsfw 分類</label>
     <div class="row"><span class="grow"></span><button class="primary" id="il-savecfg">儲存插畫設定</button></div>`;
+  const forgeLoras = JSON.parse(JSON.stringify(c.forge_loras || []));
+  let fst = null;   // Forge 測試連線結果
+  const renderForgeLoras = () => {
+    $("#il-loras", el).innerHTML = loraRowsHtml(forgeLoras, fst && fst.ok ? fst.loras || [] : null, "f",
+      "LoRA（出圖時加進提示詞：&lt;lora:名稱:強度&gt; 與觸發詞；提示詞裡已經有的不重複加）", "Forge");
+    bindLoraRows($("#il-loras", el), () => forgeLoras, "forge", renderForgeLoras);
+  };
+  renderForgeLoras();
   const syncBe = () => {
     const v = el.querySelector('input[name="il-be"]:checked').value;
     el.querySelectorAll("[data-be]").forEach((x) => { x.hidden = x.dataset.be !== v; });
@@ -2005,24 +2052,8 @@ async function renderIllSettings(el) {
       ${list.map((f) => `<option value="${esc(f)}" ${f === cur ? "selected" : ""}>${esc(f)}${f === guess && !cur ? "（建議）" : ""}</option>`).join("")}
       ${cur && !list.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}（ComfyUI 找不到）</option>` : ""}</select></label>`;
   };
-  const loraRows = (p, i) => {
-    const list = cst && cst.ok ? cst.lists.lora || [] : null;
-    const rows = (p.loras || []).map((x, j) => {
-      const nm = x.name || "";
-      const pick = list
-        ? `<select data-lr="${i}:${j}" data-lk="name"><option value="">（請選擇）</option>${list.map((f) => `<option value="${esc(f)}" ${f === nm ? "selected" : ""}>${esc(f)}</option>`).join("")}${nm && !list.includes(nm) ? `<option value="${esc(nm)}" selected>${esc(nm)}（ComfyUI 找不到）</option>` : ""}</select>`
-        : `<input type="text" data-lr="${i}:${j}" data-lk="name" value="${esc(nm)}" placeholder="LoRA 檔名（按測試連線後可以從清單選）">`;
-      return `<div class="row" style="gap:6px;margin-bottom:4px;align-items:center">
-        <input type="checkbox" data-lr="${i}:${j}" data-lk="on" ${x.on !== false ? "checked" : ""} title="使用這個 LoRA">
-        <div style="flex:2">${pick}</div>
-        <input type="number" data-lr="${i}:${j}" data-lk="strength" value="${esc(x.strength ?? 1)}" step="0.05" min="-4" max="4" style="width:80px" title="強度">
-        <input type="text" data-lr="${i}:${j}" data-lk="trigger" value="${esc(x.trigger || "")}" placeholder="觸發詞（選填，會接在正向提示詞後面）" style="flex:2">
-        <button class="sm danger" data-lrdel="${i}:${j}">刪除</button></div>`;
-    }).join("");
-    return `<div class="f" style="margin-top:6px"><span>LoRA（用內建的 LoraLoaderModelOnly，接在模型後面；強度 -4～4）</span>
-      ${rows || '<div class="muted small">沒有使用 LoRA。</div>'}
-      <div><button class="sm" data-lradd="${i}">＋ LoRA</button></div></div>`;
-  };
+  const loraRows = (p, i) => loraRowsHtml(p.loras || [], cst && cst.ok ? (cst.lists.lora || []).map((f) => ({ name: f, folder: f.replace(/\\/g, "/").split("/").slice(0, -1).join("/") })) : null,
+    `${i}`, "LoRA（用內建的 LoraLoaderModelOnly，接在模型後面；強度 -4～4）", "ComfyUI");
   const renderProfs = () => {
     $("#cf-profs", el).innerHTML = profs.map((p, i) => {
       const st = cst && cst.ok ? cst.profiles.find((x) => x.id === p.id) : null;
@@ -2054,24 +2085,7 @@ async function renderIllSettings(el) {
       };
     });
     el.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => { profs.splice(+b.dataset.del, 1); renderProfs(); });
-    el.querySelectorAll("[data-lr]").forEach((x) => {
-      x.onchange = () => {
-        const [i, j] = x.dataset.lr.split(":").map(Number);
-        const lr = profs[i].loras[j];
-        const k = x.dataset.lk;
-        lr[k] = k === "on" ? x.checked : k === "strength" ? (parseFloat(x.value) || 0) : x.value.trim();
-      };
-    });
-    el.querySelectorAll("[data-lradd]").forEach((b) => b.onclick = () => {
-      const p = profs[+b.dataset.lradd];
-      (p.loras = p.loras || []).push({ name: "", strength: 1, on: true, trigger: "" });
-      renderProfs();
-    });
-    el.querySelectorAll("[data-lrdel]").forEach((b) => b.onclick = () => {
-      const [i, j] = b.dataset.lrdel.split(":").map(Number);
-      profs[i].loras.splice(j, 1);
-      renderProfs();
-    });
+    bindLoraRows($("#cf-profs", el), (key) => (profs[+key].loras = profs[+key].loras || []), "comfy", renderProfs);
     el.querySelectorAll('[data-key="workflow"]').forEach((x) => attachPicker(x, { mode: "file", exts: [".json"], title: "選擇 ComfyUI workflow（API 格式）" }));
   };
   renderProfs();
@@ -2081,6 +2095,7 @@ async function renderIllSettings(el) {
     const st = $("#il-status", el);
     st.textContent = "連線中……";
     const s = await api("GET", "/api/illust/forge/status");
+    fst = s; renderForgeLoras();
     st.innerHTML = s.ok ? `<span class="badge b-ok">已連線</span> 模型：${esc(s.model || "")}　模組：${esc((s.modules || []).join("、"))}　取樣器 ${s.samplers.length} 種`
       : `<span class="badge b-bad">連不到</span> ${esc(s.error)}`;
   };
@@ -2091,7 +2106,8 @@ async function renderIllSettings(el) {
       width: parseInt($("#il-w", el).value), height: parseInt($("#il-h", el).value), safety: $("#il-safe", el).value, format: $("#il-fmt", el).value,
       quality: $("#il-q", el).value.trim(), negative: $("#il-neg", el).value.trim(), style_sheet: $("#il-sheet", el).value.trim(),
       style_source: $("#il-src", el).value, provider: $("#il-prov", el).value, show_nsfw_styles: $("#il-nsfw", el).checked, save_in_forge: $("#il-save", el).checked,
-      comfy_url: $("#cf-url", el).value.trim(), comfy_profiles: profs, comfy_profile: c.comfy_profile, comfy_keep_output: $("#cf-keep", el).checked };
+      comfy_url: $("#cf-url", el).value.trim(), comfy_profiles: profs, comfy_profile: c.comfy_profile, comfy_keep_output: $("#cf-keep", el).checked,
+      comfy_lora_dir: $("#cf-loradir", el).value.trim(), forge_loras: forgeLoras };
     ILL.cfg = await api("POST", "/api/illust/config", body);
     const saved = ILL.cfg.config.comfy_profiles;
     profs.splice(0, profs.length, ...JSON.parse(JSON.stringify(saved)));

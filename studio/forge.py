@@ -59,6 +59,29 @@ def status(base):
     return out
 
 
+def loras(base):
+    """Forge 的 LoRA 清單：[{name, alias, path}]（內建 Lora 擴充的 /sdapi/v1/loras）。"""
+    items = _req(base, "/sdapi/v1/loras", timeout=15)
+    out = []
+    for x in items or []:
+        if isinstance(x, dict) and x.get("name"):
+            out.append({"name": str(x["name"]), "alias": str(x.get("alias") or ""), "path": str(x.get("path") or "")})
+    return out
+
+
+def _num(v):
+    s = ("%.2f" % float(v)).rstrip("0").rstrip(".")
+    return s or "0"
+
+
+def with_loras(positive, loras_on):
+    """在正向提示詞最後加上 <lora:名稱:強度> 與觸發詞；提示詞裡已經有同一個 LoRA 就不重複加。"""
+    tags = ["<lora:%s:%s>" % (x["name"], _num(x["strength"])) for x in loras_on
+            if "<lora:%s:" % x["name"] not in (positive or "")]
+    p = comfy.with_triggers(positive, loras_on)
+    return ", ".join([s for s in [(p or "").rstrip(" ,")] + tags if s])
+
+
 def build_payload(positive, negative, params_line, seed, width, height, count=1, save_in_forge=False):
     infotext = positive + "\nNegative prompt: " + negative + ("\n" + params_line if params_line else "")
     return {"prompt": positive, "negative_prompt": negative, "seed": int(seed), "width": int(width), "height": int(height),

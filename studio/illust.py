@@ -51,6 +51,8 @@ DEFAULTS = {
     "comfy_url": "http://127.0.0.1:8188",
     "comfy_profile": "anima",
     "comfy_keep_output": False,   # 也存一份在 ComfyUI 的 output 資料夾（否則只放暫存）
+    "comfy_lora_dir": "",         # 讀 LoRA 同名 JSON 用；空白＝問 ComfyUI
+    "forge_loras": [],            # Forge 出圖時加進提示詞的 LoRA（<lora:名稱:強度>）
     # ComfyUI 出圖設定：workflow 留空＝用 examples/comfy/ 的範本；模型留空＝照 workflow
     "comfy_profiles": [
         {"id": "anima", "name": "Anima", "kind": "anima", "workflow": "", "unet": "", "clip": "", "vae": "",
@@ -64,6 +66,37 @@ SIZES = [("直式", 896, 1152), ("橫式", 1152, 896), ("方形", 1024, 1024), (
 
 class IllustError(project.ProjectError):
     pass
+
+
+# ---------------------------------------------------------------------------
+# LoRA：同目錄同名 .json（Forge／A1111「Edit metadata」的格式）
+# ---------------------------------------------------------------------------
+LORA_TRIGGER_WORDS = 3   # 觸發詞只取 activation text 的前幾個詞
+
+
+def lora_hint(path):
+    """讀 LoRA 旁邊的同名 JSON：觸發詞取 activation text 前 3 個詞，強度用 preferred weight（0＝沒設，用 1）。
+    沒有 JSON 或 activation text 空白時，觸發詞用檔名。不讀 negative text。"""
+    stem = os.path.splitext(os.path.basename(str(path or "").replace("\\", "/")))[0]
+    out = {"trigger": stem, "strength": 1.0, "json": False}
+    j = os.path.splitext(str(path or ""))[0] + ".json"
+    if path and os.path.isfile(j):
+        try:
+            with open(j, encoding="utf-8-sig") as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            return out
+        out["json"] = True
+        words = [w.strip() for w in re.split(r"[,，\n]", str(d.get("activation text") or "")) if w.strip()]
+        if words:
+            out["trigger"] = ", ".join(words[:LORA_TRIGGER_WORDS])
+        try:
+            w = float(d.get("preferred weight") or 0)
+        except (TypeError, ValueError):
+            w = 0
+        if w > 0:
+            out["strength"] = round(w, 2)
+    return out
 
 
 # ---------------------------------------------------------------------------

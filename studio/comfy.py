@@ -10,6 +10,7 @@ ComfyUI API 客戶端與 workflow 處理。
 """
 import copy
 import json
+import re
 import os
 import time
 import urllib.error
@@ -337,8 +338,15 @@ def _add_loras(wf, samplers, loras):
 
 
 def with_triggers(positive, loras):
-    """把 LoRA 的觸發詞接在正向提示詞後面（已經有的不重複加）。"""
-    words = [x["trigger"] for x in loras if x.get("trigger") and x["trigger"] not in (positive or "")]
+    """把 LoRA 的觸發詞接在正向提示詞後面；提示詞裡已經有的詞（以逗號分隔比對）不重複加。"""
+    have = {t.strip().lower() for t in re.split(r"[,，\n]", positive or "") if t.strip()}
+    words = []
+    for x in loras:
+        for w in re.split(r"[,，]", x.get("trigger") or ""):
+            w = w.strip()
+            if w and w.lower() not in have:
+                have.add(w.lower())
+                words.append(w)
     if not words:
         return positive
     return ", ".join([p for p in [(positive or "").rstrip(" ,")] + words if p])

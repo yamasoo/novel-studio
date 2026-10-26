@@ -1,552 +1,842 @@
 [
   {
-    "name": "base",
-    "prompt": ",",
-    "naturl_prompt": null,
-    "negative_prompt": ",",
-    "category": "base",
-    "namezh": "base",
-    "namejp": "base",
-    "nameen": "base"
-  },
-  {
-    "name": "史詩星海油畫封面/壮大な星海油絵カバー/Epic Star-Sea Opera Canvas",
+    "name": "太空歌劇_史詩星海油畫封面/スペースオペラ - 壮大な星月夜の油絵カバー/Space Opera - A magnificent oil painting cover of a starry night",
     "prompt": "epic space opera aesthetic, classical oil painting texture, deep navy and gold palette, chiaroscuro, starfield bokeh, majestic scale, formal composition, cinematic lighting, detailed rendering, highres",
     "naturl_prompt": "A grand space-opera cover treatment using classical oil-painting texture, deep navy and gold tones, chiaroscuro lighting, starfield bokeh, and a formal majestic composition, rendered with detailed cinematic polish.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 太空歌劇",
-    "namezh": "史詩星海油畫封面",
-    "namejp": "壮大な星海油絵カバー",
-    "nameen": "Epic Star-Sea Opera Canvas"
+    "category": "內文插圖風格",
+    "namezh": "太空歌劇_史詩星海油畫封面",
+    "namejp": "スペースオペラ - 壮大な星月夜の油絵カバー",
+    "nameen": "Space Opera - A magnificent oil painting cover of a starry night"
   },
   {
-    "name": "星史檔案線稿/星史アーカイブ線画/Celestial Archive Line Sketch",
+    "name": "文學小說_ 讀書會小說_星史檔案線稿/文学小説_ ブッククラブ小説_ スターヒス​​トリーアーカイブ 線画/Literary Fiction_ Book Club Fiction_ Star History Archive Line Drawings",
     "prompt": "monochrome lineart, fine ink lines, cross-hatching, sepia wash, paper texture, low contrast, elegant linework, historical print feel, simple background, highres",
     "naturl_prompt": "A restrained interior-illustration treatment with fine monochrome ink lineart, light cross-hatching, sepia wash, paper texture, and low contrast, giving an elegant historical-print feel while remaining readable.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 文學小說 > 讀書會小說",
-    "namezh": "星史檔案線稿",
-    "namejp": "星史アーカイブ線画",
-    "nameen": "Celestial Archive Line Sketch"
+    "category": "內文插圖風格",
+    "namezh": "文學小說_ 讀書會小說_星史檔案線稿",
+    "namejp": "文学小説_ ブッククラブ小説_ スターヒス​​トリーアーカイブ 線画",
+    "nameen": "Literary Fiction_ Book Club Fiction_ Star History Archive Line Drawings"
   },
   {
-    "name": "英雄卡通渲染奇幻/英雄セルシェードファンタジー/Heroic Cel-Shaded Fantasy",
+    "name": "日常系戀愛喜劇_英雄卡通渲染奇幻/日常ロマンティックコメディ_ヒーローカートゥーンレンダリングファンタジー/Everyday Romantic Comedy - Hero Cartoon Rendering Fantasy",
     "prompt": "cel shading, stylized realism, painterly sky, volumetric light, soft bloom, vibrant but natural palette, high contrast, clean edges, epic fantasy atmosphere, highres",
     "naturl_prompt": "A heroic cel-shaded fantasy treatment blending stylized realism with painterly atmosphere, soft volumetric light, vibrant yet natural colors, and clean epic composition for a legendary adventure cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 日常系戀愛喜劇",
-    "namezh": "英雄卡通渲染奇幻",
-    "namejp": "英雄セルシェードファンタジー",
-    "nameen": "Heroic Cel-Shaded Fantasy"
+    "category": "內文插圖風格",
+    "namezh": "日常系戀愛喜劇_英雄卡通渲染奇幻",
+    "namejp": "日常ロマンティックコメディ_ヒーローカートゥーンレンダリングファンタジー",
+    "nameen": "Everyday Romantic Comedy - Hero Cartoon Rendering Fantasy"
   },
   {
-    "name": "冒險者鉛筆淡彩/冒険者鉛筆淡彩/Adventurer Pencil Wash",
+    "name": "古典劍與魔法奇幻_冒險者鉛筆淡彩/古典的な剣と魔法のファンタジー - 冒険家ペンシルカラー/Classic sword and sorcery fantasy - Adventurer's pencil color",
     "prompt": "pencil sketch, light watercolor wash, fine lineart, paper grain, soft contrast, muted earthy tones, simple rendering, highres",
     "naturl_prompt": "A restrained adventurer pencil-and-wash treatment with fine lineart, light watercolor, paper grain, muted earthy tones, and soft contrast for readable interior fantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 古典劍與魔法奇幻",
-    "namezh": "冒險者鉛筆淡彩",
-    "namejp": "冒険者鉛筆淡彩",
-    "nameen": "Adventurer Pencil Wash"
+    "category": "內文插圖風格",
+    "namezh": "古典劍與魔法奇幻_冒險者鉛筆淡彩",
+    "namejp": "古典的な剣と魔法のファンタジー - 冒険家ペンシルカラー",
+    "nameen": "Classic sword and sorcery fantasy - Adventurer's pencil color"
   },
   {
-    "name": "明亮俏皮卡通渲染/明るい陽気カートゥーンレンダー/Bright Playful Cartoon Render",
+    "name": "史詩太空歌劇_明亮俏皮卡通渲染/壮大なスペースオペラ - 明るく遊び心のある漫画風レンダリング/An epic space opera - with bright and playful cartoon-style renderings",
     "prompt": "bright cartoon rendering, saturated primary colors, rounded shapes, soft specular highlights, clean thick outlines, cheerful atmosphere, 3D-rendered feel, highres",
     "naturl_prompt": "A bright playful cartoon-render treatment with saturated primary colors, rounded shapes, thick clean outlines, soft highlights, and a cheerful 3D-rendered feel for a family-friendly cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 史詩太空歌劇",
-    "namezh": "明亮俏皮卡通渲染",
-    "namejp": "明るい陽気カートゥーンレンダー",
-    "nameen": "Bright Playful Cartoon Render"
+    "category": "內文插圖風格",
+    "namezh": "史詩太空歌劇_明亮俏皮卡通渲染",
+    "namejp": "壮大なスペースオペラ - 明るく遊び心のある漫画風レンダリング",
+    "nameen": "An epic space opera - with bright and playful cartoon-style renderings"
   },
   {
-    "name": "粗線簡潔卡通/太線シンプルカートゥーン/Bold Simple Cartoon Line",
+    "name": "史詩奇幻_ 高奇幻_粗線簡潔卡通/壮大なファンタジー_ハイファンタジー_太線で描かれたシンプルな漫画/Epic fantasy_High fantasy_Simple comic drawn with thick lines",
     "prompt": "bold outlines, flat colors, simple shapes, high readability, minimal shading, clean white background feel, cheerful palette, highres",
     "naturl_prompt": "A bold and simple cartoon-line treatment with flat colors, thick outlines, minimal shading, high readability, and a cheerful palette for interior playful illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 史詩奇幻 > 高奇幻",
-    "namezh": "粗線簡潔卡通",
-    "namejp": "太線シンプルカートゥーン",
-    "nameen": "Bold Simple Cartoon Line"
+    "category": "內文插圖風格",
+    "namezh": "史詩奇幻_ 高奇幻_粗線簡潔卡通",
+    "namejp": "壮大なファンタジー_ハイファンタジー_太線で描かれたシンプルな漫画",
+    "nameen": "Epic fantasy_High fantasy_Simple comic drawn with thick lines"
   },
   {
-    "name": "古典劍與魔法油畫/古典剣と魔法の油絵/Classical Sword-and-Sorcery Oil",
+    "name": "生物收集冒險_古典劍與魔法油畫/クリーチャーコレクションアドベンチャー - クラシックソードアンドマジック油絵/Creature Collection Adventure - Classic Sword and Magic Oil Painting",
     "prompt": "classical fantasy oil painting, impasto texture, earthy palette, dramatic chiaroscuro, ornate detail, old-world atmosphere, fine brushwork, highres",
     "naturl_prompt": "A classical sword-and-sorcery oil-painting treatment with impasto texture, earthy tones, dramatic chiaroscuro, ornate detail, and an old-world atmosphere for a foundational fantasy cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 生物收集冒險",
-    "namezh": "古典劍與魔法油畫",
-    "namejp": "古典剣と魔法の油絵",
-    "nameen": "Classical Sword-and-Sorcery Oil"
+    "category": "內文插圖風格",
+    "namezh": "生物收集冒險_古典劍與魔法油畫",
+    "namejp": "クリーチャーコレクションアドベンチャー - クラシックソードアンドマジック油絵",
+    "nameen": "Creature Collection Adventure - Classic Sword and Magic Oil Painting"
   },
   {
-    "name": "東西融合雅緻線稿/東西融合優雅線画/Elegant East-West Line Draft",
+    "name": "全年齡卡通冒險_東西融合雅緻線稿/全年齢対象のカートゥーンアドベンチャー - 東西の美学を融合させたエレガントな線画/A cartoon adventure for all ages - elegant line art blending Eastern and Western aesthetics.",
     "prompt": "elegant lineart, fine ink lines, cross-hatching, light ink wash, paper texture, low saturation, delicate details, fusion of eastern and western aesthetics, highres",
     "naturl_prompt": "An elegant east-west line-draft treatment with fine ink lines, light cross-hatching, pale ink wash, paper texture, and delicate fusion aesthetics for interior classic fantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 全年齡卡通冒險",
-    "namezh": "東西融合雅緻線稿",
-    "namejp": "東西融合優雅線画",
-    "nameen": "Elegant East-West Line Draft"
+    "category": "內文插圖風格",
+    "namezh": "全年齡卡通冒險_東西融合雅緻線稿",
+    "namejp": "全年齢対象のカートゥーンアドベンチャー - 東西の美学を融合させたエレガントな線画",
+    "nameen": "A cartoon adventure for all ages - elegant line art blending Eastern and Western aesthetics."
   },
   {
-    "name": "太空歌劇黃金時代插畫/宇宙歌劇黄金時代イラスト/Space Opera Golden-Age Illustration",
+    "name": "奇幻懸疑_ 推理_太空歌劇黃金時代插畫/ファンタジー・サスペンス・ミステリー・スペースオペラ黄金時代のイラストレーション/Illustrations from the Golden Age of Fantasy, Suspense, Mystery, and Space Opera",
     "prompt": "space opera aesthetic, golden-age illustration influence, rich jewel tones, soft airbrush shading, elegant linework, cosmic atmosphere, dramatic lighting, highres",
     "naturl_prompt": "A space-opera treatment influenced by golden-age illustration, featuring rich jewel tones, soft airbrush shading, elegant linework, and a dramatic cosmic atmosphere for an epic cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 奇幻懸疑 > 推理",
-    "namezh": "太空歌劇黃金時代插畫",
-    "namejp": "宇宙歌劇黄金時代イラスト",
-    "nameen": "Space Opera Golden-Age Illustration"
+    "category": "內文插圖風格",
+    "namezh": "奇幻懸疑_ 推理_太空歌劇黃金時代插畫",
+    "namejp": "ファンタジー・サスペンス・ミステリー・スペースオペラ黄金時代のイラストレーション",
+    "nameen": "Illustrations from the Golden Age of Fantasy, Suspense, Mystery, and Space Opera"
   },
   {
-    "name": "精緻鋼筆淡彩/精密ペン淡彩/Precision Pen and Pale Tint",
+    "name": "東方異世界史詩_精緻鋼筆淡彩/異世界の東洋を舞台にした壮大な物語 ― 精緻なペンとインクの水彩画/An epic tale set in an otherworldly Orient — depicted with exquisite pen and ink watercolors.",
     "prompt": "precise pen lineart, fine hatching, pale watercolor tint, paper texture, low contrast, elegant minimal rendering, high readability, highres",
     "naturl_prompt": "A precision pen-and-pale-tint treatment with fine hatching, light watercolor, paper texture, low contrast, and elegant minimal rendering for interior space-opera illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 東方異世界史詩",
-    "namezh": "精緻鋼筆淡彩",
-    "namejp": "精密ペン淡彩",
-    "nameen": "Precision Pen and Pale Tint"
+    "category": "內文插圖風格",
+    "namezh": "東方異世界史詩_精緻鋼筆淡彩",
+    "namejp": "異世界の東洋を舞台にした壮大な物語 ― 精緻なペンとインクの水彩画",
+    "nameen": "An epic tale set in an otherworldly Orient — depicted with exquisite pen and ink watercolors."
   },
   {
-    "name": "東方史詩重彩/東洋史詩重彩/Oriental Epic Gouache",
+    "name": "空靈奇幻角色扮演_東方史詩重彩/幻想的なファンタジーロールプレイング - フルカラーで描かれる東洋の叙事詩/A fantastical role-playing game - an Eastern epic depicted in full color.",
     "prompt": "oriental gouache painting, fine brushwork, layered mineral pigments, majestic composition, elegant linework, muted gold and azurite tones, epic atmosphere, highres",
     "naturl_prompt": "An oriental epic gouache treatment with fine brushwork, layered mineral pigments, majestic composition, elegant linework, and muted gold-and-azurite tones for a grand otherworldly cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 空靈奇幻角色扮演",
-    "namezh": "東方史詩重彩",
-    "namejp": "東洋史詩重彩",
-    "nameen": "Oriental Epic Gouache"
+    "category": "內文插圖風格",
+    "namezh": "空靈奇幻角色扮演_東方史詩重彩",
+    "namejp": "幻想的なファンタジーロールプレイング - フルカラーで描かれる東洋の叙事詩",
+    "nameen": "A fantastical role-playing game - an Eastern epic depicted in full color."
   },
   {
-    "name": "墨線淡彩/墨線淡彩/Ink Line and Subtle Color",
+    "name": "科幻_ 推想小說_墨線淡彩/サイエンス・フィクション_スペキュラティブ・フィクション_インクの線と淡い色彩/Science fiction, speculative fiction, ink lines and soft colors",
     "prompt": "ink lineart, fine brush texture, subtle mineral color accents, paper grain, low saturation, elegant restraint, high readability, highres",
     "naturl_prompt": "An ink-line-and-subtle-color treatment with fine brush texture, light mineral accents, paper grain, low saturation, and elegant restraint for interior otherworldly illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 科幻 > 推想小說",
-    "namezh": "墨線淡彩",
-    "namejp": "墨線淡彩",
-    "nameen": "Ink Line and Subtle Color"
+    "category": "內文插圖風格",
+    "namezh": "科幻_ 推想小說_墨線淡彩",
+    "namejp": "サイエンス・フィクション_スペキュラティブ・フィクション_インクの線と淡い色彩",
+    "nameen": "Science fiction, speculative fiction, ink lines and soft colors"
   },
   {
-    "name": "現代濃彩戲劇渲染/現代リッチセルシェード/Modern Rich Cel-Shaded Drama",
+    "name": "英雄奇幻冒險_現代濃彩戲劇渲染/英雄的なファンタジーアドベンチャー - 現代の鮮やかなドラマ/A heroic fantasy adventure - a vibrant modern drama",
     "prompt": "modern cel shading, rich gradient lighting, metallic highlights, dramatic contrast, glossy finish, detailed rendering, high saturation accents, highres",
     "naturl_prompt": "A modern rich cel-shaded treatment with gradient lighting, metallic highlights, dramatic contrast, glossy finish, and detailed rendering for a dramatic urban-fantasy cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 英雄奇幻冒險",
-    "namezh": "現代濃彩戲劇渲染",
-    "namejp": "現代リッチセルシェード",
-    "nameen": "Modern Rich Cel-Shaded Drama"
+    "category": "內文插圖風格",
+    "namezh": "英雄奇幻冒險_現代濃彩戲劇渲染",
+    "namejp": "英雄的なファンタジーアドベンチャー - 現代の鮮やかなドラマ",
+    "nameen": "A heroic fantasy adventure - a vibrant modern drama"
   },
   {
-    "name": "乾淨線稿局部上色/クリーン線画スポットカラー/Clean Line and Spot Color",
+    "name": "宮廷謎案_ 歷史戀愛_乾淨線稿局部上色/パレスミステリー_歴史ロマンス_ 線画に部分的な着色を施したシンプルなイラスト/Palace Mystery_Historical Romance_Simple illustration with partial coloring on line art",
     "prompt": "clean lineart, spot color accents, minimal shading, white background feel, high readability, crisp edges, low visual noise, highres",
     "naturl_prompt": "A clean line-and-spot-color treatment with crisp edges, minimal shading, low visual noise, and high readability for interior urban-fantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 宮廷謎案 > 歷史戀愛",
-    "namezh": "乾淨線稿局部上色",
-    "namejp": "クリーン線画スポットカラー",
-    "nameen": "Clean Line and Spot Color"
+    "category": "內文插圖風格",
+    "namezh": "宮廷謎案_ 歷史戀愛_乾淨線稿局部上色",
+    "namejp": "パレスミステリー_歴史ロマンス_ 線画に部分的な着色を施したシンプルなイラスト",
+    "nameen": "Palace Mystery_Historical Romance_Simple illustration with partial coloring on line art"
   },
   {
-    "name": "空靈水彩幻想/幻想的水彩ファンタジー/Ethereal Watercolor Fantasy",
+    "name": "恐怖_ 哥德_空靈水彩幻想/ホラー_ゴシック_幻想的な水彩ファンタジー/Horror, Gothic, and fantastical watercolor fantasy",
     "prompt": "ethereal watercolor, flowing linework, pale iridescent washes, soft diffusion, fantasy atmosphere, delicate brush texture, highres",
     "naturl_prompt": "An ethereal watercolor-fantasy treatment with flowing linework, pale iridescent washes, soft diffusion, delicate brush texture, and a dreamlike fantasy atmosphere for a signature RPG cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 恐怖 > 哥德",
-    "namezh": "空靈水彩幻想",
-    "namejp": "幻想的水彩ファンタジー",
-    "nameen": "Ethereal Watercolor Fantasy"
+    "category": "內文插圖風格",
+    "namezh": "恐怖_ 哥德_空靈水彩幻想",
+    "namejp": "ホラー_ゴシック_幻想的な水彩ファンタジー",
+    "nameen": "Horror, Gothic, and fantastical watercolor fantasy"
   },
   {
-    "name": "細鋼筆水彩淡染/細ペン水彩淡彩/Fine Pen and Watercolor Wash",
+    "name": "校園黨爭_ 群像劇_細鋼筆水彩淡染/キャンパス内の派閥争い_群像劇_細密なペン画による水彩画/Factional struggles on campus - an ensemble drama - watercolor paintings with detailed pen and ink.",
     "prompt": "fine pen lineart, light watercolor wash, paper texture, soft gradients, low contrast, elegant fantasy rendering, highres",
     "naturl_prompt": "A fine pen-and-watercolor treatment with light washes, paper texture, soft gradients, low contrast, and elegant fantasy rendering for interior RPG illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 校園黨爭 > 群像劇",
-    "namezh": "細鋼筆水彩淡染",
-    "namejp": "細ペン水彩淡彩",
-    "nameen": "Fine Pen and Watercolor Wash"
+    "category": "內文插圖風格",
+    "namezh": "校園黨爭_ 群像劇_細鋼筆水彩淡染",
+    "namejp": "キャンパス内の派閥争い_群像劇_細密なペン画による水彩画",
+    "nameen": "Factional struggles on campus - an ensemble drama - watercolor paintings with detailed pen and ink."
   },
   {
-    "name": "歡樂圓潤卡通光影/楽しい丸みカートゥーン/Cheerful Rounded Cartoon Shading",
+    "name": "浪漫小說_ 當代浪漫_歡樂圓潤卡通光影/ロマンス小説_現代ロマンス_楽しくて丸みのある漫画の光と影/Romance novel_Modern romance_The light and shadow of a fun and rounded comic",
     "prompt": "rounded cartoon shading, bright saturated colors, soft gradients, clean thick outlines, friendly atmosphere, glossy highlights, highres",
     "naturl_prompt": "A cheerful rounded cartoon-shading treatment with bright saturated colors, soft gradients, thick clean outlines, glossy highlights, and a friendly atmosphere for a creature-collection cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 浪漫小說 > 當代浪漫",
-    "namezh": "歡樂圓潤卡通光影",
-    "namejp": "楽しい丸みカートゥーン",
-    "nameen": "Cheerful Rounded Cartoon Shading"
+    "category": "內文插圖風格",
+    "namezh": "浪漫小說_ 當代浪漫_歡樂圓潤卡通光影",
+    "namejp": "ロマンス小説_現代ロマンス_楽しくて丸みのある漫画の光と影",
+    "nameen": "Romance novel_Modern romance_The light and shadow of a fun and rounded comic"
   },
   {
-    "name": "簡潔平塗卡通/シンプル平塗カートゥーン/Simple Flat Cartoon Line",
+    "name": "現代都市奇幻_簡潔平塗卡通/現代都市ファンタジー - シンプルなフラットカートゥーンスタイル/Modern urban fantasy - simple flat cartoon style",
     "prompt": "simple flat colors, bold clean outlines, minimal shading, cheerful palette, high readability, white background feel, highres",
     "naturl_prompt": "A simple flat-cartoon treatment with bold outlines, minimal shading, a cheerful palette, and high readability for interior creature-collection illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 現代都市奇幻",
-    "namezh": "簡潔平塗卡通",
-    "namejp": "シンプル平塗カートゥーン",
-    "nameen": "Simple Flat Cartoon Line"
+    "category": "內文插圖風格",
+    "namezh": "現代都市奇幻_簡潔平塗卡通",
+    "namejp": "現代都市ファンタジー - シンプルなフラットカートゥーンスタイル",
+    "nameen": "Modern urban fantasy - simple flat cartoon style"
   },
   {
-    "name": "冷峻賽博科技黑色/冷徹サイバーテックノワール/Cold Cyberpunk Tech Noir",
+    "name": "都市奇幻_冷峻賽博科技黑色/アーバンファンタジー_クールなサイバーテックブラック/Urban Fantasy_Cool Cybertech Black",
     "prompt": "cold cyberpunk aesthetic, high contrast, neon rim light, tech texture, muted dark palette, film grain, sharp highlights, futuristic atmosphere, highres",
     "naturl_prompt": "A cold cyberpunk tech-noir treatment with high contrast, neon rim light, tech texture, muted dark palette, film grain, and sharp highlights for a futuristic cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 都市奇幻",
-    "namezh": "冷峻賽博科技黑色",
-    "namejp": "冷徹サイバーテックノワール",
-    "nameen": "Cold Cyberpunk Tech Noir"
+    "category": "內文插圖風格",
+    "namezh": "都市奇幻_冷峻賽博科技黑色",
+    "namejp": "アーバンファンタジー_クールなサイバーテックブラック",
+    "nameen": "Urban Fantasy_Cool Cybertech Black"
   },
   {
-    "name": "技術單色機械線稿/テクニカルモノクロメカ線画/Technical Monochrome Mech Draft",
+    "name": "舒適奇幻_ 溫馨奇幻_技術單色機械線稿/快適なファンタジー_ 温かいファンタジー_ テクニカルモノクロームメカニカルラインアート/Comfortable Fantasy_ Warm Fantasy_ Technical Monochrome Mechanical Line Art",
     "prompt": "technical lineart, monochrome blue tone, fine mechanical lines, low saturation, precise diagram feel, simple background, high readability, highres",
     "naturl_prompt": "A technical monochrome mech-draft treatment with fine mechanical lines, low-saturation blue tones, precise diagram feel, and high readability for interior cyberpunk illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 舒適奇幻 > 溫馨奇幻",
-    "namezh": "技術單色機械線稿",
-    "namejp": "テクニカルモノクロメカ線画",
-    "nameen": "Technical Monochrome Mech Draft"
+    "category": "內文插圖風格",
+    "namezh": "舒適奇幻_ 溫馨奇幻_技術單色機械線稿",
+    "namejp": "快適なファンタジー_ 温かいファンタジー_ テクニカルモノクロームメカニカルラインアート",
+    "nameen": "Comfortable Fantasy_ Warm Fantasy_ Technical Monochrome Mechanical Line Art"
   },
   {
-    "name": "心理高反差戲劇/心理高コントラストドラマ/Psychological High-Contrast Drama",
+    "name": "慢生活_ 職人奇幻_心理高反差戲劇/スローリビング_職人の幻想_心理的ハイコントラストドラマ/Slow Living: The Craftsman's Illusion - A Psychological High-Contrast Drama",
     "prompt": "high-contrast dramatic lighting, painterly cel shading, intense color accents, psychological atmosphere, sharp shadows, glossy finish, highres",
     "naturl_prompt": "A psychological high-contrast dramatic treatment with painterly cel shading, intense color accents, sharp shadows, glossy finish, and an unsettling atmosphere for a mecha-psychodrama cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 慢生活 > 職人奇幻",
-    "namezh": "心理高反差戲劇",
-    "namejp": "心理高コントラストドラマ",
-    "nameen": "Psychological High-Contrast Drama"
+    "category": "內文插圖風格",
+    "namezh": "慢生活_ 職人奇幻_心理高反差戲劇",
+    "namejp": "スローリビング_職人の幻想_心理的ハイコントラストドラマ",
+    "nameen": "Slow Living: The Craftsman's Illusion - A Psychological High-Contrast Drama"
   },
   {
-    "name": "乾淨漫畫線稿網點/クリーン漫画線画トーン/Clean Comic Line with Screentone",
+    "name": "機甲心理劇_乾淨漫畫線稿網點/メカサイコドラマ_クリーンコミックラインアートスクリーン/Mecha Psychodrama_Clean Comic Line Art Screen",
     "prompt": "clean comic lineart, screentone shading, fine hatching, monochrome with spot color, high readability, crisp edges, highres",
     "naturl_prompt": "A clean comic-line treatment with screentone shading, fine hatching, monochrome base with spot color, crisp edges, and high readability for interior mecha-psychodrama illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 機甲心理劇",
-    "namezh": "乾淨漫畫線稿網點",
-    "namejp": "クリーン漫画線画トーン",
-    "nameen": "Clean Comic Line with Screentone"
+    "category": "內文插圖風格",
+    "namezh": "機甲心理劇_乾淨漫畫線稿網點",
+    "namejp": "メカサイコドラマ_クリーンコミックラインアートスクリーン",
+    "nameen": "Mecha Psychodrama_Clean Comic Line Art Screen"
   },
   {
-    "name": "華麗惡役千金肖像/華麗悪役令嬢ポートレート/Gilded Villainess Portrait",
+    "name": "賽博龐克科技黑色_華麗惡役千金肖像/サイバーパンク・テクノロジー・ブラック - 魅惑的な悪女の肖像/Cyberpunk Technology Black - Portrait of a Captivating Femme Fatale",
     "prompt": "gold ornamentation, ornate frame, rich jewel tones, velvet texture, dramatic spotlight, glossy highlights, regal atmosphere, elegant lineart, high contrast, highres",
     "naturl_prompt": "A gilded villainess-portrait treatment with ornate gold detailing, rich jewel tones, velvet textures, dramatic spotlight, and glossy highlights for a regal, indulgent cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 賽博龐克科技黑色",
-    "namezh": "華麗惡役千金肖像",
-    "namejp": "華麗悪役令嬢ポートレート",
-    "nameen": "Gilded Villainess Portrait"
+    "category": "內文插圖風格",
+    "namezh": "賽博龐克科技黑色_華麗惡役千金肖像",
+    "namejp": "サイバーパンク・テクノロジー・ブラック - 魅惑的な悪女の肖像",
+    "nameen": "Cyberpunk Technology Black - Portrait of a Captivating Femme Fatale"
   },
   {
-    "name": "蕾絲淡彩線稿/レース淡彩線画/Lace and Pastel Lineart",
+    "name": "轉生惡役千金_ 宮廷戀愛_蕾絲淡彩線稿/悪役令嬢に転生した～ロイヤルロマンス～ - レースとパステルの線画/Reincarnated as a Villainess ~Royal Romance~ - Lace and Pastel Line Drawings",
     "prompt": "delicate lace patterns, fine lineart, pastel tint, soft shading, rose motifs, paper texture, low contrast, elegant restraint, high readability, highres",
     "naturl_prompt": "A delicate lace-and-pastel lineart treatment with fine detailing, soft shading, rose motifs, paper texture, and low contrast for readable interior court-romance illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 轉生惡役千金 > 宮廷戀愛",
-    "namezh": "蕾絲淡彩線稿",
-    "namejp": "レース淡彩線画",
-    "nameen": "Lace and Pastel Lineart"
+    "category": "內文插圖風格",
+    "namezh": "轉生惡役千金_ 宮廷戀愛_蕾絲淡彩線稿",
+    "namejp": "悪役令嬢に転生した～ロイヤルロマンス～ - レースとパステルの線画",
+    "nameen": "Reincarnated as a Villainess ~Royal Romance~ - Lace and Pastel Line Drawings"
   },
   {
-    "name": "柔焦日常戀愛/ソフトフォーカス日常ラブコメ/Soft-Focus Daily Romance",
+    "name": "驚悚_ 懸疑_ 犯罪_柔焦日常戀愛/スリラー、サスペンス、犯罪、ソフトフォーカスな日常ロマンス/Thriller, suspense, crime, soft-focus slice-of-life romance",
     "prompt": "soft focus, pastel palette, gentle gradient lighting, airy atmosphere, clean lineart, subtle blush, warm ambient light, delicate rendering, highres",
     "naturl_prompt": "A soft-focus daily-romance treatment with pastel tones, gentle gradients, airy atmosphere, and delicate clean lineart for a gentle, intimate cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > 驚悚 > 懸疑 > 犯罪",
-    "namezh": "柔焦日常戀愛",
-    "namejp": "ソフトフォーカス日常ラブコメ",
-    "nameen": "Soft-Focus Daily Romance"
+    "category": "內文插圖風格",
+    "namezh": "驚悚_ 懸疑_ 犯罪_柔焦日常戀愛",
+    "namejp": "スリラー、サスペンス、犯罪、ソフトフォーカスな日常ロマンス",
+    "nameen": "Thriller, suspense, crime, soft-focus slice-of-life romance"
   },
   {
-    "name": "淡彩日常切片/淡彩スライス・オブ・ライフ/Light Wash Slice-of-Life",
+    "name": "VR遊戲_ 虛擬世界_淡彩日常切片/VRゲーム_仮想世界_淡い色の日常の断片/VR Game_Virtual World_Fragments of Everyday Life in Pale Colors",
     "prompt": "pale watercolor wash, light lineart, soft contrast, paper grain, muted pastel, simple background feel, gentle expressions, high readability, highres",
     "naturl_prompt": "A light-wash slice-of-life treatment with pale watercolor, soft lineart, paper grain, and muted pastel tones for quiet, readable interior romance scenes.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格 > VR遊戲 > 虛擬世界",
-    "namezh": "淡彩日常切片",
-    "namejp": "淡彩スライス・オブ・ライフ",
-    "nameen": "Light Wash Slice-of-Life"
+    "category": "內文插圖風格",
+    "namezh": "VR遊戲_ 虛擬世界_淡彩日常切片",
+    "namejp": "VRゲーム_仮想世界_淡い色の日常の断片",
+    "nameen": "VR Game_Virtual World_Fragments of Everyday Life in Pale Colors"
   },
   {
-    "name": "閃耀群像競演/ルミナス群像劇/Luminous Ensemble Cast",
+    "name": "浪漫奇幻_ 浪漫小說_閃耀群像競演/ロマンティックファンタジー_ロマンティック小説_華麗なるアンサンブルパフォーマンス/Romantic Fantasy_Romantic Novel_Magnificent Ensemble Performance",
     "prompt": "glossy finish, vibrant gradient lighting, multiple focal points, dynamic group composition, saturated accent colors, clean edges, polished rendering, high energy, highres",
     "naturl_prompt": "A luminous ensemble-cast treatment with glossy finish, vibrant gradient lighting, dynamic group composition, and saturated accent colors for a lively, competitive cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "內文插圖風格 ,內文插圖風格> 浪漫奇幻 > 浪漫小說",
-    "namezh": "閃耀群像競演",
-    "namejp": "ルミナス群像劇",
-    "nameen": "Luminous Ensemble Cast"
+    "category": "內文插圖風格",
+    "namezh": "浪漫奇幻_ 浪漫小說_閃耀群像競演",
+    "namejp": "ロマンティックファンタジー_ロマンティック小説_華麗なるアンサンブルパフォーマンス",
+    "nameen": "Romantic Fantasy_Romantic Novel_Magnificent Ensemble Performance"
   },
   {
-    "name": "俐落角色線稿局部色調/Crispキャラ線画スポットトーン/Crisp Character Line and Spot Tone",
+    "name": "太空歌劇_俐落角色線稿局部色調/スペースオペラ - 部分的なトーンを用いた洗練されたキャラクターラインアート/Space Opera - Sophisticated character line art with partial tones",
     "prompt": "clean character lineart, flat base colors, spot tone accents, minimal shading, white breathing space, crisp expressions, high readability, highres",
     "naturl_prompt": "A crisp character-line-and-spot-tone treatment with flat base colors, minimal shading, white breathing space, and crisp expressions for clear, energetic interior group scenes.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 太空歌劇",
-    "namezh": "俐落角色線稿局部色調",
-    "namejp": "Crispキャラ線画スポットトーン",
-    "nameen": "Crisp Character Line and Spot Tone"
+    "category": "封面藝術風格",
+    "namezh": "太空歌劇_俐落角色線稿局部色調",
+    "namejp": "スペースオペラ - 部分的なトーンを用いた洗練されたキャラクターラインアート",
+    "nameen": "Space Opera - Sophisticated character line art with partial tones"
   },
   {
-    "name": "氛圍線索光影/ムーディ手がかりライト/Moody Clue-Lit Frame",
+    "name": "文學小說_ 讀書會小說_氛圍線索光影/文学小説_ ブッククラブ小説_ 雰囲気の手がかりと光と影/Literary Fiction_ Book Club Fiction_ Clues to Atmosphere, Light and Shadow",
     "prompt": "moody lighting, selective spotlight, deep shadows, muted cool palette, subtle texture, suspenseful atmosphere, sharp focal contrast, cinematic framing, highres",
     "naturl_prompt": "A moody clue-lit frame treatment with selective spotlight, deep shadows, muted cool tones, subtle texture, and sharp focal contrast for a suspenseful cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 文學小說 > 讀書會小說",
-    "namezh": "氛圍線索光影",
-    "namejp": "ムーディ手がかりライト",
-    "nameen": "Moody Clue-Lit Frame"
+    "category": "封面藝術風格",
+    "namezh": "文學小說_ 讀書會小說_氛圍線索光影",
+    "namejp": "文学小説_ ブッククラブ小説_ 雰囲気の手がかりと光と影",
+    "nameen": "Literary Fiction_ Book Club Fiction_ Clues to Atmosphere, Light and Shadow"
   },
   {
-    "name": "灰彩調查草稿/グレーウォッシュ捜査スケッチ/Grey Wash Investigation Draft",
+    "name": "日常系戀愛喜劇_灰彩調查草稿/日常のロマンティックコメディ - グレースケール調査草稿/Everyday Romantic Comedy - Grayscale Research Draft",
     "prompt": "monochrome grey wash, fine ink lines, selective hatching, low saturation, simple background, quiet detail, high readability, highres",
     "naturl_prompt": "A grey-wash investigation-draft treatment with fine ink lines, selective hatching, low saturation, and simple backgrounds for restrained interior mystery illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 日常系戀愛喜劇",
-    "namezh": "灰彩調查草稿",
-    "namejp": "グレーウォッシュ捜査スケッチ",
-    "nameen": "Grey Wash Investigation Draft"
+    "category": "封面藝術風格",
+    "namezh": "日常系戀愛喜劇_灰彩調查草稿",
+    "namejp": "日常のロマンティックコメディ - グレースケール調査草稿",
+    "nameen": "Everyday Romantic Comedy - Grayscale Research Draft"
   },
   {
-    "name": "暖光工房質感/暖光工房グロウ/Warm Craft Workshop Glow",
+    "name": "古典劍與魔法奇幻_暖光工房質感/古典的な剣と魔法のファンタジー - Warm Light Studio テクスチャ/Classic sword and magic fantasy - Warm Light Studio textures",
     "prompt": "warm ambient glow, polished rendering, soft specular highlights, rich material texture, cozy workshop atmosphere, clean lineart, earthy palette, detailed finish, highres",
     "naturl_prompt": "A warm craft-workshop treatment with ambient glow, rich material textures, soft specular highlights, earthy tones, and clean detailed lineart for a cozy, artisanal cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 古典劍與魔法奇幻",
-    "namezh": "暖光工房質感",
-    "namejp": "暖光工房グロウ",
-    "nameen": "Warm Craft Workshop Glow"
+    "category": "封面藝術風格",
+    "namezh": "古典劍與魔法奇幻_暖光工房質感",
+    "namejp": "古典的な剣と魔法のファンタジー - Warm Light Studio テクスチャ",
+    "nameen": "Classic sword and magic fantasy - Warm Light Studio textures"
   },
   {
-    "name": "柔和道具材質習作/柔らか道具素材スケッチ/Soft Tool and Material Study",
+    "name": "史詩太空歌劇_柔和道具材質習作/壮大なスペースオペラ - ソフトプロップ素材の実習/An epic space opera - A soft prop material workshop",
     "prompt": "soft pencil rendering, light watercolor accents, visible material texture, muted earthy palette, low contrast, simple composition, high readability, highres",
     "naturl_prompt": "A soft tool-and-material study treatment with pencil rendering, light watercolor accents, visible textures, muted earthy tones, and low contrast for calm interior craft-life illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 史詩太空歌劇",
-    "namezh": "柔和道具材質習作",
-    "namejp": "柔らか道具素材スケッチ",
-    "nameen": "Soft Tool and Material Study"
+    "category": "封面藝術風格",
+    "namezh": "史詩太空歌劇_柔和道具材質習作",
+    "namejp": "壮大なスペースオペラ - ソフトプロップ素材の実習",
+    "nameen": "An epic space opera - A soft prop material workshop"
   },
   {
-    "name": "霓虹介面全像/ネオンインターフェースホログラム/Neon Interface Holographic",
+    "name": "史詩奇幻_ 高奇幻_霓虹介面全像/エピックファンタジー_ハイファンタジー_ネオンインターフェースホログラム/Epic Fantasy High Fantasy Neon Interface Hologram",
     "prompt": "glowing holographic elements, neon interface lines, deep dark background, cyan and magenta rim light, digital texture, futuristic UI overlays, high contrast, clean tech aesthetic, highres",
     "naturl_prompt": "A neon interface-holographic treatment with glowing UI lines, cyan-magenta rim light, deep dark backgrounds, and clean tech textures for a virtual-world cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 史詩奇幻 > 高奇幻",
-    "namezh": "霓虹介面全像",
-    "namejp": "ネオンインターフェースホログラム",
-    "nameen": "Neon Interface Holographic"
+    "category": "封面藝術風格",
+    "namezh": "史詩奇幻_ 高奇幻_霓虹介面全像",
+    "namejp": "エピックファンタジー_ハイファンタジー_ネオンインターフェースホログラム",
+    "nameen": "Epic Fantasy High Fantasy Neon Interface Hologram"
   },
   {
-    "name": "乾淨HUD線框稿/クリーンHUDワイヤーフレーム/Clean HUD and Wireframe Lineart",
+    "name": "生物收集冒險_乾淨HUD線框稿/クリーチャーコレクションアドベンチャー - クリーンなHUDワイヤーフレーム/Creature Collection Adventure - Clean HUD Wireframe",
     "prompt": "clean wireframe lineart, faint HUD elements, monochrome base with spot neon, low saturation, simple background, technical readability, highres",
     "naturl_prompt": "A clean HUD-and-wireframe lineart treatment with faint interface elements, monochrome base, spot neon accents, low saturation, and technical clarity for interior virtual-world scenes.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 生物收集冒險",
-    "namezh": "乾淨HUD線框稿",
-    "namejp": "クリーンHUDワイヤーフレーム",
-    "nameen": "Clean HUD and Wireframe Lineart"
+    "category": "封面藝術風格",
+    "namezh": "生物收集冒險_乾淨HUD線框稿",
+    "namejp": "クリーチャーコレクションアドベンチャー - クリーンなHUDワイヤーフレーム",
+    "nameen": "Creature Collection Adventure - Clean HUD Wireframe"
   },
   {
-    "name": "華美歷史細密畫/絢爛歴史ミニアチュール/Ornate Historical Miniature",
+    "name": "全年齡卡通冒險_華美歷史細密畫/全年齢対象の漫画アドベンチャー - 精緻な歴史的細密画/A manga adventure suitable for all ages - featuring intricate historical illustrations.",
     "prompt": "ornate miniature painting feel, fine gold detailing, muted jewel tones, aged parchment texture, delicate brushwork, courtly atmosphere, soft diffused light, highres",
     "naturl_prompt": "An ornate historical-miniature treatment with fine gold detailing, muted jewel tones, aged parchment texture, delicate brushwork, and a soft courtly atmosphere for a palace-mystery cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 全年齡卡通冒險",
-    "namezh": "華美歷史細密畫",
-    "namejp": "絢爛歴史ミニアチュール",
-    "nameen": "Ornate Historical Miniature"
+    "category": "封面藝術風格",
+    "namezh": "全年齡卡通冒險_華美歷史細密畫",
+    "namejp": "全年齢対象の漫画アドベンチャー - 精緻な歴史的細密画",
+    "nameen": "A manga adventure suitable for all ages - featuring intricate historical illustrations."
   },
   {
-    "name": "精緻褐彩細節習作/精緻セピア細部スケッチ/Fine Sepia Detail Study",
+    "name": "奇幻懸疑_ 推理_精緻褐彩細節習作/ファンタジー・サスペンス・ミステリー・絶妙なブラウンのディテール研究/Fantasy, suspense, mystery, and exquisite brown detail study",
     "prompt": "sepia fine lineart, delicate hatching, muted tones, parchment texture, low contrast, elegant detail, high readability, highres",
     "naturl_prompt": "A fine sepia detail-study treatment with delicate hatching, muted tones, parchment texture, and low contrast for elegant interior palace-mystery illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 奇幻懸疑 > 推理",
-    "namezh": "精緻褐彩細節習作",
-    "namejp": "精緻セピア細部スケッチ",
-    "nameen": "Fine Sepia Detail Study"
+    "category": "封面藝術風格",
+    "namezh": "奇幻懸疑_ 推理_精緻褐彩細節習作",
+    "namejp": "ファンタジー・サスペンス・ミステリー・絶妙なブラウンのディテール研究",
+    "nameen": "Fantasy, suspense, mystery, and exquisite brown detail study"
   },
   {
-    "name": "遼闊環境史詩/広大環境エピック/Vast Environmental Epic",
+    "name": "東方異世界史詩_遼闊環境史詩/東洋のファンタジー叙事詩 ― 広大な環境叙事詩/An Oriental fantasy epic – a vast environmental epic",
     "prompt": "dramatic landscape, massive scale, lone armored figure, map-like elements, deep blue and purple palette, gold accent, atmospheric perspective, dramatic sky, painterly rendering, high contrast",
     "naturl_prompt": "A vast environmental epic treatment with massive scale, a lone armored figure against a dramatic sky, deep blue-purple and gold palette, map-like undertones, atmospheric perspective, and painterly rendering for an epic fantasy cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 東方異世界史詩",
-    "namezh": "遼闊環境史詩",
-    "namejp": "広大環境エピック",
-    "nameen": "Vast Environmental Epic"
+    "category": "封面藝術風格",
+    "namezh": "東方異世界史詩_遼闊環境史詩",
+    "namejp": "東洋のファンタジー叙事詩 ― 広大な環境叙事詩",
+    "nameen": "An Oriental fantasy epic – a vast environmental epic"
   },
   {
-    "name": "古典地圖線稿/古典地図線画/Classical Map and Linework",
+    "name": "空靈奇幻角色扮演_古典地圖線稿/幻想的なファンタジーロールプレイング_クラシックマップ線画/Fantastical fantasy role-playing game_classic map line art",
     "prompt": "monochrome lineart, map elements, fine hatching, parchment texture, muted earth tones, low contrast, elegant restraint, high readability",
     "naturl_prompt": "A classical map-and-linework treatment with monochrome ink, parchment texture, muted earth tones, fine hatching, and low contrast for restrained interior epic-fantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 空靈奇幻角色扮演",
-    "namezh": "古典地圖線稿",
-    "namejp": "古典地図線画",
-    "nameen": "Classical Map and Linework"
+    "category": "封面藝術風格",
+    "namezh": "空靈奇幻角色扮演_古典地圖線稿",
+    "namejp": "幻想的なファンタジーロールプレイング_クラシックマップ線画",
+    "nameen": "Fantastical fantasy role-playing game_classic map line art"
   },
   {
-    "name": "霓虹都市雙重性/ネオン都市デュアル/Neon Urban Duality",
+    "name": "科幻_ 推想小說_霓虹都市雙重性/SF_スペキュラティブ・フィクション_ネオンシティの二重性/SF_Speculative Fiction_The Duality of Neon City",
     "prompt": "crisp linework, high-saturation palette, urban geometry, neon signage, single female figure, magical overlay, contemporary cityscape, stylized realism, dynamic contrast",
     "naturl_prompt": "A neon urban-duality treatment with crisp linework, high-saturation neon tones, contemporary urban geometry, a single female figure, and a subtle magical overlay that bridges the everyday and the otherworldly for an urban fantasy cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 科幻 > 推想小說",
-    "namezh": "霓虹都市雙重性",
-    "namejp": "ネオン都市デュアル",
-    "nameen": "Neon Urban Duality"
+    "category": "封面藝術風格",
+    "namezh": "科幻_ 推想小說_霓虹都市雙重性",
+    "namejp": "SF_スペキュラティブ・フィクション_ネオンシティの二重性",
+    "nameen": "SF_Speculative Fiction_The Duality of Neon City"
   },
   {
-    "name": "灰調城市線稿局部色調/グレー都市線画スポットトーン/Grey City Line and Spot Tone",
+    "name": "英雄奇幻冒險_灰調城市線稿局部色調/英雄的なファンタジーアドベンチャー - グレーがかった都市の線画（部分的な色調）/Heroic fantasy adventure - line drawing of a gray city (with partial coloring)",
     "prompt": "grey lineart, urban texture, spot neon accents, monochrome base, low saturation, simple background, high readability, quiet detail",
     "naturl_prompt": "A grey city-line-and-spot-tone treatment with urban textures, monochrome lineart, selective neon accents, low saturation, and simple backgrounds for readable interior urban-fantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 英雄奇幻冒險",
-    "namezh": "灰調城市線稿局部色調",
-    "namejp": "グレー都市線画スポットトーン",
-    "nameen": "Grey City Line and Spot Tone"
+    "category": "封面藝術風格",
+    "namezh": "英雄奇幻冒險_灰調城市線稿局部色調",
+    "namejp": "英雄的なファンタジーアドベンチャー - グレーがかった都市の線画（部分的な色調）",
+    "nameen": "Heroic fantasy adventure - line drawing of a gray city (with partial coloring)"
   },
   {
-    "name": "暗黑巴洛克浪漫奇幻/ダークバロックロマンファンタジー/Dark Baroque Romantic Fantasy",
+    "name": "宮廷謎案_ 歷史戀愛_暗黑巴洛克浪漫奇幻/宮廷ミステリー_歴史ロマンス_ダークバロックロマンティックファンタジー/Court Mystery_Historical Romance_Dark Baroque Romantic Fantasy",
     "prompt": "dark baroque atmosphere, harsh shadow lighting, metallic gold and silver accents, ornate details, intimate composition, fantasy and romance motifs, rich jewel tones, dramatic chiaroscuro",
     "naturl_prompt": "A dark baroque romantic-fantasy treatment with harsh shadow lighting, metallic gold-silver inclusions, ornate details, rich jewel tones, and an intimate composition that blends fantasy and romance visual signals for a romantasy cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 宮廷謎案 > 歷史戀愛",
-    "namezh": "暗黑巴洛克浪漫奇幻",
-    "namejp": "ダークバロックロマンファンタジー",
-    "nameen": "Dark Baroque Romantic Fantasy"
+    "category": "封面藝術風格",
+    "namezh": "宮廷謎案_ 歷史戀愛_暗黑巴洛克浪漫奇幻",
+    "namejp": "宮廷ミステリー_歴史ロマンス_ダークバロックロマンティックファンタジー",
+    "nameen": "Court Mystery_Historical Romance_Dark Baroque Romantic Fantasy"
   },
   {
-    "name": "裝飾親密細節/装飾的親密ディテール/Ornamental Intimate Detail",
+    "name": "恐怖_ 哥德_裝飾親密細節/ホラー_ゴシック_親密な装飾の詳細/Details of horror, gothic, and intimate decor.",
     "prompt": "ornamental detail, fine metallic linework, muted jewel tones, soft chiaroscuro, intimate cropping, delicate texture, low contrast, elegant restraint",
     "naturl_prompt": "A restrained ornamental-intimate-detail treatment with fine metallic linework, muted jewel tones, soft chiaroscuro, delicate texture, and low contrast for elegant interior romantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 恐怖 > 哥德",
-    "namezh": "裝飾親密細節",
-    "namejp": "装飾的親密ディテール",
-    "nameen": "Ornamental Intimate Detail"
+    "category": "封面藝術風格",
+    "namezh": "恐怖_ 哥德_裝飾親密細節",
+    "namejp": "ホラー_ゴシック_親密な装飾の詳細",
+    "nameen": "Details of horror, gothic, and intimate decor."
   },
   {
-    "name": "低彩威脅極簡/低彩脅威ミニマル/Muted Menace Minimal",
+    "name": "校園黨爭_ 群像劇_低彩威脅極簡/キャンパス内の派閥争い_群像劇_低彩度の脅威ミニマリズム/Campus Factional Infighting - Ensemble Drama - The Threat of Low Saturation - Minimalism",
     "prompt": "muted palette, high contrast, single central object, dark mood, limited color scheme, black white and red accents, dramatic shadow, clean typography-ready composition",
     "naturl_prompt": "A muted-menace minimal treatment with a restrained palette, high contrast, a single dominant object or silhouette, dark mood, and a limited black-white-red accent scheme for a thriller or suspense cover that signals danger instantly.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 校園黨爭 > 群像劇",
-    "namezh": "低彩威脅極簡",
-    "namejp": "低彩脅威ミニマル",
-    "nameen": "Muted Menace Minimal"
+    "category": "封面藝術風格",
+    "namezh": "校園黨爭_ 群像劇_低彩威脅極簡",
+    "namejp": "キャンパス内の派閥争い_群像劇_低彩度の脅威ミニマリズム",
+    "nameen": "Campus Factional Infighting - Ensemble Drama - The Threat of Low Saturation - Minimalism"
   },
   {
-    "name": "黑色調查淡染/ノワール淡彩捜査/Noir Wash Investigation",
+    "name": "浪漫小說_ 當代浪漫_黑色調查淡染/ロマンス小説_現代ロマンス_ダークな調査（希釈版）/Romance Novel_Modern Romance_Dark Investigation (Diluted Version)",
     "prompt": "noir ink wash, monochrome grey, selective hatching, deep shadow, low saturation, simple geometry, quiet detail, high readability",
     "naturl_prompt": "A noir ink-wash investigation treatment with monochrome grey tones, selective hatching, deep shadow blocks, low saturation, and quiet detail for restrained interior thriller illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 浪漫小說 > 當代浪漫",
-    "namezh": "黑色調查淡染",
-    "namejp": "ノワール淡彩捜査",
-    "nameen": "Noir Wash Investigation"
+    "category": "封面藝術風格",
+    "namezh": "浪漫小說_ 當代浪漫_黑色調查淡染",
+    "namejp": "ロマンス小説_現代ロマンス_ダークな調査（希釈版）",
+    "nameen": "Romance Novel_Modern Romance_Dark Investigation (Diluted Version)"
   },
   {
-    "name": "暗色浪漫氛圍/ダークロマンチック雰囲気/Dark Romantic Atmosphere",
+    "name": "浪漫奇幻_ 浪漫小說_暗色浪漫氛圍/ロマンティックファンタジー_ロマンティック小説_ダークロマンティックな雰囲気/Romantic fantasy, romantic novel, dark romantic atmosphere",
     "prompt": "deep shadow, moody chiaroscuro, single attractive figure, dramatic directional light, rich dark palette, metallic title-ready negative space, elegant tension",
     "naturl_prompt": "A dark romantic-atmosphere treatment with deep shadow, moody chiaroscuro, a single central figure, dramatic directional light, and rich dark tones for a romance or dark-romance cover that prioritizes tension and desirability.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 浪漫奇幻 > 浪漫小說",
-    "namezh": "暗色浪漫氛圍",
-    "namejp": "ダークロマンチック雰囲気",
-    "nameen": "Dark Romantic Atmosphere"
+    "category": "封面藝術風格",
+    "namezh": "浪漫奇幻_ 浪漫小說_暗色浪漫氛圍",
+    "namejp": "ロマンティックファンタジー_ロマンティック小説_ダークロマンティックな雰囲気",
+    "nameen": "Romantic fantasy, romantic novel, dark romantic atmosphere"
   },
   {
-    "name": "柔焦親密素描/ソフトフォーカス親密スケッチ/Soft Focus Intimate Sketch",
+    "name": "現代都市奇幻_柔焦親密素描/現代都市ファンタジー - ソフトフォーカスによる親密なスケッチ/Modern urban fantasy - Intimate sketches with soft focus",
     "prompt": "soft pencil sketch, light tonal shading, intimate close-up feel, muted warm palette, gentle contrast, delicate detail, paper texture",
     "naturl_prompt": "A soft-focus intimate-sketch treatment with pencil rendering, light tonal shading, muted warm tones, delicate detail, and paper texture for gentle interior romance illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 現代都市奇幻",
-    "namezh": "柔焦親密素描",
-    "namejp": "ソフトフォーカス親密スケッチ",
-    "nameen": "Soft Focus Intimate Sketch"
+    "category": "封面藝術風格",
+    "namezh": "現代都市奇幻_柔焦親密素描",
+    "namejp": "現代都市ファンタジー - ソフトフォーカスによる親密なスケッチ",
+    "nameen": "Modern urban fantasy - Intimate sketches with soft focus"
   },
   {
-    "name": "溫暖插畫舒適/温かいイラストコージー/Warm Illustrated Cozy",
+    "name": "都市奇幻_溫暖插畫舒適/アーバンファンタジー_温かく心地よいイラスト/Urban Fantasy - Warm and Comforting Illustrations",
     "prompt": "warm illustrated style, soft rounded shapes, cozy palette, approachable characters, whimsical detail, cottagecore influence, gentle lighting, inviting atmosphere",
     "naturl_prompt": "A warm illustrated cozy treatment with soft rounded shapes, a cozy warm palette, approachable figures, whimsical cottagecore-influenced detail, and gentle inviting lighting for a cozy fantasy cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 都市奇幻",
-    "namezh": "溫暖插畫舒適",
-    "namejp": "温かいイラストコージー",
-    "nameen": "Warm Illustrated Cozy"
+    "category": "封面藝術風格",
+    "namezh": "都市奇幻_溫暖插畫舒適",
+    "namejp": "アーバンファンタジー_温かく心地よいイラスト",
+    "nameen": "Urban Fantasy - Warm and Comforting Illustrations"
   },
   {
-    "name": "柔彩鉛筆細節/柔らか色鉛筆ディテール/Soft Colored Pencil Detail",
+    "name": "舒適奇幻_ 溫馨奇幻_柔彩鉛筆細節/心地よいファンタジー_ 温かいファンタジー_ 柔らかな色鉛筆の詳細/A comforting fantasy_ A warm fantasy_ Details of soft colored pencils",
     "prompt": "soft colored pencil rendering, warm muted palette, gentle linework, simple domestic detail, low contrast, inviting texture, high readability",
     "naturl_prompt": "A soft colored-pencil-detail treatment with warm muted tones, gentle linework, simple domestic textures, low contrast, and inviting readability for cozy interior fantasy illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 舒適奇幻 > 溫馨奇幻",
-    "namezh": "柔彩鉛筆細節",
-    "namejp": "柔らか色鉛筆ディテール",
-    "nameen": "Soft Colored Pencil Detail"
+    "category": "封面藝術風格",
+    "namezh": "舒適奇幻_ 溫馨奇幻_柔彩鉛筆細節",
+    "namejp": "心地よいファンタジー_ 温かいファンタジー_ 柔らかな色鉛筆の詳細",
+    "nameen": "A comforting fantasy_ A warm fantasy_ Details of soft colored pencils"
   },
   {
-    "name": "電影感推想框架/シネマティック思弁フレーム/Cinematic Speculative Frame",
+    "name": "慢生活_ 職人奇幻_電影感推想框架/スローリビング_職人ファンタジー_映画的含意フレームワーク/Slow Living - Craftsman Fantasy - Cinematic Implications Framework",
     "prompt": "cinematic composition, high-concept visual, cool and sterile palette, sharp focal contrast, subtle atmospheric haze, futuristic or speculative elements, dramatic scale, polished rendering",
     "naturl_prompt": "A cinematic speculative-frame treatment with high-concept visual clarity, a cool restrained palette, sharp focal contrast, subtle atmospheric haze, and dramatic scale for a science-fiction or speculative cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 慢生活 > 職人奇幻",
-    "namezh": "電影感推想框架",
-    "namejp": "シネマティック思弁フレーム",
-    "nameen": "Cinematic Speculative Frame"
+    "category": "封面藝術風格",
+    "namezh": "慢生活_ 職人奇幻_電影感推想框架",
+    "namejp": "スローリビング_職人ファンタジー_映画的含意フレームワーク",
+    "nameen": "Slow Living - Craftsman Fantasy - Cinematic Implications Framework"
   },
   {
-    "name": "技術氛圍線稿/テクニカル雰囲気線画/Technical Atmosphere Lineart",
+    "name": "機甲心理劇_技術氛圍線稿/メカサイコドラマ - テクニカルな雰囲気の線画/Mecha-Psychodrama - Line drawings with a technical feel",
     "prompt": "technical lineart, monochrome with cool accent, fine structural detail, low saturation, atmospheric negative space, clean diagram feel, high readability",
     "naturl_prompt": "A technical-atmosphere lineart treatment with fine structural detail, monochrome base, cool accent tones, low saturation, and clean diagram-like clarity for interior science-fiction illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 機甲心理劇",
-    "namezh": "技術氛圍線稿",
-    "namejp": "テクニカル雰囲気線画",
-    "nameen": "Technical Atmosphere Lineart"
+    "category": "封面藝術風格",
+    "namezh": "機甲心理劇_技術氛圍線稿",
+    "namejp": "メカサイコドラマ - テクニカルな雰囲気の線画",
+    "nameen": "Mecha-Psychodrama - Line drawings with a technical feel"
   },
   {
-    "name": "哥德恐懼質感/ゴシックドレッドテクスチャ/Gothic Dread Texture",
+    "name": "賽博龐克科技黑色_哥德恐懼質感/サイバーパンク テック ブラック_ゴシック ホラー テクスチャ/Cyberpunk Tech Black Gothic Horror Textures",
     "prompt": "desaturated palette, gothic texture, fragmented shadow, rough brush energy, limited red and black, ominous negative space, distressed surface, atmospheric unease",
     "naturl_prompt": "A gothic dread-texture treatment with a desaturated palette, fragmented shadows, rough brush energy, a limited red-black scheme, distressed surface textures, and ominous negative space for a horror or gothic cover.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 賽博龐克科技黑色",
-    "namezh": "哥德恐懼質感",
-    "namejp": "ゴシックドレッドテクスチャ",
-    "nameen": "Gothic Dread Texture"
+    "category": "封面藝術風格",
+    "namezh": "賽博龐克科技黑色_哥德恐懼質感",
+    "namejp": "サイバーパンク テック ブラック_ゴシック ホラー テクスチャ",
+    "nameen": "Cyberpunk Tech Black Gothic Horror Textures"
   },
   {
-    "name": "粗炭不安/粗い炭の不安/Rough Charcoal Unease",
+    "name": "轉生惡役千金_ 宮廷戀愛_粗炭不安/悪役令嬢に転生したらロイヤルロマンス - ラフチャコールとアンイージー/Reincarnated as a Villainess: A Royal Romance - Rough Charcoal and Uneasy",
     "prompt": "rough charcoal sketch, heavy grain, uneven dark strokes, low brightness, simple ominous forms, high contrast pockets, unsettling negative space",
     "naturl_prompt": "A rough charcoal-unease treatment with heavy grain, uneven dark strokes, low brightness, simple ominous forms, and high-contrast shadow pockets for interior horror illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 轉生惡役千金 > 宮廷戀愛",
-    "namezh": "粗炭不安",
-    "namejp": "粗い炭の不安",
-    "nameen": "Rough Charcoal Unease"
+    "category": "封面藝術風格",
+    "namezh": "轉生惡役千金_ 宮廷戀愛_粗炭不安",
+    "namejp": "悪役令嬢に転生したらロイヤルロマンス - ラフチャコールとアンイージー",
+    "nameen": "Reincarnated as a Villainess: A Royal Romance - Rough Charcoal and Uneasy"
   },
   {
-    "name": "文學節制框架/文学抑制フレーム/Literary Restraint Frame",
+    "name": "驚悚_ 懸疑_ 犯罪_文學節制框架/スリラー・ミステリー・犯罪・文学的制約フレームワーク/Thriller, Mystery, Crime, Literary Constraints Framework",
     "prompt": "understated composition, literary restraint, muted sophisticated palette, symbolic single element, generous negative space, fine texture, quiet atmospheric light, subtle tension",
     "naturl_prompt": "A literary-restraint frame treatment with understated composition, a muted sophisticated palette, a single symbolic element, generous negative space, and quiet atmospheric light for upmarket literary or book-club fiction covers.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > 驚悚 > 懸疑 > 犯罪",
-    "namezh": "文學節制框架",
-    "namejp": "文学抑制フレーム",
-    "nameen": "Literary Restraint Frame"
+    "category": "封面藝術風格",
+    "namezh": "驚悚_ 懸疑_ 犯罪_文學節制框架",
+    "namejp": "スリラー・ミステリー・犯罪・文学的制約フレームワーク",
+    "nameen": "Thriller, Mystery, Crime, Literary Constraints Framework"
   },
   {
-    "name": "精緻象徵淡彩/繊細象徴淡彩/Delicate Symbolic Wash",
+    "name": "VR遊戲_ 虛擬世界_精緻象徵淡彩/VRゲーム_仮想世界_絶妙な象徴的な淡い色彩/VR Games - Virtual Worlds - Exquisite, Symbolic, and Subtle Colors",
     "prompt": "delicate watercolor wash, pale symbolic motif, fine paper grain, low contrast, muted sophisticated tone, generous white space, restrained detail",
     "naturl_prompt": "A delicate symbolic-wash treatment with pale watercolor, a restrained symbolic motif, fine paper grain, low contrast, muted tones, and generous white space for interior literary illustrations.",
     "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
-    "category": "封面藝術風格,封面藝術風格 > VR遊戲 > 虛擬世界",
-    "namezh": "精緻象徵淡彩",
-    "namejp": "繊細象徴淡彩",
-    "nameen": "Delicate Symbolic Wash"
+    "category": "封面藝術風格",
+    "namezh": "VR遊戲_ 虛擬世界_精緻象徵淡彩",
+    "namejp": "VRゲーム_仮想世界_絶妙な象徴的な淡い色彩",
+    "nameen": "VR Games - Virtual Worlds - Exquisite, Symbolic, and Subtle Colors"
+  },
+  {
+    "name": "唯美主義/美学/Aestheticism",
+    "prompt": "aestheticism style, art for art's sake, formal beauty, sensory pleasure, peacock motifs, refined tonal harmony",
+    "naturl_prompt": "A refined visual language that prioritizes pure formal beauty and sensory pleasure above narrative or moral content, often featuring peacock motifs and harmonious tonal arrangements.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "唯美主義",
+    "namejp": "美学",
+    "nameen": "Aestheticism"
+  },
+  {
+    "name": "矯飾主義/マニエリスム/Mannerism",
+    "prompt": "mannerism style, elongated figures, complex composition, formal tension, elegant distortion",
+    "naturl_prompt": "An elegant yet tense style defined by elongated proportions, intricate spatial arrangements, and deliberate formal distortion that creates sophisticated visual tension.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "矯飾主義",
+    "namejp": "マニエリスム",
+    "nameen": "Mannerism"
+  },
+  {
+    "name": "未來主義/未来主義/Futurism",
+    "prompt": "futurism style, speed worship, overlapping motion, mechanical rhythm, dynamic energy",
+    "naturl_prompt": "A dynamic celebration of speed, mechanical energy, and modern life expressed through overlapping forms, rhythmic lines, and a sense of continuous motion.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "未來主義",
+    "namejp": "未来主義",
+    "nameen": "Futurism"
+  },
+  {
+    "name": "奧爾菲主義/オルフェウス教/Orphism",
+    "prompt": "orphism style, pure color autonomy, simultaneous contrast, rhythmic composition, luminous abstraction",
+    "naturl_prompt": "An abstract approach centered on the independent power of pure color, simultaneous contrasts, and rhythmic luminous compositions that evoke musical harmony.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "奧爾菲主義",
+    "namejp": "オルフェウス教",
+    "nameen": "Orphism"
+  },
+  {
+    "name": "渦旋/渦運動/Vorticism",
+    "prompt": "vorticism style, mechanical imagery, geometric tension, frozen dynamism, angular abstraction",
+    "naturl_prompt": "A sharp angular style that fuses machine imagery with geometric tension, capturing modern industrial energy in a state of concentrated, almost crystalline dynamism.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "渦旋",
+    "namejp": "渦運動",
+    "nameen": "Vorticism"
+  },
+  {
+    "name": "德國表現主義/ドイツ表現主義/German Expressionism",
+    "prompt": "german expressionism style, emotional externalization, distorted forms, strong contrast, intense color",
+    "naturl_prompt": "An intense emotional style that externalizes inner feeling through distorted forms, violent color contrasts, and raw expressive distortion of the visible world.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "德國表現主義",
+    "namejp": "ドイツ表現主義",
+    "nameen": "German Expressionism"
+  },
+  {
+    "name": "象徵意義/象徴主義/Symbolism",
+    "prompt": "symbolism style, inner imagery, symbolic suggestion, dream association, mysterious atmosphere",
+    "naturl_prompt": "A mysterious style that suggests inner states and dreamlike associations through symbolic imagery rather than direct representation of external reality.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "象徵意義",
+    "namejp": "象徴主義",
+    "nameen": "Symbolism"
+  },
+  {
+    "name": "社會現實主義/社会リアリズム/Social Realism",
+    "prompt": "social realism style, social concern, everyday life of people, realistic critique, muted tones",
+    "naturl_prompt": "A grounded approach focused on social conditions and ordinary lives, rendered with clear observational realism and a critical yet restrained tone.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "社會現實主義",
+    "namejp": "社会リアリズム",
+    "nameen": "Social Realism"
+  },
+  {
+    "name": "新印象主義/新印象派/Neo-Impressionism",
+    "prompt": "neo-impressionism style, color division, optical mixing, ordered composition, pointillist dots",
+    "naturl_prompt": "A systematic method of applying pure divided color in ordered dots so that optical mixing produces luminous effects under a carefully structured composition.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "新印象主義",
+    "namejp": "新印象派",
+    "nameen": "Neo-Impressionism"
+  },
+  {
+    "name": "美國區域主義/アメリカの地域主義/American Regionalism",
+    "prompt": "american regionalism style, rural subject, regional narrative, figurative expression, countryside",
+    "naturl_prompt": "A figurative style devoted to specific American regions, emphasizing rural subjects, local narrative, and a clear, accessible representation of place.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "美國區域主義",
+    "namejp": "アメリカの地域主義",
+    "nameen": "American Regionalism"
+  },
+  {
+    "name": "現實主義/リアリズム/Realism",
+    "prompt": "realism style, everyday subject, plain expression, social observation, natural light",
+    "naturl_prompt": "A straightforward approach that observes everyday subjects and social conditions with plain, unidealized expression under natural light.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "現實主義",
+    "namejp": "リアリズム",
+    "nameen": "Realism"
+  },
+  {
+    "name": "照片寫實主義/フォトリアリズム/Photorealism",
+    "prompt": "photorealism style, photographic language, precise depiction, detail reproduction, urban reflection",
+    "naturl_prompt": "A highly precise style that adopts photographic language to reproduce surfaces, reflections, and minute details with meticulous fidelity.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "照片寫實主義",
+    "namejp": "フォトリアリズム",
+    "nameen": "Photorealism"
+  },
+  {
+    "name": "新藝術運動/アール・ヌーヴォー/Art Nouveau",
+    "prompt": "art nouveau style, natural curves, organic forms, total design, flowing lines",
+    "naturl_prompt": "A decorative style based on flowing natural curves and organic forms that seeks a complete unified design across every element.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "新藝術運動",
+    "namejp": "アール・ヌーヴォー",
+    "nameen": "Art Nouveau"
+  },
+  {
+    "name": "維也納分離派/ウィーン分離派/Vienna Secession",
+    "prompt": "vienna secession style, artistic innovation, total design, decorative exploration, geometric pattern",
+    "naturl_prompt": "An innovative decorative approach that combines artistic reform with total design principles and exploratory geometric patterning.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "維也納分離派",
+    "namejp": "ウィーン分離派",
+    "nameen": "Vienna Secession"
+  },
+  {
+    "name": "工藝美術運動/アーツ・アンド・クラフツ運動/Arts and Crafts Movement",
+    "prompt": "arts and crafts movement style, handmade value, material honesty, artistic life, tapestry pattern",
+    "naturl_prompt": "A philosophy of design that values honest materials, handmade quality, and the integration of art into everyday life through patterned craft.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "工藝美術運動",
+    "namejp": "アーツ・アンド・クラフツ運動",
+    "nameen": "Arts and Crafts Movement"
+  },
+  {
+    "name": "國際歌德式/インターナショナル・ゴシック/International Gothic",
+    "prompt": "international gothic style, elegant lines, dense decoration, courtly taste, refined detail",
+    "naturl_prompt": "A refined courtly style marked by elegant flowing lines, dense ornamental detail, and a sophisticated decorative sensibility.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "國際歌德式",
+    "namejp": "インターナショナル・ゴシック",
+    "nameen": "International Gothic"
+  },
+  {
+    "name": "文藝復興盛期/盛期ルネサンス/High Renaissance",
+    "prompt": "high renaissance style, balanced composition, ideal form, harmonious order, classical architecture",
+    "naturl_prompt": "A classical ideal of balanced composition, harmonious proportions, and idealized human form arranged in clear spatial order.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "文藝復興盛期",
+    "namejp": "盛期ルネサンス",
+    "nameen": "High Renaissance"
+  },
+  {
+    "name": "印象主義/印象派/Impressionism",
+    "prompt": "impressionism style, momentary light and color, outdoor sketch, lively brushwork, atmospheric effect",
+    "naturl_prompt": "A direct outdoor approach that captures fleeting effects of light and atmosphere through lively, broken brushwork and pure color.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "印象主義",
+    "namejp": "印象派",
+    "nameen": "Impressionism"
+  },
+  {
+    "name": "後印象主義/ポスト印象派/Post-Impressionism",
+    "prompt": "post-impressionism style, subjective expression, color exploration, formal innovation, structural form",
+    "naturl_prompt": "A more structured and subjective response to Impressionism that explores personal expression, heightened color, and formal innovation.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "後印象主義",
+    "namejp": "ポスト印象派",
+    "nameen": "Post-Impressionism"
+  },
+  {
+    "name": "前拉斐爾主義/ラファエル前派/Pre-Raphaelitism",
+    "prompt": "pre-raphaelitism style, close observation of nature, literary narrative, symbolic meaning, detailed landscape",
+    "naturl_prompt": "A detailed and sincere style that returns to close observation of nature combined with literary narrative and layered symbolic meaning.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "前拉斐爾主義",
+    "namejp": "ラファエル前派",
+    "nameen": "Pre-Raphaelitism"
+  },
+  {
+    "name": "野獸派/フォーヴィスム/Fauvism",
+    "prompt": "fauvism style, intense color, subjective coloring, simplified form, bold outline",
+    "naturl_prompt": "A bold style that liberates color from descriptive duty, using intense subjective hues, simplified forms, and strong outlines.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "野獸派",
+    "namejp": "フォーヴィスム",
+    "nameen": "Fauvism"
+  },
+  {
+    "name": "納比斯/ナビス/Nabis",
+    "prompt": "nabis style, flat color planes, decorative order, subjective synthesis, patterned surface",
+    "naturl_prompt": "A decorative approach that treats the picture as a flat patterned surface of ordered color planes guided by subjective synthesis.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "納比斯",
+    "namejp": "ナビス",
+    "nameen": "Nabis"
+  },
+  {
+    "name": "哈林文藝復興/ハーレム・ルネッサンス/Harlem Renaissance",
+    "prompt": "harlem renaissance style, african american subject, cultural self-awareness, modern exploration",
+    "naturl_prompt": "A cultural flowering that asserts African American identity and self-awareness while exploring modern forms of expression.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "哈林文藝復興",
+    "namejp": "ハーレム・ルネッサンス",
+    "nameen": "Harlem Renaissance"
+  },
+  {
+    "name": "蘇格蘭色彩主義者/スコットランドのカラーリスト/Scottish Colourists",
+    "prompt": "scottish colourists style, vivid color, free brushwork, simplified form, coastal light",
+    "naturl_prompt": "A lively style characterized by vivid color, free brushwork, simplified forms, and a strong response to coastal light.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "蘇格蘭色彩主義者",
+    "namejp": "スコットランドのカラーリスト",
+    "nameen": "Scottish Colourists"
+  },
+  {
+    "name": "卡姆登鎮集團/カムデン・タウン・グループ/Camden Town Group",
+    "prompt": "camden town group style, everyday subject, color exploration, modern viewpoint, urban scene",
+    "naturl_prompt": "A modern observational style focused on ordinary urban and suburban subjects, explored through heightened color and contemporary viewpoint.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "卡姆登鎮集團",
+    "namejp": "カムデン・タウン・グループ",
+    "nameen": "Camden Town Group"
+  },
+  {
+    "name": "形而上學繪畫/形而上絵画/Metaphysical Painting",
+    "prompt": "metaphysical painting style, silent space, displaced relationships, mysterious atmosphere, empty architecture",
+    "naturl_prompt": "A silent enigmatic style that places ordinary objects and architecture in strangely displaced relationships, creating a sense of metaphysical mystery.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "形而上學繪畫",
+    "namejp": "形而上絵画",
+    "nameen": "Metaphysical Painting"
+  },
+  {
+    "name": "純粹主義/純粋主義/Purism",
+    "prompt": "purism style, clear form, ordered composition, rational restraint, pure geometry",
+    "naturl_prompt": "A restrained classical modernism that seeks clear geometric forms, ordered composition, and rational purity of structure.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "純粹主義",
+    "namejp": "純粋主義",
+    "nameen": "Purism"
+  },
+  {
+    "name": "新客觀主義/新客観主義/New Objectivity",
+    "prompt": "new objectivity style, cool observation, clear form, realistic scrutiny, precise outline",
+    "naturl_prompt": "A cool, clear-eyed style of precise observation that rejects expressionist distortion in favor of sharp realistic scrutiny.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "新客觀主義",
+    "namejp": "新客観主義",
+    "nameen": "New Objectivity"
+  },
+  {
+    "name": "精確主義/精密主義/Precisionism",
+    "prompt": "precisionism style, industrial subject, geometric order, clear outline, machine age",
+    "naturl_prompt": "A precise geometric style that elevates industrial architecture and machine forms into ordered, clearly outlined compositions.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "精確主義",
+    "namejp": "精密主義",
+    "nameen": "Precisionism"
+  },
+  {
+    "name": "立體主義/キュービズム/Cubism",
+    "prompt": "cubism style, multiple viewpoints, geometric decomposition, spatial reconstruction, fragmented form",
+    "naturl_prompt": "A radical method that decomposes objects into geometric facets, presents multiple viewpoints simultaneously, and reconstructs space on the flat surface.",
+    "negative_prompt": "low quality, blurry, jpeg artifacts, text, watermark, logo, signature",
+    "category": "藝術形式",
+    "namezh": "立體主義",
+    "namejp": "キュービズム",
+    "nameen": "Cubism"
   }
 ]

@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.9.0"
+VERSION = "1.9.1"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -819,6 +819,9 @@ async def illust_config_save(req: Request):
                 cur.pop(k)
     if "comfy_profiles" in body:
         cur["comfy_profiles"] = _clean_profiles(body["comfy_profiles"])
+    if "forge_loras" in body:
+        cur["forge_loras"] = _clean_loras(body["forge_loras"])
+    cur["comfy_lora_dir"] = str(cur.get("comfy_lora_dir") or "").strip()
     if cur.get("backend") not in ("forge", "comfy"):
         cur["backend"] = "forge"
     CONFIG["illust"] = cur
@@ -912,12 +915,79 @@ async def illust_comfy_inspect(req: Request):
         raise HTTPException(400, str(e))
 
 
+FORGE_LORA_PATHS = {}   # 名稱 → 檔案路徑（測試連線時更新，讀同名 JSON 用）
+
+
+def _forge_base():
+    return illust_cfg().get("forge_url") or illust.DEFAULTS["forge_url"]
+
+
+def _lora_folder(path, roots):
+    p = path.replace("\\", "/")
+    for r in roots:
+        if r and p.lower().startswith(r.lower()):
+            sub = os.path.dirname(p[len(r):].strip("/"))
+            return sub
+    return os.path.basename(os.path.dirname(p))
+
+
 @app.get("/api/illust/forge/status")
 def illust_forge_status():
     try:
-        return forge.status(illust_cfg().get("forge_url") or illust.DEFAULTS["forge_url"])
+        out = forge.status(_forge_base())
     except forge.ForgeError as e:
         return {"ok": False, "error": str(e)}
+    try:
+        items = forge.loras(_forge_base())
+        dirs = [os.path.dirname(x["path"].replace("\\", "/")) for x in items if x["path"]]
+        root = os.path.commonpath(dirs).replace("\\", "/") if dirs else ""
+        FORGE_LORA_PATHS.clear()
+        FORGE_LORA_PATHS.update({x["name"]: x["path"] for x in items})
+        out["loras"] = [{"name": x["name"], "folder": _lora_folder(x["path"], [root])} for x in items]
+    except (forge.ForgeError, ValueError) as e:
+        out["loras"], out["lora_error"] = [], str(e)
+    return out
+
+
+def _comfy_lora_roots(cfg):
+    if cfg.get("comfy_lora_dir"):
+        return [cfg["comfy_lora_dir"]]
+    try:
+        fp = comfy._req(cfg.get("comfy_url") or illust.DEFAULTS["comfy_url"], "/internal/folder_paths", timeout=6)
+    except comfy.ComfyError:
+        return []
+    v = (fp or {}).get("loras") or []
+    if v and isinstance(v[0], list):   # 有些版本是 [[路徑…], [副檔名…]]
+        v = v[0]
+    return [str(x) for x in v if isinstance(x, str)]
+
+
+@app.post("/api/illust/lora_hint")
+async def illust_lora_hint(req: Request):
+    """選 LoRA 時：讀同目錄同名 JSON，建議觸發詞（前 3 個詞）與強度；找不到就用檔名。"""
+    body = await req.json()
+    name = str(body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "沒有 LoRA 名稱")
+    cfg = illust_cfg()
+    path = ""
+    if body.get("backend") == "comfy":
+        rel = name.replace("\\", "/")
+        for r in _comfy_lora_roots(cfg):
+            cand = os.path.join(r, *rel.split("/"))
+            if os.path.isfile(cand) or os.path.isfile(os.path.splitext(cand)[0] + ".json"):
+                path = cand
+                break
+        path = path or rel
+    else:
+        path = FORGE_LORA_PATHS.get(name) or ""
+        if not path:
+            try:
+                FORGE_LORA_PATHS.update({x["name"]: x["path"] for x in forge.loras(_forge_base())})
+            except forge.ForgeError:
+                pass
+            path = FORGE_LORA_PATHS.get(name) or name
+    return illust.lora_hint(path)
 
 
 @app.post("/api/illust/forge/params")
@@ -1095,7 +1165,15 @@ async def book_illust_generate(book_id: str, req: Request):
     prof = comfy_profile(cfg, body.get("profile")) if backend == "comfy" else None
     if prof:
         w, h = int(w) // 16 * 16, int(h) // 16 * 16   # MOSS／Flux2 系的 latent 要 16 的倍數
-    it = FORGE_QUEUE.add(book_id, d, target, label, body["positive"], body.get("negative") or "",
+    positive = body["positive"]
+    if backend != "comfy":
+        on = comfy.active_loras({"loras": cfg.get("forge_loras") or []})
+        if on:
+            added = [x for x in on if "<lora:%s:" % x["name"] not in positive]   # 提示詞裡自己寫的以提示詞為準
+            positive = forge.with_loras(positive, on)
+            if added:
+                meta["loras"] = [{"name": x["name"], "strength": x["strength"]} for x in added]
+    it = FORGE_QUEUE.add(book_id, d, target, label, positive, body.get("negative") or "",
                          body.get("params") if body.get("params") is not None else cfg.get("params") or "",
                          body.get("seed", -1), w, h, body.get("count") or 1, meta, backend=backend, profile=prof)
     return FORGE_QUEUE._pub(it)

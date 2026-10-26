@@ -184,7 +184,7 @@ def build(action, p, book_name):
     if action == "deslop":
         n = int(p.get("chapter"))
         where = "候選/" if p.get("candidate") else "正文/"
-        return ("去AI味 第%d章" % n, "請使用 novel-deslop skill 處理 %s%s_*.md（第%d章）：先跑檢查腳本、修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。" % (where, _ch(n), n))
+        return ("去AI味 第%d章" % n, "請使用 novel-deslop skill 處理 %s%s_*.md（第%d章）：先跑檢查腳本、修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。%s" % (where, _ch(n), n, extra))
 
     if action == "free":
         return ("自由指令", p.get("text", ""))

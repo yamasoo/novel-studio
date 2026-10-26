@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.9.1"
+VERSION = "1.10.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -362,7 +362,9 @@ def claude_review_job(book_id, d, prov, params):
     if not rel:
         raise HTTPException(400, "第%d章沒有可以審查的稿子" % no)
     prompt = ("請使用 novel-review skill 審查第%d章，稿子在 %s（用 Read 讀取，也讀相關的章綱、狀態卡、角色狀態、時間線）。"
-              "不要修改任何檔案。\n%s\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (no, rel, revision.REVIEW_SCHEMA))
+              "不要修改任何檔案。\n%s%s\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (
+                  no, rel, ("作者這次的要求：" + params["note"].strip() + "\n") if (params.get("note") or "").strip() else "",
+                  revision.REVIEW_SCHEMA))
     job = runner_mod.Job(book_id, d, "審查第%d章" % no, prompt, provider=prov, meta={"action": "review_notes", "params": params})
 
     def after(j):
@@ -1626,6 +1628,40 @@ async def pipeline_start(book_id: str, req: Request):
         raise HTTPException(409, str(e))
     p.start()
     return {"pipeline": p.to_dict()}
+
+
+@app.post("/api/books/{book_id}/pipeline/rewind")
+async def pipeline_rewind(book_id: str, req: Request):
+    """從某一步重跑：還原到那一步開始前的候選稿，之後的紀錄先備份再清掉，然後開始跑。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    _pipe_view(book_id, d)
+    p = PIPES.get(book_id)
+    if not p:
+        raise HTTPException(404, "沒有流程")
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "還有任務在執行，請等它結束再重跑。")
+    try:
+        p.rewind(str(body.get("step") or ""), body.get("note") or "")
+    except pipeline.PipelineError as e:
+        raise HTTPException(400, str(e))
+    if body.get("provider"):
+        p.s["provider"] = get_provider(body["provider"])["id"]
+    p.h = _pipe_hooks(book_id, d, p.s["provider"])
+    p.start()
+    return {"pipeline": p.to_dict()}
+
+
+@app.get("/api/books/{book_id}/pipeline/rewind_check")
+def pipeline_rewind_check(book_id: str):
+    """每一步能不能退回（給流程頁決定要不要顯示按鈕）。"""
+    d = book_dir(book_id)
+    _pipe_view(book_id, d)
+    p = PIPES.get(book_id)
+    if not p:
+        return {"steps": {}}
+    return {"steps": {k: dict(zip(("ok", "why"), p.can_rewind(k))) for k, _ in pipeline.STEPS},
+            "note_steps": list(pipeline.NOTE_STEPS)}
 
 
 @app.post("/api/books/{book_id}/pipeline/resume")

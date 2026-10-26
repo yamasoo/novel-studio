@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 
-from . import context, goals, project, revision
+from . import context, goals, project, revision, tracking
 
 STEPS = [
     ("card", "章綱"),
@@ -31,6 +31,9 @@ LABEL = dict(STEPS)
 AI_STEPS = ["card", "write", "goal", "deslop", "review", "revise", "accept"]
 STEP_ACTION = {"card": "chapter_cards", "write": "write", "goal": "goal_check", "deslop": "deslop",
                "review": "review_notes", "revise": "revise_notes", "accept": "accept"}
+
+
+NOTE_STEPS = ("card", "write", "deslop", "review", "revise")   # 重跑時可以補一句要求的步驟
 
 
 def clean_step_providers(m, valid_ids):
@@ -185,6 +188,7 @@ class Pipeline:
             if self.stop_flag:
                 raise Stopped()
             self.cur = key
+            self._snapshot(no, key)
             self.mark(key, "running", "")
             try:
                 res = getattr(self, "_s_" + key)(no)
@@ -233,8 +237,113 @@ class Pipeline:
     def _cand(self, no):
         return project._scan_dir(os.path.join(self.d, "候選")).get(no)
 
-    def _note(self):
-        return AUTO_NOTE + (("\n作者對整個流程的要求：" + self.s["note"]) if self.s.get("note") else "")
+    def _rerun_note(self, key):
+        r = self.s.get("rerun_note") or {}
+        return r.get("text", "") if r.get("step") == key else ""
+
+    def _note(self, key=None):
+        n = AUTO_NOTE + (("\n作者對整個流程的要求：" + self.s["note"]) if self.s.get("note") else "")
+        rr = self._rerun_note(key or getattr(self, "cur", None))
+        return n + (("\n作者這次重跑的要求：" + rr) if rr else "")
+
+    # ------------------------------------------------------------------ 快照與退回重跑
+    def _snap_dir(self, no):
+        return os.path.join(self.d, ".studio", "流程", "快照", "第%03d章" % no)
+
+    def _snapshot(self, no, key):
+        """這一步開始前的候選稿（與章綱是否存在），給「從這裡重跑」還原用。"""
+        if key == "accept" and self.s.get("accepted_path"):
+            return
+        os.makedirs(self._snap_dir(no), exist_ok=True)
+        name = self._cand(no)
+        text = project.read_text(os.path.join(self.d, "候選", name)) if name else ""
+        rec = {"step": key, "candidate": name or "", "text": text, "card": bool(context.card_text(self.d, no)[1]),
+               "time": time.time()}
+        with open(os.path.join(self._snap_dir(no), key + ".json"), "w", encoding="utf-8") as f:
+            json.dump(rec, f, ensure_ascii=False)
+
+    def load_snapshot(self, no, key):
+        p = os.path.join(self._snap_dir(no), key + ".json")
+        if not os.path.isfile(p):
+            return None
+        with open(p, encoding="utf-8") as f:
+            return json.load(f)
+
+    def _shelve(self, path, tag):
+        """把檔案移到 .studio/備份/（不直接刪）。"""
+        if path and os.path.isfile(path):
+            tracking.backup(self.d, path, tag)
+            os.remove(path)
+
+    def can_rewind(self, key):
+        """回傳 (可以嗎, 原因)。"""
+        keys = [k for k, _ in STEPS]
+        if key not in keys:
+            return False, "沒有這個步驟"
+        if self.s["status"] in ("done", "paused") or self.s.get("accepted_path") or self.step("accept")["status"] == "done":
+            return False, "這一章已經定稿（追蹤也回寫了），不能退回；請用「寫章節（候選稿）」重寫"
+        if self.s["status"] not in ("failed", "stopped"):
+            return False, "流程要先停止（或停在失敗的步驟）才能退回"
+        if key == "card":
+            if self.step("card")["status"] == "skipped":
+                return False, "章綱是原本就有的（不是流程寫的），要重寫請到章綱頁"
+            return True, ""
+        if key == "write":
+            return True, ""
+        st = self.step(key)
+        if st["status"] == "pending" and not any(self.step(k)["status"] in ("done", "skipped", "failed")
+                                                 for k in keys[keys.index(key):]):
+            return False, "這一步還沒跑過，按「從這一步繼續」就好"
+        if not self.load_snapshot(self.s["chapter"], key):
+            return False, "沒有這一步開始前的快照（流程在這個功能加入前就開始了），只能從「章綱」或「寫章節」重跑"
+        return True, ""
+
+    def rewind(self, key, note=""):
+        """退回到某一步開始前的狀態：候選稿還原、之後各步的紀錄先備份再清掉、步驟改回未執行。"""
+        ok, why = self.can_rewind(key)
+        if not ok:
+            raise PipelineError(why)
+        no = self.s["chapter"]
+        keys = [k for k, _ in STEPS]
+        idx = keys.index(key)
+        later = set(keys[idx:])
+        cand = self._cand(no)
+        cand_path = os.path.join(self.d, "候選", cand) if cand else ""
+        if key == "card":
+            card_path, _ = context.card_text(self.d, no)
+            self._shelve(os.path.join(self.d, card_path) if card_path else "", "重跑前章綱")
+            self._shelve(cand_path, "重跑前候選")
+        elif key == "write":
+            self._shelve(cand_path, "重跑前候選")
+        else:
+            snap = self.load_snapshot(no, key)
+            self._shelve(cand_path, "重跑前候選")
+            if snap.get("candidate"):
+                os.makedirs(os.path.join(self.d, "候選"), exist_ok=True)
+                with open(os.path.join(self.d, "候選", snap["candidate"]), "w", encoding="utf-8", newline="\n") as f:
+                    f.write(snap["text"])
+        # 之後各步的紀錄
+        recs = {"goal": ("核對", "第%03d章.json" % no), "review": ("審查", "第%03d章.json" % no)}
+        for k, (sub, fn) in recs.items():
+            if k in later:
+                p = os.path.join(self.d, ".studio", sub, fn)
+                if os.path.isfile(p):
+                    bak = os.path.join(self.d, ".studio", "備份")
+                    os.makedirs(bak, exist_ok=True)
+                    os.replace(p, os.path.join(bak, "重跑前%s_%s.%d.json" % (sub, fn[:-5], int(time.time()))))
+        if "revise" in later:
+            revision.discard_revision(self.d, no)
+        if "tick" in later:
+            self.s.pop("ticked", None)
+        with self.lock:
+            for st in self.s["steps"]:
+                if st["key"] in later:
+                    st.update(status="pending", note="", job=None, started=None, ended=None)
+                    st.pop("provider", None)
+            self.s["error"] = ""
+            self.s["rerun_note"] = {"step": key, "text": (note or "").strip()} if key in NOTE_STEPS and (note or "").strip() else {}
+            self.s["message"] = "從「%s」重跑" % LABEL[key]
+        self.save()
 
     def _s_card(self, no):
         if context.card_text(self.d, no)[1]:
@@ -264,13 +373,13 @@ class Pipeline:
         return _goal_brief(rec["items"]) if rec else "已核對"
 
     def _s_deslop(self, no):
-        self._wait("deslop", {"chapter": no, "candidate": True})
+        self._wait("deslop", {"chapter": no, "candidate": True, "note": self._rerun_note("deslop")})
         if not self._cand(no):
             raise StepFailed("去 AI 味之後找不到候選稿")
         return "已處理"
 
     def _s_review(self, no):
-        self._wait("review_notes", {"chapter": no, "candidate": True})
+        self._wait("review_notes", {"chapter": no, "candidate": True, "note": self._rerun_note("review")})
         rv = revision.load_review(self.d, no)
         if not rv:
             raise StepFailed("沒有取得審查結果")
@@ -289,7 +398,7 @@ class Pipeline:
                 extra = "章綱核對發現這些情節點沒寫到，請補上：" + "；".join("%s %s" % (it["id"], it["text"]) for it in unmet)
         with self.lock:
             self.s["ticked"] = {"chapter": no, "ids": ids, "extra": extra}
-        if not ids and not extra:
+        if not ids and not extra and not self._rerun_note("revise"):
             self.mark("revise", "skipped", "沒有要修的意見")
             self.mark("apply", "skipped", "沒有修訂")
             return ("skip", "勾選等級（%s）沒有任何意見" % "、".join(self.s["severities"]) if self.s["severities"] else "沒有設定自動勾選的等級")
@@ -300,7 +409,11 @@ class Pipeline:
         if t.get("chapter") != no:
             raise StepFailed("找不到勾選結果，請從「自動勾選意見」重新開始")
         revision.discard_revision(self.d, no)
-        self._wait("revise_notes", {"chapter": no, "ids": t.get("ids") or [], "extra": t.get("extra") or ""})
+        extra = t.get("extra") or ""
+        rr = self._rerun_note("revise")
+        if rr and rr not in extra:
+            extra = (extra + "\n" if extra else "") + "作者這次重跑的要求：" + rr
+        self._wait("revise_notes", {"chapter": no, "ids": t.get("ids") or [], "extra": extra})
         rec = revision.load_revision(self.d, no)
         if not rec:
             raise StepFailed("沒有產生修訂稿")

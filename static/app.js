@@ -419,6 +419,10 @@ async function pipeFetch() {
     const r = await api("GET", B("/pipeline"));
     if (book !== S.book) return null;
     PIPE.meta = r; PIPE.data = r.pipeline; PIPE.book = book;
+    PIPE.rw = null;
+    if (r.pipeline && ["failed", "stopped"].includes(r.pipeline.status)) {
+      try { PIPE.rw = await api("GET", B("/pipeline/rewind_check")); } catch (e) { PIPE.rw = null; }
+    }
   } catch (e) { PIPE.data = null; }
   return PIPE.data;
 }
@@ -434,7 +438,8 @@ function pipeHtml(p) {
   const rng = p.from === p.to ? `第${p.from}章` : `第${p.from}～${p.to}章`;
   const steps = p.steps.map((s) => `<div class="pstep ${s.status}" title="${esc(s.note || "")}">
       <span class="pi">${PIPE_ICON[s.status] || "○"}</span><span class="pl">${esc(s.label)}${s.provider || (p.step_providers || {})[s.key] ? `<span class="muted small">（${esc(provName(s.provider || p.step_providers[s.key]))}）</span>` : ""}</span>
-      ${s.note ? `<span class="pn">${esc(s.note)}</span>` : ""}</div>`).join("");
+      ${s.note ? `<span class="pn">${esc(s.note)}</span>` : ""}
+      ${PIPE.rw && PIPE.rw.steps[s.key] && PIPE.rw.steps[s.key].ok ? `<button class="sm ghost" style="white-space:nowrap;align-self:flex-start;margin-top:4px" title="還原到這一步開始前的候選稿，從這裡重跑" onclick="pipeRewind('${s.key}')">↺ 重跑</button>` : ""}</div>`).join("");
   const btns = [];
   if (p.status === "running") {
     if (p.job) btns.push(`<button class="sm" onclick="pipeShowJob('${esc(p.job)}')">看目前這一步</button>`);
@@ -489,6 +494,31 @@ async function pipeResume() {
 }
 async function pipeClear() {
   try { await api("POST", B("/pipeline/clear")); PIPE.data = null; renderPipe(); } catch (e) { fail(e); }
+}
+function pipeRewind(key) {
+  const p = PIPE.data;
+  if (!p) return;
+  const st = p.steps.find((x) => x.key === key);
+  const later = p.steps.slice(p.steps.findIndex((x) => x.key === key)).map((x) => x.label);
+  const canNote = PIPE.rw && (PIPE.rw.note_steps || []).includes(key);
+  const what = key === "card" ? "第" + p.chapter + "章的章綱和候選稿會先備份再移開，請 AI 重寫章綱"
+    : key === "write" ? "第" + p.chapter + "章的候選稿會先備份再移開，請 AI 重新寫一份"
+    : "候選稿會還原成「" + st.label + "」開始前的版本（目前的候選稿先備份）";
+  modal(`<h2>↺ 從「${esc(st.label)}」重跑</h2>
+    <p class="small">${esc(what)}。</p>
+    <p class="small muted">之後這幾步的結果會先備份到 .studio/備份/ 再清掉，然後重新執行：${later.map(esc).join(" → ")}</p>
+    ${canNote ? `<label class="f"><span>這次的要求（選填，只用在「${esc(st.label)}」這一步）</span><textarea id="rw-note" rows="2" placeholder="例如：保留更多對白；這次節奏放慢"></textarea></label>` : ""}
+    <div class="row" style="margin-top:12px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="rw-go">重跑</button></div>`, (el) => {
+    $("#rw-go", el).onclick = async () => {
+      try {
+        const r = await api("POST", B("/pipeline/rewind"), { step: key, note: canNote ? $("#rw-note", el).value : "" });
+        closeModal();
+        PIPE.data = r.pipeline; PIPE.rw = null; PIPE.lastJob = null;
+        toast("從「" + st.label + "」重跑");
+        renderPipe();
+      } catch (e) { fail(e); }
+    };
+  });
 }
 async function pipeModal(no) {
   const [r, chs] = await Promise.all([api("GET", B("/pipeline")), api("GET", B("/chapters"))]);

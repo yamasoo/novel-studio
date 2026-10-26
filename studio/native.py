@@ -292,7 +292,8 @@ def act_deslop(c, p):
     user = (ref + "\n\n【檢查腳本的發現】\n" + finds + "\n\n【原稿】\n" + context.body(src) +
             "\n\n【任務】去除 AI 味並校正台灣用語：先修必須修的項目，再處理語意層的 AI 味（替讀者點題、敘述者解釋、章尾昇華、萬用表情與比喻堆疊、說明書式對白）。"
             "能刪就刪，否則換成具體動作、物件、對白；不改變劇情事實、人物決定與資訊揭露程度；作者文風允許的寫法保留。"
-            "輸出完整的修改後章節。匯報寫：改了幾處、主要是哪幾類、刻意保留了什麼。\n" + FORMAT_RULE.format(n=no))
+            "輸出完整的修改後章節。匯報寫：改了幾處、主要是哪幾類、刻意保留了什麼。\n" +
+            (("作者這次的要求：" + p["note"].strip() + "\n") if (p.get("note") or "").strip() else "") + FORMAT_RULE.format(n=no))
     msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="去 AI 味：第%d章" % no, stage="draft")
     title, text, report = _split_output(out, no, _card_title(c.book, no))
@@ -548,7 +549,8 @@ def act_review_notes(c, p):
     pk.add(3, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
     ctx_text, used, dropped = pk.build()
     user = (ctx_text + "\n\n【要審查的稿子（%s）】\n" % rel + context.body(text) +
-            "\n\n【任務】依審查清單審查這一章，列出讀者會察覺的問題。\n" + revision.REVIEW_SCHEMA)
+            "\n\n【任務】依審查清單審查這一章，列出讀者會察覺的問題。\n" +
+            (("作者這次的要求：" + p["note"].strip() + "\n") if (p.get("note") or "").strip() else "") + revision.REVIEW_SCHEMA)
     msgs = [{"role": "system", "content": SYSTEM + "這個任務請只輸出 JSON。"}, {"role": "user", "content": user}]
     out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label="審查第%d章" % no, stage="review")
     rec = revision.normalize_review(providers.parse_json(out), text)

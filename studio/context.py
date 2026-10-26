@@ -2,6 +2,7 @@
 """
 為不能自己讀檔的模型組裝上下文：依「寫前必讀」挑檔案，並控制在模型的上下文長度內。
 """
+import contextvars
 import os
 import re
 
@@ -10,10 +11,48 @@ from . import project, shared
 CJK = re.compile(r"[　-鿿豈-￯]")
 
 
+DEFAULT_CJK_RATIO = 1.2   # 不知道模型時用的保守值
+# 每個任務在自己的執行緒裡設定（不同任務、不同供應商互不影響）
+_RATIO = contextvars.ContextVar("cjk_token_ratio", default=DEFAULT_CJK_RATIO)
+_LAST = contextvars.ContextVar("last_pack", default=None)
+
+
+def set_ratio(ratio):
+    try:
+        r = float(ratio)
+    except (TypeError, ValueError):
+        r = DEFAULT_CJK_RATIO
+    _RATIO.set(min(3.0, max(0.2, r)))
+
+
+def ratio():
+    return _RATIO.get()
+
+
 def est_tokens(text):
-    """粗估 token 數：中日韓字元約 1.2，其他字元約 0.3（偏保守）。"""
+    """粗估 token 數：中日韓字元依供應商設定的比例（預設 1.2，偏保守），其他字元約 0.3。"""
     n_cjk = len(CJK.findall(text))
-    return int(n_cjk * 1.2 + (len(text) - n_cjk) * 0.3) + 4
+    return int(n_cjk * _RATIO.get() + (len(text) - n_cjk) * 0.3) + 4
+
+
+def last_breakdown(top=6):
+    """最近一次組上下文時各段的大小，給任務紀錄看。"""
+    info = _LAST.get()
+    if not info:
+        return ""
+    parts = sorted(info["sizes"], key=lambda x: -x[1])
+    shown = ["%s %s" % (t, _fmt(n)) for t, n in parts[:top] if n > 0]
+    rest = sum(n for _, n in parts[top:])
+    if rest:
+        shown.append("其他 %s" % _fmt(rest))
+    s = "上下文組成（約，每個中文字 %.2g token）：%s；預算 %s" % (_RATIO.get(), "、".join(shown), _fmt(info["budget"]))
+    if info.get("notes"):
+        s += "。" + "；".join(info["notes"])
+    return s
+
+
+def _fmt(n):
+    return "%.1f 萬" % (n / 10000.0) if n >= 10000 else "%d" % n
 
 
 def read(book_dir, rel):
@@ -35,6 +74,11 @@ class Pack:
     def __init__(self, budget):
         self.budget = budget
         self.items = []  # (priority, title, text, keep)  keep: "head" / "tail"
+        self.notes = []  # 給任務紀錄看的說明（例如時間線篩了幾條）
+
+    def note(self, text):
+        if text:
+            self.notes.append(text)
 
     def add(self, priority, title, text, keep="head"):
         text = (text or "").strip()
@@ -62,6 +106,7 @@ class Pack:
         order = {t: i for i, (_, t, _, _) in enumerate(self.items)}
         chosen.sort(key=lambda x: order.get(x[1].replace("（節錄）", ""), 0))
         out = "\n\n".join("【%s】\n%s" % (t, x) for _, t, x in chosen)
+        _LAST.set({"budget": self.budget, "sizes": [(t, est_tokens(x) + 10) for _, t, x in chosen], "notes": list(self.notes)})
         return out, used, dropped
 
 
@@ -108,6 +153,95 @@ def foreshadow_rows(book_dir, text):
     return tbl["headers"], keep
 
 
+# ---------------------------------------------------------------------------
+# 會一直長大的表：只帶和這一章有關的列
+# ---------------------------------------------------------------------------
+FILTER_MIN_TOKENS = 3000   # 表格小於這個量就整份帶
+RECENT_CHAPTERS = 10       # 時間線：最近幾章的事件一定帶
+MAIN_SHARE = 0.3           # 出現在超過三成列的角色（主角）不拿來比對
+_PARTIAL = r"只知道|不知道|未知|尚未|還沒|以為|誤會|誤認|懷疑|不清楚|不確定|猜測|部分"
+_UNREVEALED = ("未揭示", "未知", "不知道", "尚未", "還不知道", "無", "-", "—", "－", "？", "?")
+
+
+def _nums(s):
+    return [int(x) for x in re.findall(r"\d+", str(s or ""))]
+
+
+def _entity_names(book_dir, scope):
+    names = []
+    for e in mentioned_entities(book_dir, scope):
+        names += [e["name"]] + [str(a) for a in (e.get("aliases") or [])]
+    return [n for n in dict.fromkeys(names) if n and len(n) >= 2]
+
+
+def _open_part(known):
+    """從「讀者目前知道」取出讀者還不知道的那幾句。"""
+    sents = [x for x in re.split(r"(?<=[。；;])", known) if re.search(_PARTIAL, x)]
+    return ("".join(sents).strip() or known[-60:]).replace("|", "／")
+
+
+def timeline_for(book_dir, scope, a, b=None, pk=None):
+    """時間線。表格小時整份帶；大時：
+    - 整列帶：讀者完全不知道或還沒到揭示章的、最近幾章的、和本章出場人事有關的
+    - 只列「讀者還不知道什麼」（不帶作者真相）：其他還有懸念的列
+    - 不帶：其他已經揭曉、和本章無關的列"""
+    b = b or a
+    tl = project.read_table(book_dir, "追蹤/時間線.md")
+    rows, hs = tl["rows"], tl["headers"]
+    if not rows:
+        return body(read(book_dir, "追蹤/時間線.md"))
+    full = table_md(hs, rows)
+    if est_tokens(full) <= FILTER_MIN_TOKENS:
+        return full
+    names = _entity_names(book_dir, scope)
+    joined = ["|".join(str(v) for v in r.values()) for r in rows]
+    names = [n for n in names if sum(1 for j in joined if n in j) <= max(3, len(rows) * MAIN_SHARE)]
+    ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope))
+    keep, opens = [], []
+    for r, j in zip(rows, joined):
+        rev = _nums(r.get("揭示章"))
+        known = str(r.get("讀者目前知道") or "").strip()
+        hidden = not known or known in _UNREVEALED or not rev or min(rev) >= a
+        recent = any(a - RECENT_CHAPTERS <= n <= b for n in rev)
+        related = str(r.get("編號") or "") in ids or any(n in j for n in names)
+        if hidden or recent or related:
+            keep.append(r)
+        elif re.search(_PARTIAL, known):   # 讀者只知道一部分：只列還不知道的部分
+            opens.append(r)
+    if pk is not None:
+        pk.note("時間線 %d 條：整列帶 %d、只列未解疑問 %d" % (len(rows), len(keep), len(opens)))
+    out = table_md(hs, keep)
+    if opens:
+        out += ("\n\n還沒揭曉的事（和本章沒有直接關係，只列讀者還不知道的部分；不要在本章說破。章綱要揭曉的事，以章綱為準）\n"
+                "| 編號 | 揭示章 | 讀者還不知道 |\n|---|---|---|\n" +
+                "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("揭示章", ""), _open_part(str(r.get("讀者目前知道") or "")))
+                          for r in opens))
+    return out
+
+
+def glossary_for(book_dir, scope, pk=None):
+    """名詞表：只帶這一章範圍裡出現的名詞；稱謂類的，說明提到出場角色也帶。表格小時整份帶。"""
+    text = read(book_dir, "設定/名詞表.md")
+    tbl = project.read_table(book_dir, "設定/名詞表.md")
+    rows, hs = tbl["rows"], tbl["headers"]
+    if not rows or est_tokens(body(text)) <= FILTER_MIN_TOKENS:
+        return body(text)
+    key = hs[0] if hs else "名詞"
+    names = _entity_names(book_dir, scope)
+    keep = []
+    for r in rows:
+        term = str(r.get(key) or "").strip()
+        terms = [t for t in re.split(r"[／/、,，]", term) if t.strip()]
+        hit = any(t.strip() in scope for t in terms)
+        if not hit and "稱謂" in str(r.get("類別") or ""):
+            hit = any(n in "|".join(str(v) for v in r.values()) for n in names)
+        if hit:
+            keep.append(r)
+    if pk is not None:
+        pk.note("名詞表帶 %d／%d 條" % (len(keep), len(rows)))
+    return table_md(hs, keep)
+
+
 def table_md(headers, rows):
     if not rows:
         return ""
@@ -152,10 +286,13 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
         if st:
             pk.add(3, "角色目前狀態：%s" % e["name"], body(st))
     h, rows = foreshadow_rows(book_dir, card)
-    pk.add(3, "相關伏筆", table_md(h, rows))
-    tl = project.read_table(book_dir, "追蹤/時間線.md")
-    pk.add(4, "時間線（「讀者目前知道」是資訊邊界，不能提前說破）", table_md(tl["headers"], tl["rows"]))
-    pk.add(4, "名詞表", body(read(book_dir, "設定/名詞表.md")))
+    fs = table_md(h, rows)
+    pk.add(3, "相關伏筆", fs)
+    near = card + "\n" + (body(prev)[-1200:] if prev else "")
+    wide = scope + "\n" + near + "\n" + fs + "\n" + "\n".join(
+        body(read(book_dir, e["file"])) for e in mentioned_entities(book_dir, scope))
+    pk.add(4, "時間線（「讀者目前知道」是資訊邊界，不能提前說破）", timeline_for(book_dir, near, no, pk=pk))
+    pk.add(4, "名詞表", glossary_for(book_dir, wide, pk=pk))
     pk.add(5, "前幾章摘要", recent_summaries(book_dir, no))
     if include_craft:
         pk.add(6, "寫作技法", skill_ref(plugin_dir, "novel-write/references/writing-craft.md"))
@@ -199,13 +336,14 @@ def for_review(book_dir, plugin_dir, a, b, budget):
         pk.add(2, "前一章結尾", body(prev)[-1000:], keep="tail")
     pk.add(2, "狀態卡", body(read(book_dir, "追蹤/狀態卡.md")))
     pk.add(2, "伏筆總表", body(read(book_dir, "追蹤/伏筆.md")))
-    pk.add(2, "時間線", body(read(book_dir, "追蹤/時間線.md")))
+    cards = "\n".join(card_text(book_dir, n)[1] for n in range(a, b + 1))
+    pk.add(2, "時間線", timeline_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     for e in mentioned_entities(book_dir, joined):
         pk.add(3, "設定：%s" % e["name"], body(read(book_dir, e["file"])))
         st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
         if st:
             pk.add(3, "角色目前狀態：%s" % e["name"], body(st))
-    pk.add(4, "名詞表", body(read(book_dir, "設定/名詞表.md")))
+    pk.add(4, "名詞表", glossary_for(book_dir, joined + "\n" + cards, pk=pk))
     pk.add(4, "故事核心（讀者契約）", body(read(book_dir, "設定/故事核心.md")))
     return pk.build()
 

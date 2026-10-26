@@ -181,6 +181,12 @@ async def set_providers(req: Request):
                 clean[k] = f(p.get(k)) if p.get(k) not in (None, "") else d
             except (TypeError, ValueError):
                 clean[k] = d
+        try:
+            r_ = float(p.get("cjk_token_ratio") or 0)
+        except (TypeError, ValueError):
+            r_ = 0
+        if r_ > 0:
+            clean["cjk_token_ratio"] = round(min(3.0, max(0.2, r_)), 2)   # 0／空白＝自動
         clean["json_mode"] = bool(p.get("json_mode", True))
         ex = p.get("extra") or {}
         if isinstance(ex, str):
@@ -222,6 +228,18 @@ def provider_models(pid: str):
         return {"models": ["sonnet", "opus", "haiku"]}
     try:
         return {"models": providers.list_models(HERE, prov)}
+    except providers.ProviderError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/providers/{pid}/calibrate")
+def provider_calibrate(pid: str):
+    """llama.cpp：用 /tokenize 算出每個中文字約幾 token（不呼叫模型生成）。"""
+    prov = get_provider(pid)
+    if prov.get("type") == "claude_code":
+        raise HTTPException(400, "Claude Code 不需要設定")
+    try:
+        return {"ratio": providers.calibrate_cjk(HERE, prov)}
     except providers.ProviderError as e:
         raise HTTPException(400, str(e))
 
@@ -349,7 +367,8 @@ def claude_review_job(book_id, d, prov, params):
         except providers.ProviderError as e:
             raise RuntimeError("無法解析 Claude 回傳的審查結果：%s" % e)
         text = project.read_text(os.path.join(d, rel))
-        rec = revision.save_review(d, no, rel, text, revision.normalize_review(data, text), prov.get("id"))
+        rv = revision.merge_local_checks(revision.normalize_review(data, text), d, rel, check_text)
+        rec = revision.save_review(d, no, rel, text, rv, prov.get("id"))
         j.result = revision.review_md(no, rec)
         j.emit("result", text=j.result)
     job.after = after
@@ -822,8 +841,24 @@ def _clean_profiles(items):
         q["id"] = pid
         for k in ("workflow", "unet", "clip", "vae", "upsampler_clip", "negative"):
             q[k] = str(q[k] or "").strip()
+        q["loras"] = _clean_loras(p.get("loras"))
         out.append(q)
     return out or list(illust.DEFAULTS["comfy_profiles"])
+
+
+def _clean_loras(items):
+    """LoRA 清單：檔名、強度（-4～4）、是否使用、觸發詞；最多 8 個。檔名空白的也保留（設定頁還在選）。"""
+    out = []
+    for x in (items or [])[:8]:
+        if not isinstance(x, dict):
+            continue
+        try:
+            st = max(-4.0, min(4.0, round(float(x.get("strength", 1)), 2)))
+        except (TypeError, ValueError):
+            st = 1.0
+        out.append({"name": str(x.get("name") or "").strip(), "strength": st, "on": bool(x.get("on", True)),
+                    "trigger": str(x.get("trigger") or "").strip()[:200]})
+    return out
 
 
 def comfy_profile(cfg, pid=None):
@@ -848,7 +883,7 @@ def illust_comfy_status():
         r = {"id": p["id"], "guess": comfy.guess_models(p.get("kind"), lists)}
         try:
             path = p.get("workflow") or comfy.template_path(p.get("kind"))
-            r["summary"] = comfy.summary(comfy.load_workflow(path), info)
+            r["summary"] = comfy.summary(comfy.load_workflow(path), info, p)
             if p.get("upsampler") and "TextGenerate" not in info:
                 r["summary"]["missing"].append("TextGenerate（Prompt Upsampler 需要較新的 ComfyUI）")
         except (comfy.ComfyError, OSError) as e:

@@ -17,7 +17,7 @@ DEFAULT_PROVIDERS = [
     {"id": "claude_code", "type": "claude_code", "name": "Claude Code"},
     {"id": "deepseek", "type": "openai", "name": "DeepSeek",
      "base_url": "https://api.deepseek.com", "model": "", "key_env": "DEEPSEEK_API_KEY",
-     "context_tokens": 128000, "max_output": 32768, "temperature": 1.0,
+     "context_tokens": 128000, "max_output": 32768, "temperature": 1.0, "cjk_token_ratio": 0.6,
      "json_mode": True, "price_in": 0.0, "price_out": 0.0, "extra": {},
      "reasoning": {"adapter": "deepseek", "draft": "low", "plan": "high", "review": "high", "structured": "off"}},
     {"id": "llamacpp", "type": "openai", "name": "llama.cpp（本機）",
@@ -261,6 +261,52 @@ def _http_error(e):
         body = str(e)
     hint = {401: "金鑰錯誤或未設定", 402: "帳戶餘額不足", 404: "網址或模型名稱錯誤", 429: "請求太頻繁或額度用完"}.get(e.code, "")
     return ProviderError("HTTP %s %s：%s" % (e.code, hint, str(body)[:400]))
+
+
+def cjk_ratio(prov):
+    """每個中文字約幾 token。沒有設定時：DeepSeek 用官方估計 0.6，其他用保守的 1.2。"""
+    try:
+        r = float(prov.get("cjk_token_ratio") or 0)
+    except (TypeError, ValueError):
+        r = 0
+    if r > 0:
+        return r
+    return 0.6 if "deepseek" in (prov.get("base_url") or "").lower() else 1.2
+
+
+CALIBRATE_TEXT = ("天還沒亮透阿母就在灶腳起火灶裡的柴是上禮拜颱風撿的還帶著濕氣煙順著煙囪爬不出去倒灌回來整間廚房霧濛濛"
+                  "她把地瓜簽倒進鍋裡鏟子刮著鍋底一聲一聲我在門口站了一會兒她沒回頭只說鞋子穿好地上濕"
+                  "客棧的燈油將盡夥計添了兩回見無人說話也就退到門邊打盹他坐在靠窗那張桌子刀橫在膝上鞘口缺了一角是去年在洛水邊留下的"
+                  "窗外雨聲不大打著簷角一聲一聲像有人在數葬儀社的老闆說現在土葬不划算火葬比較環保樹葬更環保但樹葬要排隊排到明年春天"
+                  "他問我們家屬有沒有偏好我媽說她偏好活著老闆點點頭在表格上寫了待確認我把車停在對街熄火雨刷停在半空像兩隻舉錯方向的手"
+                  "目標在二樓窗簾沒拉緊留了一指寬的縫我看了十二分鐘他走過去三次每次都停在同一塊地板低頭像在確認什麼還在不在")
+
+
+def calibrate_cjk(home, prov, timeout=15):
+    """用 llama.cpp（llama-server）的 /tokenize 實際計算中文字的 token 比例。其他服務沒有這個端點。"""
+    base = (prov.get("base_url") or "").rstrip("/")
+    if not base:
+        raise ProviderError("尚未設定 %s 的網址" % prov.get("name"))
+    if "deepseek" in base.lower():
+        raise ProviderError("DeepSeek 沒有 /tokenize；官方估計每個中文字約 0.6 token，欄位留空就會自動用這個值。")
+    root = base[:-3] if base.endswith("/v1") else base
+    body = json.dumps({"content": CALIBRATE_TEXT, "add_special": False}).encode("utf-8")
+    req = urllib.request.Request(root + "/tokenize", data=body, headers=_headers(home, prov), method="POST")
+    try:
+        with _opener(req.full_url).open(req, timeout=timeout) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 405):
+            raise ProviderError("這個服務沒有 /tokenize（只有 llama.cpp 的 llama-server 有），請手動填比例。")
+        raise _http_error(e)
+    except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
+        raise ProviderError("連不上 %s：%s" % (req.full_url, getattr(e, "reason", e)))
+    except ValueError:
+        raise ProviderError("/tokenize 的回應不是 JSON，請手動填比例。")
+    toks = data.get("tokens") if isinstance(data, dict) else None
+    if not isinstance(toks, list) or not toks:
+        raise ProviderError("/tokenize 沒有回傳 tokens，請手動填比例。")
+    return round(len(toks) / float(len(CALIBRATE_TEXT)), 2)
 
 
 def list_models(home, prov, timeout=15):

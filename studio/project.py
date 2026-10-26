@@ -320,6 +320,9 @@ def _ch(s):
     return n
 
 
+ONE_OFF_MARKS = ("不具名", "一次性")   # 角色名稱含這些字：一次性配角，不提醒久未登場
+
+
 def overview(book_dir, stale_foreshadow=10, stale_character=15):
     chs = scan_chapters(book_dir)
     written = [c for c in chs if c["text_file"]]
@@ -361,17 +364,27 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
         if due and latest > due:
             alerts.append({"level": "warn", "kind": "伏筆逾期",
                            "text": "%s 預計第%d章回收，目前已到第%d章。" % (label, due, latest)})
-    # 角色久未登場
+    # 角色久未登場：一次性、不具名的角色不提醒；其餘合併成一條
     cs_dir = os.path.join(book_dir, "追蹤", "角色狀態")
     if os.path.isdir(cs_dir):
+        stale = []
         for f in os.listdir(cs_dir):
-            if f.endswith(".md"):
-                cfm, _ = split_frontmatter(read_text(os.path.join(cs_dir, f)))
-                last = _ch(cfm.get("最後登場"))
-                if last and latest - last > stale_character:
-                    alerts.append({"level": "info", "kind": "角色久未登場",
-                                   "text": "%s 已 %d 章沒有登場。" % (
-                                       cfm.get("名稱") or os.path.splitext(f)[0], latest - last)})
+            if not f.endswith(".md"):
+                continue
+            cfm, _ = split_frontmatter(read_text(os.path.join(cs_dir, f)))
+            name = str(cfm.get("名稱") or os.path.splitext(f)[0])
+            if any(w in name or w in f for w in ONE_OFF_MARKS):
+                continue
+            last = _ch(cfm.get("最後登場"))
+            if last and latest - last > stale_character:
+                stale.append((latest - last, name, last))
+        if stale:
+            stale.sort(key=lambda x: (-x[0], x[1]))
+            top = "、".join("%s %d 章" % (n, g) for g, n, _ in stale[:3])
+            alerts.append({"level": "info", "kind": "角色久未登場",
+                           "text": "%d 個角色超過 %d 章沒有登場（最久：%s%s）。" % (
+                               len(stale), stale_character, top, "……" if len(stale) > 3 else ""),
+                           "details": ["%s：%d 章沒有登場（最後第%d章）" % (n, g, l) for g, n, l in stale]})
     # 草稿
     drafts = list_entries(book_dir, "設定/草稿")
     if drafts:

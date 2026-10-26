@@ -300,7 +300,9 @@ function alertHtml(a) {
   else if (a.action === "sync_tracking") btn = `<button class="sm" onclick="Panel.run('sync_tracking',{})">補齊</button>`;
   else if (a.kind === "設定草稿") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/bible?t=草稿')">查看</button>`;
   else if (a.kind.startsWith("伏筆")) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking')">查看</button>`;
-  return `<div class="alert ${a.level}"><span class="k">${esc(a.kind)}</span><span class="t">${esc(a.text)}</span>${btn}</div>`;
+  const more = a.details && a.details.length > 1
+    ? `<details class="small" style="margin-top:4px"><summary>展開 ${a.details.length} 項</summary>${a.details.map((x) => `<div>${esc(x)}</div>`).join("")}</details>` : "";
+  return `<div class="alert ${a.level}"><span class="k">${esc(a.kind)}</span><span class="t">${esc(a.text)}${more}</span>${btn}</div>`;
 }
 
 /* ------------------------------------------------------------------ 章節列表 */
@@ -958,6 +960,8 @@ async function viewSettings(view) {
           <label class="f"><span>或用環境變數名稱</span><input type="text" data-k="key_env" value="${esc(p.key_env || "")}" placeholder="例如 DEEPSEEK_API_KEY"></label>
           <label class="f"><span>上下文長度（tokens）</span><input type="number" data-k="context_tokens" value="${esc(p.context_tokens)}"></label>
           <label class="f"><span>最大輸出（tokens）</span><input type="number" data-k="max_output" value="${esc(p.max_output)}"></label>
+          <label class="f"><span>每個中文字約幾 token（估算上下文用；空白＝自動：DeepSeek 0.6、其他 1.2）</span>
+            <div class="row"><input type="number" step="0.05" min="0.2" max="3" data-k="cjk_token_ratio" value="${esc(p.cjk_token_ratio || "")}" placeholder="自動" style="flex:1"><button class="sm" data-a="calib" title="llama.cpp 用 /tokenize 實際算">校正</button></div></label>
           <label class="f"><span>溫度</span><input type="number" step="0.1" data-k="temperature" value="${esc(p.temperature)}"></label>
           <label class="f"><span>輸入價格（每百萬 tokens，美元，選填）</span><input type="number" step="0.01" data-k="price_in" value="${esc(p.price_in || 0)}"></label>
           <label class="f"><span>輸出價格（每百萬 tokens，美元，選填）</span><input type="number" step="0.01" data-k="price_out" value="${esc(p.price_out || 0)}"></label>
@@ -982,6 +986,18 @@ async function viewSettings(view) {
       card.querySelectorAll("[data-r]").forEach((sel) => sel.onchange = () => {
         provs[i].reasoning = Object.assign({}, provs[i].reasoning || {}, { [sel.dataset.r]: sel.value });
       });
+      card.querySelector('[data-a="calib"]').onclick = async () => {
+        const msg = card.querySelector("[data-msg]");
+        msg.textContent = "校正中……";
+        try {
+          await saveProvs();
+          const r = await api("POST", `/api/providers/${enc(provs[i].id)}/calibrate`);
+          provs[i].cjk_token_ratio = r.ratio;
+          card.querySelector('[data-k="cjk_token_ratio"]').value = r.ratio;
+          await saveProvs();
+          msg.innerHTML = `<span class="badge b-ok">已校正</span> 每個中文字約 ${esc(r.ratio)} token，已儲存`;
+        } catch (e) { msg.innerHTML = `<span class="badge b-bad">無法校正</span> ${esc(e.message)}`; }
+      };
       card.querySelector('[data-a="del"]').onclick = () => { if (confirm("刪除這個服務設定？")) { provs.splice(i, 1); renderProvs(); } };
       card.querySelector('[data-a="test"]').onclick = async () => {
         const msg = card.querySelector("[data-msg]");
@@ -1640,7 +1656,7 @@ async function renderIllust(el, target, opts = {}) {
           <div class="f"><span>畫風</span><div class="row"><span class="small">${D.styles.length ? D.styles.map(esc).join("　＋　") : '<span class="muted">不套用</span>'}</span>
             <button class="sm" id="il-styles">選畫風…</button></div></div>
           <label class="f"><span>畫師標籤（會自動加 @）</span><input type="text" data-k="artist" value="${esc(D.artist)}"></label>
-          ${isComfy ? `<label class="f"><span>ComfyUI 出圖設定</span><select data-k="profile" id="il-prof">${profs.map((p) => `<option value="${esc(p.id)}" ${p.id === D.profile ? "selected" : ""}>${esc(p.name)}${p.upsampler ? "（Upsampler）" : ""}</option>`).join("")}</select></label>` : ""}
+          ${isComfy ? `<label class="f"><span>ComfyUI 出圖設定</span><select data-k="profile" id="il-prof">${profs.map((p) => `<option value="${esc(p.id)}" ${p.id === D.profile ? "selected" : ""}>${esc(p.name)}${p.upsampler ? "（Upsampler）" : ""}${(p.loras || []).some((x) => x.on !== false && x.name) ? "（LoRA）" : ""}</option>`).join("")}</select></label>` : ""}
           ${isComfy && curProf().kind === "moss" ? `<div class="f"><span>格式</span><div class="small muted">MOSS-Image 用英文自然語言，不加品質、分級與畫師標籤</div></div>`
             : `<label class="f"><span>格式</span><select data-k="format">${[["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${D.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>`}
           <label class="f"><span>尺寸</span><select id="il-size">${cfgR.sizes.map(([n, w, h]) => `<option value="${w}x${h}" ${w === +D.width && h === +D.height ? "selected" : ""}>${n} ${w}×${h}</option>`).join("")}
@@ -1973,6 +1989,24 @@ async function renderIllSettings(el) {
       ${list.map((f) => `<option value="${esc(f)}" ${f === cur ? "selected" : ""}>${esc(f)}${f === guess && !cur ? "（建議）" : ""}</option>`).join("")}
       ${cur && !list.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}（ComfyUI 找不到）</option>` : ""}</select></label>`;
   };
+  const loraRows = (p, i) => {
+    const list = cst && cst.ok ? cst.lists.lora || [] : null;
+    const rows = (p.loras || []).map((x, j) => {
+      const nm = x.name || "";
+      const pick = list
+        ? `<select data-lr="${i}:${j}" data-lk="name"><option value="">（請選擇）</option>${list.map((f) => `<option value="${esc(f)}" ${f === nm ? "selected" : ""}>${esc(f)}</option>`).join("")}${nm && !list.includes(nm) ? `<option value="${esc(nm)}" selected>${esc(nm)}（ComfyUI 找不到）</option>` : ""}</select>`
+        : `<input type="text" data-lr="${i}:${j}" data-lk="name" value="${esc(nm)}" placeholder="LoRA 檔名（按測試連線後可以從清單選）">`;
+      return `<div class="row" style="gap:6px;margin-bottom:4px;align-items:center">
+        <input type="checkbox" data-lr="${i}:${j}" data-lk="on" ${x.on !== false ? "checked" : ""} title="使用這個 LoRA">
+        <div style="flex:2">${pick}</div>
+        <input type="number" data-lr="${i}:${j}" data-lk="strength" value="${esc(x.strength ?? 1)}" step="0.05" min="-4" max="4" style="width:80px" title="強度">
+        <input type="text" data-lr="${i}:${j}" data-lk="trigger" value="${esc(x.trigger || "")}" placeholder="觸發詞（選填，會接在正向提示詞後面）" style="flex:2">
+        <button class="sm danger" data-lrdel="${i}:${j}">刪除</button></div>`;
+    }).join("");
+    return `<div class="f" style="margin-top:6px"><span>LoRA（用內建的 LoraLoaderModelOnly，接在模型後面；強度 -4～4）</span>
+      ${rows || '<div class="muted small">沒有使用 LoRA。</div>'}
+      <div><button class="sm" data-lradd="${i}">＋ LoRA</button></div></div>`;
+  };
   const renderProfs = () => {
     $("#cf-profs", el).innerHTML = profs.map((p, i) => {
       const st = cst && cst.ok ? cst.profiles.find((x) => x.id === p.id) : null;
@@ -1989,6 +2023,7 @@ async function renderIllSettings(el) {
         <label class="cb"><input type="checkbox" data-pf="${i}" data-key="upsampler" ${p.upsampler ? "checked" : ""}> Prompt Upsampler：送出前用 LLM 把提示詞改寫成更完整的描述（多約 6 GB VRAM、每張多 10～30 秒）</label>
         ${p.upsampler && p.kind !== "moss" ? `<div class="grid g3">${modelField(p, i, "upsampler_clip", "改寫用的文字編碼器（MOSS 的 Qwen3.5 9B）")}</div>` : ""}
         ${p.upsampler && p.kind === "moss" ? '<div class="muted small">MOSS 直接用自己的文字編碼器改寫。</div>' : ""}
+        ${loraRows(p, i)}
         <div class="small" style="margin-top:6px">${st ? (st.error ? `<span class="badge b-bad">workflow 有問題</span> ${esc(st.error)}`
           : `<span class="badge ${sm.missing.length ? "b-bad" : "b-ok"}">${sm.missing.length ? "ComfyUI 缺少節點" : "workflow 可以用"}</span>
              ${sm.missing.length ? "缺：" + sm.missing.map(esc).join("、") + "　" : ""}<span class="muted">正向：${sm.positive.map(esc).join("、")}　負向：${sm.negative.map(esc).join("、") || "無"}　尺寸：${sm.latent.map(esc).join("、") || "無"}${sm.removed.length ? "　略過：" + sm.removed.map(esc).join("、") : ""}</span>`) : ""}</div>
@@ -2003,10 +2038,28 @@ async function renderIllSettings(el) {
       };
     });
     el.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => { profs.splice(+b.dataset.del, 1); renderProfs(); });
+    el.querySelectorAll("[data-lr]").forEach((x) => {
+      x.onchange = () => {
+        const [i, j] = x.dataset.lr.split(":").map(Number);
+        const lr = profs[i].loras[j];
+        const k = x.dataset.lk;
+        lr[k] = k === "on" ? x.checked : k === "strength" ? (parseFloat(x.value) || 0) : x.value.trim();
+      };
+    });
+    el.querySelectorAll("[data-lradd]").forEach((b) => b.onclick = () => {
+      const p = profs[+b.dataset.lradd];
+      (p.loras = p.loras || []).push({ name: "", strength: 1, on: true, trigger: "" });
+      renderProfs();
+    });
+    el.querySelectorAll("[data-lrdel]").forEach((b) => b.onclick = () => {
+      const [i, j] = b.dataset.lrdel.split(":").map(Number);
+      profs[i].loras.splice(j, 1);
+      renderProfs();
+    });
     el.querySelectorAll('[data-key="workflow"]').forEach((x) => attachPicker(x, { mode: "file", exts: [".json"], title: "選擇 ComfyUI workflow（API 格式）" }));
   };
   renderProfs();
-  $("#cf-add", el).onclick = () => { profs.push({ id: "p" + Date.now().toString(36), name: "新的出圖設定", kind: "anima", workflow: "", unet: "", clip: "", vae: "", upsampler: false, upsampler_clip: "", negative: "" }); renderProfs(); };
+  $("#cf-add", el).onclick = () => { profs.push({ id: "p" + Date.now().toString(36), name: "新的出圖設定", kind: "anima", workflow: "", unet: "", clip: "", vae: "", upsampler: false, upsampler_clip: "", negative: "", loras: [] }); renderProfs(); };
 
   const test = async () => {
     const st = $("#il-status", el);
@@ -2039,7 +2092,7 @@ async function renderIllSettings(el) {
         if (!p.workflow) for (const k of ["unet", "clip", "vae"]) if (!p[k] && g[k]) { p[k] = g[k]; filled++; }
         if (p.upsampler && p.kind !== "moss" && !p.upsampler_clip && g.upsampler_clip) { p.upsampler_clip = g.upsampler_clip; filled++; }
       }
-      st.innerHTML = `<span class="badge b-ok">已連線</span> ComfyUI ${esc(cst.version)}　${esc(cst.device || "")}　模型 ${cst.lists.unet.length}、文字編碼器 ${cst.lists.clip.length}、VAE ${cst.lists.vae.length} 個`
+      st.innerHTML = `<span class="badge b-ok">已連線</span> ComfyUI ${esc(cst.version)}　${esc(cst.device || "")}　模型 ${cst.lists.unet.length}、文字編碼器 ${cst.lists.clip.length}、VAE ${cst.lists.vae.length}、LoRA ${(cst.lists.lora || []).length} 個`
         + (filled ? `　<span class="muted">已依檔名帶入建議的模型，確認後按「儲存插畫設定」</span>` : "");
     } else st.innerHTML = `<span class="badge b-bad">連不到</span> ${esc(cst.error)}`;
     renderProfs();

@@ -52,6 +52,86 @@ def normalize_review(data, chapter_text):
     return {"summary": str((data or {}).get("summary") or "").strip(), "items": items}
 
 
+# 本機檢查（check_text.py）中逐行、可定位的發現併進審查意見，讓自動勾選與修訂也會處理。
+# 標點由程式自動修、AI 味統計交給審查本身判斷，所以不併入。
+LOCAL_KINDS = ("簡體字", "疑似誤字", "禁用詞", "大陸用語", "工程詞", "章尾昇華")
+LOCAL_CATEGORY = "本機檢查"
+LOCAL_MAX = 20
+
+
+def _quote_around(line, needle, width=60):
+    line = line.strip()
+    if len(line) <= width:
+        return line
+    i = line.find(needle) if needle else -1
+    if i < 0:
+        return line[:width]
+    a = max(0, min(i - (width - len(needle)) // 2, len(line) - width))
+    return line[a:a + width]
+
+
+def merge_local_checks(review, book_dir, path, checker):
+    """把本機檢查的發現加進審查結果（不呼叫 AI）。同一個詞出現多次合併成一條。失敗時原樣回傳。"""
+    if not checker or not path:
+        return review
+    full = os.path.join(book_dir, path)
+    try:
+        res = checker.check_file(full, checker.load_whitelist(book_dir), checker.load_banned(book_dir))
+        lines = project.read_text(full).split("\n")
+    except Exception:
+        return review
+    items = list(review.get("items") or [])
+    ai_quotes = [x.get("quote") or "" for x in items if x.get("quote")]
+
+    def covered(src, needle):
+        # AI 審查的引文和這個發現在同一行、位置重疊，就當作已經指出
+        i = src.find(needle)
+        for q in ai_quotes:
+            if needle in q or q in needle:
+                return True
+            j = src.find(q)
+            if i >= 0 and j >= 0 and i < j + len(q) and j < i + len(needle):
+                return True
+        return False
+
+    groups = {}
+    for f in res.get("問題") or []:
+        if f["類型"] not in LOCAL_KINDS or f["等級"] not in ("必須修", "建議修") or not f.get("行"):
+            continue
+        snip = str(f["片段"])
+        needle = snip[:1] if f["類型"] == "簡體字" else snip.split("（")[0]
+        src = lines[f["行"] - 1] if 0 < f["行"] <= len(lines) else ""
+        if f["類型"] != "章尾昇華" and needle and covered(src, needle):
+            continue
+        key = (f["類型"], snip if f["類型"] == "簡體字" else needle)
+        g = groups.setdefault(key, {"f": f, "needle": needle, "lines": []})
+        g["lines"].append(f["行"])
+    tn = re.sub(r"[\s　]", "", project.split_frontmatter(project.read_text(full))[1])
+    added = 0
+    for (kind, snip), g in groups.items():
+        if added >= LOCAL_MAX:
+            break
+        f, ln = g["f"], g["lines"]
+        src = lines[ln[0] - 1] if 0 < ln[0] <= len(lines) else ""
+        q = _quote_around(src, g["needle"]) if kind != "章尾昇華" else src.strip()[:60]
+        if kind == "簡體字":
+            issue = "簡體字：%s" % snip
+        elif kind == "章尾昇華":
+            issue = "章尾昇華：最後一段在寫感悟或預告"
+        else:
+            issue = "%s「%s」" % (kind, g["needle"])
+        if len(ln) > 1:
+            issue += "（本章共 %d 處，全部都要處理）" % len(ln)
+        items.append({"id": "", "severity": f["等級"], "category": LOCAL_CATEGORY, "quote": q,
+                      "located": goals.quote_found(q, tn) if q else False,
+                      "issue": issue, "suggestion": f["建議"]})
+        added += 1
+    items.sort(key=lambda x: SEVERITIES.index(x["severity"]))
+    for i, it in enumerate(items):
+        it["id"] = "R%d" % (i + 1)
+    return dict(review, items=items, local=added)
+
+
 def save_review(book_dir, no, path, text, review, provider):
     rec = dict(review, chapter=no, path=path, hash=goals.text_hash(text), checked_at=time.time(), provider=provider)
     with open(os.path.join(_dir(book_dir, "審查"), "第%03d章.json" % no), "w", encoding="utf-8") as f:
@@ -77,6 +157,8 @@ def review_md(no, rec):
         no, rec.get("summary") or "", cnt["必須修"], cnt["建議修"], cnt["提醒"])
     lines = ["- 【%s】%s%s → %s" % (x["severity"], x["issue"], "" if x["located"] or not x["quote"] else "（引文對不上）",
                                      x["suggestion"]) for x in items]
+    if rec.get("local"):
+        head += "\n其中 %d 條來自本機檢查（禁用詞、簡體字、大陸用語等，不經 AI）。" % rec["local"]
     return head + ("\n" + "\n".join(lines) if lines else "\n沒有發現問題。") + "\n\n可以在章節頁勾選要處理的意見，按「依勾選意見修訂」。"
 
 

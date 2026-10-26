@@ -3,10 +3,10 @@
 ComfyUI API 客戶端與 workflow 處理。
 
 使用者提供 API 格式的 workflow（ComfyUI 選單「Export (API)」），或用專案附的範本（examples/comfy/）。
-工作台只改：正向、負向、seed、寬高、張數、存檔節點；其他（取樣器、步數、CFG、模型）照 workflow。
+工作台只改：正向、負向、seed、寬高、張數、存檔節點，以及出圖設定裡選的 LoRA；其他（取樣器、步數、CFG、模型）照 workflow。
 要改的節點由程式從取樣節點往回追，不需要在 workflow 裡加任何標記。
 
-只會在 workflow 裡新增 ComfyUI 內建節點（SaveImage／PreviewImage、Prompt Upsampler 用的 TextGenerate 等）。
+只會在 workflow 裡新增 ComfyUI 內建節點（SaveImage／PreviewImage、LoraLoaderModelOnly、Prompt Upsampler 用的 TextGenerate 等）。
 """
 import copy
 import json
@@ -127,7 +127,8 @@ def _choices(info, cls, field):
 def model_lists(info):
     return {"unet": _choices(info, "UNETLoader", "unet_name"),
             "clip": _choices(info, "CLIPLoader", "clip_name"),
-            "vae": _choices(info, "VAELoader", "vae_name")}
+            "vae": _choices(info, "VAELoader", "vae_name"),
+            "lora": _choices(info, "LoraLoaderModelOnly", "lora_name")}
 
 
 def guess_models(kind, lists):
@@ -240,10 +241,11 @@ def analyze(wf):
     return {"samplers": samplers, "positive": pos, "negative": neg, "latents": latents, "outputs": outs, "decode": decode}
 
 
-def summary(wf, info=None):
+def summary(wf, info=None, profile=None):
     """給設定頁看的分析結果。info：/object_info 的結果，用來檢查節點有沒有安裝。"""
     a = analyze(wf)
-    done, _ = prepare(wf, {"unet": "-", "clip": "-", "vae": "-"}, "", "", 1, 1024, 1024)
+    dummy = {"unet": "-", "clip": "-", "vae": "-", "loras": active_loras(profile or {})}
+    done, _ = prepare(wf, dummy, "", "", 1, 1024, 1024)
     classes = sorted({n["class_type"] for n in done.values()})
     missing = [c for c in classes if info is not None and c not in info]
 
@@ -252,6 +254,10 @@ def summary(wf, info=None):
         t = (n.get("_meta") or {}).get("title")
         return "%s %s%s" % (nid, n["class_type"], "（%s）" % t if t and t != n["class_type"] else "")
     removed = sorted({n["class_type"] for n in wf.values()} - set(classes) - OUTPUT_NODES)
+    loras = active_loras(profile or {})
+    if loras and info is not None:
+        have = set(_choices(info, "LoraLoaderModelOnly", "lora_name"))
+        missing += ["LoRA 檔案 %s" % x["name"] for x in loras if have and x["name"] not in have]
     return {"samplers": [label(x) for x in a["samplers"]], "positive": [label(x) for x in a["positive"]],
             "negative": [label(x) for x in a["negative"]], "latent": [label(x) for x in a["latents"]],
             "output": [label(x) for x in a["outputs"]] or ["（沒有存檔節點，會自動加 SaveImage）"],
@@ -278,6 +284,66 @@ def _check_models(wf):
                                  % {"unet_name": "模型", "clip_name": "文字編碼器", "vae_name": "VAE"}[k])
 
 
+def active_loras(profile):
+    """出圖設定裡有選檔案、而且勾選使用的 LoRA。"""
+    out = []
+    for x in profile.get("loras") or []:
+        if isinstance(x, dict) and x.get("on", True) and str(x.get("name") or "").strip():
+            try:
+                st = float(x.get("strength", 1))
+            except (TypeError, ValueError):
+                st = 1.0
+            out.append({"name": str(x["name"]).strip(), "strength": st, "trigger": str(x.get("trigger") or "").strip()})
+    return out
+
+
+def _model_roots(wf, samplers):
+    """從取樣節點的 model 往回找，找到沒有 model 輸入的節點（UNETLoader、CheckpointLoaderSimple 等）。回傳 [(id, 輸出序號)]。"""
+    roots = []
+    for s in samplers:
+        link, depth = wf[s]["inputs"].get("model"), 0
+        while _link(link) and link[0] in wf and depth < 16:
+            nxt = wf[link[0]].get("inputs", {}).get("model")
+            if not _link(nxt):
+                break
+            link, depth = nxt, depth + 1
+        if _link(link) and link[0] in wf and tuple(link) not in [tuple(r) for r in roots]:
+            roots.append(list(link))
+    return roots
+
+
+def _add_loras(wf, samplers, loras):
+    """在載入模型的節點後面串上 LoraLoaderModelOnly（內建節點），原本接模型的節點改接最後一個 LoRA。"""
+    if not loras:
+        return []
+    added = []
+    for root in _model_roots(wf, samplers):
+        prev = list(root)
+        chain = []
+        for x in loras:
+            lid = _new_id(wf, 960)
+            wf[lid] = {"class_type": "LoraLoaderModelOnly", "_meta": {"title": "LoRA：%s" % x["name"]},
+                       "inputs": {"model": prev, "lora_name": x["name"], "strength_model": x["strength"]}}
+            chain.append(lid)
+            prev = [lid, 0]
+        for nid, n in wf.items():
+            if nid in chain:
+                continue
+            for k, v in n.get("inputs", {}).items():
+                if _link(v) and v[0] == root[0] and v[1] == root[1]:
+                    n["inputs"][k] = list(prev)
+        added += chain
+    return added
+
+
+def with_triggers(positive, loras):
+    """把 LoRA 的觸發詞接在正向提示詞後面（已經有的不重複加）。"""
+    words = [x["trigger"] for x in loras if x.get("trigger") and x["trigger"] not in (positive or "")]
+    if not words:
+        return positive
+    return ", ".join([p for p in [(positive or "").rstrip(" ,")] + words if p])
+
+
 def _new_id(wf, base=900):
     i = base
     while str(i) in wf:
@@ -290,6 +356,9 @@ def prepare(wf, profile, positive, negative, seed, width, height, count=1, keep_
     wf = copy.deepcopy(wf)
     _models(wf, profile)
     a = analyze(wf)
+    loras = active_loras(profile)
+    _add_loras(wf, a["samplers"], loras)
+    positive = with_triggers(positive, loras)
     for nid in a["positive"]:
         ins = wf[nid]["inputs"]
         ins["text" if "text" in ins else "prompt"] = positive

@@ -242,7 +242,8 @@ class Queue:
         for i, data in enumerate(images):
             meta = dict(it["meta"], origin="comfy", prompt=it["positive"], negative=it["negative"], seed=it["seed"],
                         batch_index=i, width=it["width"], height=it["height"], comfy_profile=prof.get("name"),
-                        comfy_kind=prof.get("kind"), upsampler=bool(prof.get("upsampler")), comfy_prompt_id=pid)
+                        comfy_kind=prof.get("kind"), upsampler=bool(prof.get("upsampler")), comfy_prompt_id=pid,
+                        loras=[{"name": x["name"], "strength": x["strength"]} for x in comfy.active_loras(prof)])
             try:
                 files.append(illust.save_image(it["book_dir"], it["target"], data, meta))
             except Exception as e:  # noqa: BLE001

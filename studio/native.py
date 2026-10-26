@@ -208,6 +208,7 @@ def act_write(c, p):
         if dropped:
             c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
         c.job.emit("log", text="第%d章：上下文約 %d tokens，目標 %d 字" % (n, used, target))
+        c.job.emit("log", text=context.last_breakdown())
         rec = _reconcile(c, n, prev_from_candidate=(n > a)) if c.opts.get("reconcile_before_write", True) else None
         if rec:
             ctx_text += "\n\n" + goals.reconcile_block(rec)
@@ -379,6 +380,7 @@ def act_review(c, p):
     ctx_text, used, dropped = context.for_review(c.book, c.plugin_dir, a, b, c.budget(out_tok))
     if dropped:
         c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
+        c.job.emit("log", text=context.last_breakdown())
     fmt = context.skill_ref(c.plugin_dir, "novel-review/references/fix-routing.md")
     m = re.search(r"## 四、報告格式(.*)", fmt, re.S)
     user = (ctx_text + "\n\n【任務】依審查清單審查第%d～%d章，找出讀者會察覺的錯誤。每個問題要有依據（指出和哪裡矛盾）、位置與修法；沒有問題就說通過，不要為了湊數挑毛病。"
@@ -452,7 +454,8 @@ def _reconcile(c, no, prev_from_candidate=False):
         st = context.read(c.book, "追蹤/角色狀態/%s.md" % e["name"])
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], context.body(st))
-    pk.add(2, "時間線（作者真相與讀者已知）", context.body(context.read(c.book, "追蹤/時間線.md")))
+    pk.add(2, "時間線（作者真相與讀者已知）",
+           context.timeline_for(c.book, card + "\n" + (context.body(prev)[-1500:] if prev else ""), no, pk=pk))
     h, rows = context.foreshadow_rows(c.book, card)
     pk.add(3, "相關伏筆", context.table_md(h, rows))
     pk.add(3, "前幾章摘要", context.recent_summaries(c.book, no))
@@ -541,7 +544,7 @@ def act_review_notes(c, p):
         st = context.read(c.book, "追蹤/角色狀態/%s.md" % e["name"])
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], context.body(st))
-    pk.add(3, "時間線", context.body(context.read(c.book, "追蹤/時間線.md")))
+    pk.add(3, "時間線", context.timeline_for(c.book, text + "\n" + card, no, pk=pk))
     pk.add(3, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
     ctx_text, used, dropped = pk.build()
     user = (ctx_text + "\n\n【要審查的稿子（%s）】\n" % rel + context.body(text) +
@@ -549,6 +552,7 @@ def act_review_notes(c, p):
     msgs = [{"role": "system", "content": SYSTEM + "這個任務請只輸出 JSON。"}, {"role": "user", "content": user}]
     out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label="審查第%d章" % no, stage="review")
     rec = revision.normalize_review(providers.parse_json(out), text)
+    rec = revision.merge_local_checks(rec, c.book, rel, c.checker)
     rec = revision.save_review(c.book, no, rel, text, rec, c.prov.get("id"))
     c.job.result = revision.review_md(no, rec)
 
@@ -732,6 +736,7 @@ for _k, _spec in native_files.SPECS.items():
 
 def run(job, prov, home, plugin_dir, checker, opts=None):
     c = Ctx(job, prov, home, plugin_dir, checker, opts)
+    context.set_ratio(providers.cjk_ratio(prov))   # 這個任務的執行緒裡，估 token 用這個供應商的比例
     action = job.meta.get("action")
     job.session_id = job.id  # 讓前端可以用 resume=job.id 接續
     job.emit("init", session_id=job.id, model="%s %s" % (prov.get("name"), prov.get("model") or ""))

@@ -54,9 +54,9 @@ DEFAULTS = {
     # ComfyUI 出圖設定：workflow 留空＝用 examples/comfy/ 的範本；模型留空＝照 workflow
     "comfy_profiles": [
         {"id": "anima", "name": "Anima", "kind": "anima", "workflow": "", "unet": "", "clip": "", "vae": "",
-         "upsampler": False, "upsampler_clip": "", "negative": ""},
+         "upsampler": False, "upsampler_clip": "", "negative": "", "loras": []},
         {"id": "moss", "name": "MOSS-Image", "kind": "moss", "workflow": "", "unet": "", "clip": "", "vae": "",
-         "upsampler": False, "upsampler_clip": "", "negative": ""},
+         "upsampler": False, "upsampler_clip": "", "negative": "", "loras": []},
     ],
 }
 SIZES = [("直式", 896, 1152), ("橫式", 1152, 896), ("方形", 1024, 1024), ("寬螢幕", 1344, 768), ("長直式", 768, 1344)]

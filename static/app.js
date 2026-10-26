@@ -390,7 +390,7 @@ async function viewChapter(view, no, tab) {
   if (tab === "candidate") {
     $("#cand-accept").onclick = async () => {
       if (!confirm(`採用第${no}章？候選稿會移到正文，並請 ${Panel.provName()} 回寫追蹤資料。`)) return;
-      try { const r = await api("POST", B(`/candidate/${no}/accept?provider=${enc(Panel.prov())}`)); Panel.attach(r.job); go(`${base}?tab=text`); } catch (e) { fail(e); }
+      try { const r = await api("POST", B(`/candidate/${no}/accept?provider=${enc(stepProv("accept"))}`)); Panel.attach(r.job); go(`${base}?tab=text`); } catch (e) { fail(e); }
     };
     $("#cand-reject").onclick = () => modal(`<h2>退回第${no}章候選稿</h2>
       <label class="f"><span>要怎麼改？寫得越具體越好</span><textarea id="rj-note" rows="5" placeholder="例如：林晚太早亮出底牌了，改成先讓掌櫃說漏嘴"></textarea></label>
@@ -433,7 +433,7 @@ function pipeHtml(p) {
   const [label, cls] = PIPE_STATUS[p.status] || [p.status, ""];
   const rng = p.from === p.to ? `第${p.from}章` : `第${p.from}～${p.to}章`;
   const steps = p.steps.map((s) => `<div class="pstep ${s.status}" title="${esc(s.note || "")}">
-      <span class="pi">${PIPE_ICON[s.status] || "○"}</span><span class="pl">${esc(s.label)}</span>
+      <span class="pi">${PIPE_ICON[s.status] || "○"}</span><span class="pl">${esc(s.label)}${s.provider || (p.step_providers || {})[s.key] ? `<span class="muted small">（${esc(provName(s.provider || p.step_providers[s.key]))}）</span>` : ""}</span>
       ${s.note ? `<span class="pn">${esc(s.note)}</span>` : ""}</div>`).join("");
   const btns = [];
   if (p.status === "running") {
@@ -511,6 +511,7 @@ async function pipeModal(no) {
     <div class="row" id="pp-sev">${r.severities.map((x) => `<label class="cb"><input type="checkbox" value="${x}" ${d.severities.includes(x) ? "checked" : ""}> ${x}</label>`).join("")}</div>
     <label class="f" style="margin-top:8px"><span>對整個流程的要求（選填，每一步都會帶上）</span><textarea id="pp-note" rows="2" placeholder="例如：這幾章節奏要快；不要新增角色"></textarea></label>
     <label class="f"><span>執行者</span>${provSelectHtml("pp-prov")}</label>
+    ${Object.keys(d.step_providers || {}).length ? `<div class="muted small">各步驟另外指定：${AI_STEP_LABELS.filter(([k]) => (d.step_providers || {})[k]).map(([k, l]) => `${esc(l)} → ${esc(provName(d.step_providers[k]))}`).join("、")}；其他步驟用上面選的執行者。（設定 → 整章自動流程）</div>` : ""}
     <div class="row" style="margin-top:14px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="pp-go">開始</button></div>`, (el) => {
     $("#pp-go", el).onclick = async () => {
       try {
@@ -930,6 +931,10 @@ async function viewSettings(view) {
         <label><input type="radio" name="c-pmode" value="continue" ${c.pipeline_mode === "continue" ? "checked" : ""}><span>連續寫到最後一章</span></label>
       </div>
       <div class="muted small" style="margin-top:6px">章綱核對發現沒寫到的情節點，會一併交給修訂。開始時也可以臨時改這兩項。</div>
+      <div class="f" style="margin-top:12px"><span>各步驟的執行者（面板上對應的按鈕也預設用這裡的分配）</span></div>
+      <div class="grid g4" id="c-pprov">${AI_STEP_LABELS.map(([k, l]) => `<label class="f"><span>${esc(l)}</span><select data-step="${k}">
+        <option value="">跟流程的執行者</option>${(c.providers || []).map((p) => `<option value="${esc(p.id)}" ${(c.pipeline_providers || {})[k] === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>`).join("")}</div>
+      <div class="muted small">建議：寫章節、去 AI 味、修訂用寫作品質最好的模型；審查可以換另一個模型交叉檢查；定稿回寫追蹤會改寫時間線與伏筆，不建議交給小型本機模型。指定的執行者連不上時，流程會停在那一步。</div>
     </div>
     <div class="card" id="ill-settings"></div>
     <div class="card">
@@ -1060,6 +1065,7 @@ async function viewSettings(view) {
         reconcile_before_write: $("#c-recon").checked, goal_check_after_write: $("#c-goal").checked,
         pipeline_severities: [...document.querySelectorAll("#c-psev input:checked")].map((x) => x.value),
         pipeline_mode: document.querySelector('input[name="c-pmode"]:checked').value,
+        pipeline_providers: Object.fromEntries([...document.querySelectorAll("#c-pprov select")].map((x) => [x.dataset.step, x.value])),
         stale_foreshadow: parseInt($("#c-sf").value) || 10, stale_character: parseInt($("#c-sc").value) || 15, create_library: true,
         port: parseInt($("#c-port").value) || r.port,
       });
@@ -1119,6 +1125,16 @@ function compareTable(rows) {
 /* 請 AI 設計／調整／試寫文風（共用庫） */
 const STYLE_GENRES = ["本格推理", "冷硬派", "心理驚悚", "恐怖怪談", "仙俠修真", "武俠", "西式奇幻", "科幻", "現代言情", "古言宮鬥",
   "都市爽文", "歷史架空", "都市寫實", "輕小說", "黑色幽默", "鄉土地域", "太空歌劇"];
+// 整章自動流程的步驟與面板動作的對應；面板按鈕也預設用該步驟分配的執行者
+const STEP_OF_ACTION = { chapter_cards: "card", write: "write", goal_check: "goal", deslop: "deslop", review_notes: "review", revise_notes: "revise", accept: "accept" };
+const AI_STEP_LABELS = [["card", "章綱"], ["write", "寫章節（候選稿）"], ["goal", "章綱核對"], ["deslop", "去 AI 味"], ["review", "審查意見"], ["revise", "依勾選意見修訂"], ["accept", "定稿並回寫追蹤"]];
+function provName(id) { const p = ((S.config && S.config.providers) || []).find((x) => x.id === id); return p ? p.name : id; }
+function stepProv(action) {
+  const m = (S.config && S.config.pipeline_providers) || {};
+  const k = STEP_OF_ACTION[action];
+  const ids = ((S.config && S.config.providers) || []).map((p) => p.id);
+  return k && m[k] && ids.includes(m[k]) ? m[k] : Panel.prov();
+}
 function provSelectHtml(id) {
   const ps = (S.config && S.config.providers) || [{ id: "claude_code", name: "Claude Code" }];
   const cur = Panel.prov();
@@ -2415,18 +2431,21 @@ const Panel = {
         if (f.type === "checkbox") return `<label class="cb"><input type="checkbox" data-k="${f.key}" ${v ? "checked" : ""}> ${esc(f.label)}</label>`;
         return `<label class="f"><span>${esc(f.label)}</span><input type="${f.type === "number" ? "number" : "text"}" data-k="${f.key}" value="${esc(v)}"></label>`;
       }).join("")}
+      ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov">${((S.config && S.config.providers) || []).map((p) => `<option value="${esc(p.id)}" ${p.id === stepProv(id) ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>` : ""}
       <div class="row"><span class="grow"></span><button class="primary" id="pf-go">執行</button></div>`;
     const first = el.querySelector("[data-k]"); if (first) first.focus();
     $("#pf-go").onclick = () => {
       const p = {};
       el.querySelectorAll("[data-k]").forEach((i) => p[i.dataset.k] = i.type === "checkbox" ? i.checked : (i.type === "number" ? (i.value ? parseInt(i.value) : null) : i.value));
-      this.run(id, p);
+      this.run(id, p, $("#pf-prov") ? $("#pf-prov").value : undefined);
     };
   },
   closeForm() { $("#panel-form").innerHTML = ""; },
-  async run(action, params) {
+  async run(action, params, provider) {
     try {
-      const job = await api("POST", B("/jobs"), { action, params, provider: this.prov() });
+      const pid = provider || stepProv(action);
+      if (pid !== this.prov()) toast(`用「${provName(pid)}」執行（設定 → 整章自動流程的步驟分配）`);
+      const job = await api("POST", B("/jobs"), { action, params, provider: pid });
       this.closeForm();
       this.attach(job);
     } catch (e) { fail(e); }

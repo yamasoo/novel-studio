@@ -27,6 +27,19 @@ STEPS = [
     ("accept", "定稿並回寫追蹤"),
 ]
 LABEL = dict(STEPS)
+# 會呼叫 AI 的步驟（可以各自指定執行者），以及面板上對應的動作
+AI_STEPS = ["card", "write", "goal", "deslop", "review", "revise", "accept"]
+STEP_ACTION = {"card": "chapter_cards", "write": "write", "goal": "goal_check", "deslop": "deslop",
+               "review": "review_notes", "revise": "revise_notes", "accept": "accept"}
+
+
+def clean_step_providers(m, valid_ids):
+    """{步驟: 執行者 id}；空白或不存在的執行者＝跟流程的執行者。"""
+    out = {}
+    for k, v in (m or {}).items():
+        if k in AI_STEPS and v and v in valid_ids:
+            out[k] = v
+    return out
 DEFAULT_SEVERITIES = ["必須修", "建議修"]
 AUTO_NOTE = ("這是整章自動流程的一步：不要停下來問作者，也不要等作者確認；"
              "不確定的地方採用最合理、和既有設定一致的寫法，並在匯報列出來。")
@@ -79,11 +92,12 @@ class Pipeline:
 
     # ------------------------------------------------------------------ 狀態
     @classmethod
-    def create(cls, book_id, book_dir, hooks, start, end, mode, severities, provider, note=""):
+    def create(cls, book_id, book_dir, hooks, start, end, mode, severities, provider, note="", step_providers=None):
         state = {"id": uuid.uuid4().hex[:10], "book": book_id, "from": int(start), "to": int(end),
                  "mode": mode if mode in ("stop", "continue") else "stop",
                  "severities": [s for s in (severities or DEFAULT_SEVERITIES) if s in revision.SEVERITIES],
                  "provider": provider, "note": (note or "").strip(),
+                 "step_providers": dict(step_providers or {}),   # 開始時記下的分配，中途繼續也用同一套
                  "chapter": int(start), "status": "running", "error": "", "message": "",
                  "steps": new_steps(), "done_chapters": [], "created": time.time(), "updated": time.time()}
         return cls(book_id, book_dir, state, hooks)
@@ -170,6 +184,7 @@ class Pipeline:
                 continue
             if self.stop_flag:
                 raise Stopped()
+            self.cur = key
             self.mark(key, "running", "")
             try:
                 res = getattr(self, "_s_" + key)(no)
@@ -184,11 +199,19 @@ class Pipeline:
             else:
                 self.mark(key, "done", res or "")
 
+    def provider_for(self, key):
+        return (self.s.get("step_providers") or {}).get(key) or self.s["provider"]
+
     def _wait(self, action, params):
         if self.stop_flag:
             raise Stopped()
+        cur = getattr(self, "cur", None)
+        pid = self.provider_for(cur)
+        if cur:
+            with self.lock:
+                self.step(cur)["provider"] = pid
         try:
-            job = self.h["launch"](action, params)
+            job = self.h["launch"](action, params, pid)
         except Exception as e:
             raise StepFailed(getattr(e, "detail", None) or str(e))
         self.job = job

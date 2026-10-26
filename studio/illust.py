@@ -591,7 +591,7 @@ def tag_dict_paths(cfg):
 
 
 # ---------------------------------------------------------------------------
-# StyleSelectorXL 樣式表（ALL.xlsx／ALL.json），規則和 Forge 擴充一致
+# StyleSelectorXL 樣式表（.xlsx／.json），規則和 Forge 擴充一致
 # ---------------------------------------------------------------------------
 _SHEET = {"path": None, "mtime": None, "styles": []}
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}

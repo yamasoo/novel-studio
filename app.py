@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
 
-VERSION = "1.7.1"
+VERSION = "1.9.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -45,6 +45,7 @@ DEFAULT_CONFIG = {
     "goal_check_after_write": True,     # 非 Claude 模型寫完候選稿後自動核對章綱
     "pipeline_severities": ["必須修", "建議修"],   # 整章自動流程：自動勾選哪些等級的審查意見
     "pipeline_mode": "stop",            # 整章自動流程：stop＝每章定稿後停下來；continue＝連續寫到最後一章
+    "pipeline_providers": {},           # 整章自動流程：各步驟的執行者（空白＝跟流程的執行者）；面板按鈕也預設帶入
     "stale_foreshadow": 10,
     "stale_character": 15,
     "host": "127.0.0.1",
@@ -149,6 +150,9 @@ async def set_config(req: Request):
               "reconcile_before_write", "goal_check_after_write", "pipeline_severities", "pipeline_mode"):
         if k in body:
             CONFIG[k] = body[k]
+    if "pipeline_providers" in body:
+        ids = {p.get("id") for p in CONFIG.get("providers") or []}
+        CONFIG["pipeline_providers"] = pipeline.clean_step_providers(body.get("pipeline_providers"), ids)
     if "port" in body:
         try:
             port = int(body["port"])
@@ -1478,8 +1482,8 @@ async def start_job(book_id: str, req: Request):
 # 整章自動流程
 # ---------------------------------------------------------------------------
 def _pipe_hooks(book_id, d, prov_id):
-    def launch(action, params):
-        return launch_job(book_id, d, action, params, get_provider(prov_id))
+    def launch(action, params, pid=None):
+        return launch_job(book_id, d, action, params, get_provider(pid or prov_id))
     return {"launch": launch, "cancel": RUNNER.cancel, "checker": check_text,
             "busy": lambda: RUNNER.running_for(book_id) is not None}
 
@@ -1495,7 +1499,9 @@ def pipeline_get(book_id: str):
     return {"pipeline": _pipe_view(book_id, d), "steps": [{"key": k, "label": v} for k, v in pipeline.STEPS],
             "severities": revision.SEVERITIES,
             "defaults": {"severities": CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES,
-                         "mode": CONFIG.get("pipeline_mode") or "stop"}}
+                         "mode": CONFIG.get("pipeline_mode") or "stop",
+                         "step_providers": CONFIG.get("pipeline_providers") or {}},
+            "ai_steps": pipeline.AI_STEPS}
 
 
 @app.post("/api/books/{book_id}/pipeline")
@@ -1527,7 +1533,15 @@ async def pipeline_start(book_id: str, req: Request):
     sev = body.get("severities")
     if sev is None:
         sev = CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES
-    p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"))
+    ids = {x.get("id") for x in CONFIG.get("providers") or []}
+    sp = body.get("step_providers")
+    if sp is None:
+        sp = CONFIG.get("pipeline_providers") or {}
+    missing = [v for v in (sp or {}).values() if v and v not in ids]
+    if missing:
+        raise HTTPException(400, "步驟指定的執行者不存在：%s，請到設定修改。" % "、".join(missing))
+    p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"),
+                                 pipeline.clean_step_providers(sp, ids))
     try:
         PIPES.put(p)
     except pipeline.PipelineError as e:

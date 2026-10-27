@@ -1,5 +1,7 @@
 # 小說工作台 Novel Studio
 
+> 語言：繁體中文 · [English](README.en.md) · [日本語](README.ja.md)
+
 用 AI 寫繁體中文長篇連載小說的本機工作台。小說資料（設定、大綱、追蹤、正文）全部是純 Markdown＋YAML，網頁介面負責專案管理，寫作流程可以交給不同的 AI 執行：
 
 - **Claude Code**：用你的 Claude 訂閱，透過內建的 novel-* skills（在 `plugin/` 資料夾）自己讀寫檔案。

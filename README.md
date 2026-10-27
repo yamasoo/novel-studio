@@ -7,6 +7,8 @@
 - 換哪家 AI 都讀得懂同一份資料；工作台不依賴 `~/.claude`。
 - 只在本機執行（127.0.0.1），不會對外開放。
 
+第一次使用，建議先看[新手教學簡報](demo/小說工作台_新手教學.pptx)，再用 `demo/退婚之後/` 示範書實際操作一遍。
+
 ## 功能
 
 | 頁面 | 內容 |
@@ -344,7 +346,7 @@ novel-studio/
 │   └── skills/novel-setup、novel-style、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
 ├── static/             網頁介面（index.html、app.js、style.css、marked.js）
 ├── examples/           範例樣式表（styles.example.json／.xlsx）、完整文風範例（7 種類型）、ComfyUI 範本 workflow（comfy/）
-└── demo/退婚之後/       示範書
+└── demo/               新手教學簡報（小說工作台_新手教學.pptx）、示範書（退婚之後/）
 ```
 
 執行後才會產生、不進 git 的檔案：`config.json`（設定）、`secrets.json`（沒有系統金鑰庫時才會產生）、`.venv/`。

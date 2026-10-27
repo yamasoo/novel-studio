@@ -247,6 +247,11 @@ class Runner:
         return cmd
 
     def _run(self, job):
+        try:
+            from . import prompts, lang as _lang
+            prompts.set_lang(_lang.book_lang(job.book_dir))
+        except Exception:
+            pass
         if job.provider.get("type") != "claude_code" or (job.meta or {}).get("action") in NATIVE_WITH_CLAUDE:
             from . import native
             native.run(job, job.provider, self.home, self.plugin_dir, self.checker, self.get_config())

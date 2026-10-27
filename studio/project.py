@@ -6,7 +6,7 @@ import time
 
 import yaml
 
-CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
+CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
 CH_NUM = re.compile(r"第0*(\d+)章")
 
 # 書目錄內允許瀏覽的資料夾
@@ -55,7 +55,10 @@ def count_chars(text):
     _, body = split_frontmatter(text)
     body = re.sub(r"^#.*$", "", body, flags=re.M)
     body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
-    return len(CJK.findall(body))
+    cjk = len(CJK.findall(body))
+    # 英文等以字母為主的稿子：改算詞數（中文為主時結果與原本相同）
+    words = len(re.findall(r"[A-Za-z0-9]+(?:['’\-][A-Za-z0-9]+)*", body))
+    return words if words > cjk else cjk
 
 
 def chapter_no(name):

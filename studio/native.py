@@ -160,7 +160,7 @@ def _target_chars(book_dir, no):
     m = re.search(r"每章字數[：:]\s*(\d+)\s*[～~\-－到至]\s*(\d+)", context.read(book_dir, "CLAUDE.md"))
     if m:
         return (int(m.group(1)) + int(m.group(2))) // 2
-    return 3000
+    return _P()["default_target"]
 
 
 def _card_title(book_dir, no):
@@ -211,10 +211,20 @@ def _out_tokens(c, chars=None):
     return int(c.prov.get("max_output") or 8192)
 
 
-FORMAT_RULE = ("輸出格式：第一行是「# 第{n}章 章名」，接著是正文；正文結束後另起一行寫「" + DELIM +
-               "」，再寫給作者的匯報。匯報包含：這章兩三句摘要、停在哪個鉤子；"
-               "新出現的具名人物、地點、規則、伏筆（寫了要報）；需要作者決定、所以沒寫的事；自查結論一句話。"
-               "不要輸出其他說明。")
+FORMAT_RULE = prompts.pack("zh-TW")["format_rule"].replace("{delim}", DELIM)   # 相容舊程式碼；實際用 fmt_rule()
+
+
+def _P():
+    """目前任務（書）語言的提示詞包；run() 開頭用 prompts.set_lang 設定。"""
+    return prompts.cur()
+
+
+def fmt_rule(n):
+    return _P()["format_rule"].format(n=n, delim=DELIM)
+
+
+def _author_req(note):
+    return _P()["author_req"] + note
 
 
 # ---------------------------------------------------------------------------
@@ -243,10 +253,7 @@ def act_write(c, p):
         rec = _reconcile(c, n, prev_from_candidate=(n > a)) if c.opts.get("reconcile_before_write", True) else None
         if rec:
             ctx_text += "\n\n" + goals.reconcile_block(rec)
-        user = (ctx_text + "\n\n【任務】依第%d章章綱寫出完整正文，約 %d 字（中文字）。"
-                "照情節點順序展開成場景，每個情節點都要寫到；遵守禁止事項與資訊邊界；"
-                "情緒用動作、物件、對白呈現，不替讀者點題，章尾停在具體畫面，不寫感悟或預告。%s\n%s"
-                % (n, target, ("\n作者這次的要求：" + note) if note else "", FORMAT_RULE.format(n=n)))
+        user = ctx_text + _P()["task_write"].format(n=n, target=target, note=("\n" + _author_req(note)) if note else "", fmt=fmt_rule(n))
         msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
         out = c.call(msgs, max_tokens=out_tok, label="寫第%d章" % n, stage="draft",
                      recover={"chapter": n, "kind": "chapter"})
@@ -272,8 +279,7 @@ def _rewrite(c, no, src_text, instruction, label):
     out_tok = _out_tokens(c, target)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(src_text)),
                                                   include_craft=False)
-    user = (ctx_text + "\n\n【目前的稿子】\n" + context.body(src_text) + "\n\n【任務】" + instruction +
-            "\n請輸出修改後的完整章節（不是只給修改處）。\n" + FORMAT_RULE.format(n=no))
+    user = ctx_text + _P()["ctx_draft"] + context.body(src_text) + _P()["task_rewrite"].format(instr=instruction, fmt=fmt_rule(no))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label=label, stage="draft", recover={"chapter": no, "kind": "chapter"})
     msgs.append({"role": "assistant", "content": out})
@@ -286,8 +292,8 @@ def act_reject(c, p):
     path, src = context.chapter_text(c.book, no, ("候選",))
     if not src:
         raise NativeError("第%d章沒有候選稿" % no)
-    note = (p.get("note") or "").strip() or "請整體再修順。"
-    title, text, report = _rewrite(c, no, src, "作者退回了這份候選稿，意見如下，請照意見改寫：\n" + note, "改寫第%d章候選稿" % no)
+    note = (p.get("note") or "").strip() or _P()["reject_default"]
+    title, text, report = _rewrite(c, no, src, _P()["reject_instr"].format(note=note), "改寫第%d章候選稿" % no)
     rel, _ = _save_candidate(c, no, title, text)
     _, chk = _check_summary(c, rel)
     c.job.result = "**第%d章候選稿已改寫（%s）**\n\n%s\n\n%s" % (no, rel, report, chk)
@@ -301,7 +307,7 @@ def act_revise(c, p):
     note = (p.get("note") or "").strip()
     if not note:
         raise NativeError("請說明要怎麼改")
-    title, text, report = _rewrite(c, no, src, "作者要修改這一章：\n" + note, "改第%d章" % no)
+    title, text, report = _rewrite(c, no, src, _P()["revise_instr"].format(note=note), "改第%d章" % no)
     rel, _ = _save_candidate(c, no, title, text)
     _, chk = _check_summary(c, rel)
     c.job.result = ("**改好的第%d章放在候選稿（%s）**，原本的正文沒有動。採用後會覆蓋正文並重新回寫追蹤。\n\n%s\n\n%s"
@@ -320,17 +326,16 @@ def act_deslop(c, p):
     if pending and not p.get("auto_apply"):
         raise NativeError("第%d章還有一份待確認的修訂（%d 處變更）。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % (no, pending["changes"]))
     res = c.checker.check_file(os.path.join(c.book, path), c.checker.load_whitelist(c.book))
-    finds = "\n".join("- 第%s行｜%s｜%s｜%s → %s" % (f["行"] or "全章", f["等級"], f["類型"], f["片段"], f["建議"])
-                      for f in res["問題"][:60]) or "（腳本沒有發現問題）"
+    P = _P()
+    finds = "\n".join(P["deslop_line"].format(line=f["行"] or P["whole_chapter"], level=f["等級"], kind=f["類型"], frag=f["片段"], fix=f["建議"])
+                      for f in res["問題"][:60]) or P["deslop_none"]
     target = project.count_chars(src)
     out_tok = _out_tokens(c, target)
     ref, used, dropped = context.for_deslop(c.book, c.plugin_dir, c.budget(out_tok + context.est_tokens(src) + 2000))
-    user = (ref + "\n\n【檢查腳本的發現】\n" + finds + "\n\n【原稿】\n" + context.body(src) +
-            "\n\n【任務】去除 AI 味並校正台灣用語：先修必須修的項目，再處理語意層的 AI 味（替讀者點題、敘述者解釋、章尾昇華、萬用表情與比喻堆疊、說明書式對白）。"
-            "能刪就刪，否則換成具體動作、物件、對白；不改變劇情事實、人物決定與資訊揭露程度；作者文風允許的寫法保留。"
-            "沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對新舊版本）。輸出完整的修改後章節。\n"
-            + revision.CHANGE_TABLE_RULE + "\n" +
-            (("作者這次的要求：" + p["note"].strip() + "\n") if (p.get("note") or "").strip() else "") + FORMAT_RULE.format(n=no))
+    user = (ref + P["deslop_findings_head"] + finds + P["deslop_src_head"] + context.body(src) +
+            P["task_deslop"]
+            + revision.change_table_rule() + "\n" +
+            ((_author_req(p["note"].strip()) + "\n") if (p.get("note") or "").strip() else "") + fmt_rule(no))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="去 AI 味：第%d章" % no, stage="draft")
     title, text, report = _split_output(out, no, _card_title(c.book, no))
@@ -367,10 +372,10 @@ def _writeback(c, no):
     tracked = tracking.tracked_to(c.book)
     revision = bool(tracked and no < tracked)
     ctx_text, used, dropped = context.for_writeback(c.book, no, text, c.budget(out_tok))
-    task = "第%d章已定稿。請整理這章對追蹤資料的影響。" % no
+    task = _P()["task_writeback"].format(n=no)
     if revision:
-        task += tracking.REVISION_NOTE % (tracked, no)
-    user = ctx_text + "\n\n【任務】" + task + "\n" + tracking.WRITEBACK_SCHEMA
+        task += tracking.revision_note(tracked, no)
+    user = ctx_text + _P()["task_h"] + task + "\n" + tracking.writeback_schema()
     msgs = [{"role": "system", "content": c.sys("json_short")},
             {"role": "user", "content": user}]
     out = c.call(msgs, json_mode=True, max_tokens=out_tok, label="整理第%d章的追蹤資料" % no, stage="structured")
@@ -385,7 +390,7 @@ def _writeback(c, no):
         else:
             c.job.emit("log", text="JSON 格式有誤，請模型重新輸出一次……")
             msgs2 = msgs + [{"role": "assistant", "content": out},
-                            {"role": "user", "content": "上面的輸出不是合法 JSON。請只輸出符合格式的 JSON 物件，不要任何說明或圍欄。"}]
+                            {"role": "user", "content": _P()["json_retry"]}]
             out = c.call(msgs2, json_mode=True, max_tokens=out_tok, label="重新輸出 JSON", stage="structured")
         try:
             data = providers.parse_json(out)
@@ -420,6 +425,16 @@ def act_sync(c, p):
     c.job.result = "\n\n".join(outs)
 
 
+def review_report_format(c):
+    """審查報告的格式說明：繁中照 skill 的 fix-routing.md 第四節；其他語言用語言包裡內建的。"""
+    built_in = _P()["review_report_format"]
+    if built_in:
+        return built_in
+    fmt = context.skill_ref(c.plugin_dir, "novel-review/references/fix-routing.md")
+    m = re.search(r"## 四、報告格式(.*)", fmt, re.S)
+    return m.group(1) if m else ""
+
+
 def act_review(c, p):
     a = int(p.get("from") or 1)
     b = int(p.get("to") or a)
@@ -429,10 +444,7 @@ def act_review(c, p):
     if dropped:
         c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
         c.job.emit("log", text=context.last_breakdown())
-    fmt = context.skill_ref(c.plugin_dir, "novel-review/references/fix-routing.md")
-    m = re.search(r"## 四、報告格式(.*)", fmt, re.S)
-    user = (ctx_text + "\n\n【任務】依審查清單審查第%d～%d章，找出讀者會察覺的錯誤。每個問題要有依據（指出和哪裡矛盾）、位置與修法；沒有問題就說通過，不要為了湊數挑毛病。"
-            "作者文風允許的寫法不算問題。用以下格式輸出 Markdown 報告：\n%s" % (a, b, m.group(1) if m else ""))
+    user = ctx_text + _P()["task_review"].format(a=a, b=b, fmt=review_report_format(c))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="審查第%d～%d章" % (a, b), stage="review")
     d = os.path.join(c.book, ".studio", "審查報告")
@@ -450,7 +462,7 @@ def act_free(c, p):
         raise NativeError("指令是空的")
     ctx_text, used, dropped = context.for_chat(c.book, c.budget(4000))
     msgs = [{"role": "system", "content": c.sys("discuss")},
-            {"role": "user", "content": ctx_text + "\n\n【作者】" + q}]
+            {"role": "user", "content": ctx_text + _P()["author_h"] + q}]
     out = c.call(msgs, max_tokens=_out_tokens(c), label="回答", stage="plan")
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "chat"})
     c.job.result = out
@@ -510,7 +522,7 @@ def _reconcile(c, no, prev_from_candidate=False):
     pk.add(3, "前幾章摘要", context.recent_summaries(c.book, no))
     ctx_text, used, dropped = pk.build()
     msgs = [{"role": "system", "content": c.sys("json")},
-            {"role": "user", "content": ctx_text + "\n\n【任務】寫第%d章之前，把章綱必須事件和已定稿事實逐條比對。\n%s" % (no, goals.RECONCILE_SCHEMA)}]
+            {"role": "user", "content": ctx_text + _P()["task_h"] + _P()["task_reconcile"].format(n=no, schema=goals.reconcile_schema())}]
     try:
         out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label="寫第%d章前對帳" % no, stage="structured")
         rec = goals.parse_reconcile(providers.parse_json(out))
@@ -598,9 +610,9 @@ def act_review_notes(c, p):
     pk.add(3, "時間線", context.timeline_for(c.book, text + "\n" + card, no, pk=pk))
     pk.add(3, "伏筆", context.foreshadow_for(c.book, text + "\n" + card, no, pk=pk))
     ctx_text, used, dropped = pk.build()
-    user = (ctx_text + "\n\n【要審查的稿子（%s）】\n" % rel + context.body(text) +
-            "\n\n【任務】依審查清單審查這一章，列出讀者會察覺的問題。\n" +
-            (("作者這次的要求：" + p["note"].strip() + "\n") if (p.get("note") or "").strip() else "") + revision.REVIEW_SCHEMA)
+    user = (ctx_text + _P()["ctx_review_target"].format(rel=rel) + context.body(text) +
+            _P()["task_review_notes"] +
+            ((_author_req(p["note"].strip()) + "\n") if (p.get("note") or "").strip() else "") + revision.review_schema())
     msgs = [{"role": "system", "content": c.sys("json")}, {"role": "user", "content": user}]
     out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label="審查第%d章" % no, stage="review")
     rec = revision.normalize_review(providers.parse_json(out), text)
@@ -624,10 +636,9 @@ def act_revise_notes(c, p):
     out_tok = _out_tokens(c)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(text)),
                                                   include_craft=False)
-    user = (ctx_text + "\n\n【目前的稿子（%s）】\n" % rel + context.body(text) +
-            "\n\n【要處理的修改意見】\n" + notes +
-            "\n\n【任務】只修改這些意見涉及的地方；其他段落一字不改，維持原本的空行分段（作者會逐段比對新舊版本）。"
-            "不改變劇情事實與人物決定，除非意見明確要求。請輸出修改後的完整章節。匯報逐條說明每個意見怎麼處理。\n" + FORMAT_RULE.format(n=no))
+    user = (ctx_text + _P()["ctx_draft_rel"].format(rel=rel) + context.body(text) +
+            _P()["ctx_notes"] + notes +
+            _P()["task_revise_notes"].format(fmt=fmt_rule(no)))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="修訂第%d章" % no, stage="draft", recover={"chapter": no, "kind": "chapter"})
     title, new_text, report = _split_output(out, no, _card_title(c.book, no))
@@ -648,9 +659,8 @@ def act_recover_continue(c, p):
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(partial)),
                                                   include_craft=False, prev_from_candidate=True)
     target = _target_chars(c.book, no)
-    user = (ctx_text + "\n\n【已經寫好的部分（中斷在最後一句）】\n" + partial +
-            "\n\n【任務】從中斷處接著寫完第%d章（全章約 %d 字，已寫約 %d 字）。直接從斷點的下一句開始，"
-            "不要重複已寫的內容，不要重寫標題。寫完後另起一行寫「%s」，再寫給作者的匯報。" % (no, target, rec.get("chars", 0), DELIM))
+    user = (ctx_text + _P()["ctx_partial"] + partial +
+            _P()["task_recover"].format(n=no, target=target, chars=rec.get("chars", 0), delim=DELIM))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="續寫第%d章" % no, stage="draft",
                  recover={"chapter": no, "kind": "chapter", "prefix": partial})
@@ -893,6 +903,7 @@ for _k, _spec in native_files.SPECS.items():
 def run(job, prov, home, plugin_dir, checker, opts=None):
     c = Ctx(job, prov, home, plugin_dir, checker, opts)
     context.set_ratio(providers.cjk_ratio(prov))   # 這個任務的執行緒裡，估 token 用這個供應商的比例
+    prompts.set_lang(c.lang)                        # 這個任務的執行緒裡，提示詞用這本書的語言
     action = job.meta.get("action")
     job.session_id = job.id  # 讓前端可以用 resume=job.id 接續
     job.emit("init", session_id=job.id, model="%s %s" % (prov.get("name"), prov.get("model") or ""))

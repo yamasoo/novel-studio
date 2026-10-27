@@ -11,7 +11,7 @@ import os
 import re
 import time
 
-from . import goals, project, tracking
+from . import goals, project, prompts, tracking
 
 SEVERITIES = ["必須修", "建議修", "提醒"]
 
@@ -23,6 +23,14 @@ REVIEW_SCHEMA = (
     '"suggestion": "具體怎麼改"}]}\n'
     "規則：每條意見都要有依據；沒有問題就給空陣列，不要湊數；作者文風允許的寫法不算問題；"
     "quote 必須從正文原封不動複製，工作台會逐字比對；最多 15 條，依嚴重度排序。")
+
+
+def review_schema():
+    return prompts.cur()["review_schema"]
+
+
+def change_table_rule():
+    return prompts.cur()["change_table_rule"]
 
 
 def _dir(book_dir, kind):
@@ -235,7 +243,7 @@ def parse_change_table(report):
         if not s.startswith("|") or re.match(r"^\|[\s:\-|]+\|$", s):
             continue
         cells = [c.strip() for c in s.strip("|").split("|")]
-        if len(cells) < 3 or cells[0] in ("原句", "原文") or not cells[0]:
+        if len(cells) < 3 or cells[0] in ("原句", "原文", "Original", "original", "元の文") or not cells[0]:
             continue
         items.append({"old": cells[0], "why": cells[1], "new": "｜".join(cells[2:])})
     return items

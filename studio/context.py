@@ -6,7 +6,7 @@ import contextvars
 import os
 import re
 
-from . import project, shared
+from . import project, prompts, shared
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -68,6 +68,13 @@ def body(text):
     return strip_comments(project.split_frontmatter(text)[1]).strip()
 
 
+def _shown_title(t, P):
+    """段落標題：程式裡用中文當索引，給模型看時依目前語言翻譯。"""
+    if t.endswith("（節錄）"):
+        return prompts.label(t[:-4]) + P["excerpt"]
+    return prompts.label(t)
+
+
 class Pack:
     """依優先順序收集段落；超出預算時，低優先的先被截短或捨棄。"""
 
@@ -98,20 +105,36 @@ class Pack:
             if room > 300:
                 ratio = room / cost
                 n = max(200, int(len(text) * ratio))
-                cut = text[:n] + "\n……（以下省略）" if keep == "head" else "……（前略）\n" + text[-n:]
+                P = prompts.cur()
+                cut = text[:n] + P["cut_tail"] if keep == "head" else P["cut_head"] + text[-n:]
                 chosen.append((pr, title + "（節錄）", cut))
                 used += est_tokens(cut) + 10
             else:
                 dropped.append(title)
         order = {t: i for i, (_, t, _, _) in enumerate(self.items)}
         chosen.sort(key=lambda x: order.get(x[1].replace("（節錄）", ""), 0))
-        out = "\n\n".join("【%s】\n%s" % (t, x) for _, t, x in chosen)
+        P = prompts.cur()
+        out = "\n\n".join("%s%s%s\n%s" % (P["bk_l"], _shown_title(t, P), P["bk_r"], x) for _, t, x in chosen)
         _LAST.set({"budget": self.budget, "sizes": [(t, est_tokens(x) + 10) for _, t, x in chosen], "notes": list(self.notes)})
         return out, used, dropped
 
 
 # ---------------------------------------------------------------------------
+# 只適用於繁體中文的參考資料（台灣用語、中文 AI 味信號與改寫示範）：其他語言的書不帶，除非有該語言自己的版本
+ZH_ONLY_REFS = {"novel-deslop/references/tw-terms.md", "novel-deslop/references/ai-signals.md",
+                "novel-deslop/references/rewrite-examples.md"}
+LANG_DIR = {"en": "plugin-en", "ja": "plugin-ja"}
+
+
 def skill_ref(plugin_dir, rel):
+    lang = prompts.cur_lang()
+    if lang != "zh-TW":
+        # 該語言自己的 skills 資料夾（plugin-en／plugin-ja，與 plugin 同層）有就用
+        own = os.path.join(os.path.dirname(os.path.normpath(plugin_dir)), LANG_DIR.get(lang, "plugin-" + lang), "skills", rel)
+        if os.path.isfile(own):
+            return body(project.read_text(own))
+        if rel in ZH_ONLY_REFS:
+            return ""
     p = os.path.join(plugin_dir, "skills", rel)
     return body(project.read_text(p)) if os.path.isfile(p) else ""
 
@@ -175,13 +198,12 @@ def foreshadow_for(book_dir, scope, a, b=None, pk=None):
             index.append(r)
     if pk is not None:
         pk.note("伏筆整條帶 %d、索引 %d（已回收或廢棄的不帶）" % (len(full), len(index)))
-    out = table_md(hs, full) if full else "（近期沒有要處理的伏筆）"
+    out = table_md(hs, full) if full else prompts.cur()["fs_none"]
     if index:
         def short(s, n=30):
             s = str(s or "").replace("|", "／").replace("\n", " ")
             return s if len(s) <= n else s[:n] + "…"
-        out += ("\n\n其他還沒回收的伏筆（只列索引，不要在本章擅自回收；章綱要求的以章綱為準）\n"
-                "| 編號 | 內容 | 預計回收 | 重要度 |\n|---|---|---|---|\n" +
+        out += (prompts.cur()["fs_index_head"] +
                 "\n".join("| %s | %s | %s | %s |" % (r.get("編號", ""), short(r.get("內容")), r.get("預計回收", ""), r.get("重要度", ""))
                           for r in index))
     return out
@@ -193,8 +215,11 @@ def foreshadow_for(book_dir, scope, a, b=None, pk=None):
 FILTER_MIN_TOKENS = 3000   # 表格小於這個量就整份帶
 RECENT_CHAPTERS = 10       # 時間線：最近幾章的事件一定帶
 MAIN_SHARE = 0.3           # 出現在超過三成列的角色（主角）不拿來比對
-_PARTIAL = r"只知道|不知道|未知|尚未|還沒|以為|誤會|誤認|懷疑|不清楚|不確定|猜測|部分"
-_UNREVEALED = ("未揭示", "未知", "不知道", "尚未", "還不知道", "無", "-", "—", "－", "？", "?")
+_PARTIAL = (r"只知道|不知道|未知|尚未|還沒|以為|誤會|誤認|懷疑|不清楚|不確定|猜測|部分"
+            r"|(?i:only knows|does not know|doesn't know|unaware|unknown|not yet|believes|mistakenly|suspects|unclear|unsure|guess|partial)"
+            r"|知らない|まだ|誤解|疑って|不明|一部")
+_UNREVEALED = ("未揭示", "未知", "不知道", "尚未", "還不知道", "無", "-", "—", "－", "？", "?",
+               "unrevealed", "unknown", "not yet", "none", "n/a", "N/A", "未公開", "不明", "なし")
 
 
 def _nums(s):
@@ -210,7 +235,7 @@ def _entity_names(book_dir, scope):
 
 def _open_part(known):
     """從「讀者目前知道」取出讀者還不知道的那幾句。"""
-    sents = [x for x in re.split(r"(?<=[。；;])", known) if re.search(_PARTIAL, x)]
+    sents = [x for x in re.split(r"(?<=[。；;])|(?<=[.!?])\s+", known) if x and re.search(_PARTIAL, x)]
     return ("".join(sents).strip() or known[-60:]).replace("|", "／")
 
 
@@ -247,8 +272,7 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
         pk.note("時間線 %d 條：整列帶 %d、只列未解疑問 %d" % (len(rows), len(keep), len(opens)))
     out = table_md(hs, keep)
     if opens:
-        out += ("\n\n還沒揭曉的事（和本章沒有直接關係，只列讀者還不知道的部分；不要在本章說破。章綱要揭曉的事，以章綱為準）\n"
-                "| 編號 | 揭示章 | 讀者還不知道 |\n|---|---|---|\n" +
+        out += (prompts.cur()["tl_open_head"] +
                 "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("揭示章", ""), _open_part(str(r.get("讀者目前知道") or "")))
                           for r in opens))
     return out
@@ -300,8 +324,7 @@ def reader_for(book_dir, scope, a, b=None, pk=None):
         pk.note("讀者認知 %d 條：整列帶 %d、只列內容 %d（已回收的不帶）" % (len(rows), len(keep), len(idx)))
     out = table_md(hs, keep)
     if idx:
-        out += ("\n\n其他還沒揭曉的懸念與誤認（和本章沒有直接關係，只列讀者目前的認知；不要在本章說破。章綱要揭曉的，以章綱為準）\n"
-                "| 編號 | 類型 | 內容 |\n|---|---|---|\n" +
+        out += (prompts.cur()["reader_open_head"] +
                 "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("類型", ""), str(r.get("內容", "")).replace("|", "／"))
                           for r in idx))
     return out
@@ -317,7 +340,7 @@ def reader_for_writeback(book_dir):
     known = [r for r in rows if str(r.get("類型") or "").strip() == "已知"]
     out = table_md(hs, opens)
     if known:
-        out += "\n\n已登記的已知（不用重複登記）\n" + "\n".join("- %s %s" % (r.get("編號", ""), r.get("內容", "")) for r in known)
+        out += prompts.cur()["reader_known_head"] + "\n".join("- %s %s" % (r.get("編號", ""), r.get("內容", "")) for r in known)
     return out
 
 
@@ -417,7 +440,7 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
     pk.add(1, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     sname, stext, sfrom = shared.structure_for(book_dir, no)
     if sname:
-        pk.add(1, "本章結構：%s（%s；節拍參考，章綱的情節點與章末停點優先，篇幅比例不必精確）" % (sname, sfrom), stext)
+        pk.add(1, prompts.cur()["chapter_structure_title"].format(name=sname, src=sfrom), stext)
     pk.add(2, "狀態卡（目前局勢）", body(read(book_dir, "追蹤/狀態卡.md")))
     # 上一章結尾
     prev_path, prev = chapter_text(book_dir, no - 1, ("候選", "正文") if prev_from_candidate else ("正文", "候選"))

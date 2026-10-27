@@ -9,7 +9,7 @@ import os
 import re
 import time
 
-from . import context, project
+from . import context, project, prompts
 
 STATUS_LABEL = {"completed": "已寫到", "unmet": "沒寫到", "unknown": "無法判斷", "unverified": "引文對不上"}
 
@@ -29,7 +29,7 @@ def freeze_goals(card_text):
     if m:
         mm = re.search(r"停在[：:]\s*(.+)", m.group(1))
         if mm and mm.group(1).strip() and "待定" not in mm.group(1):
-            goals.append("章末停在：" + mm.group(1).strip())
+            goals.append(prompts.cur()["goal_ending"].format(t=mm.group(1).strip()))
     return [{"id": "G%d" % (i + 1), "text": t} for i, t in enumerate(goals)]
 
 
@@ -62,14 +62,7 @@ def text_hash(text):
 
 def build_prompt(no, goals, chapter_body):
     lines = "\n".join("%s：%s" % (g["id"], g["text"]) for g in goals)
-    return ("【第%d章章綱目標清單（由工作台從章綱擷取）】\n%s\n\n【正文】\n%s\n\n"
-            "【任務】逐項核對正文有沒有寫到每個目標。只輸出一個 JSON 物件：\n"
-            '{"goals": [{"id": "G1", "status": "completed|unmet|unknown", '
-            '"evidence": ["從正文逐字複製的原句"], "note": "一句說明：怎麼寫到的，或缺了什麼"}]}\n'
-            "規則：\n- 清單裡每個 id 都要有一筆，不可增減。\n"
-            "- completed 至少附一句引文；引文必須從正文原封不動複製（10～60 字），不可改寫、不可拼湊，工作台會逐字比對。\n"
-            "- 只寫到一部分、或結果和目標不同，算 unmet，並在 note 說明差在哪裡。\n"
-            "- 不確定時用 unknown，不要猜。" % (no, lines, chapter_body))
+    return prompts.cur()["goals_prompt"].format(n=no, lines=lines, body=chapter_body)
 
 
 def verify(goals, data, chapter_text):
@@ -152,6 +145,10 @@ RECONCILE_SCHEMA = (
     "例如角色不在場、物品不在手上、讀者還不該知道、時間對不上。沒有衝突就 conflict 填 false。")
 
 
+def reconcile_schema():
+    return prompts.cur()["reconcile_schema"]
+
+
 def parse_reconcile(data):
     if not isinstance(data, dict):
         return None
@@ -173,12 +170,13 @@ def parse_reconcile(data):
 
 
 def reconcile_block(rec):
-    lines = ["【定稿對帳（寫稿前比對結果，必須遵守）】", "已定稿的相關事實："]
-    lines += ["- " + x for x in rec["final_state"]] or ["- （無）"]
-    lines.append("章綱事件的落實方式：")
+    P = prompts.cur()
+    lines = [P["reconcile_head"], P["reconcile_facts"]]
+    lines += ["- " + x for x in rec["final_state"]] or [P["reconcile_none"]]
+    lines.append(P["reconcile_events"])
     for e in rec["events"]:
-        lines.append("- %s%s → %s" % ("【衝突】" if e["conflict"] else "", e["event"], e["realization"]))
-    lines.append("有【衝突】的事件，照上面的落實方式寫，並在匯報裡告訴作者這個衝突。")
+        lines.append("- %s%s → %s" % (P["reconcile_conflict_mark"] if e["conflict"] else "", e["event"], e["realization"]))
+    lines.append(P["reconcile_tail"])
     return "\n".join(lines)
 
 

@@ -8,7 +8,7 @@ import re
 import subprocess
 import time
 
-from . import project
+from . import project, prompts
 
 STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
@@ -66,6 +66,14 @@ WRITEBACK_SCHEMA = """請只輸出一個 JSON 物件，格式如下（只列出�
 REVISION_NOTE = ("\n【注意：這是修訂舊章】追蹤資料已經更新到第%d章，這次是重新整理較早的第%d章。"
                  "state_card、characters 與 relations 請給空物件／空陣列（目前狀態與關係以最新章為準，不能倒退）；"
                  "只修正和這章有關的伏筆、時間線列、名詞，以及這章的摘要。")
+
+
+def writeback_schema():
+    return prompts.cur()["writeback_schema"]
+
+
+def revision_note(tracked, no):
+    return prompts.cur()["revision_note"].format(tracked=tracked, n=no)
 
 
 def _chno(s):

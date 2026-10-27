@@ -280,12 +280,17 @@ def list_entries(book_dir, rel_dir):
             m = re.search(r"##\s*一句話\s*\n(.*?)(?=\n##|\Z)", body, re.S)
             if m:
                 one = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip().split("\n")[0]
+            tags = fm.get("標籤") or []
+            if isinstance(tags, str):
+                tags = re.split(r"[,，、]", tags)
             out.append({
                 "file": rel_of(book_dir, p),
                 "name": str(fm.get("名稱") or os.path.splitext(f)[0]),
                 "type": fm.get("類型"),
                 "status": fm.get("狀態"),
                 "role": fm.get("定位"),
+                "category": str(fm.get("分類") or "").strip() or None,
+                "tags": [str(x).strip() for x in tags if str(x).strip()],
                 "aliases": fm.get("別名") or [],
                 "first": fm.get("首次登場"),
                 "summary": one[:80],

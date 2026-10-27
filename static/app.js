@@ -959,6 +959,92 @@ async function viewOutline(view, file) {
 }
 
 /* ------------------------------------------------------------------ 設定集 */
+/* 設定集：角色、勢力、世界觀列表的篩選與分組 */
+const ROLE_ORDER = ["主角", "主要配角", "配角", "反派", "路人"];
+const WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與政治", "經濟與物資", "宗教信仰", "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"];
+const entryFilterKey = (book, t) => "studio.entityFilter." + book + "." + t;
+function loadEntryFilter(book, t) {
+  try { return JSON.parse(localStorage.getItem(entryFilterKey(book, t)) || "null") || {}; } catch (e) { return {}; }
+}
+function saveEntryFilter(book, t, f) {
+  try { localStorage.setItem(entryFilterKey(book, t), JSON.stringify(f)); } catch (e) { /* 無痕模式等情況：略過 */ }
+}
+function entryMatches(e, f, t) {
+  const q = (f.q || "").trim().toLowerCase();
+  if (q && ![e.name, ...(e.aliases || []), e.summary || ""].join(" ").toLowerCase().includes(q)) return false;
+  if (t === "角色" && f.role && f.role !== "全部" && (e.role || "未設定") !== f.role) return false;
+  if (t === "世界觀" && f.cat && f.cat !== "全部" && (e.category || "未分類") !== f.cat) return false;
+  if (f.status && f.status !== "全部" && (e.status || "未設定") !== f.status) return false;
+  if (f.tag && f.tag !== "全部" && !(e.tags || []).includes(f.tag)) return false;
+  return true;
+}
+function countBy(list, fn) {
+  return list.reduce((m, e) => { const k = fn(e); m[k] = (m[k] || 0) + 1; return m; }, {});
+}
+function entityFilterBar(t, list, f) {
+  const sel = (key, label, opts) => `<label class="ef"><span>${esc(label)}</span><select data-ef="${key}">${opts.map(([v, txt, n]) =>
+    `<option value="${esc(v)}" ${(f[key] || "全部") === v ? "selected" : ""}>${esc(txt)}（${n}）</option>`).join("")}</select></label>`;
+  const withAll = (arr) => [["全部", "全部", list.length], ...arr];
+  let out = "";
+  if (t === "角色") {
+    const c = countBy(list, (e) => e.role || "未設定");
+    out += sel("role", "定位", withAll([...ROLE_ORDER, "未設定"].filter((k) => c[k]).map((k) => [k, k, c[k]])));
+  }
+  if (t === "世界觀") {
+    const c = countBy(list, (e) => e.category || "未分類");
+    const extra = Object.keys(c).filter((k) => !WORLD_CATS.includes(k) && k !== "未分類");
+    const keys = [...WORLD_CATS, ...extra, "未分類"].filter((k) => WORLD_CATS.includes(k) || c[k]);
+    out += sel("cat", "分類", withAll(keys.map((k) => [k, k, c[k] || 0])));
+  }
+  const sc = countBy(list, (e) => e.status || "未設定");
+  const statusOpts = ["正式", "草稿", "未設定"].filter((k) => sc[k]);
+  if (statusOpts.length > 1) out += sel("status", "狀態", withAll(statusOpts.map((k) => [k, k, sc[k]])));
+  const tc = {};
+  list.forEach((e) => (e.tags || []).forEach((x) => { tc[x] = (tc[x] || 0) + 1; }));
+  const tagKeys = Object.keys(tc).sort((a, b) => tc[b] - tc[a] || a.localeCompare(b));
+  if (tagKeys.length) out += sel("tag", "標籤", withAll(tagKeys.map((k) => [k, k, tc[k]])));
+  const grouping = t !== "勢力" ? `<label class="ef ef-cb"><input type="checkbox" data-ef="group" ${f.group ? "checked" : ""}> 分組顯示</label>` : "";
+  return `<div class="ef-bar"><label class="ef"><span>搜尋</span><input type="search" data-ef="q" placeholder="名稱、別名、一句話" value="${esc(f.q || "")}"></label>${out}${grouping}</div>`;
+}
+function entityItemHtml(t, e, file) {
+  const badge = t === "世界觀" ? esc(e.category || "未分類") : (e.role ? esc(e.role) : "");
+  const tagLine = (e.tags || []).length ? `<div class="ds">${esc(e.tags.join("、"))}</div>` : "";
+  return `
+        <div class="item ${e.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')">
+          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${badge ? `<span class="badge">${badge}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
+          ${tagLine}${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`;
+}
+function entityListHtml(t, list, f, file) {
+  const shown = list.filter((e) => entryMatches(e, f, t));
+  const head = `<div class="muted small ef-count">顯示 ${shown.length} / ${list.length}</div>`;
+  if (!list.length) return `<div class="muted">這裡還是空的。</div>`;
+  if (!shown.length) return head + `<div class="muted">沒有符合條件的項目。</div>`;
+  if (f.group && t !== "勢力") {
+    const keyOf = (e) => t === "角色" ? (e.role || "未設定") : (e.category || "未分類");
+    const order = t === "角色" ? [...ROLE_ORDER, "未設定"] : [...WORLD_CATS, "未分類"];
+    const groups = {};
+    shown.forEach((e) => { const k = keyOf(e); (groups[k] = groups[k] || []).push(e); });
+    const keys = [...order.filter((k) => groups[k]), ...Object.keys(groups).filter((k) => !order.includes(k))];
+    return head + keys.map((k) => `<details class="grp" open><summary>${esc(k)} <span class="muted small">${groups[k].length}</span></summary>${groups[k].map((e) => entityItemHtml(t, e, file)).join("")}</details>`).join("");
+  }
+  return head + shown.map((e) => entityItemHtml(t, e, file)).join("");
+}
+function bindEntryFilter(view, t, list, file, f) {
+  const paint = () => {
+    const box = $("#ent-list", view);
+    if (box) box.innerHTML = entityListHtml(t, list, f, file);
+    saveEntryFilter(S.book, t, f);
+  };
+  view.querySelectorAll("[data-ef]").forEach((el) => {
+    const key = el.dataset.ef;
+    el.addEventListener(el.type === "search" ? "input" : "change", () => {
+      f[key] = el.type === "checkbox" ? el.checked : el.value;
+      paint();
+    });
+  });
+  paint();
+}
+
 async function viewBible(view, t, file) {
   const b = await api("GET", B("/bible"));
   t = t || "角色";
@@ -974,19 +1060,24 @@ async function viewBible(view, t, file) {
     "章節結構": `<button onclick="go('#/shared?t=${enc("章節結構")}')">到共用庫選結構</button>`,
   };
   if (t === "核心") btns["核心"] = `<button onclick="go('#/shared?t=${enc("文風")}')">共用文風庫</button>` + btns["核心"];
+  const isEnt = ["角色", "勢力", "世界觀"].includes(t);
+  const filt = isEnt ? loadEntryFilter(S.book, t) : {};
+  const plainList = list.length ? list.map((e) => `
+        <div class="item ${e.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')">
+          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${e.role ? `<span class="badge">${esc(e.role)}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
+          ${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`).join("")
+        : `<div class="muted">這裡還是空的。</div>`;
+  const listHtml = isEnt ? `${entityFilterBar(t, list, filt)}<div id="ent-list"></div>` : plainList;
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
       <div class="row">${btns[t] || ""}<button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
-      <div class="list">${list.length ? list.map((e) => `
-        <div class="item ${e.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')">
-          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${e.role ? `<span class="badge">${esc(e.role)}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
-          ${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`).join("")
-        : `<div class="muted">這裡還是空的。</div>`}</div>
+      <div class="list">${listHtml}</div>
       <div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div>
         <div id="ent-card" style="margin-top:14px"></div><div id="ent-ill" style="margin-top:14px"></div></div>
     </div>`;
+  if (isEnt) bindEntryFilter(view, t, list, file, filt);
   if (t === "章節結構") { $(".split", view).outerHTML = '<div id="bs-box"></div>'; return renderBookStructures($("#bs-box"), file); }
   if (file) await docView($("#doc"), file);
   if (file && ["角色", "勢力", "世界觀"].includes(t)) {

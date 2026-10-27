@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import textguard, prompts, actions, comfy, context, export, fidelity, forge, goals, illust, importer, lang as lang_mod, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
+from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.14.0"
+VERSION = "1.15.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -88,7 +88,6 @@ _spec = importlib.util.spec_from_file_location(
     "check_text", os.path.join(PLUGIN_DIR, "skills", "novel-deslop", "scripts", "check_text.py"))
 check_text = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_text)
-check_text = textguard.wrap(check_text)   # 非中文書不套中文標點修正
 
 RUNNER = runner_mod.Runner(lambda: CONFIG, HERE, PLUGIN_DIR, check_text)
 PIPES = pipeline.Manager()
@@ -375,7 +374,7 @@ def claude_review_job(book_id, d, prov, params):
     prompt = ("請使用 novel-review skill 審查第%d章，稿子在 %s（用 Read 讀取，也讀相關的章綱、狀態卡、角色狀態、時間線）。"
               "不要修改任何檔案。\n%s%s\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (
                   no, rel, ("作者這次的要求：" + params["note"].strip() + "\n") if (params.get("note") or "").strip() else "",
-                  revision.review_schema()) + prompts.cur()["claude_out_lang"])
+                  revision.REVIEW_SCHEMA))
     job = runner_mod.Job(book_id, d, "審查第%d章" % no, prompt, provider=prov, meta={"action": "review_notes", "params": params})
 
     def after(j):
@@ -405,7 +404,7 @@ def claude_revise_job(book_id, d, prov, params):
     prompt = ("請依下面的修改意見修訂第%d章（原稿在 %s，用 Read 讀取）。\n【要處理的修改意見】\n%s\n\n"
               "規則：只修改這些意見涉及的地方，其他段落一字不改，維持原本的空行分段（作者會逐段比對新舊版本）。"
               "**不要修改原稿**；把修訂後的完整章節（含「# 第%d章 章名」標題）寫到 %s。最後用白話逐條說明每個意見怎麼處理。"
-              % (no, rel, notes, no, draft)) + prompts.cur()["claude_out_lang"]
+              % (no, rel, notes, no, draft))
     job = runner_mod.Job(book_id, d, "修訂第%d章" % no, prompt, provider=prov, meta={"action": "revise_notes", "params": params})
     base_text = project.read_text(os.path.join(d, rel))
 
@@ -431,7 +430,7 @@ def claude_recover_job(book_id, d, prov, params):
     no = int(rec["chapter"])
     prompt = ("第%d章之前寫到一半中斷了，已寫內容在 .studio/恢復稿/%s.json 的 text 欄位（用 Read 讀取）。"
               "請使用 novel-write skill，從中斷處接著寫完，不要重複已寫內容；把完整章節（已寫部分＋續寫）寫進 候選/第%03d章_章名.md。\n%s"
-              % (no, rec["id"], no, actions.CANDIDATE_RULE)) + prompts.cur()["claude_out_lang"]
+              % (no, rec["id"], no, actions.CANDIDATE_RULE))
     job = runner_mod.Job(book_id, d, "續寫第%d章" % no, prompt, provider=prov, meta={"action": "recover_continue", "params": params})
     job.after = lambda j: recovery.discard(d, rec["id"]) if project._scan_dir(os.path.join(d, "候選")).get(no) else None
     return job
@@ -1310,8 +1309,7 @@ def claude_deslop_job(book_id, d, prov, params):
     note = (params.get("note") or "").strip()
     prompt = ("請使用 novel-deslop skill 處理第%d章（原稿在 %s，用 Read 讀取）：先跑檢查腳本，修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。%s\n"
               "**不要修改原稿**；把改好的完整章節（含「# 第%d章 章名」標題）寫到 %s。沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對）。\n"
-              "最後一則回覆是給作者的匯報。%s" % (no, rel, ("作者這次的要求：" + note) if note else "", no, draft, revision.change_table_rule())
-              + prompts.cur()["claude_out_lang"])
+              "最後一則回覆是給作者的匯報。%s" % (no, rel, ("作者這次的要求：" + note) if note else "", no, draft, revision.CHANGE_TABLE_RULE))
     job = runner_mod.Job(book_id, d, "去AI味 第%d章" % no, prompt, provider=prov, meta={"action": "deslop", "params": params})
 
     def after(j):
@@ -1434,11 +1432,10 @@ async def new_book(req: Request):
     os.makedirs(lib, exist_ok=True)
     d = wrap(lambda: project.create_book(lib, body.get("name", "")))
     name = os.path.basename(d)
-    book_lang = lang_mod.set_book_lang(d, body.get("lang"))   # 沒填就是 zh-TW；寫成 .studio/lang，開書訪談時再寫進故事核心
     job = None
     if body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
-        title, prompt = actions.build("setup_new", params, name, book_lang)
+        title, prompt = actions.build("setup_new", params, name)
         job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
                                           provider=get_provider(body.get("provider"))))
     return {"id": name, "job": job.to_dict() if job else None}
@@ -1459,28 +1456,11 @@ def add_demo():
     return {"id": os.path.basename(dst)}
 
 
-@app.get("/api/books/{book_id}/lang")
-def get_book_lang(book_id: str):
-    return {"lang": lang_mod.book_lang(book_dir(book_id)), "supported": [{"id": k, "label": v} for k, v in lang_mod.LABELS.items()]}
-
-
-@app.post("/api/books/{book_id}/lang")
-async def set_book_lang(book_id: str, req: Request):
-    d = book_dir(book_id)
-    body = await req.json()
-    if body.get("lang") not in lang_mod.SUPPORTED:
-        raise HTTPException(400, "不支援的語言")
-    if RUNNER.running_for(book_id):
-        raise HTTPException(409, "還有任務在執行，請等它結束再換語言。")
-    return {"lang": lang_mod.set_book_lang(d, body["lang"])}
-
-
 @app.get("/api/books/{book_id}/overview")
 def book_overview(book_id: str):
     d = book_dir(book_id)
     ov = project.overview(d, int(CONFIG.get("stale_foreshadow", 10)), int(CONFIG.get("stale_character", 15)))
     ov["is_book"] = project.is_book(d)
-    ov["lang"] = lang_mod.book_lang(d)
     wb = wb_check.alerts(d, ov.get("latest") or 0)   # 回寫檢查放在追蹤落後後面、其他提醒前面
     lag = 1 if ov["alerts"] and ov["alerts"][0]["kind"] == "追蹤落後" else 0
     ov["alerts"][lag:lag] = [a for a in wb if a["kind"] == "回寫檢查"]
@@ -1673,7 +1653,7 @@ def accept(book_id: str, no: int, provider: str = None):
         raise HTTPException(409, "還有任務在執行，請稍後再採用。")
     path = wrap(lambda: project.accept_candidate(d, no))
     params = {"chapter": no, "path": path}
-    title, prompt = actions.build("accept", params, book_id, lang_mod.book_lang(d))
+    title, prompt = actions.build("accept", params, book_id)
     job = RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, meta={"action": "accept", "params": params},
                                                       provider=prov), d, "accept", params, prov))
     return {"path": path, "job": job.to_dict()}
@@ -1685,7 +1665,7 @@ async def reject(book_id: str, no: int, req: Request):
     _guard_pipeline(book_id)
     body = await req.json()
     params = {"chapter": no, "note": body.get("note", "")}
-    title, prompt = actions.build("reject", params, book_id, lang_mod.book_lang(d))
+    title, prompt = actions.build("reject", params, book_id)
     try:
         job = RUNNER.start(runner_mod.Job(book_id, d, title, prompt, meta={"action": "reject", "params": params},
                                           provider=get_provider(body.get("provider"))))
@@ -1748,23 +1728,18 @@ def attach_wb_check(job, d, action, params, prov):
 
 def launch_job(book_id, d, action, params, prov, resume=None, text=None):
     """建立並啟動一個任務（面板按鈕和整章自動流程共用）。失敗時丟 HTTPException。"""
-    prompts.set_lang(lang_mod.book_lang(d))   # 之後組提示詞、跑檢查都照這本書的語言
     try:
         if action == "reply":
             title, prompt = "回覆", text or ""
         else:
-            title, prompt = actions.build(action, params or {}, book_id, lang_mod.book_lang(d))
+            title, prompt = actions.build(action, params or {}, book_id)
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(400, "參數不完整：%s" % e)
     if not prompt.strip():
         raise HTTPException(400, "指令是空的")
     try:
         if action in CLAUDE_SPECIAL and prov.get("type") == "claude_code":
-            sj = CLAUDE_SPECIAL[action](book_id, d, prov, params or {})
-            note = prompts.cur()["claude_out_lang"]
-            if note and note not in sj.prompt:
-                sj.prompt += note
-            return RUNNER.start(sj)
+            return RUNNER.start(CLAUDE_SPECIAL[action](book_id, d, prov, params or {}))
         return RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, resume=resume, provider=prov,
                                                            meta={"action": action, "params": params or {}}),
                                             d, action, params or {}, prov))
@@ -2014,7 +1989,7 @@ def index():
     # 程式更新後瀏覽器常拿舊的 app.js：網址加上檔案修改時間，檔案一改就會重新下載
     st = os.path.join(HERE, "static")
     html = project.read_text(os.path.join(st, "index.html"))
-    for name in ("app.js", "style.css", "i18n.js", "relgraph.js"):
+    for name in ("app.js", "style.css"):
         try:
             v = int(os.path.getmtime(os.path.join(st, name)))
         except OSError:

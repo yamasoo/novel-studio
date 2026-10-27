@@ -109,6 +109,7 @@ async function route() {
       if (sub === "export") return await viewExport(view);
       if (sub === "illust") return await viewIllust(view, q.t);
       if (sub === "search") return await viewSearch(view, q.q || "", q.s);
+      if (sub === "reverse") return await viewReverse(view, q.upto);
     }
     S.routeName = "shelf";
     await setBook(null, true);
@@ -157,6 +158,68 @@ function renderNav() {
       `<a class="navlink ${S.routeName === r || (r === "chapters" && S.routeName === "ch") ? "active" : ""}" href="${base}/${r}"><span class="ico">${i}</span><span>${t}</span></a>`).join("");
   }
   document.querySelectorAll(".side-bottom .navlink").forEach((a) => a.classList.toggle("active", a.dataset.r === S.routeName));
+}
+
+/* ------------------------------------------------------------------ 從正文建立設定（反推） */
+async function viewReverse(view, upto) {
+  const r = await api("GET", B(`/reverse?provider=${enc(Panel.prov())}${upto ? "&upto=" + enc(upto) : ""}`));
+  const st = r.state, est = r.estimate, dr = st.drafts || {};
+  const processed = (st.processed || []).length;
+  const busy = S.job && S.job.status === "running";
+  const cost = est.cost != null ? `約 US$${est.cost.toFixed(2)}` : (Panel.isClaude() ? "用 Claude 訂閱額度" : "依你設定的價格（沒填價格就不顯示）");
+  const groups = [["設定", "角色、勢力、世界觀、故事核心、名詞表"], ["大綱", "全書大綱、卷綱"], ["章綱", "每章的章綱（反向整理，狀態「已寫」）"],
+    ["追蹤", "章節摘要、伏筆、時間線、讀者認知、角色狀態、狀態卡"]];
+  const nDraft = groups.reduce((a, [g]) => a + (dr[g] || []).length, 0);
+  view.innerHTML = `
+    <div class="page-head"><div><h1>從正文建立設定</h1><div class="sub">已經寫好的書，不用開書訪談：AI 照章節順序分批讀正文，反推出設定、大綱、章綱與追蹤資料。全部先存成草稿，你核對後再分組採用。</div></div></div>
+    ${r.has_settings ? `<div class="alert warn" style="margin-bottom:12px"><span class="t">這本書已經有角色或伏筆資料。採用草稿時，同名檔案會先備份再覆蓋。</span></div>` : ""}
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title"><h2>1. 估算</h2><span class="muted small">執行者：${esc(Panel.provName())}（右側面板上方可以切換）</span></div>
+      <div class="grid g3" style="margin-bottom:10px">
+        <div><div class="muted small">要讀的章節</div><div class="big">${est.chapters || 0} 章</div><div class="muted small">${fmtNum(est.chars || 0)} 字，共 ${est.total_chapters || 0} 章</div></div>
+        <div><div class="muted small">分批</div><div class="big">${est.batches || 0} 批</div><div class="muted small">依執行者的上下文長度，每批 1～3 章</div></div>
+        <div><div class="muted small">預估 token</div><div class="big">${fmtNum(est.tokens_in || 0)}</div><div class="muted small">輸出約 ${fmtNum(est.tokens_out || 0)}；${esc(cost)}</div></div>
+      </div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <label class="f" style="margin:0"><span>先跑到第幾章（空白＝全部）</span><input type="number" id="rv-upto" min="1" value="${esc(upto || "")}" placeholder="${est.total_chapters || ""}" style="width:140px"></label>
+        <button class="ghost" id="rv-est">重新估算</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title"><h2>2. 執行</h2><span class="muted small">${processed ? `已抽取 ${processed} 章（到第 ${Math.max(...st.processed)} 章）` : "還沒開始"}${st.done ? "，已產生草稿" : ""}</span></div>
+      <div class="muted small" style="margin-bottom:10px">中途停止或失敗都沒關係，下次按「繼續」會從斷的地方接著跑，已完成的章節不會重跑。想換範圍或正文改過很多，按「重新開始」（暫存會先備份）。</div>
+      <div class="row" style="gap:8px">
+        <button class="primary" id="rv-run" ${busy ? "disabled" : ""}>${processed ? (st.done ? "加跑新章節並重新整理" : "繼續") : "開始"}</button>
+        ${processed ? `<button class="ghost danger" id="rv-reset" ${busy ? "disabled" : ""}>重新開始</button>` : ""}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><h2>3. 核對草稿</h2><span class="muted small">${nDraft ? `${nDraft} 份草稿` : "跑完之後草稿會出現在這裡"}</span></div>
+      ${groups.map(([g, desc]) => { const items = dr[g] || []; return items.length ? `<div class="card" style="margin:10px 0;padding:12px 14px">
+        <div class="row"><b>${g}</b><span class="muted small" style="margin-left:8px">${desc}　·　${items.length} 份${items.some((x) => x.exists) ? `，其中 ${items.filter((x) => x.exists).length} 份會覆蓋現有檔案（先備份）` : ""}</span>
+          <span class="grow"></span><button class="sm primary" data-adopt="${g}">採用${g}</button><button class="sm danger" data-discard="${g}">捨棄</button></div>
+        <details style="margin-top:6px"><summary class="small">看清單</summary><div class="small" style="columns:2;margin-top:6px">${items.map((x) =>
+          `<div><a href="javascript:void 0" data-view="${esc(x.draft)}">${esc(x.rel)}</a>${x.exists ? ' <span class="badge b-warn">覆蓋</span>' : ""}</div>`).join("")}</div></details>
+      </div>` : ""; }).join("")}
+      <div id="doc" style="margin-top:12px"></div>
+    </div>`;
+  $("#rv-est").onclick = () => go(`#/b/${enc(S.book)}/reverse${$("#rv-upto").value ? "?upto=" + enc($("#rv-upto").value) : ""}`);
+  $("#rv-run").onclick = () => Panel.run("reverse", $("#rv-upto").value ? { upto: parseInt($("#rv-upto").value) } : {});
+  if ($("#rv-reset")) $("#rv-reset").onclick = async () => {
+    if (!confirm("清掉已抽取的資料和草稿，重新開始？（會先移到 .studio/備份）")) return;
+    await api("POST", B("/reverse/reset"), {}); viewReverse(view, upto);
+  };
+  view.querySelectorAll("[data-adopt]").forEach((b) => b.onclick = async () => {
+    const g = b.dataset.adopt;
+    if (!confirm(`採用「${g}」的草稿？已有的同名檔案會先備份再覆蓋。`)) return;
+    const res = await api("POST", B("/reverse/adopt"), { group: g });
+    toast(`已採用 ${res.adopted} 份${res.backed_up ? `（備份 ${res.backed_up} 份原檔）` : ""}`); viewReverse(view, upto);
+  });
+  view.querySelectorAll("[data-discard]").forEach((b) => b.onclick = async () => {
+    if (!confirm(`捨棄「${b.dataset.discard}」的草稿？`)) return;
+    await api("POST", B("/reverse/discard"), { group: b.dataset.discard }); viewReverse(view, upto);
+  });
+  view.querySelectorAll("[data-view]").forEach((a) => a.onclick = () => docView($("#doc"), a.dataset.view));
 }
 
 /* ------------------------------------------------------------------ 前文搜尋（本機，不用模型） */
@@ -391,6 +454,7 @@ function alertHtml(a) {
   else if (a.action === "recoveries") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/jobs')">查看</button>`;
   else if (a.action === "sync_tracking") btn = `<button class="sm" onclick="Panel.run('sync_tracking',{})">補齊</button>`;
   else if (a.action === "rewriteback") btn = `<button class="sm" onclick="if(confirm('重跑第${a.chapter_no}章的回寫追蹤？會依正文重新整理這章的摘要、伏筆、時間線、角色狀態等。'))Panel.run('accept',{chapter:${a.chapter_no},path:'${esc(a.path || "")}'})">重跑回寫</button>`;
+  else if (a.action === "reverse") btn = `<button class="sm primary" onclick="go('#/b/${enc(S.book)}/reverse')">前往</button>`;
   else if (a.kind === "懸念久未回收") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking?t=reader')">查看</button>`;
   else if (a.kind === "設定草稿") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/bible?t=草稿')">查看</button>`;
   else if (a.kind.startsWith("伏筆")) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking')">查看</button>`;
@@ -897,7 +961,7 @@ async function viewBible(view, t, file) {
   if (t === "核心") btns["核心"] = `<button onclick="go('#/shared?t=${enc("文風")}')">共用文風庫</button>` + btns["核心"];
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
-      <div class="row">${btns[t] || ""}<button onclick="Panel.openForm('intake')">整理內容入庫</button></div></div>
+      <div class="row">${btns[t] || ""}<button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
       <div class="list">${list.length ? list.map((e) => `
@@ -988,7 +1052,9 @@ async function viewTracking(view, t) {
     body = `<div id="doc"></div>`;
   } else if (t === "glossary") {
     const g = d.glossary;
-    body = g.rows.length ? `<div class="card"><div class="row" style="margin-bottom:8px"><span class="grow"></span><button class="sm" onclick="go('#/b/${enc(S.book)}/bible?t=核心&f=${enc("設定/名詞表.md")}')">編輯名詞表</button></div>
+    body = g.rows.length ? `<div class="card"><div class="row" style="margin-bottom:8px"><span class="muted small">${g.rows.length} 條</span><span class="grow"></span>
+      <button class="sm" onclick="Panel.run('glossary_org',{})" title="AI 重新分類（地點、組織、物品、技術、制度……），把地點、船艦、武器等寫成設定集的主題檔，合併重複的勢力；名詞表留作索引。結果先存成草稿">整理進設定集</button>
+      <button class="sm" onclick="go('#/b/${enc(S.book)}/bible?t=核心&f=${enc("設定/名詞表.md")}')">編輯名詞表</button></div>
       <div class="table-wrap"><table><thead><tr>${g.headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
       <tbody>${g.rows.map((r) => `<tr>${g.headers.map((h) => `<td>${esc(r[h])}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`
       : `<div class="card empty">名詞表是空的。</div>`;
@@ -1578,15 +1644,16 @@ function renderImportPreview(r, info, payload, opts) {
   const guessName = (IMP.files[0] && IMP.files[0].name.replace(/\.[^.]+$/, "").replace(/^\d+[\s._\-、]*/, "")) || "";
   $("#im-out").innerHTML = `
     <div class="card" style="margin-top:14px">
-      <div class="card-title"><h2>拆章結果：${r.chapters.length} 章，${fmtNum(total)} 字</h2>
+      <div class="card-title"><h2>拆章結果：${r.chapters.length} 章，${fmtNum(total)} 字${(() => { const n = r.chapters.filter((c) => (c.flags || []).length).length; return n ? `<span class="badge b-warn" style="margin-left:8px">${n} 章要檢查</span>` : `<span class="badge b-ok" style="margin-left:8px">沒有發現問題</span>`; })()}</h2>
         <span class="muted small">${r.numbered_by_title ? "章號照標題" : "章號依順序"}</span></div>
       <div class="row small muted" style="margin-bottom:8px">${r.sources.map((s) => `<span class="badge">${esc(s.name)}：${esc(s.encoding)}${s.simplified ? `，簡體字約 ${s.simplified}` : ""}</span>`).join("")}</div>
       ${r.warnings.map((w) => `<div class="alert warn"><span class="t">${esc(w)}</span></div>`).join("")}
       ${r.preface.map((p) => `<div class="muted small" style="margin:6px 0">開頭文字（${esc(p.name)}，${p.chars} 字）：${esc(p.preview)}……</div>`).join("")}
       <div class="table-wrap" style="max-height:360px"><table>
-        <tr><th class="num">章</th><th>章名</th><th class="num">字數</th><th>開頭</th></tr>
-        ${r.chapters.map((c) => `<tr class="${c.chars < 50 ? "warn-row" : ""}"><td class="num">${c.no}</td><td>${esc(c.title) || '<span class="muted">（無章名）</span>'}</td>
-          <td class="num">${fmtNum(c.chars)}</td><td class="muted small">${esc(c.head)}</td></tr>`).join("")}
+        <tr><th class="num">章</th><th>章名</th><th class="num">字數</th><th>檢查</th><th>開頭</th></tr>
+        ${r.chapters.map((c) => `<tr class="${(c.flags || []).length ? "hl" : ""}"><td class="num">${c.no}</td><td>${esc(c.title) || '<span class="muted">（無章名）</span>'}</td>
+          <td class="num">${fmtNum(c.chars)}</td><td>${(c.flags || []).map((f) => `<span class="badge ${/空章|重複|倒退|簡體/.test(f) ? "b-bad" : "b-warn"}">${esc(f)}</span>`).join(" ")}</td>
+          <td class="muted small">${esc(c.head)}</td></tr>`).join("")}
       </table></div>
     </div>
     <div class="card" style="margin-top:14px">
@@ -1622,7 +1689,7 @@ function renderImportPreview(r, info, payload, opts) {
         ${res.skipped.length ? `跳過已存在的第 ${res.skipped.join("、")} 章。` : ""}${res.replaced.length ? `覆蓋了第 ${res.replaced.join("、")} 章（原檔已備份）。` : ""}</span>
         <button class="sm primary" onclick="go('#/b/${enc(res.book)}')">開啟這本書</button></div>
         <div class="muted small" style="margin-top:8px">下一步建議：${res.target === "正文"
-          ? "到書的總覽按「補齊追蹤」，讓 AI 從正文建立章節摘要、狀態卡、角色狀態；也可以到「共用庫 → 文風」用這本書的正文統計文風。"
+          ? `已經寫好的書，可以用 <a href="#/b/${enc(res.book)}/reverse">從正文建立設定</a> 讓 AI 從正文反推角色、世界觀、名詞表、大綱、章綱、伏筆與時間線（先存成草稿，不需要開書訪談）；文風可以到「共用庫 → 文風」用這本書的正文分析。`
           : "到章節頁逐章審閱候選稿，按「採用」移入正文並回寫追蹤。"}</div>`;
       renderNav();
     } catch (e) { fail(e); } finally { btn.disabled = false; }

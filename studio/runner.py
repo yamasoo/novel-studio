@@ -35,6 +35,62 @@ def find_claude(cmd=None):
     return None
 
 
+# 由工作台自己編排、每一步只要 Claude 回一段文字的動作（例如從正文建立設定）
+NATIVE_WITH_CLAUDE = ("reverse", "glossary_org")
+
+
+class ClaudeOnceError(Exception):
+    pass
+
+
+def claude_print(cfg, prompt, system="", cwd=None, should_stop=None, timeout=1800):
+    """呼叫一次 claude -p（不用工具、不接續對話），回傳 (文字, usage)。
+    用在工作台自己分批的長任務：每一批都是獨立的一次呼叫，不會把整本書塞進同一個對話。"""
+    exe = find_claude(cfg.get("claude_cmd"))
+    if not exe:
+        raise ClaudeOnceError("找不到 claude 指令。請確認已安裝 Claude Code，或在設定中填入 claude 的完整路徑。")
+    cmd = [exe, "-p", "--output-format", "json", "--max-turns", "1",
+           "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit,Read,Glob,Grep,WebFetch,WebSearch,Task"]
+    if system:
+        cmd += ["--append-system-prompt", " ".join(system.split())]   # 保持單行（Windows 的 claude.cmd）
+    if cfg.get("model"):
+        cmd += ["--model", cfg["model"]]
+    kw = {}
+    if IS_WIN:
+        kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if cmd[0].lower().endswith((".cmd", ".bat")):
+            cmd = " ".join('"%s"' % a.replace('"', '""') for a in cmd)
+    env = dict(os.environ)
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    proc = subprocess.Popen(cmd, cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, **kw)
+    out = {}
+
+    def talk():
+        out["o"], out["e"] = proc.communicate(prompt.encode("utf-8"))
+    th = threading.Thread(target=talk, daemon=True)
+    th.start()
+    t0 = time.time()
+    while th.is_alive():
+        th.join(0.5)
+        if (should_stop and should_stop()) or time.time() - t0 > timeout:
+            proc.kill()
+            th.join(5)
+            raise ClaudeOnceError("已停止" if should_stop and should_stop() else "Claude Code 超過 %d 秒沒有回應" % timeout)
+    raw = (out.get("o") or b"").decode("utf-8", "replace").strip()
+    try:
+        data = json.loads(raw.splitlines()[-1] if raw else "{}")
+    except ValueError:
+        data = {}
+    if proc.returncode != 0 or data.get("is_error") or "result" not in data:
+        err = (out.get("e") or b"").decode("utf-8", "replace").strip()
+        raise ClaudeOnceError("Claude Code 執行失敗：%s" % ((data.get("result") or err or raw)[:300] or "結束代碼 %s" % proc.returncode))
+    u = data.get("usage") or {}
+    usage = {"prompt_tokens": int(u.get("input_tokens") or 0) + int(u.get("cache_read_input_tokens") or 0)
+             + int(u.get("cache_creation_input_tokens") or 0),
+             "completion_tokens": int(u.get("output_tokens") or 0), "cost_usd": data.get("total_cost_usd")}
+    return data["result"], usage
+
+
 def _short(path, cwd):
     if not path:
         return ""
@@ -187,7 +243,7 @@ class Runner:
         return cmd
 
     def _run(self, job):
-        if job.provider.get("type") != "claude_code":
+        if job.provider.get("type") != "claude_code" or (job.meta or {}).get("action") in NATIVE_WITH_CLAUDE:
             from . import native
             native.run(job, job.provider, self.home, self.plugin_dir, self.checker, self.get_config())
             if job.status == "running":

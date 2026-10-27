@@ -96,6 +96,8 @@ ACTIONS = {
     "style_design": {"group": "專案", "label": "設計文風", "hidden": True, "fields": []},
     "reader_init": {"group": "專案", "label": "從時間線建立讀者認知", "hidden": True, "fields": []},
     "reader_reconcile": {"group": "專案", "label": "比對讀者認知回收", "hidden": True, "fields": []},
+    "reverse": {"group": "專案", "label": "從正文建立設定", "hidden": True, "fields": []},
+    "glossary_org": {"group": "專案", "label": "整理名詞表進設定集", "hidden": True, "fields": []},
     "goal_check": {
         "group": "品質", "label": "章綱核對",
         "fields": [{"key": "chapter", "label": "第幾章", "type": "number"},
@@ -205,6 +207,10 @@ def build(action, p, book_name):
         return ("從時間線建立讀者認知", "（由工作台組裝）")
     if action == "reader_reconcile":
         return ("比對讀者認知回收", "（由工作台組裝）")
+    if action == "glossary_org":
+        return ("整理名詞表進設定集", "（由工作台組裝）")
+    if action == "reverse":
+        return ("從正文建立設定%s" % ("（到第%s章）" % p["upto"] if p.get("upto") else ""), "（由工作台組裝）")
 
     # 內部動作
     if action == "accept":

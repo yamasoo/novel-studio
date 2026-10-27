@@ -202,34 +202,83 @@ def _heading(line, mode):
     return None
 
 
-def _split(lines, mode):
+def _title_key(t):
+    """比對章名用：去掉 #、書名號、引號、標點與空白。"""
+    from . import search   # 繁簡逐字對照：「風雪夜歸」和「风雪夜归」算同一個章名
+    return search.norm(re.sub(r"[#《》〈〉「」『』\"'“”‘’()（）\[\]【】:：、,，.．·\-—\s　]", "", t or ""))
+
+
+def _merge_duplicate_headings(chunks):
+    """同一章的標題連寫兩次（例如「第 7 章　夜襲」下一行又有「# 第七章 夜襲」）：
+    章號相同、中間只有空行、章名相同或其中一邊沒寫，就當成同一章。
+    做法參考 oh-story-claudecode（MIT）的 drop_adjacent_duplicate_headings，放寬成寫法不同也算。"""
+    out, merged = [], 0
+    for c in chunks:
+        p = out[-1] if out else None
+        if (p and p["num"] is not None and p["num"] == c["num"]
+                and len(p["lines"]) <= 3 and not any(x.strip() for x in p["lines"])
+                and (not _title_key(p["title"]) or not _title_key(c["title"]) or _title_key(p["title"]) == _title_key(c["title"]))):
+            p["title"] = p["title"] or c["title"]
+            p["lines"] = c["lines"]
+            merged += 1
+            continue
+        out.append(c)
+    return out, merged
+
+
+def _drop_leading_toc(chunks):
+    """書開頭的目錄：一串間距很近的章名，後面正文又照同樣順序出現 → 丟掉開頭那串。
+    做法參考 oh-story-claudecode（MIT）的 drop_leading_toc。回傳 (章節, 丟掉幾條)。"""
+    if len(chunks) < 6:
+        return chunks, 0
+    for k in range(min(len(chunks) // 2, 500), 2, -1):
+        pre = chunks[:k]
+        if pre[0]["line"] > 200:
+            continue
+        gaps = sorted(pre[i]["line"] - pre[i - 1]["line"] for i in range(1, k))
+        if gaps[len(gaps) // 2] > 3:
+            continue
+        sig = [(x["num"], _title_key(x["title"])) for x in pre[:min(8, k)]]
+        for j in range(k, len(chunks) - len(sig) + 1):
+            if [(x["num"], _title_key(x["title"])) for x in chunks[j:j + len(sig)]] == sig and chunks[j]["line"] - pre[-1]["line"] > 3:
+                return chunks[j:], j
+    return chunks, 0
+
+
+def _split(lines, mode, stats=None):
     chunks, cur, preface = [], None, []
-    for ln in lines:
+    for i, ln in enumerate(lines):
         if len(ln.strip()) <= 40 and VOLUME_RE.match(ln.strip()):
             continue  # 卷名：不當成章節，也不放進正文
         h = _heading(ln, mode)
         if h:
-            cur = {"num": h[0], "title": h[1], "heading": h[2], "lines": []}
+            cur = {"num": h[0], "title": h[1], "heading": h[2], "lines": [], "line": i + 1}
             chunks.append(cur)
         elif cur is None:
             preface.append(ln)
         else:
             cur["lines"].append(ln)
+    chunks, toc = _drop_leading_toc(chunks)
+    chunks, merged = _merge_duplicate_headings(chunks)
+    if stats is not None:
+        stats["toc"] = stats.get("toc", 0) + toc
+        stats["merged"] = stats.get("merged", 0) + merged
     for c in chunks:
         c["body"] = "\n".join(c.pop("lines"))
+        c.pop("line", None)
     return "\n".join(preface).strip(), chunks
 
 
-def split_text(text, mode="auto"):
+def split_text(text, mode="auto", stats=None):
     """回傳 (前言, [{"num": 標題上的章號或 None, "title", "heading", "body"}])。
-    auto：先找「第X章」這類標題，找不到再用 Markdown 的 # 標題。"""
+    auto：先找「第X章」這類標題，找不到再用 Markdown 的 # 標題。stats 會記下合併與丟掉目錄的數量。"""
     text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\ufeff", "")
     lines = text.split("\n")
     if mode in ("auto", "chapter"):
-        pre, chunks = _split(lines, "chapter")
+        pre, chunks = _split(lines, "chapter", stats)
         if chunks or mode == "chapter":
             return pre, chunks
-    return _split(lines, "markdown")
+    return _split(lines, "markdown", stats)
 
 
 def normalize(body):
@@ -267,12 +316,13 @@ def plan(payload, opts):
     sources.sort(key=lambda s: (s[0] == "貼上的文字", _natural_key(s[0])))
     infos, chapters, preface_all = [], [], []
     simp_total = 0
+    stats = {}
     for name, text, enc in sources:
         simp = count_simplified(text)
         simp_total += simp
         if convert:
             text = to_traditional(text)
-        pre, chunks = split_text(text, mode)
+        pre, chunks = split_text(text, mode, stats)
         if not chunks:
             # 整個檔案當成一章（一個檔案一章的情況），章號和章名從檔名猜
             stem = os.path.splitext(name)[0]
@@ -304,25 +354,66 @@ def plan(payload, opts):
         c["chars"] = len(re.findall(r"[㐀-鿿]", c["text"]))
     chapters = [c for c in chapters if c["chars"] > 0 or c["title"]]
     warnings = []
+    if stats.get("merged"):
+        warnings.append("有 %d 章的章名連寫了兩次（寫法不同），已經合併成同一章。" % stats["merged"])
+    if stats.get("toc"):
+        warnings.append("開頭有一份目錄（%d 條章名），已經略過，不當成章節。" % stats["toc"])
+    _flag_chapters(chapters, convert, warnings)
     if simp_total and not convert:
         warnings.append("偵測到約 %d 個簡體字。可以勾選「轉成台灣繁體」再預覽。" % simp_total)
     if preface_all:
         n = sum(len(re.findall(r"[一-鿿]", p)) for _, p in preface_all)
         warnings.append("第一個章節標題之前有 %d 字（例如書名、簡介、楔子），預設不會匯入；需要的話勾選「把開頭的文字當成一章」。" % n)
-    empty = [c for c in chapters if c["chars"] < 50]
-    if empty:
-        warnings.append("有 %d 章的內容不到 50 字，可能是目錄或標題誤判，請檢查。" % len(empty))
-    big = [c for c in chapters if c["chars"] > 20000]
-    if big:
-        warnings.append("有 %d 章超過兩萬字，可能是章節標題沒被認出來；可以換一種拆章方式試試。" % len(big))
     return {"sources": infos, "chapters": chapters, "warnings": warnings, "numbered_by_title": use_titles,
             "preface": [{"name": n, "chars": len(re.findall(r"[一-鿿]", p)), "preview": p.strip()[:80]} for n, p in preface_all]}
+
+
+def _nos(cs):
+    nos = [c["no"] for c in cs]
+    s = "、".join("第%d章" % n for n in nos[:12])
+    return s + ("……等 %d 章" % len(nos) if len(nos) > 12 else "")
+
+
+def _flag_chapters(chapters, convert, warnings):
+    """逐章標出可疑的地方（給預覽表上色），並彙整成提醒。"""
+    sizes = sorted(c["chars"] for c in chapters if c["chars"] > 0)
+    median = sizes[len(sizes) // 2] if sizes else 0
+    prev = None
+    for c in chapters:
+        f = []
+        if c["chars"] < 50:
+            f.append("空章")
+        elif median >= 500 and c["chars"] < median * 0.2:
+            f.append("過短")
+        if c["chars"] > 20000 or (median >= 500 and c["chars"] > median * 3):
+            f.append("過長")
+        n = c.get("num")
+        if n is not None and prev is not None:
+            if n == prev:
+                f.append("重複章號")
+            elif n > prev + 1:
+                f.append("跳號（缺第%s章）" % ("%d" % (prev + 1) if n == prev + 2 else "%d～%d" % (prev + 1, n - 1)))
+            elif n < prev:
+                f.append("章號倒退")
+        if n is not None:
+            prev = n
+        simp = count_simplified(c["text"])
+        if simp >= 5:
+            f.append(("轉繁後仍有簡體字 %d" if convert else "簡體字 %d") % simp)
+        c["flags"] = f
+    groups = [("空章", "內容不到 50 字（可能是目錄或標題誤判）"), ("過短", "比一般章節短很多"),
+              ("過長", "比一般章節長很多（可能有章節標題沒被認出來）"), ("重複章號", "章號重複"),
+              ("跳號", "章號不連續"), ("章號倒退", "章號比上一章小"), ("簡體字", "含簡體字"), ("轉繁後", "轉繁後仍有簡體字")]
+    for key, text in groups:
+        cs = [c for c in chapters if any(x.startswith(key) for x in c["flags"])]
+        if cs:
+            warnings.append("%s：%s。" % (text, _nos(cs)))
 
 
 def preview(payload, opts):
     r = plan(payload, opts)
     r["chapters"] = [{"no": c["no"], "title": c["title"], "heading": c["heading"], "chars": c["chars"],
-                      "head": re.sub(r"\s+", " ", c["text"][:60])} for c in r["chapters"]]
+                      "flags": c.get("flags") or [], "head": re.sub(r"\s+", " ", c["text"][:60])} for c in r["chapters"]]
     return r
 
 

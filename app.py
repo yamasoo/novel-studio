@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
+from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -1418,6 +1418,16 @@ def book_overview(book_id: str):
     lag = 1 if ov["alerts"] and ov["alerts"][0]["kind"] == "追蹤落後" else 0
     ov["alerts"][lag:lag] = [a for a in wb if a["kind"] == "回寫檢查"]
     ov["alerts"] += [a for a in wb if a["kind"] != "回寫檢查"]
+    rv_drafts = sum(len(v) for v in reverse.draft_groups(d).values())
+    if rv_drafts and project.list_entries(d, "設定/角色"):
+        ov["alerts"].insert(0, {"level": "info", "kind": "設定草稿等你核對", "action": "reverse",
+                                "text": "「從正文建立設定」或「整理名詞表」產生了 %d 份草稿，還沒採用或捨棄。" % rv_drafts})
+    elif ov.get("latest") and not project.list_entries(d, "設定/角色") and not project.read_table(d, "追蹤/伏筆.md")["rows"]:
+        st = reverse.state(d)
+        ov["alerts"].insert(0, {"level": "info", "kind": "從正文建立設定", "action": "reverse",
+                                "text": ("正文有 %d 章，但還沒有角色與追蹤資料。可以讓 AI 從正文反推設定、大綱與追蹤（先存成草稿）。" % ov["latest"])
+                                if not st.get("processed") else "已從正文抽取到第 %d 章%s。" % (
+                                    max(st["processed"]), "，草稿等你核對" if any(st["drafts"].values()) else "，還沒跑完")})
     recs = recovery.list_all(d)
     if recs:
         ov["alerts"].insert(0, {"level": "warn", "kind": "恢復稿",
@@ -1469,6 +1479,32 @@ def book_tracking(book_id: str):
         "latest": ov["latest"],
         "stale_foreshadow": int(CONFIG.get("stale_foreshadow", 10)),
     }
+
+
+@app.get("/api/books/{book_id}/reverse")
+def reverse_info(book_id: str, provider: str = None, upto: int = 0):
+    """從正文建立設定：目前進度、草稿、費用估算。"""
+    d = book_dir(book_id)
+    prov = get_provider(provider)
+    st = reverse.state(d)
+    return {"state": st, "estimate": reverse.estimate(d, prov, upto or None),
+            "has_settings": bool(project.list_entries(d, "設定/角色")) or bool(project.read_table(d, "追蹤/伏筆.md")["rows"])}
+
+
+@app.post("/api/books/{book_id}/reverse/{op}")
+async def reverse_op(book_id: str, op: str, req: Request):
+    d = book_dir(book_id)
+    body = await req.json() if (req.headers.get("content-type") or "").startswith("application/json") else {}
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "還有任務在執行，請等它結束。")
+    if op == "adopt":
+        return wrap(lambda: reverse.adopt(d, body.get("group")))
+    if op == "discard":
+        return wrap(lambda: reverse.discard(d, body.get("group")))
+    if op == "reset":
+        reverse.reset(d)
+        return {"ok": True}
+    raise HTTPException(404, "不支援的操作")
 
 
 @app.get("/api/books/{book_id}/search")

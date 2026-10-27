@@ -6,9 +6,11 @@
 import json
 import os
 import re
+import shutil
 import time
+import urllib.parse
 
-from . import context, fidelity, goals, illust, native_files, project, providers, reader_ledger, recovery, revision, shared, style_design, tracking, wb_check
+from . import context, fidelity, goals, illust, native_files, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, tracking, wb_check
 
 DELIM = "<<<匯報>>>"
 
@@ -21,7 +23,7 @@ SYSTEM = ("你是繁體中文長篇網路小說的寫作助手，與作者合作
 
 NATIVE_ACTIONS = {"write", "reject", "revise", "deslop", "accept", "sync_tracking", "review", "free", "reply",
                   "setup_check", "review_all", "goal_check", "review_notes", "revise_notes",
-                  "recover_continue", "illust_prompt", "visual_card", "style_design", "reader_init", "reader_reconcile"} | set(native_files.SPECS)
+                  "recover_continue", "illust_prompt", "visual_card", "style_design", "reader_init", "reader_reconcile", "reverse", "glossary_org"} | set(native_files.SPECS)
 
 
 class NativeError(Exception):
@@ -41,7 +43,7 @@ class Ctx:
         return self.job.book_dir
 
     def budget(self, reserve_output):
-        total = int(self.prov.get("context_tokens") or 32768)
+        total = int(self.prov.get("context_tokens") or (180000 if self.prov.get("type") == "claude_code" else 32768))
         return max(2000, total - int(reserve_output) - 1500)
 
     def call(self, messages, json_mode=False, max_tokens=None, label="", stage=None, recover=None):
@@ -68,6 +70,8 @@ class Ctx:
             buf["t"] += t
             flush()
 
+        if self.prov.get("type") == "claude_code":
+            return self._call_claude(messages, label)
         adapter, effort = providers.reasoning_for(self.prov, stage)
         tag = "" if adapter == "none" or not stage else "（思考：%s）" % ("關閉" if effort == "off" else effort)
         job.emit("stream_start", text=label + tag, json=json_mode)
@@ -92,6 +96,27 @@ class Ctx:
         if self.truncated:
             job.emit("log", text="提醒：輸出達到「最大輸出」%s tokens 的上限被截斷。推理模型的思考過程也算在輸出裡，"
                                  "請到設定把這個執行者的「最大輸出」調高（DeepSeek 建議 32768 以上）。" % (max_tokens or self.prov.get("max_output")))
+        return text
+
+    def _call_claude(self, messages, label):
+        """Claude Code：一次 claude -p，不用工具（工作台自己分批的長任務用）。"""
+        from . import runner
+        system = "\n".join(m["content"] for m in messages if m["role"] == "system")
+        prompt = "\n\n".join(m["content"] for m in messages if m["role"] != "system")
+        self.job.emit("stream_start", text=label + "（Claude Code）", json=True)
+        try:
+            text, usage = runner.claude_print(self.opts or {}, prompt, system, cwd=self.book,
+                                              should_stop=lambda: self.job.status == "cancelled")
+        except runner.ClaudeOnceError as e:
+            self.job.emit("stream_end")
+            if self.job.status == "cancelled":
+                raise providers.Cancelled()
+            raise NativeError(str(e))
+        self.job.emit("stream", text=text[:2000] + ("……" if len(text) > 2000 else ""))
+        self.job.emit("stream_end")
+        for k in ("prompt_tokens", "completion_tokens"):
+            self.usage[k] += int(usage.get(k) or 0)
+        self.truncated = False
         return text
 
     def _keep(self, text, label, reason, recover):
@@ -785,6 +810,46 @@ def act_reader_reconcile(c, p):
         raise NativeError(str(e))
 
 
+def act_reverse(c, p):
+    """從成稿反推設定：逐章抽取 → 本機累積 → 整理 → 產生四組草稿。中斷了下次從斷的地方接。"""
+    out_tok = _out_tokens(c)
+    msgs0 = SYSTEM + "這個任務請只輸出 JSON；思考保持簡短，把篇幅留給 JSON。"
+
+    def call(label, user):
+        return _json_call(c, [{"role": "system", "content": msgs0}, {"role": "user", "content": user}], label)
+    try:
+        upto = int(p.get("upto") or 0) or None
+    except (TypeError, ValueError):
+        upto = None
+    res = reverse.run(c.book, call, lambda t: c.job.emit("log", text=t), upto=upto,
+                      should_stop=lambda: c.job.status == "cancelled",
+                      budget=c.budget(out_tok) + out_tok + 1500, out_reserve=out_tok, title=os.path.basename(c.book))
+    c.job.result = res or "已停止。下次按「繼續」會從斷的地方接著跑（已完成的章節不會重跑）。"
+
+
+def act_glossary_org(c, p):
+    """把現有的名詞表整理進設定集（細分類、主題檔、重要條目、勢力合併），寫成「設定」組草稿。"""
+    from . import glossary_org
+    rows = glossary_org.parse_rows(c.book)
+    if not rows:
+        raise NativeError("名詞表是空的")
+    sysm = SYSTEM + "這個任務請只輸出 JSON；思考保持簡短，把篇幅留給 JSON。"
+
+    def call(label, user):
+        return _json_call(c, [{"role": "system", "content": sysm}, {"role": "user", "content": user}], label)
+    for sub in (("設定", "世界觀"), ("設定", "勢力"), ("設定", "名詞表.md")):   # 清掉上次留下的同類草稿
+        old = os.path.join(c.book, reverse.DIR, "草稿", *sub)
+        if os.path.isdir(old):
+            shutil.rmtree(old)
+        elif os.path.isfile(old):
+            os.remove(old)
+    summary = glossary_org.organize(c.book, rows, call, lambda rel, t: reverse._write_draft(c.book, rel, t),
+                                    log=lambda t: c.job.emit("log", text=t))
+    c.job.result = ("**名詞表整理完成**（草稿）\n\n%s\n\n請到 [從正文建立設定](#/b/%s/reverse) 頁的「設定」組核對後按「採用」"
+                    "（同名檔案會先備份）。勢力檔裡「需要作者確認」的合併判斷請特別看一下。"
+                    "這一頁也可以從「設定集」右上角的「從正文建立設定」進去。" % (summary, urllib.parse.quote(c.job.book_id)))
+
+
 HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "deslop": act_deslop,
             "accept": act_accept, "sync_tracking": act_sync, "review": act_review, "free": act_free,
             "reply": act_reply, "setup_check": native_files.act_setup_check,
@@ -797,7 +862,9 @@ HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "des
             "visual_card": lambda c, p: act_visual_card(c, p),
             "style_design": lambda c, p: act_style_design(c, p),
             "reader_init": lambda c, p: act_reader_init(c, p),
-            "reader_reconcile": lambda c, p: act_reader_reconcile(c, p)}
+            "reader_reconcile": lambda c, p: act_reader_reconcile(c, p),
+            "reverse": lambda c, p: act_reverse(c, p),
+            "glossary_org": lambda c, p: act_glossary_org(c, p)}
 for _k, _spec in native_files.SPECS.items():
     HANDLERS[_k] = (lambda s: (lambda c, p: native_files.run_spec(c, p, s, SYSTEM)))(_spec)
 

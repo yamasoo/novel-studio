@@ -376,13 +376,16 @@ function newBookDialog() {
     <h2>開新書</h2>
     <p class="muted small">會在書庫建立資料夾，然後請 ${esc(Panel.provName())} 跟你做開書訪談（可以在右側面板上方切換執行者）。訪談問題會出現在右側面板，直接在下方回覆即可。</p>
     <label class="f"><span>書名（也是資料夾名稱）</span><input type="text" id="nb-name" placeholder="例如：退婚之後"></label>
+    <label class="f"><span>寫作語言</span><select id="nb-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
+    <p class="muted small">決定這本書的提示詞和模型輸出的語言。介面語言是另外的設定（右下角）。</p>
     <label class="f"><span>初步構想（選填）</span><textarea id="nb-idea" rows="4" placeholder="一句話、一段簡介，或幾個關鍵字"></textarea></label>
     <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="nb-go">建立並開始訪談</button></div>`,
   (el) => {
+    try { const ul = localStorage.getItem("ns_lang"); if (ul) $("#nb-lang", el).value = ul; } catch (e) {}
     $("#nb-name", el).focus();
     $("#nb-go", el).onclick = async () => {
       try {
-        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea: $("#nb-idea", el).value, provider: Panel.prov() });
+        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea: $("#nb-idea", el).value, lang: $("#nb-lang", el).value, provider: Panel.prov() });
         closeModal();
         S.books = (await api("GET", "/api/books")).books;
         go("#/b/" + enc(r.id));
@@ -410,10 +413,12 @@ async function viewOverview(view) {
   const seg = (n, cls) => n ? `<div class="${cls}" style="width:${(n / total) * 100}%"></div>` : "";
   const [, stateBody] = splitFM(ov.state_card || "");
   const next = ov.next;
+  setTimeout(() => { const sel = $("#book-lang"); if (sel) sel.value = ov.lang || "zh-TW"; }, 0);
   setTimeout(() => renderPipe(), 0);
   view.innerHTML = `
     <div class="page-head">
-      <div><h1>${esc(S.book)}</h1><div class="sub">${esc(ov.hook || "")}</div></div>
+      <div><h1>${esc(S.book)}</h1><div class="sub">${esc(ov.hook || "")}</div>
+        <div class="sub small"><label>寫作語言：<select id="book-lang" onchange="setBookLang(this.value)"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label></div></div>
       <div class="row">
         ${next.has_card
           ? `<button class="primary" onclick="Panel.openForm('write',{from:${next.no},to:${next.no}})">寫第${next.no}章${next.title ? "《" + esc(next.title) + "》" : ""}</button>`
@@ -448,6 +453,10 @@ async function viewOverview(view) {
     ${ov.recent.length ? `<div class="card" style="margin-top:14px"><div class="card-title"><h2>最近章節</h2></div>
       <table>${ov.recent.map((c) => `<tr class="click" onclick="go('#/b/${enc(S.book)}/ch/${c.no}')"><td>第${c.no}章</td><td>${esc(c.title)}</td><td class="num">${fmtNum(c.chars)} 字</td></tr>`).join("")}</table></div>` : ""}`;
 }
+window.setBookLang = async (v) => {
+  try { await api("POST", B("/lang"), { lang: v }); toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]); }
+  catch (e) { fail(e); route && route(); }
+};
 function alertHtml(a) {
   let btn = "";
   if (a.chapter) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/ch/${a.chapter}?tab=${a.tab || "candidate"}')">${a.tab === "revision" ? "確認" : "審閱"}</button>`;

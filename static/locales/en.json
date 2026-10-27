@@ -1310,5 +1310,11 @@
  "已定稿：{0}": "Finalized: {0}",
  "{0} 已定稿。全部章節都完成了。": "{0}: finalized. All chapters are done.",
  "{0} 已定稿。": "{0}: finalized.",
- "第{0}章 已定稿。": "Chapter {0} is finalized."
+ "第{0}章 已定稿。": "Chapter {0} is finalized.",
+ "寫作語言": "Writing language",
+ "寫作語言：": "Writing language: ",
+ "決定這本書的提示詞和模型輸出的語言。介面語言是另外的設定（右下角）。": "Sets the language of this book's prompts and of the model's output. The interface language is a separate setting (bottom right).",
+ "已改成 {0}": "Changed to {0}",
+ "不支援的語言": "Unsupported language",
+ "還有任務在執行，請等它結束再換語言。": "A job is still running; wait for it to finish before changing the language."
 }

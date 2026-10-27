@@ -25,7 +25,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
+from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, lang as lang_mod, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
 VERSION = "1.14.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -1432,10 +1432,11 @@ async def new_book(req: Request):
     os.makedirs(lib, exist_ok=True)
     d = wrap(lambda: project.create_book(lib, body.get("name", "")))
     name = os.path.basename(d)
+    book_lang = lang_mod.set_book_lang(d, body.get("lang"))   # 沒填就是 zh-TW；寫成 .studio/lang，開書訪談時再寫進故事核心
     job = None
     if body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
-        title, prompt = actions.build("setup_new", params, name)
+        title, prompt = actions.build("setup_new", params, name, book_lang)
         job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
                                           provider=get_provider(body.get("provider"))))
     return {"id": name, "job": job.to_dict() if job else None}
@@ -1456,11 +1457,28 @@ def add_demo():
     return {"id": os.path.basename(dst)}
 
 
+@app.get("/api/books/{book_id}/lang")
+def get_book_lang(book_id: str):
+    return {"lang": lang_mod.book_lang(book_dir(book_id)), "supported": [{"id": k, "label": v} for k, v in lang_mod.LABELS.items()]}
+
+
+@app.post("/api/books/{book_id}/lang")
+async def set_book_lang(book_id: str, req: Request):
+    d = book_dir(book_id)
+    body = await req.json()
+    if body.get("lang") not in lang_mod.SUPPORTED:
+        raise HTTPException(400, "不支援的語言")
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "還有任務在執行，請等它結束再換語言。")
+    return {"lang": lang_mod.set_book_lang(d, body["lang"])}
+
+
 @app.get("/api/books/{book_id}/overview")
 def book_overview(book_id: str):
     d = book_dir(book_id)
     ov = project.overview(d, int(CONFIG.get("stale_foreshadow", 10)), int(CONFIG.get("stale_character", 15)))
     ov["is_book"] = project.is_book(d)
+    ov["lang"] = lang_mod.book_lang(d)
     wb = wb_check.alerts(d, ov.get("latest") or 0)   # 回寫檢查放在追蹤落後後面、其他提醒前面
     lag = 1 if ov["alerts"] and ov["alerts"][0]["kind"] == "追蹤落後" else 0
     ov["alerts"][lag:lag] = [a for a in wb if a["kind"] == "回寫檢查"]
@@ -1653,7 +1671,7 @@ def accept(book_id: str, no: int, provider: str = None):
         raise HTTPException(409, "還有任務在執行，請稍後再採用。")
     path = wrap(lambda: project.accept_candidate(d, no))
     params = {"chapter": no, "path": path}
-    title, prompt = actions.build("accept", params, book_id)
+    title, prompt = actions.build("accept", params, book_id, lang_mod.book_lang(d))
     job = RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, meta={"action": "accept", "params": params},
                                                       provider=prov), d, "accept", params, prov))
     return {"path": path, "job": job.to_dict()}
@@ -1665,7 +1683,7 @@ async def reject(book_id: str, no: int, req: Request):
     _guard_pipeline(book_id)
     body = await req.json()
     params = {"chapter": no, "note": body.get("note", "")}
-    title, prompt = actions.build("reject", params, book_id)
+    title, prompt = actions.build("reject", params, book_id, lang_mod.book_lang(d))
     try:
         job = RUNNER.start(runner_mod.Job(book_id, d, title, prompt, meta={"action": "reject", "params": params},
                                           provider=get_provider(body.get("provider"))))
@@ -1732,7 +1750,7 @@ def launch_job(book_id, d, action, params, prov, resume=None, text=None):
         if action == "reply":
             title, prompt = "回覆", text or ""
         else:
-            title, prompt = actions.build(action, params or {}, book_id)
+            title, prompt = actions.build(action, params or {}, book_id, lang_mod.book_lang(d))
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(400, "參數不完整：%s" % e)
     if not prompt.strip():

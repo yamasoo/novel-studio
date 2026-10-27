@@ -10,12 +10,15 @@ import threading
 import time
 import uuid
 
-# 保持單行：Windows 的 claude.cmd 會把參數裡的換行切斷
-STUDIO_SYSTEM = ("你正透過「小說工作台」以非互動模式執行，作者在網頁介面上閱讀你的輸出。"
-                 "一律使用台灣繁體中文。"
-                 "需要作者回答或決定時，不要使用提問工具（AskUserQuestion 在此模式無法使用）：直接在回覆最後用文字列出問題與編號選項，標出推薦選項，然後結束本輪；作者會在介面上回覆，你會在同一個對話中收到。"
-                 "依照被指定的 skill 執行；skill 要求「先問作者」的事一定要停下來問。"
-                 "回覆最後一段是給作者看的白話匯報。")
+from . import lang as lang_mod, prompts
+
+# 系統提示詞依書的語言取自 studio/prompts/（保持單行：Windows 的 claude.cmd 會把參數裡的換行切斷）
+STUDIO_SYSTEM = prompts.pack("zh-TW")["studio_system"]   # 相容舊程式碼
+
+
+def studio_system(book_dir):
+    return prompts.pack(lang_mod.book_lang(book_dir))["studio_system"]
+
 
 IS_WIN = os.name == "nt"
 
@@ -219,7 +222,7 @@ class Runner:
             raise FileNotFoundError("找不到 claude 指令。請確認已安裝 Claude Code，或在設定中填入 claude 的完整路徑。")
         from . import shared
         cmd = [exe, "-p", "--output-format", "stream-json", "--verbose",
-               "--append-system-prompt", STUDIO_SYSTEM + shared.claude_note(job.book_dir)]
+               "--append-system-prompt", studio_system(job.book_dir) + shared.claude_note(job.book_dir)]
         mode = cfg.get("permission_mode") or "acceptEdits"
         cmd += ["--permission-mode", mode]
         tools = cfg.get("allowed_tools") or []

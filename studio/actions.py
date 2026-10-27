@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""工作台按鈕對應的 Claude Code 指令。每個動作回傳 (標題, 提示詞)。"""
+"""工作台按鈕對應的 Claude Code 指令。每個動作回傳 (標題, 提示詞)。
+標題一律用中文（介面靠 i18n 翻譯）；提示詞依書的語言取自 studio/prompts/。"""
+from . import prompts
 
 
 def _r(a, b):
@@ -115,80 +117,82 @@ ACTIONS = {
     },
 }
 
-CANDIDATE_RULE = (
-    "【寫稿前對帳】動筆前先把章綱的每個情節點和已定稿事實（狀態卡、角色狀態、時間線、上一章結尾）逐條比對，"
-    "有衝突就採用與定稿一致的寫法，並在匯報列出衝突與你的處理方式。\n"
-    "【候選稿模式】這次由作者在工作台審稿：依 novel-write 的「候選稿模式」執行——"
-    "正文寫進 `候選/第NNN章_章名.md`（不是 正文/），做完自查與新增物申報後就停止並匯報，"
-    "不要回寫追蹤、不要更新章綱狀態、不要 git 提交。作者在介面按「採用」後，會另外請你回寫。"
-)
+CANDIDATE_RULE = prompts.pack("zh-TW")["candidate_rule"]   # 相容舊程式碼；新程式請用 candidate_rule(lang)
 
 
-def build(action, p, book_name):
+def candidate_rule(lang="zh-TW"):
+    return prompts.pack(lang)["candidate_rule"]
+
+
+def build(action, p, book_name, lang="zh-TW"):
+    """回傳 (標題, 提示詞)。標題固定中文；提示詞用 lang 指定的語言（書的語言，見 studio/lang.py）。"""
     p = p or {}
+    P = prompts.pack(lang)
+
+    def tpl(key, **kw):
+        return P[key].format(**kw)
+
+    def rng_of(a, b):
+        return tpl("ch_one", a=a) if a == b else tpl("ch_many", a=a, b=b)
+
     note = (p.get("note") or "").strip()
-    extra = ("\n作者補充：" + note) if note else ""
+    extra = tpl("extra", note=note) if note else ""
+    rule = P["candidate_rule"]
 
     if action == "setup_new":
-        return ("開書訪談", "請使用 novel-setup skill，在目前資料夾為新書《%s》建立小說專案。"
-                "目前資料夾就是書目錄，直接在這裡建，不要再建子資料夾。\n"
-                "作者的初步構想：%s\n照訪談流程一輪一輪問我，先問第一輪。"
-                % (book_name, (p.get("idea") or "（還沒有，請引導我）").strip()))
+        return ("開書訪談", tpl("setup_new", book=book_name, idea=(p.get("idea") or P["idea_none"]).strip()))
     if action == "setup_check":
-        return ("檢查專案結構", "請使用 novel-setup skill 檢查目前這個小說專案：缺哪些資料夾或範本、哪些核心檔案還是空白。缺的範本補上，不要覆蓋既有內容。")
+        return ("檢查專案結構", tpl("setup_check"))
     if action == "style":
-        return ("分析文風", "請使用 novel-style skill 分析、設計或調整本書文風（設定/文風.md）。"
-                "作者貼的是寫作樣本就照「分析樣本」做；是描述就照「從描述設計」或「依意見修改」做。不要提問，不確定的地方在匯報列出。\n"
-                "作者提供的內容：\n%s" % p.get("text", ""))
+        return ("分析文風", tpl("style", text=p.get("text", "")))
     if action == "preference":
-        return ("記錄偏好", "請使用 novel-setup skill 記錄作者的長期偏好到 設定/作者偏好.md：\n%s" % p.get("text", ""))
+        return ("記錄偏好", tpl("preference", text=p.get("text", "")))
 
     if action == "concept":
-        return ("故事核心診斷", "請使用 novel-outline skill 做故事核心診斷，並更新 設定/故事核心.md。" + extra)
+        return ("故事核心診斷", tpl("concept") + extra)
     if action == "master_outline":
-        return ("全書大綱", "請使用 novel-outline skill 規劃全書大綱（大綱/全書大綱.md）。先給我看分卷總覽，確認後再寫入。" + extra)
+        return ("全書大綱", tpl("master_outline") + extra)
     if action == "volume_outline":
         v = (p.get("volume") or "一").strip()
-        return ("第%s卷卷綱" % v, "請使用 novel-outline skill 規劃第%s卷的卷綱。先給我看卷契約和劇情單元總覽，確認後再寫入。%s" % (v, extra))
+        return ("第%s卷卷綱" % v, tpl("volume_outline", v=v, extra=extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
         if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入
             rng = "第%d章" % a if a == b else "第%d～%d章" % (a, b)
-            return ("寫%s章綱" % rng, "請使用 novel-outline skill 寫%s的章綱，直接寫入 大綱/章綱/（照章綱範本，frontmatter 狀態填「已確認」），"
-                    "不用先給我看總覽。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。%s" % (rng, extra))
-        return ("排章綱 %d～%d" % (a, b), "請使用 novel-outline skill 排第%d～%d章的章綱。先給我看單元總覽表（一章一行），我確認後再寫入各章檔案。%s" % (a, b, extra))
+            return ("寫%s章綱" % rng, tpl("cards_auto", rng=rng_of(a, b), extra=extra))
+        return ("排章綱 %d～%d" % (a, b), tpl("cards", a=a, b=b, extra=extra))
 
     if action == "character":
         name = (p.get("name") or "").strip()
-        return ("角色：%s" % name, "請使用 novel-bible skill 建立或補完角色「%s」。%s" % (name, extra))
+        return ("角色：%s" % name, tpl("character", name=name, extra=extra))
     if action == "gen_drafts":
-        return ("生成設定草稿", "請使用 novel-bible skill 生成設定草稿，全部放 設定/草稿/：\n%s" % p.get("text", ""))
+        return ("生成設定草稿", tpl("gen_drafts", text=p.get("text", "")))
     if action == "intake":
-        return ("整理入庫", "請使用 novel-bible skill，把下面的內容整理入庫（照從對話萃取的規則：已定案→正式，討論中→草稿）：\n\n%s" % p.get("text", ""))
+        return ("整理入庫", tpl("intake", text=p.get("text", "")))
     if action == "promote_drafts":
-        return ("草稿轉正式", "請使用 novel-bible skill，把以下設定草稿轉為正式：%s" % p.get("text", ""))
+        return ("草稿轉正式", tpl("promote", text=p.get("text", "")))
 
     if action == "write":
         a, b = _r(p.get("from"), p.get("to"))
         b = min(b, a + 2)
         rng = "第%d章" % a if a == b else "第%d～%d章" % (a, b)
-        return ("寫%s" % rng, "請使用 novel-write skill 寫%s。\n%s%s" % (rng, CANDIDATE_RULE, extra))
+        return ("寫%s" % rng, tpl("write", rng=rng_of(a, b), rule=rule, extra=extra))
     if action == "revise":
         n = int(p.get("chapter"))
-        return ("改第%d章" % n, "請使用 novel-write skill 的改稿流程修改第%d章（正文/%s_*.md）。\n作者的要求：%s" % (n, _ch(n), note or "（未說明，請先問我）"))
+        return ("改第%d章" % n, tpl("revise", n=n, ch=_ch(n), note=note or P["revise_note_none"]))
     if action == "sync_tracking":
-        return ("補齊追蹤", "請使用 novel-write skill：檢查 追蹤/狀態卡.md 的「更新至」，對所有已在 正文/ 但追蹤還沒回寫的章節，依序執行第七步回寫追蹤，然後匯報。")
+        return ("補齊追蹤", tpl("sync_tracking"))
 
     if action == "review":
         a, b = _r(p.get("from") or 1, p.get("to"))
         rng = "第%d章" % a if a == b else "第%d～%d章" % (a, b)
-        return ("審查%s" % rng, "請使用 novel-review skill 審查%s，輸出審查報告。不要直接修改正文。" % rng)
+        return ("審查%s" % rng, tpl("review", rng=rng_of(a, b)))
     if action == "review_all":
-        return ("健康檢查", "請使用 novel-review skill 做全書檢查，重點是清單 B：設定一致性、追蹤是否跟上正文、伏筆健康度、角色久未登場、資訊揭露邊界、讀者契約與節奏。不要讀全部正文，以摘要與追蹤為主。")
+        return ("健康檢查", tpl("review_all"))
     if action == "deslop":
         n = int(p.get("chapter"))
         where = "候選/" if p.get("candidate") else "正文/"
-        return ("去AI味 第%d章" % n, "請使用 novel-deslop skill 處理 %s%s_*.md（第%d章）：先跑檢查腳本、修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。%s" % (where, _ch(n), n, extra))
+        return ("去AI味 第%d章" % n, tpl("deslop", where=where, ch=_ch(n), n=n, extra=extra))
 
     if action == "free":
         return ("自由指令", p.get("text", ""))
@@ -215,10 +219,10 @@ def build(action, p, book_name):
     # 內部動作
     if action == "accept":
         n = int(p.get("chapter"))
-        return ("採用第%d章並回寫" % n, "作者已在工作台採用第%d章，正文已移到 %s。請使用 novel-write skill，從第七步「回寫追蹤」開始執行（章節摘要、狀態卡、角色狀態、伏筆、時間線、設定登記、章綱狀態、git 提交），完成後簡短匯報。" % (n, p.get("path")))
+        return ("採用第%d章並回寫" % n, tpl("accept", n=n, path=p.get("path")))
     if action == "reject":
         n = int(p.get("chapter"))
-        return ("重寫第%d章候選稿" % n, "作者退回了第%d章的候選稿（候選/%s_*.md）。\n作者的意見：%s\n請使用 novel-write skill 依意見改寫這份候選稿，仍然只寫在 候選/，不要回寫追蹤。改完匯報改了哪些地方。\n%s" % (n, _ch(n), note or "（未說明）", CANDIDATE_RULE))
+        return ("重寫第%d章候選稿" % n, tpl("reject", n=n, ch=_ch(n), note=note or P["reject_note_none"], rule=rule))
     raise KeyError(action)
 
 

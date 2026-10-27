@@ -583,16 +583,12 @@ def structure_for(book_dir, no=None):
     return None, "", ""
 
 
-CLAUDE_NOTE = ("【章節結構】寫章節或排章綱時：章綱 frontmatter 有「結構: 名稱」就讀 設定/章節結構/名稱.md；"
-               "沒有指定就用 設定/章節結構/ 裡 frontmatter 標「預設: 是」的那一份；都沒有就不用。"
-               "結構只是節拍參考，章綱的情節點與章末停點優先，篇幅比例不必精確。")
-
-
 def claude_note(book_dir):
-    note = CLAUDE_NOTE
+    from . import lang, prompts
+    P = prompts.pack(lang.book_lang(book_dir))
+    note = P["claude_note"]
     sd = shared_of_book(book_dir)
     p = os.path.join(sd, "作者偏好.md")
     if os.path.isfile(p) and _meaningful(project.read_text(p)):
-        note += ("【共用作者偏好】所有書共用的作者偏好在 %s（用 Read 讀取）。寫作、改稿、去 AI 味、審查時，"
-                 "和本書的 設定/作者偏好.md 一起遵守；兩者衝突時以本書為準。不要修改這個共用檔案。" % p)
+        note += P["claude_note_shared"].format(path=p)
     return note

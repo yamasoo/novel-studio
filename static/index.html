@@ -11,7 +11,7 @@
 <div id="app">
   <aside id="sidebar">
     <div class="brand" onclick="go('#/')">
-      <span class="seal">書</span>
+      <span class="seal" data-i18n-skip>書</span>
       <div><div class="brand-name">小說工作台</div><div class="brand-sub">Novel Studio</div></div>
     </div>
     <div id="book-switch"></div>
@@ -22,6 +22,7 @@
       <a href="#/import" class="navlink" data-r="import"><span class="ico">⇪</span>匯入舊稿</a>
       <a href="#/settings" class="navlink" data-r="settings"><span class="ico">⚙</span>設定</a>
       <a href="#/about" class="navlink" data-r="about"><span class="ico">ⓘ</span>關於</a>
+      <select id="lang-select" class="lang-select" title="Language / 言語 / 語言" aria-label="Language" data-i18n-skip></select>
       <div class="side-ext">
         <a href="https://github.com/yamasoo/novel-studio" target="_blank" rel="noopener" title="在 GitHub 打開專案頁">GitHub 專案 ↗</a>
         <a href="https://github.com/yamasoo/novel-studio/issues/new" target="_blank" rel="noopener" title="回報問題或提出建議">回報問題 ↗</a>
@@ -58,6 +59,7 @@
 <div id="toast"></div>
 
 <script src="/static/vendor/marked.min.js"></script>
+<script src="/static/i18n.js"></script>
 <script src="/static/relgraph.js"></script>
 <script src="/static/app.js"></script>
 </body>

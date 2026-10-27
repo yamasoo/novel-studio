@@ -1053,7 +1053,7 @@ async function viewTracking(view, t) {
     const cols = (x) => x.headers.filter((h) => h !== "編號");
     const tbl = (x, id) => `<div class="table-wrap"><table id="${id}"><thead><tr>${cols(x).map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>
       ${x.rows.map((r) => `<tr class="${r["結束章"] ? "dim done" : ""}">${cols(x).map((h) => `<td>${esc(r[h])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-    const intro = `<div class="muted small" style="margin-bottom:8px">誰<b>對</b>誰的關係，一個方向一列（A 對 B、B 對 A 分開記）。關係改變時，舊的那列會填上「結束章」、另開一列，所以歷史都留著；淡色的列是已經結束的舊關係。寫稿時只帶在場角色之間、目前有效的關係。</div>`;
+    const intro = `<div class="muted small" style="margin-bottom:8px">誰對誰的關係，一個方向一列（A 對 B、B 對 A 分開記）。關係改變時，舊的那列會填上「結束章」、另開一列，所以歷史都留著；淡色的列是已經結束的舊關係。寫稿時只帶在場角色之間、目前有效的關係。</div>`;
     const build = (label) => `<button class="sm rl-build" title="把各角色檔「## 關係」裡的「對象：描述」整理成表格草稿。不用模型、不花 token；確認後才會生效。">${label}</button>`;
     let parts = "";
     if (rd.rows.length) {

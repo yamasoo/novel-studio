@@ -1989,7 +1989,7 @@ def index():
     # 程式更新後瀏覽器常拿舊的 app.js：網址加上檔案修改時間，檔案一改就會重新下載
     st = os.path.join(HERE, "static")
     html = project.read_text(os.path.join(st, "index.html"))
-    for name in ("app.js", "style.css"):
+    for name in ("app.js", "style.css", "i18n.js", "relgraph.js"):
         try:
             v = int(os.path.getmtime(os.path.join(st, name)))
         except OSError:

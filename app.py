@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.15.0"
+VERSION = "1.15.1"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -1650,8 +1650,11 @@ async def bible_set_category(book_id: str, req: Request):
             raise HTTPException(400, "檔案路徑格式錯誤")
         norm = rel.replace("\\", "/").lstrip("/")
         p = wrap(lambda: project.safe_path(d, norm))
-        if not norm.startswith("設定/世界觀/") or not p.endswith(".md") or not os.path.isfile(p):
-            raise HTTPException(400, "只能改 設定/世界觀 裡的 .md 檔：" + rel)
+        allowed = ("設定/角色/", "設定/勢力/", "設定/世界觀/")
+        if not norm.startswith(allowed) or not p.endswith(".md") or not os.path.isfile(p):
+            raise HTTPException(400, "只能改 設定/角色、設定/勢力、設定/世界觀 裡的 .md 檔：" + rel)
+        if cat is not None and not norm.startswith("設定/世界觀/"):
+            raise HTTPException(400, "只有世界觀可以改分類：" + rel)
         targets.append(p)
     for p in targets:
         text = project.read_text(p)

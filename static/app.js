@@ -1009,21 +1009,30 @@ function entityFilterBar(t, list, f) {
   return `<div class="ef-bar"><label class="ef"><span>搜尋</span><input type="search" data-ef="q" placeholder="名稱、別名、一句話" value="${esc(f.q || "")}"></label>${out}${grouping}</div>`;
 }
 let pickSet = new Set();   // 批次移入分類：目前勾選的世界觀檔（換頁時清空）
+function pickToggle(el) {
+  const f = el.dataset.file;
+  pickSet.has(f) ? pickSet.delete(f) : pickSet.add(f);
+  const cb = el.querySelector("input.pick");
+  if (cb) cb.checked = pickSet.has(f);
+  const n = document.getElementById("ef-n");
+  if (n) n.textContent = `已選 ${pickSet.size} 項`;
+}
 function entityItemHtml(t, e, file, pick) {
   const cb = pick ? `<input type="checkbox" class="pick" data-pick="${esc(e.file)}" ${pickSet.has(e.file) ? "checked" : ""} onclick="event.stopPropagation()">` : "";
+  const nav = pick ? `onclick="pickToggle(this)"` : `onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')"`;
   const badge = t === "世界觀" ? esc(e.category || "未分類") : (e.role ? esc(e.role) : "");
   const tagLine = (e.tags || []).length ? `<div class="ds">${esc(e.tags.join("、"))}</div>` : "";
   return `
-        <div class="item ${e.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')">
+        <div class="item ${e.file === file ? "active" : ""}" data-file="${esc(e.file)}" ${nav}>
           <div class="row">${cb}<span class="nm">${esc(e.name)}</span><span class="grow"></span>${badge ? `<span class="badge">${badge}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
           ${tagLine}${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`;
 }
 function entityListHtml(t, list, f, file) {
   const shown = list.filter((e) => entryMatches(e, f, t));
-  const pick = t === "世界觀";   // 世界觀列表都可勾選，批次移入分類或轉為正式
-  const bulk = pick ? `<div class="ef-bulk"><span id="ef-n">已選 ${pickSet.size} 項</span>
-      <select id="ef-to">${WORLD_CATS.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>
-      <button id="ef-all">全選</button><button id="ef-apply">移入分類</button><button class="primary" id="ef-promote">轉為正式</button></div>` : "";
+  const pick = ["角色", "勢力", "世界觀"].includes(t);   // 可勾選，批次轉為正式；世界觀另可移入分類
+  const catSel = t === "世界觀" ? `<select id="ef-to">${WORLD_CATS.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select><button id="ef-apply">移入分類</button>` : "";
+  const bulk = pick ? `<div class="ef-bulk"><span id="ef-n">已選 ${pickSet.size} 項</span>${catSel}
+      <button id="ef-all">全選</button><button id="ef-clear">清除</button><button class="primary" id="ef-promote">轉為正式</button></div>` : "";
   const head = `<div class="muted small ef-count">顯示 ${shown.length} / ${list.length}</div>${bulk}`;
   if (!list.length) return `<div class="muted">這裡還是空的。</div>`;
   if (!shown.length) return head + `<div class="muted">沒有符合條件的項目。</div>`;
@@ -1044,7 +1053,7 @@ function bindEntryFilter(view, t, list, file, f) {
     saveEntryFilter(S.book, t, f);
   };
   const box0 = $("#ent-list", view);
-  if (box0 && t === "世界觀") {
+  if (box0 && ["角色", "勢力", "世界觀"].includes(t)) {
     const syncCount = () => { const n = $("#ef-n", view); if (n) n.textContent = `已選 ${pickSet.size} 項`; };
     box0.addEventListener("change", (ev) => {
       const cb = ev.target.closest && ev.target.closest("input[data-pick]");
@@ -1053,10 +1062,11 @@ function bindEntryFilter(view, t, list, file, f) {
       syncCount();
     });
     box0.addEventListener("click", async (ev) => {
-      const btn = ev.target.closest && ev.target.closest("#ef-all, #ef-apply, #ef-promote");
+      const btn = ev.target.closest && ev.target.closest("#ef-all, #ef-clear, #ef-apply, #ef-promote");
       if (!btn) return;
-      if (btn.id === "ef-all") {
-        box0.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = true; pickSet.add(cb.dataset.pick); });
+      if (btn.id === "ef-all" || btn.id === "ef-clear") {
+        const on = btn.id === "ef-all";
+        box0.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = on; on ? pickSet.add(cb.dataset.pick) : pickSet.delete(cb.dataset.pick); });
         syncCount();
         return;
       }
@@ -1065,6 +1075,7 @@ function bindEntryFilter(view, t, list, file, f) {
       const body = btn.id === "ef-promote"
         ? { files, status: "正式" }
         : { files, category: $("#ef-to", view).value };
+      if (btn.id === "ef-promote" && !confirm(`把 ${files.length} 項轉為正式？`)) return;
       try {
         await api("POST", B("/bible/category"), body);
         pickSet = new Set();

@@ -267,6 +267,27 @@ def read_table(book_dir, rel):
 # ---------------------------------------------------------------------------
 # 設定集
 # ---------------------------------------------------------------------------
+WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與政治", "經濟與物資", "宗教信仰",
+              "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"]
+
+
+def set_frontmatter_field(text, key, value):
+    """只改 frontmatter 裡 key 那一行；沒有就插在「類型」後面；沒有 frontmatter 就補一段。其他內容不動。"""
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return "---\n%s: %s\n---\n\n%s" % (key, value, text)
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if end is None:
+        raise ProjectError("frontmatter 格式錯誤，無法寫入分類")
+    for i in range(1, end):
+        if lines[i].startswith(key + ":"):
+            lines[i] = "%s: %s" % (key, value)
+            return "\n".join(lines)
+    pos = next((i + 1 for i in range(1, end) if lines[i].startswith("類型:")), 1)
+    lines.insert(pos, "%s: %s" % (key, value))
+    return "\n".join(lines)
+
+
 def list_entries(book_dir, rel_dir):
     d = safe_path(book_dir, rel_dir)
     out = []

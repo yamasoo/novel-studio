@@ -344,10 +344,14 @@ def char_prompts(acc):
     return out
 
 
+WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與政治", "經濟與物資", "宗教信仰",
+              "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"]
+
 WORLD_SCHEMA = """請只輸出一個 JSON 物件：
-{"世界觀": [{"名稱": "背景設定", "一句話": "", "規則": ["寫成可以檢查的規則：時代、世界的基本規則、故事的前提"], "代價與限制": [""], "與劇情的關係": ""}]}
+{"世界觀": [{"名稱": "背景設定", "分類": "歷史與年表", "標籤": [], "一句話": "", "規則": ["寫成可以檢查的規則：時代、世界的基本規則、故事的前提"], "代價與限制": [""], "與劇情的關係": ""}]}
+「分類」只能從這 11 個選一個：%s；「標籤」選填，可多個，例如 [艦船, 外星]，分類名稱保留中文固定詞。
 只寫一份「背景設定」（全書的大前提：時代、地點、故事為什麼會發生）；地點、船艦、武器、制度等細項另外整理，這裡不用逐條列。
-看不出來的寫「（正文未明確）」，不要編。"""
+看不出來的寫「（正文未明確）」，不要編。""" % "、".join(WORLD_CATS)
 
 
 def world_prompt(acc):
@@ -467,11 +471,14 @@ def render_faction(f):
 
 def render_world(w):
     name = _clean(w.get("名稱")) or "背景設定"
+    cat = _clean(w.get("分類"))
+    cat = cat if cat in WORLD_CATS else "其他"
+    tags = [_clean(t) for t in (w.get("標籤") or []) if _clean(t)] if isinstance(w.get("標籤"), list) else []
     rules = "\n".join("- " + _clean(r) for r in (w.get("規則") or []) if _clean(r)) or "- " + UNKNOWN
     cost = "\n".join("- " + _clean(r) for r in (w.get("代價與限制") or []) if _clean(r)) or "- " + UNKNOWN
-    return name, ("---\n類型: 世界觀\n名稱: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 規則\n%s\n\n## 代價與限制\n%s\n\n"
+    return name, ("---\n類型: 世界觀\n分類: %s\n標籤: [%s]\n名稱: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 規則\n%s\n\n## 代價與限制\n%s\n\n"
                   "## 讀者何時知道\n%s\n\n## 與劇情的關係\n%s\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n") % (
-        name, name, _v(w.get("一句話")), rules, cost, "依正文揭露的順序（見時間線與讀者認知）", _v(w.get("與劇情的關係")))
+        cat, ", ".join(tags), name, name, _v(w.get("一句話")), rules, cost, "依正文揭露的順序（見時間線與讀者認知）", _v(w.get("與劇情的關係")))
 
 
 def render_core(c, title):

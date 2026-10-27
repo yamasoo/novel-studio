@@ -1626,6 +1626,44 @@ async def write_file(book_id: str, req: Request):
     return {"ok": True, "mtime": os.path.getmtime(p)}
 
 
+@app.post("/api/books/{book_id}/bible/category")
+async def bible_set_category(book_id: str, req: Request):
+    """批次把世界觀檔的「分類」改成固定清單中的一項。先全部檢查，通過才寫入。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    cat = body.get("category")
+    status = body.get("status")
+    files = body.get("files") or []
+    if cat is None and status is None:
+        raise HTTPException(400, "沒有要改的內容")
+    if cat is not None and cat not in project.WORLD_CATS:
+        raise HTTPException(400, "分類不在固定清單內")
+    if status is not None and status not in ("正式", "草稿"):
+        raise HTTPException(400, "狀態只能是 正式 或 草稿")
+    if not isinstance(files, list) or not files:
+        raise HTTPException(400, "沒有選取項目")
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "Claude 正在處理這本書，請等任務結束再改分類。")
+    targets = []
+    for rel in files:
+        if not isinstance(rel, str):
+            raise HTTPException(400, "檔案路徑格式錯誤")
+        norm = rel.replace("\\", "/").lstrip("/")
+        p = wrap(lambda: project.safe_path(d, norm))
+        if not norm.startswith("設定/世界觀/") or not p.endswith(".md") or not os.path.isfile(p):
+            raise HTTPException(400, "只能改 設定/世界觀 裡的 .md 檔：" + rel)
+        targets.append(p)
+    for p in targets:
+        text = project.read_text(p)
+        if cat is not None:
+            text = project.set_frontmatter_field(text, "分類", cat)
+        if status is not None:
+            text = project.set_frontmatter_field(text, "狀態", status)
+        with open(p, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    return {"ok": True, "updated": len(targets)}
+
+
 @app.post("/api/books/{book_id}/check")
 async def check_file(book_id: str, req: Request):
     d = book_dir(book_id)

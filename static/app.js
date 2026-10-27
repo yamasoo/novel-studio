@@ -998,7 +998,9 @@ function entityFilterBar(t, list, f) {
   }
   const sc = countBy(list, (e) => e.status || "未設定");
   const statusOpts = ["正式", "草稿", "未設定"].filter((k) => sc[k]);
-  if (statusOpts.length > 1) out += sel("status", "狀態", withAll(statusOpts.map((k) => [k, k, sc[k]])));
+  // 已存的篩選值若已不存在（例如草稿全部轉正式後仍選「草稿」），退回「全部」，避免列表永遠是空的
+  if (f.status && f.status !== "全部" && !sc[f.status]) f.status = "全部";
+  if (statusOpts.length) out += sel("status", "狀態", withAll(statusOpts.map((k) => [k, k, sc[k]])));
   const tc = {};
   list.forEach((e) => (e.tags || []).forEach((x) => { tc[x] = (tc[x] || 0) + 1; }));
   const tagKeys = Object.keys(tc).sort((a, b) => tc[b] - tc[a] || a.localeCompare(b));
@@ -1006,17 +1008,23 @@ function entityFilterBar(t, list, f) {
   const grouping = t !== "勢力" ? `<label class="ef ef-cb"><input type="checkbox" data-ef="group" ${f.group ? "checked" : ""}> 分組顯示</label>` : "";
   return `<div class="ef-bar"><label class="ef"><span>搜尋</span><input type="search" data-ef="q" placeholder="名稱、別名、一句話" value="${esc(f.q || "")}"></label>${out}${grouping}</div>`;
 }
-function entityItemHtml(t, e, file) {
+let pickSet = new Set();   // 批次移入分類：目前勾選的世界觀檔（換頁時清空）
+function entityItemHtml(t, e, file, pick) {
+  const cb = pick ? `<input type="checkbox" class="pick" data-pick="${esc(e.file)}" ${pickSet.has(e.file) ? "checked" : ""} onclick="event.stopPropagation()">` : "";
   const badge = t === "世界觀" ? esc(e.category || "未分類") : (e.role ? esc(e.role) : "");
   const tagLine = (e.tags || []).length ? `<div class="ds">${esc(e.tags.join("、"))}</div>` : "";
   return `
         <div class="item ${e.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')">
-          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${badge ? `<span class="badge">${badge}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
+          <div class="row">${cb}<span class="nm">${esc(e.name)}</span><span class="grow"></span>${badge ? `<span class="badge">${badge}</span>` : ""}${e.status === "草稿" ? statusBadge("草稿") : ""}</div>
           ${tagLine}${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`;
 }
 function entityListHtml(t, list, f, file) {
   const shown = list.filter((e) => entryMatches(e, f, t));
-  const head = `<div class="muted small ef-count">顯示 ${shown.length} / ${list.length}</div>`;
+  const pick = t === "世界觀";   // 世界觀列表都可勾選，批次移入分類或轉為正式
+  const bulk = pick ? `<div class="ef-bulk"><span id="ef-n">已選 ${pickSet.size} 項</span>
+      <select id="ef-to">${WORLD_CATS.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>
+      <button id="ef-all">全選</button><button id="ef-apply">移入分類</button><button class="primary" id="ef-promote">轉為正式</button></div>` : "";
+  const head = `<div class="muted small ef-count">顯示 ${shown.length} / ${list.length}</div>${bulk}`;
   if (!list.length) return `<div class="muted">這裡還是空的。</div>`;
   if (!shown.length) return head + `<div class="muted">沒有符合條件的項目。</div>`;
   if (f.group && t !== "勢力") {
@@ -1025,9 +1033,9 @@ function entityListHtml(t, list, f, file) {
     const groups = {};
     shown.forEach((e) => { const k = keyOf(e); (groups[k] = groups[k] || []).push(e); });
     const keys = [...order.filter((k) => groups[k]), ...Object.keys(groups).filter((k) => !order.includes(k))];
-    return head + keys.map((k) => `<details class="grp" open><summary>${esc(k)} <span class="muted small">${groups[k].length}</span></summary>${groups[k].map((e) => entityItemHtml(t, e, file)).join("")}</details>`).join("");
+    return head + keys.map((k) => `<details class="grp" open><summary>${esc(k)} <span class="muted small">${groups[k].length}</span></summary>${groups[k].map((e) => entityItemHtml(t, e, file, pick)).join("")}</details>`).join("");
   }
-  return head + shown.map((e) => entityItemHtml(t, e, file)).join("");
+  return head + shown.map((e) => entityItemHtml(t, e, file, pick)).join("");
 }
 function bindEntryFilter(view, t, list, file, f) {
   const paint = () => {
@@ -1035,6 +1043,36 @@ function bindEntryFilter(view, t, list, file, f) {
     if (box) box.innerHTML = entityListHtml(t, list, f, file);
     saveEntryFilter(S.book, t, f);
   };
+  const box0 = $("#ent-list", view);
+  if (box0 && t === "世界觀") {
+    const syncCount = () => { const n = $("#ef-n", view); if (n) n.textContent = `已選 ${pickSet.size} 項`; };
+    box0.addEventListener("change", (ev) => {
+      const cb = ev.target.closest && ev.target.closest("input[data-pick]");
+      if (!cb) return;
+      cb.checked ? pickSet.add(cb.dataset.pick) : pickSet.delete(cb.dataset.pick);
+      syncCount();
+    });
+    box0.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest && ev.target.closest("#ef-all, #ef-apply, #ef-promote");
+      if (!btn) return;
+      if (btn.id === "ef-all") {
+        box0.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = true; pickSet.add(cb.dataset.pick); });
+        syncCount();
+        return;
+      }
+      const files = [...pickSet];
+      if (!files.length) { toast("請先勾選要處理的項目。", true); return; }
+      const body = btn.id === "ef-promote"
+        ? { files, status: "正式" }
+        : { files, category: $("#ef-to", view).value };
+      try {
+        await api("POST", B("/bible/category"), body);
+        pickSet = new Set();
+        toast(btn.id === "ef-promote" ? `已轉為正式 ${files.length} 項` : `已移入 ${files.length} 項`);
+        await viewBible(view, t, file);
+      } catch (e) { toast(e.message || String(e), true); }
+    });
+  }
   view.querySelectorAll("[data-ef]").forEach((el) => {
     const key = el.dataset.ef;
     el.addEventListener(el.type === "search" ? "input" : "change", () => {
@@ -1046,6 +1084,7 @@ function bindEntryFilter(view, t, list, file, f) {
 }
 
 async function viewBible(view, t, file) {
+  pickSet = new Set();
   const b = await api("GET", B("/bible"));
   t = t || "角色";
   const tabs = ["角色", "勢力", "世界觀", "核心", "章節結構", "草稿"];

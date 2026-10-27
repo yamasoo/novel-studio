@@ -166,4 +166,11 @@ T.update({
     "reader_known_head": "\n\n已登記的已知（不用重複登記）\n",
     "goal_ending": "章末停在：{t}",
     "claude_out_lang": "",
+    "extract_lang_rule": "一律台灣繁體中文。",
+    "arc_len": "150～300 字",
+    "style_len": "1500～3000 字",
+    "style_lang_rule": "全部台灣繁體中文與台灣用語",
+    "trial_len": "200～300 字",
+    "illust_scene_sys": "你是插畫分鏡師，把中文小說內容轉成給動畫風格繪圖模型（Anima，吃 Danbooru 標籤與英文自然語言）的畫面描述。只輸出 JSON。",
+    "illust_card_sys": "你是角色設計師，把中文設定轉成給動畫風格繪圖模型用的固定外觀描述。只輸出 JSON。",
 })

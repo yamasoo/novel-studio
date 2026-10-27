@@ -10,7 +10,7 @@ import os
 import re
 import time
 
-from . import context, project, shared
+from . import context, project, prompts, shared
 
 MODES = {"design": "設計文風", "revise": "調整文風", "test": "試寫文風"}
 BLOCK_RE = re.compile(r"<<<\s*文風\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
@@ -68,7 +68,7 @@ def task_text(info, params):
     common = ("【原則】規則要具體到能拿來檢查一段文字；給範圍與情境，不給死數字；只寫深這個文風與眾不同的五到八項，其他一句帶過；"
               "禁忌要附替代做法；分清楚 建議做法／本書禁忌／允許的例外；參考作品只學特徵，不抄原文、不用它的人名地名專有名詞與招牌台詞；"
               "範例段落一律原創，至少三段有場景標籤（【對白】【動作】【描寫】【情緒】【轉場】挑最能代表的），每段後面一句「我喜歡它哪裡」，可以加一段【反例】附「為什麼不行」；"
-              "整份 1500～3000 字（不含指標表）；全部台灣繁體中文與台灣用語。")
+              "整份 %s（不含指標表）；%s。" % (prompts.cur()["style_len"], prompts.cur()["style_lang_rule"]))
     out_rule = ("【輸出格式】先輸出完整文風檔，放在區塊裡：\n<<<文風>>>\n（完整檔案，含 YAML frontmatter：類型: 文風、狀態: 草稿、名稱: %s；標題「# 文風：%s」）\n<<<結束>>>\n"
                 "區塊之後是給作者看的白話匯報。照範本的章節順序；「## 範例段落」標題原樣保留；"
                 "不要自己寫「## 文字指標（程式統計）」一節（程式會補上）。不要提問，不確定的地方直接做最合理的選擇，在匯報列出來請作者確認。" % (name, name))
@@ -89,9 +89,9 @@ def task_text(info, params):
              "匯報用「舊 → 新」逐條列出改動。\n" % (name, params["note"].strip()))
         return "\n".join([t, common, out_rule])
     scene = (params.get("note") or "").strip() or "自己挑一個最能考驗這個文風的情境（通常是對白加一點動作）"
-    return ("照共用文風「%s」試寫一段 200～300 字的場景。情境：%s\n人名地名用原創的。\n"
+    return ("照共用文風「%s」試寫一段 %s的場景。情境：%s\n人名地名用原創的。\n"
             "寫完另起一段「自評」：逐條列出這段示範了哪幾條規則，以及哪條規則很難遵守或規則之間打架（代表規則可能要改）。\n"
-            "只輸出試寫和自評，不要輸出 <<<文風>>> 區塊，不要改文風檔。" % (name, scene))
+            "只輸出試寫和自評，不要輸出 <<<文風>>> 區塊，不要改文風檔。" % (name, prompts.cur()["trial_len"], scene))
 
 
 def reference_pack(info, plugin_dir, budget):

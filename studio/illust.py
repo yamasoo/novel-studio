@@ -22,7 +22,7 @@ import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-from . import project
+from . import project, prompts
 
 ROOT = "插圖"
 INDEX = "_插圖.json"
@@ -1034,12 +1034,12 @@ def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind
     if place_entries:
         parts.append("【相關地點、物件】\n" + "\n".join(card_line(e) for e in place_entries))
     parts.append(SCENE_SCHEMA)
-    system = "你是插畫分鏡師，把中文小說內容轉成給動畫風格繪圖模型（Anima，吃 Danbooru 標籤與英文自然語言）的畫面描述。只輸出 JSON。"
+    system = prompts.cur()["illust_scene_sys"]
     return system, "\n\n".join(parts)
 
 
 def ai_card_prompt(entry_text, name, kind):
-    system = "你是角色設計師，把中文設定轉成給動畫風格繪圖模型用的固定外觀描述。只輸出 JSON。"
+    system = prompts.cur()["illust_card_sys"]
     user = "【%s：%s】\n%s\n\n%s" % (kind, name, project.split_frontmatter(entry_text)[1][:3000], CARD_SCHEMA)
     return system, user
 

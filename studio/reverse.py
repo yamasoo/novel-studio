@@ -16,7 +16,7 @@ import re
 import shutil
 import time
 
-from . import context, project, tracking
+from . import context, project, prompts, tracking
 
 DIR = os.path.join(".studio", "反推")
 GROUPS = ("設定", "大綱", "章綱", "追蹤")
@@ -170,7 +170,7 @@ def extract_prompt(book_dir, nos, acc):
                                           context.body(text)))
     hand = _handoff(acc, nos[0])
     return ((hand + "\n\n" if hand else "") + "\n\n".join(parts) +
-            "\n\n【任務】把上面第%d～%d章逐章整理成追蹤資料。\n%s\n\n%s" % (nos[0], nos[-1], EXTRACT_RULES, EXTRACT_SCHEMA))
+            "\n\n【任務】把上面第%d～%d章逐章整理成追蹤資料。\n%s\n\n%s" % (nos[0], nos[-1], EXTRACT_RULES.replace("一律台灣繁體中文。", prompts.cur()["extract_lang_rule"]), EXTRACT_SCHEMA))
 
 
 def _clean(s):
@@ -376,7 +376,7 @@ def arc_prompts(acc):
         body = "\n".join("- 第%d章 %s：%s %s" % (k, (acc["cards"].get(str(k)) or {}).get("title", ""),
                                                sums[str(k)]["發生了什麼"], sums[str(k)]["局面變化"]) for k in part)
         out.append(("整理第%d～%d章的劇情段落" % (part[0], part[-1]), part[0], part[-1],
-                    "以下是第%d～%d章的章節摘要。\n\n%s\n\n%s" % (part[0], part[-1], body, ARC_SCHEMA)))
+                    "以下是第%d～%d章的章節摘要。\n\n%s\n\n%s" % (part[0], part[-1], body, ARC_SCHEMA.replace("150～300 字", prompts.cur()["arc_len"]))))
     return out
 
 

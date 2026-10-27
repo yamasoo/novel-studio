@@ -169,4 +169,11 @@ T.update({
     "reader_open_head": "\n\nOther suspense and misbeliefs not yet revealed (not directly related to this chapter; only what the reader currently believes is listed; do not give it away in this chapter. Where the chapter card has a reveal, the card prevails)\n| 編號 | 類型 | 內容 |\n|---|---|---|\n",
     "reader_known_head": "\n\nAlready registered as known (do not register again)\n",
     "claude_out_lang": "\n（請全部用英文撰寫：稿子、匯報、JSON 內的自由文字都一樣；技能文件是中文也照其方法做，但輸出一律英文。JSON 的鍵名與中文列舉值照原樣保留。）",
+    "extract_lang_rule": "Write all free-text values in English (the JSON keys and the Chinese enumerated values stay as given).",
+    "arc_len": "100-200 words",
+    "style_len": "1,000-2,000 words",
+    "style_lang_rule": "write the whole file in English, using natural idiomatic English",
+    "trial_len": "150-250 words 左右",
+    "illust_scene_sys": "You are an illustration storyboard artist: turn the novel text (which may be in English) into a scene description for an anime-style image model (Anima, which takes Danbooru tags and English natural language). Output JSON only.",
+    "illust_card_sys": "You are a character designer: turn the setting text (which may be in English) into a fixed appearance description for an anime-style image model. Output JSON only.",
 })

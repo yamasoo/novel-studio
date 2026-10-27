@@ -63,6 +63,22 @@ def chapter_no(name):
     return int(m.group(1)) if m else None
 
 
+_DUE = re.compile(r"^\s*第\s*(\d+)\s*(?:章)?(?:\s*[～~\-–至到]\s*第?\s*(\d+))?\s*章(.*)$", re.S)
+
+
+def due_chapter(s):
+    """伏筆「預計回收」→ 章號。只有寫成「第N章」（可接「回收」「前後」或範圍）才算；
+    「第N章起推進」「第N章呼應」「第二幕」「未排定」都不算回收章，不判逾期。"""
+    m = _DUE.match(str(s or ""))
+    if not m:
+        return None
+    rest = m.group(3).strip()
+    if rest.startswith(("起", "開始", "呼應", "推進", "再", "埋", "提及")):
+        return None
+    n = int(m.group(2) or m.group(1))
+    return n + 2 if rest.startswith(("前後", "左右")) else n
+
+
 def chapter_title_from_filename(name):
     # 第001章_章名.md
     stem = os.path.splitext(name)[0]
@@ -348,22 +364,39 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
         if c["candidate_file"]:
             alerts.append({"level": "info", "kind": "候選稿",
                            "text": "第%d章有候選稿等你審閱。" % c["no"], "chapter": c["no"]})
-    # 伏筆
+    # 伏筆：合併成「久未出現」「已過預計回收章」兩條，可以展開
     fs = read_table(book_dir, "追蹤/伏筆.md")
+    quiet, late, seen, dup = [], [], set(), []
     for r in fs["rows"]:
+        fid = r.get("編號", "")
+        if fid in seen and fid not in dup:
+            dup.append(fid)
+        seen.add(fid)
         st = r.get("狀態", "")
         if st in ("已回收", "廢棄"):
             continue
         imp = r.get("重要度", "")
         last = _ch(r.get("最後出現")) or _ch(r.get("埋設章"))
-        due = _ch(r.get("預計回收"))
-        label = "%s（%s）" % (r.get("編號", ""), r.get("內容", "")[:20])
+        due = due_chapter(r.get("預計回收"))
+        label = "%s（%s）" % (fid, r.get("內容", "")[:20])
         if imp in ("高", "中") and last and latest - last > stale_foreshadow:
-            alerts.append({"level": "warn", "kind": "伏筆久未出現",
-                           "text": "%s 已 %d 章沒有出現。" % (label, latest - last)})
+            quiet.append((latest - last, label))
         if due and latest > due:
-            alerts.append({"level": "warn", "kind": "伏筆逾期",
-                           "text": "%s 預計第%d章回收，目前已到第%d章。" % (label, due, latest)})
+            late.append((latest - due, label, due))
+    if quiet:
+        quiet.sort(key=lambda x: -x[0])
+        alerts.append({"level": "warn", "kind": "伏筆久未出現",
+                       "text": "%d 條重要度中以上的伏筆超過 %d 章沒有出現（最久：%s %d 章）。" % (
+                           len(quiet), stale_foreshadow, quiet[0][1], quiet[0][0]),
+                       "details": ["%s：%d 章沒有出現" % (l, g) for g, l in quiet]})
+    if late:
+        late.sort(key=lambda x: -x[0])
+        alerts.append({"level": "warn", "kind": "伏筆逾期",
+                       "text": "%d 條伏筆已過預計回收章（最久：%s 預計第%d章）。" % (len(late), late[0][1], late[0][2]),
+                       "details": ["%s：預計第%d章回收，已過 %d 章" % (l, d, g) for g, l, d in late]})
+    if dup:
+        alerts.append({"level": "warn", "kind": "伏筆編號重複",
+                       "text": "伏筆表有重複的編號：%s。請到伏筆表合併或改號。" % "、".join(dup)})
     # 角色久未登場：一次性、不具名的角色不提醒；其餘合併成一條
     cs_dir = os.path.join(book_dir, "追蹤", "角色狀態")
     if os.path.isdir(cs_dir):

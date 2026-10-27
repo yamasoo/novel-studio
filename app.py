@@ -18,16 +18,16 @@ import time
 import webbrowser
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, comfy, context, export, forge, goals, illust, importer, native, native_files, project, providers, pipeline, recovery, revision, runner as runner_mod, shared, style_design  # noqa: E402
+from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -1248,6 +1248,42 @@ def claude_card_job(book_id, d, prov, params):
     return job
 
 
+def claude_reader_job(book_id, d, prov, params):
+    if not project.read_table(d, "追蹤/時間線.md")["rows"]:
+        raise HTTPException(400, "這本書還沒有時間線，沒有東西可以轉換")
+    job = runner_mod.Job(book_id, d, "從時間線建立讀者認知", reader_ledger.claude_prompt(d), provider=prov,
+                         meta={"action": "reader_init", "params": params})
+
+    def after(j):
+        try:
+            data = providers.parse_json(j.result or "")
+        except providers.ProviderError as e:
+            raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
+        j.result = reader_ledger.save_draft(d, reader_ledger.merge([data]))
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
+def claude_reader_recon_job(book_id, d, prov, params):
+    try:
+        prompt = reader_ledger.recon_claude_prompt(d)
+    except project.ProjectError as e:
+        raise HTTPException(400, str(e))
+    job = runner_mod.Job(book_id, d, "比對讀者認知回收", prompt, provider=prov, meta={"action": "reader_reconcile", "params": params})
+
+    def after(j):
+        try:
+            data = providers.parse_json(j.result or "")
+        except providers.ProviderError as e:
+            raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
+        j.result = reader_ledger.apply_recon(d, [data])
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
+CLAUDE_SPECIAL.update({"reader_init": claude_reader_job, "reader_reconcile": claude_reader_recon_job})
 CLAUDE_SPECIAL.update({"goal_check": claude_goal_job, "review_notes": claude_review_job,
                        "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
                        "illust_prompt": claude_illust_job, "visual_card": claude_card_job})
@@ -1378,6 +1414,10 @@ def book_overview(book_id: str):
     d = book_dir(book_id)
     ov = project.overview(d, int(CONFIG.get("stale_foreshadow", 10)), int(CONFIG.get("stale_character", 15)))
     ov["is_book"] = project.is_book(d)
+    wb = wb_check.alerts(d, ov.get("latest") or 0)   # 回寫檢查放在追蹤落後後面、其他提醒前面
+    lag = 1 if ov["alerts"] and ov["alerts"][0]["kind"] == "追蹤落後" else 0
+    ov["alerts"][lag:lag] = [a for a in wb if a["kind"] == "回寫檢查"]
+    ov["alerts"] += [a for a in wb if a["kind"] != "回寫檢查"]
     recs = recovery.list_all(d)
     if recs:
         ov["alerts"].insert(0, {"level": "warn", "kind": "恢復稿",
@@ -1423,10 +1463,31 @@ def book_tracking(book_id: str):
         "foreshadow": project.read_table(d, "追蹤/伏筆.md"),
         "timeline": project.read_table(d, "追蹤/時間線.md"),
         "glossary": project.read_table(d, "設定/名詞表.md"),
+        "reader": project.read_table(d, tracking.RP_FILE),
+        "reader_draft": project.read_table(d, tracking.RP_DRAFT),
         "characters": chars,
         "latest": ov["latest"],
         "stale_foreshadow": int(CONFIG.get("stale_foreshadow", 10)),
     }
+
+
+@app.get("/api/books/{book_id}/search")
+def book_search(book_id: str, q: str = "", scopes: str = ""):
+    """前文全文搜尋（本機，不用模型）。scopes：正文,候選,章綱,設定,追蹤。"""
+    return search.search(book_dir(book_id), q, [s for s in scopes.split(",") if s] or None)
+
+
+@app.post("/api/books/{book_id}/tracking/reader/{op}")
+def reader_draft_op(book_id: str, op: str):
+    d = book_dir(book_id)
+    if op == "adopt":
+        rel = wrap(lambda: tracking.adopt_reader_draft(d))
+        tracking.git_commit(d, "採用讀者認知帳本")
+        return {"ok": True, "file": rel}
+    if op == "discard":
+        tracking.discard_reader_draft(d)
+        return {"ok": True}
+    raise HTTPException(404, "不支援的操作")
 
 
 # ---------------------------------------------------------------------------
@@ -1489,8 +1550,8 @@ def accept(book_id: str, no: int, provider: str = None):
     path = wrap(lambda: project.accept_candidate(d, no))
     params = {"chapter": no, "path": path}
     title, prompt = actions.build("accept", params, book_id)
-    job = RUNNER.start(runner_mod.Job(book_id, d, title, prompt, meta={"action": "accept", "params": params},
-                                      provider=prov))
+    job = RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, meta={"action": "accept", "params": params},
+                                                      provider=prov), d, "accept", params, prov))
     return {"path": path, "job": job.to_dict()}
 
 
@@ -1519,6 +1580,50 @@ def discard(book_id: str, no: int):
 # ---------------------------------------------------------------------------
 # 任務
 # ---------------------------------------------------------------------------
+def _attach_fidelity(job, d, params):
+    """Claude Code 去 AI 味：先記下原稿，結束後做保真檢查（API 模型在 native.act_deslop 裡做）。"""
+    try:
+        no = int(params.get("chapter"))
+    except (TypeError, ValueError):
+        return job
+    where = ("候選",) if params.get("candidate") else ("正文",)
+    _, before = context.chapter_text(d, no, where)
+    if not before:
+        return job
+
+    def after(j):
+        rel, now = context.chapter_text(d, no, where)
+        if now and now != before:
+            j.result = (j.result or "") + fidelity.run(d, no, rel, before, now)
+            j.emit("result", text=j.result)
+    prev = job.after
+    job.after = (lambda j: (prev(j), after(j))) if prev else after
+    return job
+
+
+def attach_wb_check(job, d, action, params, prov):
+    """Claude Code 回寫追蹤（採用、補齊）結束後，跑本機的回寫檢查，結果接在任務結果後面。
+    API 模型在 native._writeback 裡自己跑。"""
+    if prov.get("type") == "claude_code" and action == "deslop":
+        return _attach_fidelity(job, d, params)
+    if prov.get("type") != "claude_code" or action not in ("accept", "sync_tracking"):
+        return job
+    before = tracking.tracked_to(d)
+
+    def after(j):
+        if action == "accept":
+            nos = [int(params.get("chapter"))]
+        else:
+            nos = [n for n in sorted(project._scan_dir(os.path.join(d, "正文"))) if before < n <= tracking.tracked_to(d)]
+        add = "".join(wb_check.run(d, n, revision=bool(before and n < before)) for n in nos)
+        if add:
+            j.result = (j.result or "") + add
+            j.emit("result", text=j.result)
+    prev = job.after
+    job.after = (lambda j: (prev(j), after(j))) if prev else after
+    return job
+
+
 def launch_job(book_id, d, action, params, prov, resume=None, text=None):
     """建立並啟動一個任務（面板按鈕和整章自動流程共用）。失敗時丟 HTTPException。"""
     try:
@@ -1533,8 +1638,9 @@ def launch_job(book_id, d, action, params, prov, resume=None, text=None):
     try:
         if action in CLAUDE_SPECIAL and prov.get("type") == "claude_code":
             return RUNNER.start(CLAUDE_SPECIAL[action](book_id, d, prov, params or {}))
-        return RUNNER.start(runner_mod.Job(book_id, d, title, prompt, resume=resume, provider=prov,
-                                           meta={"action": action, "params": params or {}}))
+        return RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, resume=resume, provider=prov,
+                                                           meta={"action": action, "params": params or {}}),
+                                            d, action, params or {}, prov))
     except RuntimeError as e:
         raise HTTPException(409, str(e))
 
@@ -1778,8 +1884,16 @@ app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="
 
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(HERE, "static", "index.html"),
-                        headers={"Cache-Control": "no-cache"})
+    # 程式更新後瀏覽器常拿舊的 app.js：網址加上檔案修改時間，檔案一改就會重新下載
+    st = os.path.join(HERE, "static")
+    html = project.read_text(os.path.join(st, "index.html"))
+    for name in ("app.js", "style.css"):
+        try:
+            v = int(os.path.getmtime(os.path.join(st, name)))
+        except OSError:
+            continue
+        html = html.replace('/static/%s"' % name, '/static/%s?v=%d"' % (name, v))
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
 def serve():

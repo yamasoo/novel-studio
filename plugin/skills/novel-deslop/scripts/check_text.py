@@ -8,8 +8,9 @@
   2. 標點（西式引號、半形標點、刪節號、破折號） → 必須修（可用 --fix-punct 自動修）
   3. 中國大陸用語                 → 建議修／提醒
   4. 工程詞外洩（第X章、伏筆、章綱……） → 建議修
-  5. AI 味信號（套詞、句式、章尾預告）   → 提醒；同一章堆疊過多時升為建議修
-  6. 字數統計
+  5. AI 味信號（套詞、句式、章尾預告、罐頭反應）→ 提醒；同一章堆疊過多時升為建議修
+  6. 節奏與密度：短句轟炸、句長過勻、破折號密度、同一角色換太多種稱呼 → 提醒／建議修
+  7. 字數統計
 
 用法：
   python3 check_text.py 正文/第001章_退婚.md
@@ -114,6 +115,31 @@ MAINLAND_TERMS = [
     ("甭", "不用", "提醒"),
     ("牛逼", "厲害", "提醒"),
     ("水平", "水準（指程度時）", "提醒"),
+    # 以下部分條目參考 Raymondhou0917/speak-human-tw（MIT）
+    ("數據庫", "資料庫", "建議修"),
+    ("服務器", "伺服器", "建議修"),
+    ("運營", "營運", "建議修"),
+    ("反饋", "回饋", "建議修"),
+    ("兼容", "相容", "建議修"),
+    ("性價比", "CP 值", "建議修"),
+    ("接地氣", "親民／貼近生活", "建議修"),
+    ("抓手", "著力點", "建議修"),
+    ("賦能", "協助／強化", "建議修"),
+    ("復盤", "檢討／回顧", "建議修"),
+    ("小夥伴", "夥伴／朋友", "建議修"),
+    ("短視頻", "短影音", "建議修"),
+    ("卸載", "解除安裝／移除（卸下貨物可用「卸貨」）", "提醒"),
+    ("顏值", "外貌／長相", "提醒"),
+    ("打法", "做法／策略（武術、球賽可用）", "提醒"),
+    ("閉環", "完整流程", "提醒"),
+    ("公眾號", "粉絲專頁（指微信公眾號時可留）", "提醒"),
+]
+
+# 需要比對上下文的用語：(正規表示式, 建議, 等級)
+MAINLAND_PATTERNS = [
+    (r"(?:方案|政策|計畫|計劃|專案|項目|規劃)落地|落地(?:執行|實施|推進)", "落實／實行", "提醒"),
+    (r"通過[^，。！？「」\n]{1,20}來", "透過……／用……（「通過」在台灣多指通過考試、法案）", "提醒"),
+    (r"一部(?:手機|電話)", "一支手機", "提醒"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -140,14 +166,24 @@ AI_SIGNALS = [
     ("自動過渡", r"映入眼簾|此時此刻|不由自主|話鋒一轉|取而代之的是"),
     ("公文腔", r"與此同時|事實上|綜上所述|進一步|從而|基於此"),
     ("對白標記", r"沉聲(?:道|說)|淡淡地(?:說|道)|冷冷地(?:說|道)"),
+    # 罐頭式反應鏡頭：只演情緒、不推進事件（判斷：刪掉會不會損失資訊）
+    ("罐頭反應", r"愣了(?:一下|愣|一愣|片刻)|愣住了?|怔(?:了怔|住了?|了一下)|沉默了(?:幾秒|片刻|一會兒?|很久|下來)|一時(?:無言|語塞)"
+                 r"|空氣(?:彷彿|似乎|好像)?(?:凝固|凝結|安靜)了?|呼吸一滯|頓了頓|頓了一下|面面相覷"),
 ]
 
 # 同一類別在一章中出現幾次以上，升為「建議修」
 CATEGORY_LIMIT = {
     "弱化裝飾": 8, "通用表情": 4, "通用心理": 4, "萬用狀語": 3, "否定翻轉": 3,
     "解釋結論": 3, "告知心理": 5, "萬用比喻": 3, "自動過渡": 3, "公文腔": 3,
-    "對白標記": 4, "空泛定性": 3, "點破潛台詞": 2, "意義膨脹": 2, "預告昇華": 2,
+    "對白標記": 4, "空泛定性": 3, "點破潛台詞": 2, "意義膨脹": 2, "預告昇華": 2, "罐頭反應": 4,
 }
+
+# 節奏與密度
+BURST_LEN, BURST_RUN = 6, 4          # 連續 BURST_RUN 句以上、每句不超過 BURST_LEN 字 → 短句轟炸
+UNIFORM_RUN, UNIFORM_SPREAD, UNIFORM_MIN = 6, 0.2, 12   # 連續 6 句長度相差不到兩成（平均 12 字以上）→ 句長過勻
+DASH_PER = 400                       # 敘述中平均每 400 字超過 1 次破折號 → 建議修
+ALIAS_FORMS = 4                      # 同一角色一章用了 4 種以上稱呼（每種 2 次以上）→ 提醒
+DIALOGUE = re.compile(r"「[^「」]*」|『[^『』]*』")
 # 同一字串在一章中重複幾次以上，提醒
 PHRASE_REPEAT = 3
 
@@ -216,6 +252,108 @@ def load_banned(book_root):
     return items
 
 
+def load_aliases(book_root):
+    """設定/角色/*.md 的名稱與別名（只用標準函式庫讀 frontmatter）。回傳 {名稱: [名稱, 別名…]}。"""
+    out = {}
+    d = os.path.join(book_root or "", "設定", "角色")
+    if not book_root or not os.path.isdir(d):
+        return out
+    for f in sorted(os.listdir(d)):
+        if not f.endswith(".md"):
+            continue
+        try:
+            with open(os.path.join(d, f), encoding="utf-8") as fh:
+                text = fh.read(3000)
+        except OSError:
+            continue
+        m = re.match(r"---\n(.*?)\n---", text, re.S)
+        fm = m.group(1) if m else ""
+        name = (re.search(r"(?m)^名稱:\s*(.+)$", fm) or [None, os.path.splitext(f)[0]])[1].strip()
+        al = []
+        am = re.search(r"(?m)^別名:\s*\[(.*)\]\s*$", fm)
+        if am:
+            al = [x.strip().strip("'\"") for x in am.group(1).split(",")]
+        else:
+            bm = re.search(r"(?ms)^別名:\s*\n((?:\s*-\s*.+\n?)+)", fm)
+            if bm:
+                al = [x.strip()[1:].strip().strip("'\"") for x in bm.group(1).strip().split("\n")]
+        forms = [x for x in dict.fromkeys([name] + al) if x and len(x) >= 2]
+        if len(forms) >= 2:
+            out[name] = forms
+    return out
+
+
+def _cjk_len(s):
+    return len(re.findall(CJK, s))
+
+
+def rhythm_findings(body_lines, aliases):
+    """節奏與密度。body_lines：[(行號, 文字)]（已去掉標題與註解）。回傳 [(等級, 類型, 行, 片段, 建議)]。"""
+    out = []
+    sents = []          # (行號, 敘述句)；對白行記成 (行號, None)，代表打斷
+    narr_text = []
+    for ln, line in body_lines:
+        s = line.strip()
+        narr = DIALOGUE.sub("", s)
+        narr_text.append(narr)
+        if s.startswith(("「", "『")) and _cjk_len(narr) < 4:
+            sents.append((ln, None))       # 純對白行
+            continue
+        for x in re.split(r"[。！？!?]+|……", narr):
+            if _cjk_len(x):
+                sents.append((ln, x))
+    # 短句轟炸：連續好幾句很短的敘述句（一句一段也算連續；對白或長句會打斷）
+    run, bursts = [], []
+    for ln, x in sents + [(0, None)]:
+        if x is not None and _cjk_len(x) <= BURST_LEN:
+            run.append((ln, x))
+            continue
+        if len(run) >= BURST_RUN:
+            bursts.append(run)
+        run = []
+    if bursts:
+        out.append(("提醒", "節奏：短句轟炸", bursts[0][0][0],
+                    "%d 處，第 %s 行（例：%s）" % (len(bursts), "、".join(str(b[0][0]) for b in bursts[:8]),
+                                                "。".join(x for _, x in bursts[0][:5])[:40]),
+                    "連續好幾句極短句硬造氣勢；留下最有力的一兩句，其餘併回完整句子（文風允許短句時忽略）"))
+    # 句長過勻
+    ns = [(ln, _cjk_len(x)) for ln, x in sents if x is not None]
+    i, hits = 0, []
+    while i + UNIFORM_RUN <= len(ns):
+        w = [n for _, n in ns[i:i + UNIFORM_RUN]]
+        mean = sum(w) / len(w)
+        if mean >= UNIFORM_MIN and (max(w) - min(w)) <= mean * UNIFORM_SPREAD:
+            hits.append(ns[i][0])
+            i += UNIFORM_RUN
+        else:
+            i += 1
+    if hits:
+        out.append(("提醒", "節奏：句長過勻", hits[0], "%d 處，第 %s 行" % (len(hits), "、".join(str(x) for x in hits[:8])),
+                    "連續好幾句長度差不多，讀起來像機器排的；打散成長短交錯"))
+    # 破折號密度（只算敘述）
+    narr_all = "\n".join(narr_text)
+    n_cjk = _cjk_len(narr_all)
+    dashes = narr_all.count("——")
+    if n_cjk >= 800 and dashes > n_cjk / DASH_PER:
+        out.append(("建議修", "節奏：破折號太多", 0, "敘述中 %d 次（約每 %d 字一次）" % (dashes, n_cjk // max(dashes, 1)),
+                    "破折號在敘述中每 %d 字最多一次；多數可以改成逗號、句號或拆句" % DASH_PER))
+    # 換詞循環
+    full = "\n".join(l for _, l in body_lines)
+    for name, forms in (aliases or {}).items():
+        used = []
+        rest = full
+        for f in sorted(forms, key=len, reverse=True):   # 長的先算，避免「林遠」重算「林遠之」
+            c = rest.count(f)
+            if c:
+                rest = rest.replace(f, "\0")
+            if c >= 2:
+                used.append("%s×%d" % (f, c))
+        if len(used) >= ALIAS_FORMS:
+            out.append(("提醒", "節奏：稱呼換太多種", 0, "%s：%s" % (name, "、".join(used)),
+                        "同一章換太多種稱呼會讓讀者分不清是不是同一個人；固定一兩種，其他用代名詞"))
+    return out
+
+
 def guess_book_root(path):
     p = os.path.abspath(path)
     d = p if os.path.isdir(p) else os.path.dirname(p)
@@ -278,11 +416,13 @@ def fix_punct(text):
     return text, n
 
 
-def check_file(path, whitelist, banned=None):
+def check_file(path, whitelist, banned=None, aliases=None):
     with open(path, encoding="utf-8") as f:
         text = f.read()
     if banned is None:
         banned = load_banned(guess_book_root(path))
+    if aliases is None:
+        aliases = load_aliases(guess_book_root(path))
     lines = text.split("\n")
     start = strip_frontmatter(lines)
     findings = []
@@ -337,6 +477,9 @@ def check_file(path, whitelist, banned=None):
         for term, tw, level in MAINLAND_TERMS:
             if term in line:
                 add(level, "大陸用語", lineno, term, "台灣用語：" + tw)
+        for pat, tw, level in MAINLAND_PATTERNS:
+            for m in re.finditer(pat, line):
+                add(level, "大陸用語", lineno, m.group(0), "台灣用語：" + tw)
 
         # 4. 工程詞
         for m in re.finditer(ENGINEERING_WORDS, line):
@@ -370,6 +513,11 @@ def check_file(path, whitelist, banned=None):
                 and not any(w in last for w in whitelist):
             add("建議修", "章尾昇華", last_no, last.strip()[:40],
                 "章尾停在具體的畫面、動作或對白上，不寫感悟或預告")
+
+    if body_lines:
+        wl_free = [(n, l) for n, l in body_lines if not any(w in l for w in whitelist)]
+        for level, kind, ln, snip, hint in rhythm_findings(wl_free, aliases):
+            add(level, kind, ln, snip, hint)
 
     cjk, no_space = count_chars("\n".join(lines[start:]))
     order = {"必須修": 0, "建議修": 1, "提醒": 2}

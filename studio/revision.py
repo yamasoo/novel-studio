@@ -126,6 +126,15 @@ def merge_local_checks(review, book_dir, path, checker):
                       "located": goals.quote_found(q, tn) if q else False,
                       "issue": issue, "suggestion": f["建議"]})
         added += 1
+    # 去 AI 味的保真檢查（只提醒，自動流程不會勾）
+    m = re.search(r"第0*(\d+)章", os.path.basename(path))
+    if m:
+        from . import fidelity
+        for x in fidelity.load(book_dir, int(m.group(1)), project.read_text(full)):
+            items.append({"id": "", "severity": "提醒", "category": LOCAL_CATEGORY, "quote": "", "located": False,
+                          "issue": "去 AI 味後%s：%s" % (x["kind"], x["text"]),
+                          "suggestion": "確認是不是刻意的改動；名字、數字、對白原話被改掉的話改回原稿"})
+            added += 1
     items.sort(key=lambda x: SEVERITIES.index(x["severity"]))
     for i, it in enumerate(items):
         it["id"] = "R%d" % (i + 1)

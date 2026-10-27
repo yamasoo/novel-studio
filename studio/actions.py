@@ -94,6 +94,8 @@ ACTIONS = {
     "illust_prompt": {"group": "插圖", "label": "產生插圖提示詞", "hidden": True, "fields": []},
     "visual_card": {"group": "插圖", "label": "產生視覺卡", "hidden": True, "fields": []},
     "style_design": {"group": "專案", "label": "設計文風", "hidden": True, "fields": []},
+    "reader_init": {"group": "專案", "label": "從時間線建立讀者認知", "hidden": True, "fields": []},
+    "reader_reconcile": {"group": "專案", "label": "比對讀者認知回收", "hidden": True, "fields": []},
     "goal_check": {
         "group": "品質", "label": "章綱核對",
         "fields": [{"key": "chapter", "label": "第幾章", "type": "number"},
@@ -199,6 +201,10 @@ def build(action, p, book_name):
                 % (p.get("chapter") or ""), "（由工作台組裝）")
     if action == "goal_check":
         return ("核對第%s章章綱" % p.get("chapter"), "（由工作台組裝）")
+    if action == "reader_init":
+        return ("從時間線建立讀者認知", "（由工作台組裝）")
+    if action == "reader_reconcile":
+        return ("比對讀者認知回收", "（由工作台組裝）")
 
     # 內部動作
     if action == "accept":

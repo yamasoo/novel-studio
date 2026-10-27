@@ -399,3 +399,9 @@ mark.ins { background: var(--ok-soft); color: var(--ok); }
 .prov-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper); }
 .ill-prog .bar.indet i { width: 35%; animation: indet 1.4s infinite ease-in-out; }
 @keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+
+/* 前文搜尋 */
+.side-search { padding: 0 2px 8px; }
+.side-search input { width: 100%; padding: 6px 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 13px; }
+mark { background: #f6d98b; color: inherit; border-radius: 2px; padding: 0 1px; }
+@media (prefers-color-scheme: dark) { mark { background: #7a5a16; } }

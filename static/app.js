@@ -108,6 +108,7 @@ async function route() {
       if (sub === "jobs") return await viewJobs(view);
       if (sub === "export") return await viewExport(view);
       if (sub === "illust") return await viewIllust(view, q.t);
+      if (sub === "search") return await viewSearch(view, q.q || "", q.s);
     }
     S.routeName = "shelf";
     await setBook(null, true);
@@ -116,6 +117,7 @@ async function route() {
     view.innerHTML = `<div class="card"><h2>出了點問題</h2><p class="muted">${esc(e.message)}</p><button onclick="go('#/')">回書架</button></div>`;
   } finally {
     renderNav();
+    if (S.hl) { const t = S.hl; S.hl = null; highlightTerms(view, t); }
   }
 }
 window.addEventListener("hashchange", route);
@@ -150,10 +152,100 @@ function renderNav() {
       ["overview", "◉", "總覽"], ["chapters", "☰", "章節"], ["outline", "⌘", "大綱"],
       ["bible", "✦", "設定集"], ["tracking", "⟲", "伏筆與時間線"], ["jobs", "◷", "任務紀錄"], ["illust", "✎", "插圖"], ["export", "⇩", "匯出"],
     ];
-    nav.innerHTML = items.map(([r, i, t]) =>
+    nav.innerHTML = `<form class="side-search" onsubmit="event.preventDefault();sideSearch(this.q.value)">
+        <input name="q" id="side-q" type="search" placeholder="搜尋前文（Ctrl+K）" value="${esc(S.routeName === "search" ? (parseHash().q.q || "") : "")}"></form>` + items.map(([r, i, t]) =>
       `<a class="navlink ${S.routeName === r || (r === "chapters" && S.routeName === "ch") ? "active" : ""}" href="${base}/${r}"><span class="ico">${i}</span><span>${t}</span></a>`).join("");
   }
   document.querySelectorAll(".side-bottom .navlink").forEach((a) => a.classList.toggle("active", a.dataset.r === S.routeName));
+}
+
+/* ------------------------------------------------------------------ 前文搜尋（本機，不用模型） */
+const SEARCH_SCOPES = [["正文", "正文"], ["候選", "候選稿"], ["章綱", "大綱與章綱"], ["設定", "設定集"], ["追蹤", "追蹤"]];
+function searchScopes() {
+  try { const v = JSON.parse(localStorage.getItem("search-scopes") || "null"); if (Array.isArray(v) && v.length) return v; } catch (e) { /* ignore */ }
+  return ["正文"];
+}
+window.sideSearch = (q) => { q = (q || "").trim(); if (q) go(`#/b/${enc(S.book)}/search?q=${enc(q)}`); };
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K") && S.book) {
+    e.preventDefault(); const i = $("#search-q") || $("#side-q"); if (i) { i.focus(); i.select(); }
+  }
+});
+async function viewSearch(view, q, s) {
+  const scopes = s ? s.split(",") : searchScopes();
+  view.innerHTML = `
+    <div class="page-head"><div><h1>搜尋前文</h1><div class="sub">在本機直接找，不用模型。多個詞用空白分開＝要出現在同一章；「」或 "" 包起來＝完整片語；不分繁簡。</div></div></div>
+    <div class="card" style="margin-bottom:14px"><form id="search-form" class="row" style="flex-wrap:wrap;gap:10px">
+      <input id="search-q" type="search" value="${esc(q)}" placeholder="例如：玉珮、林遠 沈家、「三年前那場雨」" style="flex:1;min-width:240px">
+      <button class="primary">搜尋</button>
+      <div class="row" style="gap:12px;width:100%">${SEARCH_SCOPES.map(([k, l]) => `<label class="cb" style="margin:0"><input type="checkbox" name="sc" value="${k}" ${scopes.includes(k) ? "checked" : ""}> ${l}</label>`).join("")}</div>
+    </form></div>
+    <div id="search-res"></div><div id="doc" style="margin-top:14px"></div>`;
+  $("#search-form").onsubmit = (e) => {
+    e.preventDefault();
+    const sc = [...document.querySelectorAll('#search-form input[name="sc"]:checked')].map((x) => x.value);
+    try { localStorage.setItem("search-scopes", JSON.stringify(sc)); } catch (err) { /* ignore */ }
+    go(`#/b/${enc(S.book)}/search?q=${enc($("#search-q").value.trim())}&s=${enc(sc.join(","))}`);
+  };
+  if (!q.trim()) { $("#search-q").focus(); return; }
+  const box = $("#search-res");
+  box.innerHTML = `<div class="card muted">搜尋中…</div>`;
+  const r = await api("GET", B(`/search?q=${enc(q)}&scopes=${enc(scopes.join(","))}`));
+  S.searchTerms = r.terms;
+  if (!r.results.length) { box.innerHTML = `<div class="card empty">找不到「${esc(r.terms.join("」＋「"))}」。可以勾選更多範圍再試。</div>`; return; }
+  const segs = (sn) => (sn.pre ? "…" : "") + sn.segs.map((g) => g.hl ? `<mark>${esc(g.t)}</mark>` : esc(g.t)).join("") + (sn.post ? "…" : "");
+  const label = (x) => x.kind === "chapter" ? `第${x.no}章　${esc(x.title)}` : esc(x.path);
+  const tag = (x) => x.scope === "正文" ? "" : `<span class="badge">${esc(SEARCH_SCOPES.find((z) => z[0] === x.scope)[1])}</span> `;
+  box.innerHTML = `<div class="muted small" style="margin:0 0 8px">「${esc(r.terms.join("」＋「"))}」：${r.chapters ? `出現在 ${r.chapters} 章正文${r.first ? `，第一次在第 ${r.first} 章` : ""}；` : ""}共 ${r.files} 份檔案、${r.hits} 處${r.truncated ? "（結果太多，只列前面的）" : ""}</div>
+    ${r.results.map((x, i) => `<div class="card" style="margin-bottom:10px;padding:12px 16px">
+      <div class="row"><a href="javascript:void 0" class="nm" data-open="${i}">${tag(x)}${label(x)}</a><span class="grow"></span><span class="muted small">${x.count} 處</span></div>
+      ${x.snippets.map((sn, j) => `<div class="small" style="margin-top:6px;line-height:1.7${j >= 3 ? ";display:none" : ""}" data-more="${i}">${segs(sn)}</div>`).join("")}
+      ${x.snippets.length > 3 || x.more ? `<button class="ghost sm" style="margin-top:4px" data-expand="${i}">展開其餘 ${x.snippets.length - 3 + x.more} 處</button>` : ""}
+    </div>`).join("")}`;
+  box.querySelectorAll("[data-expand]").forEach((b) => b.onclick = () => {
+    box.querySelectorAll(`[data-more="${b.dataset.expand}"]`).forEach((d) => d.style.display = ""); b.remove();
+  });
+  box.querySelectorAll("[data-open]").forEach((a) => a.onclick = async () => {
+    const x = r.results[+a.dataset.open];
+    const tab = x.scope === "正文" ? "text" : x.scope === "候選" ? "candidate"
+      : x.no && x.path.startsWith("大綱/章綱/") ? "card" : x.no && x.path.startsWith("追蹤/章節摘要/") ? "summary" : null;
+    if (tab) { S.hl = r.terms; go(`#/b/${enc(S.book)}/ch/${x.no}?tab=${tab}`); return; }
+    await docView($("#doc"), x.path);
+    highlightTerms($("#doc"), r.terms);
+  });
+}
+/* 在畫面裡標亮搜尋詞並捲到第一處（等內容載入，最多 3 秒） */
+async function highlightTerms(root, terms) {
+  terms = (terms || []).filter(Boolean);
+  if (!terms.length) return;
+  for (let i = 0; i < 30; i++) {
+    const md = root.querySelector(".md");
+    if (md && md.textContent.trim()) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  const esc2 = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(terms.map(esc2).join("|"), "g");
+  let first = null, n = 0;
+  root.querySelectorAll(".md").forEach((md) => {
+    const walker = document.createTreeWalker(md, NodeFilter.SHOW_TEXT);
+    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      if (n > 300) return;
+      const t = node.nodeValue; re.lastIndex = 0;
+      if (!re.test(t)) continue;
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment(); let pos = 0, m;
+      while ((m = re.exec(t))) {
+        frag.appendChild(document.createTextNode(t.slice(pos, m.index)));
+        const mk = document.createElement("mark"); mk.textContent = m[0]; frag.appendChild(mk);
+        if (!first) first = mk; n++; pos = m.index + m[0].length;
+      }
+      frag.appendChild(document.createTextNode(t.slice(pos)));
+      node.parentNode.replaceChild(frag, node);
+    }
+  });
+  if (first) first.scrollIntoView({ block: "center" });
+  else toast("這裡沒有找到完全相同的字（可能是繁簡不同）");
 }
 
 /* ------------------------------------------------------------------ 書架 */
@@ -298,6 +390,8 @@ function alertHtml(a) {
   if (a.chapter) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/ch/${a.chapter}?tab=${a.tab || "candidate"}')">${a.tab === "revision" ? "確認" : "審閱"}</button>`;
   else if (a.action === "recoveries") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/jobs')">查看</button>`;
   else if (a.action === "sync_tracking") btn = `<button class="sm" onclick="Panel.run('sync_tracking',{})">補齊</button>`;
+  else if (a.action === "rewriteback") btn = `<button class="sm" onclick="if(confirm('重跑第${a.chapter_no}章的回寫追蹤？會依正文重新整理這章的摘要、伏筆、時間線、角色狀態等。'))Panel.run('accept',{chapter:${a.chapter_no},path:'${esc(a.path || "")}'})">重跑回寫</button>`;
+  else if (a.kind === "懸念久未回收") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking?t=reader')">查看</button>`;
   else if (a.kind === "設定草稿") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/bible?t=草稿')">查看</button>`;
   else if (a.kind.startsWith("伏筆")) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking')">查看</button>`;
   const more = a.details && a.details.length > 1
@@ -826,22 +920,31 @@ async function viewBible(view, t, file) {
 }
 
 /* ------------------------------------------------------------------ 伏筆與時間線 */
+/* 伏筆「預計回收」→ 章號（規則同 project.due_chapter：「起推進」「呼應」「第二幕」「未排定」不算回收章） */
+function dueCh(s) {
+  const m = String(s || "").match(/^\s*第\s*(\d+)\s*(?:章)?(?:\s*[～~\-–至到]\s*第?\s*(\d+))?\s*章([\s\S]*)$/);
+  if (!m) return null;
+  const rest = m[3].trim();
+  if (/^(起|開始|呼應|推進|再|埋|提及)/.test(rest)) return null;
+  const n = parseInt(m[2] || m[1]);
+  return /^(前後|左右)/.test(rest) ? n + 2 : n;
+}
 async function viewTracking(view, t) {
   const d = await api("GET", B("/tracking"));
   t = t || "foreshadow";
-  const tabs = [["foreshadow", "伏筆"], ["timeline", "時間線"], ["chars", "角色狀態"], ["state", "狀態卡"], ["glossary", "名詞表"]];
+  const tabs = [["foreshadow", "伏筆"], ["timeline", "時間線"], ["reader", "讀者認知"], ["chars", "角色狀態"], ["state", "狀態卡"], ["glossary", "名詞表"]];
   const latest = d.latest || 0;
   const chn = (s) => { const m = String(s || "").match(/(\d+)/); return m ? parseInt(m[1]) : null; };
   let body = "";
   if (t === "foreshadow") {
     const rows = d.foreshadow.rows;
     body = rows.length ? `<div class="card"><div class="row" style="margin-bottom:8px"><label class="cb" style="margin:0"><input type="checkbox" id="hide-done" checked> 隱藏已回收／廢棄</label>
-      <span class="grow"></span><span class="muted small">黃底：重要度中以上、超過 ${d.stale_foreshadow} 章沒出現，或已過預計回收章</span></div>
+      <span class="grow"></span><span class="muted small">黃底：重要度中以上、超過 ${d.stale_foreshadow} 章沒出現，或已過預計回收章（「預計回收」要寫成「第N章」才算；「起推進」「呼應」不算）</span></div>
       <div class="table-wrap"><table id="fs-table"><thead><tr>${d.foreshadow.headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>
       ${rows.map((r) => {
         const done = ["已回收", "廢棄"].includes(r["狀態"]);
         const last = chn(r["最後出現"]) || chn(r["埋設章"]);
-        const due = chn(r["預計回收"]);
+        const due = dueCh(r["預計回收"]);
         const stale = !done && ((["高", "中"].includes(r["重要度"]) && last && latest - last > d.stale_foreshadow) || (due && latest > due));
         return `<tr class="${done ? "dim done" : ""} ${stale ? "hl" : ""}">${d.foreshadow.headers.map((h) => `<td>${h === "狀態" ? statusBadge(r[h]) : esc(r[h])}</td>`).join("")}</tr>`;
       }).join("")}</tbody></table></div></div>`
@@ -852,6 +955,27 @@ async function viewTracking(view, t) {
       <div class="table-wrap"><table><thead><tr>${d.timeline.headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>
       ${rows.map((r) => `<tr class="${/未/.test(r["揭示章"] || "") ? "hl" : ""}">${d.timeline.headers.map((h) => `<td>${esc(r[h])}</td>`).join("")}</tr>`).join("")}
       </tbody></table></div></div>` : `<div class="card empty">還沒有時間線。</div>`;
+  } else if (t === "reader") {
+    const rd = d.reader_draft, rl = d.reader;
+    const isOpen = (r) => r["類型"] !== "已知" && !(chn(r["回收章"]) && chn(r["回收章"]) <= latest);
+    const tbl = (x, id) => `<div class="table-wrap"><table id="${id}"><thead><tr>${x.headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>
+      ${x.rows.map((r) => `<tr class="${isOpen(r) ? "" : "dim done"}">${x.headers.map((h) => `<td>${h === "類型" ? `<span class="badge ${r[h] === "誤認" ? "b-warn" : r[h] === "懸念" ? "b-ok" : ""}">${esc(r[h])}</span>` : esc(r[h])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    const intro = `<div class="muted small" style="margin-bottom:8px">讀者讀到目前的認知：<b>懸念</b>是讀者在等答案的問題，<b>誤認</b>是讀者誤以為的事，<b>已知</b>是讀者知道、但劇中角色未必知道的事。寫稿時只帶和本章有關的；還沒回收的不會被提前說破。「作者真相」選填。</div>`;
+    let parts = "";
+    if (rd.rows.length) {
+      parts += `<div class="card" style="margin-bottom:14px;border-color:var(--warn,#c90)"><div class="card-title"><h2>草稿（${rd.rows.length} 條，尚未生效）</h2><span class="grow"></span>
+        <button class="sm primary" id="rp-adopt">採用草稿</button><button class="sm" onclick="Panel.run('reader_reconcile',{})" title="拿後面的時間線與章節摘要比對，找出已經揭曉、部分揭曉、重複的條目">比對回收</button><button class="sm" onclick="openCharState('追蹤/讀者認知_草稿.md')">編輯草稿</button><button class="sm danger" id="rp-discard">捨棄</button></div>
+        <div class="muted small" style="margin-bottom:8px">AI 產生的結果（從時間線轉換，或回收比對；比對的逐條理由在草稿最後，按「編輯草稿」可以看）。請檢查：有沒有把你的底牌寫成讀者已經在懷疑的懸念、有沒有漏掉你刻意埋的誤導、回收章對不對。${rl.rows.length ? "採用後會取代現在的帳本（舊的會先備份）。" : ""}</div>
+        ${tbl(rd, "rp-draft")}</div>`;
+    }
+    if (rl.rows.length) {
+      parts += `<div class="card"><div class="row" style="margin-bottom:8px"><label class="cb" style="margin:0"><input type="checkbox" id="hide-done" checked> 隱藏已回收與已知</label><span class="grow"></span>
+        ${rd.rows.length ? "" : `<button class="sm" onclick="Panel.run('reader_reconcile',{})" title="拿後面的時間線與章節摘要比對，找出已經揭曉、部分揭曉、重複的條目；結果存成草稿">比對回收</button>`}<button class="sm" onclick="openCharState('追蹤/讀者認知.md')">編輯</button></div>${intro}${tbl(rl, "fs-table")}</div>`;
+    } else if (!rd.rows.length) {
+      parts += `<div class="card empty"><div class="big">?</div>還沒有讀者認知帳本。<br>新書寫完章節後會自動登記；已經寫了很多章的書，可以先從時間線轉換一份草稿，確認後再採用。
+        ${d.timeline.rows.length ? `<div style="margin-top:12px"><button class="primary" onclick="Panel.run('reader_init',{})">從時間線建立（AI 轉換，${d.timeline.rows.length} 列）</button></div>` : ""}</div>`;
+    }
+    body = parts + `<div id="doc" style="margin-top:14px"></div>`;
   } else if (t === "chars") {
     body = d.characters.length ? `<div class="grid g3">${d.characters.map((c) => {
       const last = chn(c.last), gap = last ? latest - last : null;
@@ -874,7 +998,17 @@ async function viewTracking(view, t) {
       <div class="row"><button onclick="Panel.openForm('review_all')">伏筆與角色健康檢查</button></div></div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${k === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/tracking?t=${k}')">${l}</button>`).join("")}</div>
     ${body}`;
-  if (t === "foreshadow" && $("#hide-done")) {
+  if (t === "reader") {
+    if ($("#rp-adopt")) $("#rp-adopt").onclick = async () => {
+      if (!confirm("採用這份草稿？之後寫稿、審查、回寫都會用它。")) return;
+      await api("POST", B("/tracking/reader/adopt")); toast("已採用讀者認知帳本"); viewTracking(view, t);
+    };
+    if ($("#rp-discard")) $("#rp-discard").onclick = async () => {
+      if (!confirm("捨棄這份草稿？（會移到 .studio/備份）")) return;
+      await api("POST", B("/tracking/reader/discard")); viewTracking(view, t);
+    };
+  }
+  if ((t === "foreshadow" || t === "reader") && $("#hide-done")) {
     const apply = () => document.querySelectorAll("#fs-table tr.done").forEach((tr) => tr.style.display = $("#hide-done").checked ? "none" : "");
     $("#hide-done").onchange = apply; apply();
   }

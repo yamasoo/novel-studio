@@ -145,12 +145,46 @@ def mentioned_entities(book_dir, text):
     return hits
 
 
-def foreshadow_rows(book_dir, text):
+FS_BEFORE, FS_AFTER = 3, 5   # 伏筆：預計回收章在第 N−3～N+5 章的整條帶
+FS_RECENT = 3                # 伏筆：最近幾章有出現過的整條帶
+FS_DONE = ("已回收", "廢棄")
+
+
+def foreshadow_for(book_dir, scope, a, b=None, pk=None):
+    """伏筆：近期的整條帶、其他還沒回收的只帶一行索引、已回收或廢棄的不帶（被點名的照帶）。
+    整條帶：scope（章綱等）點名的編號、預計回收章在 [a−3, b+5]、最後出現在最近 3 章。"""
+    b = b or a
     tbl = project.read_table(book_dir, "追蹤/伏筆.md")
-    ids = set(re.findall(r"F\d{3,}", text))
-    keep = [r for r in tbl["rows"] if r.get("編號") in ids or
-            (r.get("狀態") not in ("已回收", "廢棄") and r.get("重要度") in ("高", "中"))]
-    return tbl["headers"], keep
+    rows, hs = tbl["rows"], tbl["headers"]
+    if not rows:
+        return body(read(book_dir, "追蹤/伏筆.md"))
+    ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope or ""))
+    full, index = [], []
+    for r in rows:
+        rid = str(r.get("編號") or "")
+        done = str(r.get("狀態") or "").strip() in FS_DONE
+        due = _nums(r.get("預計回收"))
+        last = _nums(r.get("最後出現"))
+        if rid in ids:
+            full.append(r)
+        elif done:
+            continue
+        elif any(a - FS_BEFORE <= n <= b + FS_AFTER for n in due) or any(a - FS_RECENT <= n <= b for n in last):
+            full.append(r)
+        else:
+            index.append(r)
+    if pk is not None:
+        pk.note("伏筆整條帶 %d、索引 %d（已回收或廢棄的不帶）" % (len(full), len(index)))
+    out = table_md(hs, full) if full else "（近期沒有要處理的伏筆）"
+    if index:
+        def short(s, n=30):
+            s = str(s or "").replace("|", "／").replace("\n", " ")
+            return s if len(s) <= n else s[:n] + "…"
+        out += ("\n\n其他還沒回收的伏筆（只列索引，不要在本章擅自回收；章綱要求的以章綱為準）\n"
+                "| 編號 | 內容 | 預計回收 | 重要度 |\n|---|---|---|---|\n" +
+                "\n".join("| %s | %s | %s | %s |" % (r.get("編號", ""), short(r.get("內容")), r.get("預計回收", ""), r.get("重要度", ""))
+                          for r in index))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +231,7 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
     joined = ["|".join(str(v) for v in r.values()) for r in rows]
     names = [n for n in names if sum(1 for j in joined if n in j) <= max(3, len(rows) * MAIN_SHARE)]
     ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope))
+    ledger = has_reader_ledger(book_dir)   # 有帳本就由帳本負責未解疑問
     keep, opens = [], []
     for r, j in zip(rows, joined):
         rev = _nums(r.get("揭示章"))
@@ -206,7 +241,7 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
         related = str(r.get("編號") or "") in ids or any(n in j for n in names)
         if hidden or recent or related:
             keep.append(r)
-        elif re.search(_PARTIAL, known):   # 讀者只知道一部分：只列還不知道的部分
+        elif not ledger and re.search(_PARTIAL, known):   # 沒有讀者認知帳本時：從措辭猜讀者還不知道的部分
             opens.append(r)
     if pk is not None:
         pk.note("時間線 %d 條：整列帶 %d、只列未解疑問 %d" % (len(rows), len(keep), len(opens)))
@@ -217,6 +252,76 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
                 "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("揭示章", ""), _open_part(str(r.get("讀者目前知道") or "")))
                           for r in opens))
     return out
+
+
+READER_FILE = "追蹤/讀者認知.md"
+
+
+def has_reader_ledger(book_dir):
+    return bool(project.read_table(book_dir, READER_FILE)["rows"])
+
+
+def _reader_open(r, a):
+    """還沒回收（回收章空白或在本章以後）的懸念／誤認。"""
+    if str(r.get("類型") or "").strip() == "已知":
+        return False
+    rec = _nums(r.get("回收章"))
+    return not rec or min(rec) >= a
+
+
+def reader_for(book_dir, scope, a, b=None, pk=None):
+    """讀者認知帳本。表格小時整份帶；大時：
+    - 整列帶（含作者真相）：還沒回收而且和本章有關的（章綱點名、出場人事、預計本章回收、最近幾章才種下的）；和本章有關的「已知」
+    - 只列內容（不帶作者真相）：其他還沒回收的懸念與誤認
+    - 不帶：已回收的、無關的已知"""
+    b = b or a
+    tbl = project.read_table(book_dir, READER_FILE)
+    rows, hs = tbl["rows"], tbl["headers"]
+    if not rows:
+        return ""
+    full = table_md(hs, rows)
+    if est_tokens(full) <= FILTER_MIN_TOKENS:
+        return full
+    names = _entity_names(book_dir, scope)
+    joined = ["|".join(str(v) for v in r.values()) for r in rows]
+    names = [n for n in names if sum(1 for j in joined if n in j) <= max(3, len(rows) * MAIN_SHARE)]
+    ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope))
+    keep, idx = [], []
+    for r, j in zip(rows, joined):
+        rid = str(r.get("編號") or "")
+        related = rid in ids or any(n in j for n in names)
+        if _reader_open(r, a):
+            due = any(a <= n <= b for n in _nums(r.get("回收章")))
+            recent = any(a - RECENT_CHAPTERS <= n <= b for n in _nums(r.get("種下章")))
+            (keep if related or due or recent else idx).append(r)
+        elif str(r.get("類型") or "").strip() == "已知" and related:
+            keep.append(r)
+    if pk is not None:
+        pk.note("讀者認知 %d 條：整列帶 %d、只列內容 %d（已回收的不帶）" % (len(rows), len(keep), len(idx)))
+    out = table_md(hs, keep)
+    if idx:
+        out += ("\n\n其他還沒揭曉的懸念與誤認（和本章沒有直接關係，只列讀者目前的認知；不要在本章說破。章綱要揭曉的，以章綱為準）\n"
+                "| 編號 | 類型 | 內容 |\n|---|---|---|\n" +
+                "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("類型", ""), str(r.get("內容", "")).replace("|", "／"))
+                          for r in idx))
+    return out
+
+
+def reader_for_writeback(book_dir):
+    """回寫用：還沒回收的整列帶（要能用原編號回收）；已知只列編號和內容（避免重複登記）。"""
+    tbl = project.read_table(book_dir, READER_FILE)
+    rows, hs = tbl["rows"], tbl["headers"]
+    if not rows:
+        return ""
+    opens = [r for r in rows if _reader_open(r, 0)]
+    known = [r for r in rows if str(r.get("類型") or "").strip() == "已知"]
+    out = table_md(hs, opens)
+    if known:
+        out += "\n\n已登記的已知（不用重複登記）\n" + "\n".join("- %s %s" % (r.get("編號", ""), r.get("內容", "")) for r in known)
+    return out
+
+
+READER_TITLE = "讀者認知（懸念與誤認不能提前揭曉；回收章在本章範圍內的才可以揭曉）"
 
 
 def glossary_for(book_dir, scope, pk=None):
@@ -285,12 +390,12 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
         st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
         if st:
             pk.add(3, "角色目前狀態：%s" % e["name"], body(st))
-    h, rows = foreshadow_rows(book_dir, card)
-    fs = table_md(h, rows)
+    fs = foreshadow_for(book_dir, card, no, pk=pk)
     pk.add(3, "相關伏筆", fs)
     near = card + "\n" + (body(prev)[-1200:] if prev else "")
     wide = scope + "\n" + near + "\n" + fs + "\n" + "\n".join(
         body(read(book_dir, e["file"])) for e in mentioned_entities(book_dir, scope))
+    pk.add(3, READER_TITLE, reader_for(book_dir, card + "\n" + fs, no, pk=pk))
     pk.add(4, "時間線（「讀者目前知道」是資訊邊界，不能提前說破）", timeline_for(book_dir, near, no, pk=pk))
     pk.add(4, "名詞表", glossary_for(book_dir, wide, pk=pk))
     pk.add(5, "前幾章摘要", recent_summaries(book_dir, no))
@@ -307,6 +412,7 @@ def for_writeback(book_dir, no, text, budget):
     pk.add(1, "目前狀態卡（請在此基礎上更新）", body(read(book_dir, "追蹤/狀態卡.md")))
     pk.add(1, "伏筆總表", body(read(book_dir, "追蹤/伏筆.md")))
     pk.add(2, "時間線", body(read(book_dir, "追蹤/時間線.md")))
+    pk.add(1, "讀者認知帳本（還沒回收的；本章揭曉了就用原編號填回收章）", reader_for_writeback(book_dir))
     for e in mentioned_entities(book_dir, text):
         st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
         if st:
@@ -335,8 +441,9 @@ def for_review(book_dir, plugin_dir, a, b, budget):
     if prev:
         pk.add(2, "前一章結尾", body(prev)[-1000:], keep="tail")
     pk.add(2, "狀態卡", body(read(book_dir, "追蹤/狀態卡.md")))
-    pk.add(2, "伏筆總表", body(read(book_dir, "追蹤/伏筆.md")))
     cards = "\n".join(card_text(book_dir, n)[1] for n in range(a, b + 1))
+    pk.add(2, "伏筆", foreshadow_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
+    pk.add(2, READER_TITLE, reader_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     pk.add(2, "時間線", timeline_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     for e in mentioned_entities(book_dir, joined):
         pk.add(3, "設定：%s" % e["name"], body(read(book_dir, e["file"])))

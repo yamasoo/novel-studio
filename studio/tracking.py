@@ -15,6 +15,11 @@ FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "
 TL_HEADERS = ["編號", "故事時間", "實際發生（作者真相）", "讀者目前知道", "揭示章", "相關角色"]
 CHAR_FIELDS = ["身分", "位置", "目標", "身體狀態", "情緒狀態", "能力與資源", "關係變化", "知道的秘密", "未了結的事"]
 GLOSS_HEADERS = ["名詞", "類別", "說明", "注意"]
+RP_HEADERS = ["編號", "類型", "內容", "作者真相", "種下章", "回收章", "相關角色"]
+RP_TYPES = ("已知", "懸念", "誤認")
+RP_FILE = "追蹤/讀者認知.md"
+RP_DRAFT = "追蹤/讀者認知_草稿.md"
+RP_NEW_BOOK_ROWS = 15   # 時間線超過這麼多列又沒有帳本，視為舊書，不自動建立
 
 # 給 AI 看的回寫格式說明（放進提示詞）
 WRITEBACK_SCHEMA = """請只輸出一個 JSON 物件，格式如下（只列出有變化的項目；沒有就給空陣列）：
@@ -30,10 +35,13 @@ WRITEBACK_SCHEMA = """請只輸出一個 JSON 物件，格式如下（只列出�
     "活躍伏筆": ["F001 一句說明"]
   },
   "foreshadow": [
-    {"編號": "既有編號，新伏筆寫「新」", "內容": "…", "埋設章": "第NNN章", "預計回收": "第NNN章或空字串", "最後出現": "第NNN章", "狀態": "已埋|推進中|已回收|廢棄", "重要度": "高|中|低"}
+    {"編號": "既有編號，新伏筆寫「新」", "內容": "…", "埋設章": "第NNN章", "預計回收": "打算回收的那一章，只寫「第NNN章」；沒定就留空（要推進或呼應的章不要寫在這裡）", "最後出現": "第NNN章", "狀態": "已埋|推進中|已回收|廢棄", "重要度": "高|中|低"}
   ],
   "timeline": [
     {"編號": "既有編號，新事件寫「新」", "故事時間": "…", "實際發生（作者真相）": "…", "讀者目前知道": "…", "揭示章": "第NNN章或未揭示", "相關角色": "…"}
+  ],
+  "reader": [
+    {"編號": "既有編號，新條目寫「新」", "類型": "已知|懸念|誤認", "內容": "讀者知道的事／在等答案的問題／誤以為的事", "作者真相": "真相或答案（作者沒定就留空）", "種下章": "第NNN章", "回收章": "揭曉或澄清的那一章；還沒回收就留空", "相關角色": "…"}
   ],
   "characters": [
     {"名稱": "角色名", "身分": "…", "位置": "…", "目標": "…", "身體狀態": "…", "情緒狀態": "…", "能力與資源": "…", "關係變化": "…", "知道的秘密": "…", "未了結的事": "…"}
@@ -47,6 +55,7 @@ WRITEBACK_SCHEMA = """請只輸出一個 JSON 物件，格式如下（只列出�
 - state_card 是本章結束後的「現在」狀態，七欄都要給完整內容（會整份覆寫），過時的內容拿掉。
 - characters 只列本章有登場或有變化的角色；「知道的秘密」只寫角色在故事裡已經知道的事。
 - foreshadow 與 timeline 只列本章新增或有變動的列，既有列要保留原編號。
+- reader 是讀者認知帳本：本章讓讀者開始等答案的事記「懸念」、讓讀者誤以為的事記「誤認」、讀者新知道且會影響後續閱讀的關鍵資訊記「已知」；本章揭曉或澄清了舊的懸念、誤認，就用原編號填「回收章」。作者真相沒有把握就留空，不要自己編答案。
 - 只寫正文裡真的發生的事，章綱計畫了但正文沒寫出來的不要寫。"""
 
 
@@ -210,6 +219,30 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     else:
         _touch_updated(os.path.join(book_dir, "追蹤", "時間線.md"), label)
 
+    # 4.5 讀者認知
+    rp = []
+    for x in data.get("reader") or []:
+        if not isinstance(x, dict):
+            continue
+        old = bool(re.match(r"R\d+$", str(x.get("編號") or "").strip()))
+        if not old and not str(x.get("內容") or "").strip():
+            continue
+        if x.get("類型") not in RP_TYPES:
+            x = dict(x)
+            x["類型"] = "" if old else "懸念"  # 舊條目沒給類型就不動，新條目預設懸念
+        rp.append(x)
+    rpath = os.path.join(book_dir, *RP_FILE.split("/"))
+    if rp and not os.path.isfile(rpath) and len(project.read_table(book_dir, "追蹤/時間線.md")["rows"]) > RP_NEW_BOOK_ROWS:
+        # 舊書還沒建立帳本：只登記新的幾條會變成殘缺的帳本，等作者從時間線轉換
+        log.append("讀者認知（還沒建立帳本，略過；可到「伏筆與時間線」的讀者認知分頁從時間線建立）")
+    elif rp:
+        if not os.path.isfile(rpath):
+            write_reader_table(rpath, [], label)
+        a, u, ids = upsert_table(rpath, RP_HEADERS, rp, "R", "讀者認知", "讀者認知", label)
+        log.append("讀者認知（新增 %d、更新 %d）" % (a, u))
+    elif os.path.isfile(os.path.join(book_dir, *RP_FILE.split("/"))):
+        _touch_updated(os.path.join(book_dir, *RP_FILE.split("/")), label)
+
     # 5. 角色狀態
     names = []
     for c in ([] if revision else (data.get("characters") or [])):
@@ -299,6 +332,54 @@ def git_commit(book_dir, message):
         return r.returncode == 0
     except Exception:
         return False
+
+
+RP_INTRO = ("> 讀者讀到目前為止的認知：「已知」是讀者知道的事；「懸念」是讀者在等答案的問題；「誤認」是讀者誤以為的事（反轉用）。\n"
+            "> 「作者真相」是答案（選填）；「回收章」空白＝還沒揭曉。寫稿時不能提前回收沒到時候的懸念與誤認。\n\n")
+
+
+RP_NOTE_HEAD = "## 回收比對紀錄"
+
+
+def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=False, note=""):
+    """把讀者認知條目整份寫成表格。轉換時編號從 R001 重新排；回收比對時保留原編號（keep_ids）。
+    note：附在表格後面的說明（回收比對的逐條紀錄），採用草稿時會拿掉。"""
+    rows = []
+    for i, it in enumerate(items, 1):
+        row = {h: _cell(it.get(h, "")) for h in RP_HEADERS}
+        if not (keep_ids and row["編號"]):
+            row["編號"] = "R%03d" % i
+        if row["類型"] not in RP_TYPES:
+            row["類型"] = "懸念"
+        rows.append(row)
+    head = "---\n類型: 讀者認知\n更新至: %s\n%s---\n\n# 讀者認知%s\n\n" % (
+        chapter_label_text, "狀態: 草稿\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
+    _write(path, head + RP_INTRO + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
+    return len(rows)
+
+
+def adopt_reader_draft(book_dir):
+    """採用草稿：舊的帳本（如果有）先備份，草稿改名成正式檔，拿掉草稿標記。"""
+    src = os.path.join(book_dir, *RP_DRAFT.split("/"))
+    dst = os.path.join(book_dir, *RP_FILE.split("/"))
+    if not os.path.isfile(src):
+        raise project.ProjectError("沒有讀者認知草稿")
+    if os.path.isfile(dst):
+        backup(book_dir, dst, "讀者認知")
+    text = project.read_text(src)
+    text = re.sub(r"(?m)^狀態: 草稿\n", "", text, count=1).replace("# 讀者認知（草稿：確認後按「採用」）", "# 讀者認知", 1)
+    if "\n" + RP_NOTE_HEAD in text:
+        text = text.split("\n" + RP_NOTE_HEAD, 1)[0].rstrip() + "\n"
+    _write(dst, text)
+    os.remove(src)
+    return RP_FILE
+
+
+def discard_reader_draft(book_dir):
+    src = os.path.join(book_dir, *RP_DRAFT.split("/"))
+    if os.path.isfile(src):
+        backup(book_dir, src, "讀者認知草稿")
+        os.remove(src)
 
 
 def backup(book_dir, path, tag):

@@ -7,7 +7,7 @@ import os
 import re
 import time
 
-from . import context, project, tracking
+from . import context, project, relations, tracking
 
 MIN_MENTIONS = 3        # 正文提到幾次以上的角色，才要求角色狀態更新
 STALE_SUSPENSE = 30     # 懸念、誤認種下超過幾章還沒回收就提醒
@@ -66,6 +66,11 @@ def check(book_dir, no, revision=False, data=None):
                 miss.append("%s（出現 %d 次）" % (e["name"], n))
         if miss:
             issues.append("正文有出場、角色狀態沒更新：" + "、".join(miss))
+
+    # 角色關係：角色狀態寫了「關係變化」、關係表卻沒有更新（有關係表才檢查）
+    if data and not revision and relations.exists(book_dir):
+        if relations.has_relation_change(data.get("characters")) and not data.get("relations"):
+            issues.append("角色狀態寫了「關係變化」，但角色關係表沒有更新")
 
     # 伏筆：章綱點名的
     fs = {r.get("編號"): r for r in project.read_table(book_dir, "追蹤/伏筆.md")["rows"]}

@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
+from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.13.0"
+VERSION = "1.14.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -1522,6 +1522,9 @@ def book_tracking(book_id: str):
         "glossary": project.read_table(d, "設定/名詞表.md"),
         "reader": project.read_table(d, tracking.RP_FILE),
         "reader_draft": project.read_table(d, tracking.RP_DRAFT),
+        "relations": project.read_table(d, relations.FILE),
+        "relations_draft": project.read_table(d, relations.DRAFT),
+        "relations_graph": relations.graph_data(d),
         "characters": chars,
         "latest": ov["latest"],
         "stale_foreshadow": int(CONFIG.get("stale_foreshadow", 10)),
@@ -1569,6 +1572,24 @@ def reader_draft_op(book_id: str, op: str):
         return {"ok": True, "file": rel}
     if op == "discard":
         tracking.discard_reader_draft(d)
+        return {"ok": True}
+    raise HTTPException(404, "不支援的操作")
+
+
+@app.post("/api/books/{book_id}/tracking/relations/{op}")
+def relations_op(book_id: str, op: str):
+    """角色關係表：build＝從角色檔的「## 關係」轉成草稿（不用模型）；adopt／discard＝採用或捨棄草稿。"""
+    d = book_dir(book_id)
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "還有任務在執行，請等它結束。")
+    if op == "build":
+        return {"ok": True, "message": wrap(lambda: relations.build_draft(d))}
+    if op == "adopt":
+        rel = wrap(lambda: relations.adopt_draft(d))
+        tracking.git_commit(d, "採用角色關係表")
+        return {"ok": True, "file": rel}
+    if op == "discard":
+        relations.discard_draft(d)
         return {"ok": True}
     raise HTTPException(404, "不支援的操作")
 

@@ -500,6 +500,7 @@ def _reconcile(c, no, prev_from_candidate=False):
     pk.add(2, "時間線（作者真相與讀者已知）",
            context.timeline_for(c.book, card + "\n" + (context.body(prev)[-1500:] if prev else ""), no, pk=pk))
     pk.add(2, context.READER_TITLE, context.reader_for(c.book, card, no, pk=pk))
+    pk.add(3, context.RELATION_TITLE, context.relations_for(c.book, card, pk=pk))
     pk.add(3, "相關伏筆", context.foreshadow_for(c.book, card, no, pk=pk))
     pk.add(3, "前幾章摘要", context.recent_summaries(c.book, no))
     ctx_text, used, dropped = pk.build()
@@ -588,6 +589,7 @@ def act_review_notes(c, p):
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], context.body(st))
     pk.add(3, context.READER_TITLE, context.reader_for(c.book, text + "\n" + card, no, pk=pk))
+    pk.add(3, context.RELATION_HISTORY_TITLE, context.relations_for(c.book, text + "\n" + card, pk=pk, history=True))
     pk.add(3, "時間線", context.timeline_for(c.book, text + "\n" + card, no, pk=pk))
     pk.add(3, "伏筆", context.foreshadow_for(c.book, text + "\n" + card, no, pk=pk))
     ctx_text, used, dropped = pk.build()

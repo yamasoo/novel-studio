@@ -323,6 +323,46 @@ def reader_for_writeback(book_dir):
 
 READER_TITLE = "讀者認知（懸念與誤認不能提前揭曉；回收章在本章範圍內的才可以揭曉）"
 
+RELATION_FILE = "追蹤/關係.md"
+RELATION_TITLE = "角色關係（誰對誰目前的關係與態度；已經改變的不能無故倒退，要變就要在劇情裡有原因）"
+RELATION_HISTORY_TITLE = "角色關係（含歷史：誰對誰什麼時候變過；結束章空白＝目前有效）"
+_REL_NOW = ["誰", "對誰", "關係", "態度", "起始章"]
+_REL_ALL = ["誰", "對誰", "關係", "態度", "起始章", "結束章", "變化原因"]
+
+
+def _scene_chars(book_dir, scope):
+    """文字裡提到的角色（正式名稱）。"""
+    return {e["name"] for e in mentioned_entities(book_dir, scope)
+            if str(e["file"]).replace("\\", "/").startswith(("設定/角色", "設定/勢力"))}
+
+
+def relations_for(book_dir, scope, pk=None, history=False):
+    """角色關係：只帶「在場角色之間」的。寫稿帶目前有效的；審查（history）連結束章與變化原因一起帶。"""
+    rows = project.read_table(book_dir, RELATION_FILE)["rows"]
+    if not rows:
+        return ""
+    chars = _scene_chars(book_dir, scope)
+    pair = [r for r in rows if r.get("誰") in chars and r.get("對誰") in chars]
+    now = [r for r in pair if not str(r.get("結束章") or "").strip()]
+    if history:
+        pair.sort(key=lambda r: (r.get("誰", ""), r.get("對誰", ""), _nums(r.get("起始章"))[:1] or [0]))
+        out_rows, cols = pair, _REL_ALL
+    else:
+        out_rows, cols = now, _REL_NOW
+    if pk is not None:
+        pk.note("角色關係 %d 列（在場角色之間%s）" % (len(out_rows), "，含歷史" if history else "，目前有效"))
+    return table_md(cols, out_rows)
+
+
+def relations_for_writeback(book_dir, text):
+    """回寫用：正文出場角色的、目前有效的關係。AI 只需要報有變的。"""
+    rows = project.read_table(book_dir, RELATION_FILE)["rows"]
+    if not rows:
+        return ""
+    chars = _scene_chars(book_dir, text)
+    mine = [r for r in rows if (r.get("誰") in chars or r.get("對誰") in chars) and not str(r.get("結束章") or "").strip()]
+    return table_md(_REL_NOW, mine)
+
 
 def glossary_for(book_dir, scope, pk=None):
     """名詞表：只帶這一章範圍裡出現的名詞；稱謂類的，說明提到出場角色也帶。表格小時整份帶。"""
@@ -396,6 +436,7 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
     wide = scope + "\n" + near + "\n" + fs + "\n" + "\n".join(
         body(read(book_dir, e["file"])) for e in mentioned_entities(book_dir, scope))
     pk.add(3, READER_TITLE, reader_for(book_dir, card + "\n" + fs, no, pk=pk))
+    pk.add(3, RELATION_TITLE, relations_for(book_dir, scope + "\n" + near, pk=pk))
     pk.add(4, "時間線（「讀者目前知道」是資訊邊界，不能提前說破）", timeline_for(book_dir, near, no, pk=pk))
     pk.add(4, "名詞表", glossary_for(book_dir, wide, pk=pk))
     pk.add(5, "前幾章摘要", recent_summaries(book_dir, no))
@@ -417,6 +458,7 @@ def for_writeback(book_dir, no, text, budget):
         st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], body(st))
+    pk.add(2, "角色關係（目前有效的；只有本章變了或第一次建立的才寫進 relations）", relations_for_writeback(book_dir, text))
     pk.add(3, "第%d章章綱" % no, body(card))
     pk.add(3, "名詞表（已登記的不用再列為新增物）", body(read(book_dir, "設定/名詞表.md")))
     names = [e["name"] for e in project.list_entries(book_dir, "設定/角色")]
@@ -444,6 +486,7 @@ def for_review(book_dir, plugin_dir, a, b, budget):
     cards = "\n".join(card_text(book_dir, n)[1] for n in range(a, b + 1))
     pk.add(2, "伏筆", foreshadow_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     pk.add(2, READER_TITLE, reader_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
+    pk.add(2, RELATION_HISTORY_TITLE, relations_for(book_dir, joined + "\n" + cards, pk=pk, history=True))
     pk.add(2, "時間線", timeline_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     for e in mentioned_entities(book_dir, joined):
         pk.add(3, "設定：%s" % e["name"], body(read(book_dir, e["file"])))

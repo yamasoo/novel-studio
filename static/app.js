@@ -168,7 +168,7 @@ async function viewReverse(view, upto) {
   const busy = S.job && S.job.status === "running";
   const cost = est.cost != null ? `約 US$${est.cost.toFixed(2)}` : (Panel.isClaude() ? "用 Claude 訂閱額度" : "依你設定的價格（沒填價格就不顯示）");
   const groups = [["設定", "角色、勢力、世界觀、故事核心、名詞表"], ["大綱", "全書大綱、卷綱"], ["章綱", "每章的章綱（反向整理，狀態「已寫」）"],
-    ["追蹤", "章節摘要、伏筆、時間線、讀者認知、角色狀態、狀態卡"]];
+    ["追蹤", "章節摘要、伏筆、時間線、讀者認知、角色關係、角色狀態、狀態卡"]];
   const nDraft = groups.reduce((a, [g]) => a + (dr[g] || []).length, 0);
   view.innerHTML = `
     <div class="page-head"><div><h1>從正文建立設定</h1><div class="sub">已經寫好的書，不用開書訪談：AI 照章節順序分批讀正文，反推出設定、大綱、章綱與追蹤資料。全部先存成草稿，你核對後再分組採用。</div></div></div>
@@ -999,10 +999,12 @@ function dueCh(s) {
   const n = parseInt(m[2] || m[1]);
   return /^(前後|左右)/.test(rest) ? n + 2 : n;
 }
+let REL_VIEW = "table";   // 角色關係：表格 / 關係圖
+let REL_NOTE = "";   // 「從角色檔建立」的說明，顯示在草稿上面
 async function viewTracking(view, t) {
   const d = await api("GET", B("/tracking"));
   t = t || "foreshadow";
-  const tabs = [["foreshadow", "伏筆"], ["timeline", "時間線"], ["reader", "讀者認知"], ["chars", "角色狀態"], ["state", "狀態卡"], ["glossary", "名詞表"]];
+  const tabs = [["foreshadow", "伏筆"], ["timeline", "時間線"], ["reader", "讀者認知"], ["relations", "角色關係"], ["chars", "角色狀態"], ["state", "狀態卡"], ["glossary", "名詞表"]];
   const latest = d.latest || 0;
   const chn = (s) => { const m = String(s || "").match(/(\d+)/); return m ? parseInt(m[1]) : null; };
   let body = "";
@@ -1046,6 +1048,36 @@ async function viewTracking(view, t) {
         ${d.timeline.rows.length ? `<div style="margin-top:12px"><button class="primary" onclick="Panel.run('reader_init',{})">從時間線建立（AI 轉換，${d.timeline.rows.length} 列）</button></div>` : ""}</div>`;
     }
     body = parts + `<div id="doc" style="margin-top:14px"></div>`;
+  } else if (t === "relations") {
+    const rd = d.relations_draft, rl = d.relations;
+    const cols = (x) => x.headers.filter((h) => h !== "編號");
+    const tbl = (x, id) => `<div class="table-wrap"><table id="${id}"><thead><tr>${cols(x).map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>
+      ${x.rows.map((r) => `<tr class="${r["結束章"] ? "dim done" : ""}">${cols(x).map((h) => `<td>${esc(r[h])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    const intro = `<div class="muted small" style="margin-bottom:8px">誰<b>對</b>誰的關係，一個方向一列（A 對 B、B 對 A 分開記）。關係改變時，舊的那列會填上「結束章」、另開一列，所以歷史都留著；淡色的列是已經結束的舊關係。寫稿時只帶在場角色之間、目前有效的關係。</div>`;
+    const build = (label) => `<button class="sm rl-build" title="把各角色檔「## 關係」裡的「對象：描述」整理成表格草稿。不用模型、不花 token；確認後才會生效。">${label}</button>`;
+    let parts = "";
+    if (rd.rows.length) {
+      parts += `<div class="card" style="margin-bottom:14px;border-color:var(--warn,#c90)"><div class="card-title"><h2>草稿（${rd.rows.length} 列，尚未生效）</h2><span class="grow"></span>
+        <button class="sm primary" id="rl-adopt">採用草稿</button><button class="sm" onclick="openCharState('追蹤/關係_草稿.md')">編輯草稿</button><button class="sm danger" id="rl-discard">捨棄</button></div>
+        ${REL_NOTE ? `<div class="md small" style="margin-bottom:8px">${md(REL_NOTE)}</div>` : ""}
+        <div class="muted small" style="margin-bottom:8px">從角色檔的「## 關係」整理出來的，「關係」欄是角色檔那句描述原文。請檢查：對象有沒有認錯人、方向對不對、要不要把描述拆成「關係」和「態度」。${rl.rows.length ? "採用後會取代現在的關係表（舊的會先備份）。" : ""}</div>
+        ${tbl(rd, "rl-draft")}</div>`;
+    }
+    if (rl.rows.length) {
+      parts += `<div class="row" style="margin-bottom:10px"><div class="seg compact"><label><input type="radio" name="rel-view" value="table" ${REL_VIEW === "table" ? "checked" : ""}> 表格</label>
+        <label><input type="radio" name="rel-view" value="graph" ${REL_VIEW === "graph" ? "checked" : ""}> 關係圖（依勢力分組）</label></div></div>`;
+    }
+    if (rl.rows.length && REL_VIEW === "graph") {
+      parts += `<div class="card"><div id="rg-root"></div></div>`;
+    } else if (rl.rows.length) {
+      parts += `<div class="card"><div class="row" style="margin-bottom:8px"><label class="cb" style="margin:0"><input type="checkbox" id="hide-done" checked> 只看目前有效</label>
+        <input type="text" id="rl-filter" placeholder="篩選角色或關鍵字" style="max-width:200px;margin-left:10px"><span class="grow"></span>
+        ${rd.rows.length ? "" : build("從角色檔補關係草稿")}<button class="sm" onclick="openCharState('追蹤/關係.md')">編輯</button></div>${intro}${tbl(rl, "fs-table")}</div>`;
+    } else if (!rd.rows.length) {
+      parts += `<div class="card empty"><div class="big">⇄</div>還沒有角色關係表。<br>新書寫到前幾章時會自動登記；已經寫了很多章的書，可以從角色檔的「## 關係」轉換一份草稿，確認後再採用。
+        <div style="margin-top:12px">${build("從角色檔建立草稿")}</div></div>`;
+    }
+    body = parts + `<div id="doc" style="margin-top:14px"></div>`;
   } else if (t === "chars") {
     body = d.characters.length ? `<div class="grid g3">${d.characters.map((c) => {
       const last = chn(c.last), gap = last ? latest - last : null;
@@ -1079,6 +1111,36 @@ async function viewTracking(view, t) {
       if (!confirm("捨棄這份草稿？（會移到 .studio/備份）")) return;
       await api("POST", B("/tracking/reader/discard")); viewTracking(view, t);
     };
+  }
+  if (t === "relations") {
+    document.querySelectorAll('input[name="rel-view"]').forEach((i) => i.onchange = () => { REL_VIEW = i.value; viewTracking(view, t); });
+    if ($("#rg-root")) {
+      if (!d.relations_graph) $("#rg-root").innerHTML = `<div class="muted" style="padding:24px">後端還沒送出關係圖資料——工作台程式是更新前啟動的，請關掉工作台（命令列視窗）後重新啟動，再回到這一頁。</div>`;
+      else if (!window.RelGraph) $("#rg-root").innerHTML = `<div class="muted" style="padding:24px">關係圖的程式檔沒載入，請按 Ctrl+F5 強制重新整理。</div>`;
+      else window.RelGraph.mount($("#rg-root"), d.relations_graph);
+    }
+    document.querySelectorAll(".rl-build").forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      try { const r = await api("POST", B("/tracking/relations/build")); REL_NOTE = r.message || ""; viewTracking(view, t); }
+      catch (e) { fail(e); b.disabled = false; }
+    });
+    if ($("#rl-adopt")) $("#rl-adopt").onclick = async () => {
+      if (!confirm("採用這份草稿？之後寫稿、審查、回寫都會用它。")) return;
+      try { await api("POST", B("/tracking/relations/adopt")); REL_NOTE = ""; toast("已採用角色關係表"); viewTracking(view, t); } catch (e) { fail(e); }
+    };
+    if ($("#rl-discard")) $("#rl-discard").onclick = async () => {
+      if (!confirm("捨棄這份草稿？（會移到 .studio/備份）")) return;
+      try { await api("POST", B("/tracking/relations/discard")); REL_NOTE = ""; viewTracking(view, t); } catch (e) { fail(e); }
+    };
+    if ($("#hide-done") && $("#rl-filter")) {
+      const apply = () => {
+        const q = $("#rl-filter").value.trim(), hide = $("#hide-done").checked;
+        document.querySelectorAll("#fs-table tbody tr").forEach((tr) => {
+          tr.style.display = ((hide && tr.classList.contains("done")) || (q && !tr.textContent.includes(q))) ? "none" : "";
+        });
+      };
+      $("#hide-done").onchange = apply; $("#rl-filter").oninput = apply; apply();
+    }
   }
   if ((t === "foreshadow" || t === "reader") && $("#hide-done")) {
     const apply = () => document.querySelectorAll("#fs-table tr.done").forEach((tr) => tr.style.display = $("#hide-done").checked ? "none" : "");

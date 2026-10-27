@@ -461,16 +461,26 @@ def make_claude_md(book_dir, plugin_dir, title):
     p = os.path.join(book_dir, "CLAUDE.md")
     if os.path.exists(p):
         return
-    tpl = os.path.join(plugin_dir, "skills", "novel-setup", "references", "claude-md-template.md")
+    from . import context, lang as lang_mod
+    tpl = os.path.join(context.lang_plugin(plugin_dir, lang_mod.book_lang(book_dir)), "skills", "novel-setup", "references", "claude-md-template.md")
+    if not os.path.isfile(tpl):
+        tpl = os.path.join(plugin_dir, "skills", "novel-setup", "references", "claude-md-template.md")
     text = ""
     if os.path.isfile(tpl):
         raw = project.read_text(tpl)
-        m = re.search(r"---範本開始---\s*\n(.*?)\n---範本結束---", raw, re.S)
+        m = re.search(r"---(?:範本開始|TEMPLATE START|テンプレート開始)---\s*\n(.*?)\n---(?:範本結束|TEMPLATE END|テンプレート終了)---", raw, re.S)
         text = m.group(1) if m else ""
     if not text:
         text = "# 《{書名}》寫作專案\n\n{一句話鉤子}\n"
-    text = re.sub(r"(?ms)^## 本書特別規則.*?(?=^## |\Z)", "", text)
-    text = text.replace("{書名}", title).replace("{一句話鉤子}", "> 由「匯入舊稿」建立。基本設定還沒填，可以用「開書訪談」或直接編輯這份檔案補齊。")
-    text = re.sub(r"\{[^{}\n]*\}", "（待補）", text)
+    text = re.sub(r"(?ms)^## (?:本書特別規則|Special rules for this book|この本の特別ルール).*?(?=^## |\Z)", "", text)
+    note = {"en": "> Created by importing an old manuscript. The basics are not filled in yet; use the new-book interview or edit this file.",
+            "ja": "> 旧稿の取り込みで作成。基本設定はまだ未記入です。開書インタビューを使うか、このファイルを直接編集してください。"}.get(
+        lang_mod.book_lang(book_dir), "> 由「匯入舊稿」建立。基本設定還沒填，可以用「開書訪談」或直接編輯這份檔案補齊。")
+    for k in ("{書名}", "{Title}"):
+        text = text.replace(k, title)
+    for k in ("{一句話鉤子}", "{One-line hook}", "{一文の引き}"):
+        text = text.replace(k, note)
+    todo = {"en": "(to fill in)", "ja": "（未記入）"}.get(lang_mod.book_lang(book_dir), "（待補）")
+    text = re.sub(r"\{[^{}\n]*\}", todo, text)
     with open(p, "w", encoding="utf-8", newline="\n") as f:
         f.write(text.strip() + "\n")

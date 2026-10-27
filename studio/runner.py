@@ -229,8 +229,10 @@ class Runner:
         if tools:
             cmd += ["--allowedTools"] + list(tools)
         if self.plugin_dir and os.path.isdir(self.plugin_dir):
-            # 工作台內建的 novel-* skills（不依賴 ~/.claude/skills）
-            cmd += ["--plugin-dir", self.plugin_dir, "--add-dir", self.plugin_dir]
+            # 工作台內建的 novel-* skills（不依賴 ~/.claude/skills）；非中文的書改用該語言的 plugin-<語言>/
+            from . import context, lang as lang_mod
+            pdir = context.lang_plugin(self.plugin_dir, lang_mod.book_lang(job.book_dir))
+            cmd += ["--plugin-dir", pdir, "--add-dir", pdir]
         sd = shared.shared_of_book(job.book_dir)
         if os.path.isdir(sd):
             # 書庫的 _共用/（共用作者偏好），讓 Claude 讀得到

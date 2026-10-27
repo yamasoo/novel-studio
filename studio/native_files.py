@@ -41,6 +41,7 @@ def ensure_skeleton(book_dir, plugin_dir):
     from . import lang as lang_mod
     book_lang = lang_mod.book_lang(book_dir)   # 先取：範本複製進來後，裡面的「語言」是範本的預設值
     created = []
+    plugin_dir = context.lang_plugin(plugin_dir, book_lang)
     tpl_dir = os.path.join(plugin_dir, "skills", "novel-setup", "templates")
     for d in SKELETON_DIRS:
         p = os.path.join(book_dir, d)
@@ -150,8 +151,11 @@ def result_text(report, done, skipped):
 # 上下文
 # ---------------------------------------------------------------------------
 def tpl(c, name):
-    p = os.path.join(c.plugin_dir, "skills", "novel-setup", "templates", name)
-    return project.read_text(p) if os.path.isfile(p) else ""
+    for base in (context.lang_plugin(c.plugin_dir), c.plugin_dir):
+        p = os.path.join(base, "skills", "novel-setup", "templates", name)
+        if os.path.isfile(p):
+            return project.read_text(p)
+    return ""
 
 
 def ref(c, rel):

@@ -190,7 +190,11 @@ def create_style(library, name, source=None, sample_text=None, exclude=()):
             raise SharedError("這本書還沒有 設定/文風.md")
         text = project.read_text(src)
     else:
-        text = project.read_text(STYLE_TEMPLATE) if os.path.isfile(STYLE_TEMPLATE) else "---\n類型: 文風\n---\n\n# 文風\n"
+        from . import context, prompts
+        st = os.path.join(context.lang_plugin(os.path.dirname(STYLE_TEMPLATE).rsplit("skills", 1)[0].rstrip("/\\"), prompts.cur_lang()),
+                          "skills", "novel-setup", "templates", "文風.md")
+        st = st if os.path.isfile(st) else STYLE_TEMPLATE
+        text = project.read_text(st) if os.path.isfile(st) else "---\n類型: 文風\n---\n\n# 文風\n"
     text = set_fm(set_fm(text, "名稱", name), "類型", "文風")
     text = re.sub(r"(?m)^# 本書文風\s*$", "# 文風：%s" % name, text, count=1)
     if sample_text:
@@ -254,18 +258,24 @@ def delete_item(library, kind, name):
 # 文字指標（本機統計）
 # ---------------------------------------------------------------------------
 # 統計程式放在 novel-style skill 裡（Claude Code 也能直接執行），這裡載入同一份
-_MM = None
+_MM = {}
 
 
 def _metrics_mod():
-    global _MM
-    if _MM is None:
+    """統計程式；非中文的書用 plugin-<語言>/ 裡自己的那支（有的話），否則用中文版。"""
+    from . import context, prompts
+    base = os.path.join(os.path.dirname(HERE), "plugin")
+    d = context.lang_plugin(base, prompts.cur_lang())
+    if d not in _MM:
         import importlib.util
-        p = os.path.join(os.path.dirname(HERE), "plugin", "skills", "novel-style", "scripts", "style_metrics.py")
-        spec = importlib.util.spec_from_file_location("style_metrics", p)
-        _MM = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(_MM)
-    return _MM
+        p = os.path.join(d, "skills", "novel-style", "scripts", "style_metrics.py")
+        if not os.path.isfile(p):
+            p = os.path.join(base, "skills", "novel-style", "scripts", "style_metrics.py")
+        spec = importlib.util.spec_from_file_location("style_metrics_" + os.path.basename(d), p)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _MM[d] = mod
+    return _MM[d]
 
 
 CJK = re.compile(r"[㐀-鿿豈-﫿]")

@@ -126,6 +126,16 @@ ZH_ONLY_REFS = {"novel-deslop/references/tw-terms.md", "novel-deslop/references/
 LANG_DIR = {"en": "plugin-en", "ja": "plugin-ja"}
 
 
+def lang_plugin(plugin_dir, lang=None):
+    """該語言自己的 plugin 資料夾（plugin-en／plugin-ja，與 plugin 同層）；沒有就回傳原本的 plugin_dir。繁體中文永遠是原本的。"""
+    lang = lang or prompts.cur_lang()
+    if lang != "zh-TW" and plugin_dir:
+        d = os.path.join(os.path.dirname(os.path.normpath(plugin_dir)), LANG_DIR.get(lang, "plugin-" + lang))
+        if os.path.isdir(os.path.join(d, "skills")):
+            return d
+    return plugin_dir
+
+
 def skill_ref(plugin_dir, rel):
     lang = prompts.cur_lang()
     if lang != "zh-TW":

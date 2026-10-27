@@ -26,6 +26,15 @@
 | 匯入舊稿 | 把 TXT、Markdown、Word 舊稿拆成章節放進書裡（左下角，或書架的「匯入舊稿」） |
 | AI 面板 | 切換執行者、所有動作的按鈕、即時輸出（含思考過程）、回覆 AI 的問題、停止任務 |
 
+### 多語系寫作
+
+每本書可以選繁體中文、English、日本語。開書時選語言，之後記在 `設定/故事核心.md` 的 `語言:`。
+
+- 資料夾名、檔名、欄位名與狀態詞維持中文固定詞，內文用書的語言
+- API 模式依語言切換提示詞；Claude Code 模式依語言載入 `plugin/`、`plugin-en/`、`plugin-ja/`
+- 去 AI 味檢查與文字指標有各語言版本；字數英文算詞數、日文算字數
+- 估 token 時，中日文字元用供應商設定的「中文 token 比例」，其他字元約 0.3；用日文寫作時，若估算偏差大，請在供應商設定手動調整比例
+
 ### 候選稿流程
 
 寫章節時，稿子會先進 `候選/`，不會直接進正文：
@@ -361,6 +370,8 @@ novel-studio/
 ├── plugin/             內建的 novel-* skills（Claude Code 外掛格式）
 │   ├── .claude-plugin/plugin.json
 │   └── skills/novel-setup、novel-style、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
+├── plugin-en/          英文版 novel-* skills（內容原創，含英文檢查腳本）
+├── plugin-ja/          日文版 novel-* skills（內容原創，含日文檢查腳本）
 ├── static/             網頁介面（index.html、app.js、style.css、marked.js）
 ├── examples/           範例樣式表（styles.example.json／.xlsx）、完整文風範例（7 種類型）、ComfyUI 範本 workflow（comfy/）
 └── demo/               新手教學簡報（小說工作台_新手教學.pptx）、示範書（退婚之後/）

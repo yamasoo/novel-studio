@@ -43,7 +43,7 @@ class ClaudeOnceError(Exception):
     pass
 
 
-def claude_print(cfg, prompt, system="", cwd=None, should_stop=None, timeout=1800):
+def claude_print(cfg, prompt, system="", cwd=None, should_stop=None, timeout=1800, model=None):
     """呼叫一次 claude -p（不用工具、不接續對話），回傳 (文字, usage)。
     用在工作台自己分批的長任務：每一批都是獨立的一次呼叫，不會把整本書塞進同一個對話。"""
     exe = find_claude(cfg.get("claude_cmd"))
@@ -53,8 +53,8 @@ def claude_print(cfg, prompt, system="", cwd=None, should_stop=None, timeout=180
            "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit,Read,Glob,Grep,WebFetch,WebSearch,Task"]
     if system:
         cmd += ["--append-system-prompt", " ".join(system.split())]   # 保持單行（Windows 的 claude.cmd）
-    if cfg.get("model"):
-        cmd += ["--model", cfg["model"]]
+    if model or cfg.get("model"):
+        cmd += ["--model", model or cfg["model"]]
     kw = {}
     if IS_WIN:
         kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -236,8 +236,9 @@ class Runner:
             d = os.path.expandvars(os.path.expanduser(d))
             if os.path.isdir(d):
                 cmd += ["--add-dir", d]
-        if cfg.get("model"):
-            cmd += ["--model", cfg["model"]]
+        model = (job.provider or {}).get("model") or cfg.get("model")   # 選了「Claude Code · Opus」這類時用選的模型
+        if model:
+            cmd += ["--model", model]
         if job.resume:
             cmd += ["--resume", job.resume]
         return cmd

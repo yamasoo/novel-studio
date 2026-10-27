@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.12.0"
+VERSION = "1.13.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -95,11 +95,19 @@ CLAUDE_SPECIAL = {}   # 動作 → 建立 Claude Code 特殊任務的函式（�
 
 
 def get_provider(pid=None):
+    """pid 可以是「執行者」或「執行者/模型」（例如 deepseek/deepseek-v4-pro）。"""
     pid = pid or CONFIG.get("default_provider") or "claude_code"
-    for p in CONFIG.get("providers") or []:
-        if p.get("id") == pid:
-            return p
+    p = providers.resolve(CONFIG.get("providers") or [], pid)
+    if p:
+        return p
+    base = pid.partition("/")[0]
+    if base != pid and providers.resolve(CONFIG.get("providers") or [], base):
+        raise HTTPException(400, "執行者「%s」的模型清單裡沒有「%s」（可能已經從設定刪掉），請重新選擇。" % (base, pid.partition("/")[2]))
     raise HTTPException(400, "找不到執行者：%s" % pid)
+
+
+def provider_ids():
+    return {c["id"] for c in providers.choices(CONFIG.get("providers") or [])}
 
 app = FastAPI(title="小說工作台")
 
@@ -135,7 +143,8 @@ async def http_err(request, exc):
 @app.get("/api/config")
 def get_config():
     exe = runner_mod.find_claude(CONFIG.get("claude_cmd"))
-    return {"config": CONFIG, "claude_found": exe, "version": VERSION,
+    # choices：所有「執行者＋模型」的選項（前端下拉選單用；不寫回設定檔）
+    return {"config": dict(CONFIG, choices=providers.choices(CONFIG.get("providers") or [])), "claude_found": exe, "version": VERSION,
             "port": int(CONFIG.get("port", 8765)), "running_port": RUNNING_PORT, "can_restart": SERVER is not None,
             "library_exists": os.path.isdir(CONFIG.get("library") or ""),
             "key_status": {p["id"]: providers.key_status(HERE, p) for p in CONFIG.get("providers") or []},
@@ -151,8 +160,7 @@ async def set_config(req: Request):
         if k in body:
             CONFIG[k] = body[k]
     if "pipeline_providers" in body:
-        ids = {p.get("id") for p in CONFIG.get("providers") or []}
-        CONFIG["pipeline_providers"] = pipeline.clean_step_providers(body.get("pipeline_providers"), ids)
+        CONFIG["pipeline_providers"] = pipeline.clean_step_providers(body.get("pipeline_providers"), provider_ids())
     if "port" in body:
         try:
             port = int(body["port"])
@@ -204,6 +212,8 @@ async def set_providers(req: Request):
         for st in providers.STAGES:
             v = r.get(st)
             clean["reasoning"][st] = v if v in providers.EFFORTS else providers.DEFAULT_REASONING[st]
+        if pid != "llamacpp":
+            clean["models"] = providers.clean_models(p.get("models"), providers.STAGES, providers.EFFORTS)
         keep.append(clean)
         seen.add(pid)
     CONFIG["providers"] = keep
@@ -802,8 +812,8 @@ def illust_config():
         err = str(e)
     return {"config": cfg, "sizes": illust.SIZES, "tag_csv": t, "tag_zh_csv": z, "sheet": sheet, "sheet_count": n,
             "sheet_is_example": bool(sheet) and not cfg.get("style_sheet"),
-            "sheet_error": err, "providers": [{"id": p["id"], "name": p.get("name"), "type": p.get("type")}
-                                              for p in CONFIG.get("providers") or []]}
+            "sheet_error": err, "providers": [{"id": c["id"], "name": c["name"], "type": c["type"]}
+                                              for c in providers.choices(CONFIG.get("providers") or [])]}
 
 
 @app.post("/api/illust/config")
@@ -1118,7 +1128,7 @@ def _backend_cfg(cfg, spec, backend=None, profile=None):
         spec["format"] = "natural"
         spec["quality"], spec["safety"], spec["artist"] = "", "", ""
         cfg.update(format="natural", quality="", safety="", style_source="naturl_prompt",
-                   negative=p.get("negative") or comfy.MOSS_NEGATIVE)
+                   negative=p.get("negative") or comfy.MOSS_NEGATIVE, allow_text=True)
     return cfg
 
 
@@ -1167,6 +1177,8 @@ async def book_illust_generate(book_id: str, req: Request):
     prof = comfy_profile(cfg, body.get("profile")) if backend == "comfy" else None
     if prof:
         w, h = int(w) // 16 * 16, int(h) // 16 * 16   # MOSS／Flux2 系的 latent 要 16 的倍數
+        if prof.get("kind") == "moss" and illust.clean_texts(draft.get("texts")):
+            meta["texts"] = illust.clean_texts(draft.get("texts"))
     positive = body["positive"]
     if backend != "comfy":
         on = comfy.active_loras({"loras": cfg.get("forge_loras") or []})
@@ -1283,6 +1295,41 @@ def claude_reader_recon_job(book_id, d, prov, params):
     return job
 
 
+def claude_deslop_job(book_id, d, prov, params):
+    """Claude Code 去 AI 味：不改原稿，改好的全文寫到暫存檔，工作台建立逐段對照（或流程裡直接全部套用）。"""
+    no = int(params.get("chapter"))
+    where = ("候選",) if params.get("candidate") else ("正文",)
+    rel, base_text = context.chapter_text(d, no, where)
+    if not base_text:
+        raise HTTPException(400, "第%d章沒有%s" % (no, where[0] if where[0] == "正文" else "候選稿"))
+    pending = revision.load_revision(d, no)
+    if pending and not params.get("auto_apply"):
+        raise HTTPException(409, "第%d章還有一份待確認的修訂。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % no)
+    draft = ".studio/修訂/第%03d章.draft.md" % no
+    note = (params.get("note") or "").strip()
+    prompt = ("請使用 novel-deslop skill 處理第%d章（原稿在 %s，用 Read 讀取）：先跑檢查腳本，修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。%s\n"
+              "**不要修改原稿**；把改好的完整章節（含「# 第%d章 章名」標題）寫到 %s。沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對）。\n"
+              "最後一則回覆是給作者的匯報。%s" % (no, rel, ("作者這次的要求：" + note) if note else "", no, draft, revision.CHANGE_TABLE_RULE))
+    job = runner_mod.Job(book_id, d, "去AI味 第%d章" % no, prompt, provider=prov, meta={"action": "deslop", "params": params})
+
+    def after(j):
+        p = os.path.join(d, draft)
+        if not os.path.isfile(p):
+            raise RuntimeError("Claude 沒有產生去 AI 味的稿子（%s）。" % draft)
+        new_text = project.read_text(p)
+        os.remove(p)
+        if pending:
+            revision.discard_revision(d, no)
+        title = native._split_output(new_text, no, native._card_title(d, no))[0]
+        fixed, _ = check_text.fix_punct(new_text)
+        j.result = native.deslop_result(d, book_id, no, rel, base_text, title, fixed, j.result or "", prov.get("id"),
+                                        auto_apply=bool(params.get("auto_apply")), checker=check_text)
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
+CLAUDE_SPECIAL.update({"deslop": claude_deslop_job})
 CLAUDE_SPECIAL.update({"reader_init": claude_reader_job, "reader_reconcile": claude_reader_recon_job})
 CLAUDE_SPECIAL.update({"goal_check": claude_goal_job, "review_notes": claude_review_job,
                        "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
@@ -1640,8 +1687,6 @@ def _attach_fidelity(job, d, params):
 def attach_wb_check(job, d, action, params, prov):
     """Claude Code 回寫追蹤（採用、補齊）結束後，跑本機的回寫檢查，結果接在任務結果後面。
     API 模型在 native._writeback 裡自己跑。"""
-    if prov.get("type") == "claude_code" and action == "deslop":
-        return _attach_fidelity(job, d, params)
     if prov.get("type") != "claude_code" or action not in ("accept", "sync_tracking"):
         return job
     before = tracking.tracked_to(d)
@@ -1755,7 +1800,7 @@ async def pipeline_start(book_id: str, req: Request):
     sev = body.get("severities")
     if sev is None:
         sev = CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES
-    ids = {x.get("id") for x in CONFIG.get("providers") or []}
+    ids = provider_ids()
     sp = body.get("step_providers")
     if sp is None:
         sp = CONFIG.get("pipeline_providers") or {}

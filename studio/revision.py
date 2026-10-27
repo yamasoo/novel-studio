@@ -220,10 +220,36 @@ def diff_blocks(old_text, new_text):
     return blocks
 
 
-def save_revision(book_dir, no, base_path, base_text, new_title, new_text, notes, report, provider):
+CHANGE_TABLE_RULE = ("匯報裡用表格逐處列出改動，格式固定為：\n| 原句 | 為什麼改 | 改成什麼 |\n|---|---|---|\n"
+                     "「原句」照原稿抄（太長就抄前 30 字，要能在原稿找到）；「為什麼改」寫類別，例如：罐頭反應、替讀者點題、"
+                     "敘述者解釋、章尾昇華、萬用表情、萬用比喻、說明書式對白、短句轟炸、破折號太多、大陸用語、簡體字、標點；"
+                     "「改成什麼」寫改後的句子，刪掉就寫「（刪除）」。最多 40 列，同類太多時最後一列寫「其他 N 處同類」。"
+                     "表格之後再用一兩句說明刻意保留了什麼。")
+
+
+def parse_change_table(report):
+    """從匯報抓出「原句｜為什麼改｜改成什麼」表格。"""
+    items = []
+    for line in (report or "").split("\n"):
+        s = line.strip()
+        if not s.startswith("|") or re.match(r"^\|[\s:\-|]+\|$", s):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if len(cells) < 3 or cells[0] in ("原句", "原文") or not cells[0]:
+            continue
+        items.append({"old": cells[0], "why": cells[1], "new": "｜".join(cells[2:])})
+    return items
+
+
+def _norm(s):
+    return re.sub(r"[\s「」『』，。、！？：；…—\-*_]", "", s or "")
+
+
+def save_revision(book_dir, no, base_path, base_text, new_title, new_text, notes, report, provider, kind="revise", items=None):
     rec = {"chapter": no, "base_path": base_path, "base_hash": goals.text_hash(base_text), "base_text": base_text,
            "new_title": new_title, "new_text": new_text, "notes": notes, "report": report,
-           "created": time.time(), "provider": provider}
+           "created": time.time(), "provider": provider, "kind": kind,
+           "items": items if items is not None else (parse_change_table(report) if kind == "deslop" else [])}
     with open(os.path.join(_dir(book_dir, "修訂"), "第%03d章.json" % no), "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False, indent=1)
     return rec
@@ -239,6 +265,23 @@ def load_revision(book_dir, no):
     rec["stale"] = not os.path.isfile(full) or goals.text_hash(project.read_text(full)) != rec["base_hash"]
     rec["blocks"] = diff_blocks(rec["base_text"], rec["new_text"])
     rec["changes"] = sum(1 for b in rec["blocks"] if b["type"] == "change")
+    # 去 AI 味：把逐處清單對到段落上（用原句在原文段落裡找），對照畫面每段旁邊顯示修改原因
+    items = rec.get("items") or []
+    if items:
+        used = set()
+        for b in rec["blocks"]:
+            if b["type"] != "change":
+                continue
+            olds = _norm("".join(b["old"]))
+            news = _norm("".join(b["new"]))
+            rs = []
+            for i, it in enumerate(items):
+                k = _norm(it["old"])[:30]
+                if i not in used and k and (k in olds or (not olds and _norm(it["new"])[:20] in news)):
+                    rs.append(it)
+                    used.add(i)
+            b["reasons"] = rs
+        rec["unmatched"] = [it for i, it in enumerate(items) if i not in used]
     return rec
 
 
@@ -268,6 +311,17 @@ def apply_revision(book_dir, no, choices, checker):
     text = "\n\n".join(out).strip() + "\n"
     if checker:
         text, _ = checker.fix_punct(text)
+    if rec.get("kind") == "deslop":
+        # 去 AI 味不改劇情事實：寫回原本那份（正文或候選稿），原檔先備份；正文不用重跑回寫追蹤
+        full = os.path.join(book_dir, rec["base_path"])
+        bak = tracking.backup(book_dir, full, "去AI味前")
+        with open(full, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        discard_revision(book_dir, no)
+        from . import fidelity
+        fid = fidelity.run(book_dir, no, rec["base_path"], rec["base_text"], text)
+        return {"path": rec["base_path"], "used_new": used_new, "kept_old": kept_old, "from_text": rec["base_path"].startswith("正文"),
+                "kind": "deslop", "backup": os.path.relpath(bak, book_dir).replace("\\", "/"), "fidelity": fid.strip()}
     # 寫成候選稿（原本是候選稿就覆蓋，原本是正文就另存候選，採用時再回寫追蹤）
     cand_dir = os.path.join(book_dir, "候選")
     os.makedirs(cand_dir, exist_ok=True)

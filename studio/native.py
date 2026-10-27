@@ -105,7 +105,7 @@ class Ctx:
         prompt = "\n\n".join(m["content"] for m in messages if m["role"] != "system")
         self.job.emit("stream_start", text=label + "（Claude Code）", json=True)
         try:
-            text, usage = runner.claude_print(self.opts or {}, prompt, system, cwd=self.book,
+            text, usage = runner.claude_print(self.opts or {}, prompt, system, cwd=self.book, model=self.prov.get("model"),
                                               should_stop=lambda: self.job.status == "cancelled")
         except runner.ClaudeOnceError as e:
             self.job.emit("stream_end")
@@ -304,11 +304,16 @@ def act_revise(c, p):
 
 
 def act_deslop(c, p):
+    """去 AI 味：結果存成一份待確認的修訂（逐段對照、逐處列出原因），不直接覆蓋稿子。
+    p["auto_apply"]（整章自動流程）：跑完直接全部套用。"""
     no = int(p.get("chapter"))
     where = "候選" if p.get("candidate") else "正文"
     path, src = context.chapter_text(c.book, no, (where,))
     if not src:
         raise NativeError("第%d章沒有%s" % (no, "候選稿" if where == "候選" else "正文"))
+    pending = revision.load_revision(c.book, no)
+    if pending and not p.get("auto_apply"):
+        raise NativeError("第%d章還有一份待確認的修訂（%d 處變更）。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % (no, pending["changes"]))
     res = c.checker.check_file(os.path.join(c.book, path), c.checker.load_whitelist(c.book))
     finds = "\n".join("- 第%s行｜%s｜%s｜%s → %s" % (f["行"] or "全章", f["等級"], f["類型"], f["片段"], f["建議"])
                       for f in res["問題"][:60]) or "（腳本沒有發現問題）"
@@ -318,25 +323,34 @@ def act_deslop(c, p):
     user = (ref + "\n\n【檢查腳本的發現】\n" + finds + "\n\n【原稿】\n" + context.body(src) +
             "\n\n【任務】去除 AI 味並校正台灣用語：先修必須修的項目，再處理語意層的 AI 味（替讀者點題、敘述者解釋、章尾昇華、萬用表情與比喻堆疊、說明書式對白）。"
             "能刪就刪，否則換成具體動作、物件、對白；不改變劇情事實、人物決定與資訊揭露程度；作者文風允許的寫法保留。"
-            "輸出完整的修改後章節。匯報寫：改了幾處、主要是哪幾類、刻意保留了什麼。\n" +
+            "沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對新舊版本）。輸出完整的修改後章節。\n"
+            + revision.CHANGE_TABLE_RULE + "\n" +
             (("作者這次的要求：" + p["note"].strip() + "\n") if (p.get("note") or "").strip() else "") + FORMAT_RULE.format(n=no))
     msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="去 AI 味：第%d章" % no, stage="draft")
     title, text, report = _split_output(out, no, _card_title(c.book, no))
-    full = os.path.join(c.book, path)
-    if where == "候選":
-        rel, _ = _save_candidate(c, no, title, text)
-    else:
-        bak = tracking.backup(c.book, full, "去AI味前")
-        fixed, _ = c.checker.fix_punct(text)
-        with open(full, "w", encoding="utf-8", newline="\n") as f:
-            f.write(fixed)
-        rel = path
-        report += "\n\n原稿已備份到 %s" % os.path.relpath(bak, c.book).replace("\\", "/")
-    _, chk = _check_summary(c, rel)
-    fid = fidelity.run(c.book, no, rel, src, project.read_text(os.path.join(c.book, rel)))
-    c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "deslop", "chapter": no, "path": rel})
-    c.job.result = "**第%d章已去 AI 味（%s）**\n\n%s\n\n%s%s" % (no, rel, report, chk, fid)
+    fixed, _ = c.checker.fix_punct(text)
+    if pending:
+        revision.discard_revision(c.book, no)
+    c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "deslop", "chapter": no, "path": path})
+    c.job.result = deslop_result(c.book, c.job.book_id, no, path, src, title, fixed, report, c.prov.get("id"),
+                                 auto_apply=bool(p.get("auto_apply")), checker=c.checker)
+
+
+def deslop_result(book, book_id, no, path, src, title, text, report, provider, auto_apply=False, checker=None):
+    """把去 AI 味的結果存成待確認修訂（或直接全部套用），回傳匯報文字。Claude Code 與 API 模型共用。"""
+    items = revision.parse_change_table(report)
+    rec = revision.save_revision(book, no, path, src, title, text, "去 AI 味", report, provider, kind="deslop", items=items)
+    n = sum(1 for b in revision.diff_blocks(src, text) if b["type"] == "change")
+    if auto_apply:
+        r = revision.apply_revision(book, no, {}, checker)
+        return "**第%d章已去 AI 味（%s）**：%d 處段落變更，全部套用（整章自動流程）；原稿已備份到 %s\n\n%s%s" % (
+            no, path, n, r["backup"], report, ("\n\n" + r["fidelity"]) if r.get("fidelity") else "")
+    preview = fidelity.compare(book, src, text) if rec else []
+    return ("**第%d章去 AI 味好了，等你逐段確認**（%s，%d 處段落變更、逐處清單 %d 條）。稿子還沒被改動；"
+            "到 [第%d章的修訂對照](#/b/%s/ch/%d?tab=revision) 逐段選「修訂」或「原文」後按「套用」，會寫回 %s（原檔先備份）。\n\n%s%s" % (
+                no, path, n, len(items), no, urllib.parse.quote(book_id), no, path, report,
+                ("\n\n**保真檢查（全部套用的話）**\n" + "\n".join("- %s：%s" % (x["kind"], x["text"]) for x in preview)) if preview else ""))
 
 
 def _writeback(c, no):

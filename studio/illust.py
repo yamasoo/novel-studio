@@ -793,6 +793,53 @@ def _sentence(s):
     return s if not s or s[-1] in ".!?。" else s + "."
 
 
+# 圖中文字（目前只給 ComfyUI 的 MOSS-Image：寫成描述句，照官方 Prompt Enhancer 的文字規則）
+TEXT_KINDS = {"title": "title text", "sign": "text on a signboard", "bubble": "speech bubble",
+              "caption": "caption text", "other": "text"}
+TEXT_POS = {"tl": "in the top-left corner", "t": "across the top", "tr": "in the top-right corner",
+            "l": "on the left side", "c": "in the center", "r": "on the right side",
+            "bl": "in the bottom-left corner", "b": "across the bottom", "br": "in the bottom-right corner"}
+TEXT_SIZE = {"l": "large", "m": "medium-sized", "s": "small"}
+TEXT_FONT = {"": "", "brush": "brush calligraphy", "bold": "bold sans-serif", "serif": "elegant serif",
+             "hand": "handwritten", "pixel": "pixel"}
+TEXT_NEG = re.compile(r"^(text|english text|chinese text|japanese text|letters?|title|speech bubble|artist name|signature)$", re.I)
+MAX_TEXTS = 6
+
+
+def clean_texts(items):
+    out = []
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        t = str(it.get("text") or "").strip().replace('"', "”")
+        if not t:
+            continue
+        out.append({"text": t[:120], "kind": it.get("kind") if it.get("kind") in TEXT_KINDS else "title",
+                    "pos": it.get("pos") if it.get("pos") in TEXT_POS else "t",
+                    "size": it.get("size") if it.get("size") in TEXT_SIZE else "l",
+                    "font": it.get("font") if it.get("font") in TEXT_FONT else "",
+                    "color": re.sub(r"\s+", " ", str(it.get("color") or "")).strip()[:40],
+                    "book": bool(it.get("book"))})
+    return out[:MAX_TEXTS]
+
+
+def text_sentences(items):
+    """回傳英文描述句。文字內容放雙引號、原文照放（中文保留中文）。"""
+    lines = []
+    for it in clean_texts(items):
+        font = TEXT_FONT[it["font"]]
+        look = " ".join(x for x in [it["color"], (font + " lettering") if font else ""] if x)
+        size = TEXT_SIZE[it["size"]]
+        if it["kind"] == "bubble":
+            s = 'A %s speech bubble %s with the text "%s"' % (size, TEXT_POS[it["pos"]], it["text"])
+        else:
+            s = 'A %s %s "%s" %s' % (size, TEXT_KINDS[it["kind"]], it["text"], TEXT_POS[it["pos"]])
+        lines.append(s + (", in " + look if look else "") + ", clearly legible.")
+    if lines:
+        lines.append("No other text appears in the image.")
+    return " ".join(lines)
+
+
 def assemble(spec, cfg, sheet_path=None):
     """spec：{format, quality, safety, artist, chars:[{name, tags, description, position, action}],
     scene_tags, action_tags, composition, sentences, extra, negative_extra, styles:[], style_source, seed}
@@ -854,8 +901,13 @@ def assemble(spec, cfg, sheet_path=None):
             lines.append(place_desc)
         elif fmt == "natural" and scene:
             lines.append("Scene elements: " + scene + ".")
+    texts = text_sentences(spec.get("texts")) if cfg.get("allow_text") else ""
+    if texts:
+        lines.append(texts)
     core = "\n".join(l for l in lines if l.strip())
     neg = normalize_tags(", ".join(x for x in [cfg.get("negative", ""), spec.get("negative_extra", "")] if x))
+    if texts:   # 負面提示詞裡和文字有關的詞會跟要放的字互相抵消
+        neg = ", ".join(t for t in neg.split(", ") if t and not TEXT_NEG.match(t.strip("() ").split(":")[0]))
     styles = spec.get("styles") or []
     if styles and sheet_path:
         core, sneg, used = apply_styles(core, "", styles, sheet_path, spec.get("style_source") or cfg.get("style_source", "prompt"),

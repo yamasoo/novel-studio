@@ -862,14 +862,18 @@ function inlineHtml(segs, side) {
 function renderRevision(el, no, rv) {
   if (!rv) { el.innerHTML = '<div class="card empty">沒有待確認的修訂。</div>'; return; }
   const choice = {};
+  const ds = rv.kind === "deslop";
+  const reasonsHtml = (b) => (b.reasons || []).length ? `<div class="rv-why small">${b.reasons.map((r) =>
+    `<div><span class="badge b-warn">${esc(r.why || "")}</span> ${esc(r.old)} → ${esc(r.new)}</div>`).join("")}</div>` : "";
   const draw = () => {
     let n = 0;
     el.innerHTML = `
       <div class="card" style="margin-bottom:14px">
-        <div class="row"><b>修訂對照</b><span class="badge">${rv.changes} 處變更</span><span class="muted small">原稿：${esc(rv.base_path)}　·　${fmtTime(rv.created)}</span>
+        <div class="row"><b>${ds ? "去 AI 味對照" : "修訂對照"}</b><span class="badge">${rv.changes} 處變更</span>${ds && (rv.items || []).length ? `<span class="badge">逐處清單 ${rv.items.length} 條</span>` : ""}<span class="muted small">原稿：${esc(rv.base_path)}　·　${fmtTime(rv.created)}</span>
           <span class="grow"></span><button class="sm" id="rv-all-new">全部採用修訂</button><button class="sm" id="rv-all-old">全部保留原文</button></div>
         ${rv.stale ? '<div class="alert warn" style="margin-top:8px"><span class="k">對不上</span><span class="t">原稿在修訂之後被改過了，這份修訂不能套用，請捨棄後重新修訂。</span></div>' : ""}
-        <details style="margin-top:8px"><summary class="small">處理的意見與 AI 的說明</summary><div class="md small" style="margin-top:6px">${md("**意見**\n\n" + (rv.notes || "") + "\n\n**說明**\n\n" + (rv.report || ""))}</div></details>
+        <details style="margin-top:8px"${ds ? " open" : ""}><summary class="small">${ds ? "AI 的逐處清單與說明" : "處理的意見與 AI 的說明"}</summary><div class="md small" style="margin-top:6px">${md(ds ? (rv.report || "") : "**意見**\n\n" + (rv.notes || "") + "\n\n**說明**\n\n" + (rv.report || ""))}</div></details>
+        ${ds && (rv.unmatched || []).length ? `<div class="muted small" style="margin-top:6px">清單裡有 ${rv.unmatched.length} 條對不到段落（AI 抄的原句和原稿不完全一樣），只列在上面的清單裡。</div>` : ""}
       </div>
       <div class="rv-blocks">${rv.blocks.map((b) => {
         if (b.type === "same") {
@@ -882,13 +886,14 @@ function renderRevision(el, no, rv) {
         const newHtml = b.new.length ? b.new.map((x, i) => `<p>${b.inline ? inlineHtml(b.inline[i], "new") : esc(x)}</p>`).join("") : '<p class="muted small">（修訂刪掉了這段）</p>';
         return `<div class="rv-change">
           <div class="rv-side old ${useNew ? "" : "chosen"}" data-k="${k}" data-v="old"><div class="rv-tag">原文</div>${oldHtml}</div>
-          <div class="rv-side new ${useNew ? "chosen" : ""}" data-k="${k}" data-v="new"><div class="rv-tag">修訂</div>${newHtml}</div>
+          <div class="rv-side new ${useNew ? "chosen" : ""}" data-k="${k}" data-v="new"><div class="rv-tag">修訂</div>${newHtml}${reasonsHtml(b)}</div>
         </div>`;
       }).join("")}</div>
       <div class="card row" style="margin-top:14px;position:sticky;bottom:10px">
-        <span class="muted small">點左右兩邊選擇要的版本。套用後會存成候選稿${rv.base_path.startsWith("正文") ? "（原本的正文不動，採用候選稿時才覆蓋並回寫追蹤）" : ""}。</span>
-        <span class="grow"></span><button class="sm danger" id="rv-discard">捨棄這份修訂</button>
-        <button class="primary" id="rv-apply" ${rv.stale ? "disabled" : ""}>套用到候選稿</button></div>`;
+        <span class="muted small">點左右兩邊選擇要的版本。${ds ? `套用後寫回 ${esc(rv.base_path)}（原檔先備份${rv.base_path.startsWith("正文") ? "；去 AI 味不改劇情，不用重跑回寫追蹤" : ""}），並跑一次保真檢查。`
+          : `套用後會存成候選稿${rv.base_path.startsWith("正文") ? "（原本的正文不動，採用候選稿時才覆蓋並回寫追蹤）" : ""}。`}</span>
+        <span class="grow"></span><button class="sm danger" id="rv-discard">捨棄這份${ds ? "去 AI 味結果" : "修訂"}</button>
+        <button class="primary" id="rv-apply" ${rv.stale ? "disabled" : ""}>${ds ? "套用" : "套用到候選稿"}</button></div>`;
     el.querySelectorAll(".rv-side").forEach((d) => d.onclick = () => { choice[d.dataset.k] = d.dataset.v; draw(); });
     $("#rv-all-new", el).onclick = () => { rv.blocks.forEach((b) => { if (b.type === "change") choice[b.index] = "new"; }); draw(); };
     $("#rv-all-old", el).onclick = () => { rv.blocks.forEach((b) => { if (b.type === "change") choice[b.index] = "old"; }); draw(); };
@@ -900,7 +905,8 @@ function renderRevision(el, no, rv) {
       try {
         const r = await api("POST", B(`/revision/${no}/apply`), { choices: choice });
         toast(`已套用：採用修訂 ${r.used_new} 處、保留原文 ${r.kept_old} 處`);
-        go(`#/b/${enc(S.book)}/ch/${no}?tab=candidate`);
+        go(`#/b/${enc(S.book)}/ch/${no}?tab=${r.kind === "deslop" && r.from_text ? "text" : "candidate"}`);
+        if (r.kind === "deslop" && r.fidelity) setTimeout(() => modal(`<h2>保真檢查</h2><div class="md">${md(r.fidelity)}</div><div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`), 800);
       } catch (e) { fail(e); }
     };
   };
@@ -1139,7 +1145,7 @@ async function viewSettings(view) {
     <div class="card">
       <h2 style="margin-bottom:4px">AI 執行者</h2>
       <div class="muted small" style="margin-bottom:12px">Claude Code 用你的訂閱，會自己讀寫檔案，所有功能都能用。其他模型（DeepSeek、本機 llama.cpp 等 OpenAI 相容服務）由工作台組裝資料再送出，所有按鈕都能用，結果由工作台檢查後寫檔。</div>
-      <label class="f"><span>預設執行者</span><select id="c-defprov">${(c.providers || []).map((p) => `<option value="${esc(p.id)}" ${p.id === c.default_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <label class="f"><span>預設執行者</span><select id="c-defprov">${provOpts(c.default_provider)}</select></label>
       <div id="key-store" style="margin-bottom:10px"></div>
       <div id="prov-list"></div>
       <button class="sm" id="prov-add">＋ 新增 OpenAI 相容服務</button>
@@ -1163,7 +1169,7 @@ async function viewSettings(view) {
       <div class="muted small" style="margin-top:6px">章綱核對發現沒寫到的情節點，會一併交給修訂。開始時也可以臨時改這兩項。</div>
       <div class="f" style="margin-top:12px"><span>各步驟的執行者（面板上對應的按鈕也預設用這裡的分配）</span></div>
       <div class="grid g4" id="c-pprov">${AI_STEP_LABELS.map(([k, l]) => `<label class="f"><span>${esc(l)}</span><select data-step="${k}">
-        <option value="">跟流程的執行者</option>${(c.providers || []).map((p) => `<option value="${esc(p.id)}" ${(c.pipeline_providers || {})[k] === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>`).join("")}</div>
+        <option value="">跟流程的執行者</option>${provOpts((c.pipeline_providers || {})[k])}</select></label>`).join("")}</div>
       <div class="muted small">建議：寫章節、去 AI 味、修訂用寫作品質最好的模型；審查可以換另一個模型交叉檢查；定稿回寫追蹤會改寫時間線與伏筆，不建議交給小型本機模型。指定的執行者連不上時，流程會停在那一步。</div>
     </div>
     <div class="card" id="ill-settings"></div>
@@ -1201,6 +1207,23 @@ async function viewSettings(view) {
           <label class="f"><span>輸入價格（每百萬 tokens，美元，選填）</span><input type="number" step="0.01" data-k="price_in" value="${esc(p.price_in || 0)}"></label>
           <label class="f"><span>輸出價格（每百萬 tokens，美元，選填）</span><input type="number" step="0.01" data-k="price_out" value="${esc(p.price_out || 0)}"></label>
         </div>
+        ${p.id !== "llamacpp" ? `<div class="reason-box">
+          <div class="row" style="margin-bottom:4px"><b class="small">可用模型</b><span class="muted small">預設模型是上面的「模型名稱」。這裡加上其他模型後，各處的執行者選單就能選「${esc(p.name || p.id)} · 模型」；金鑰共用，空白的欄位沿用上面的設定。</span>
+            <span class="grow"></span><button class="sm" data-a="addm">新增模型</button></div>
+          ${(p.models || []).length ? `<div class="row muted small" style="gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span style="width:190px">模型代號</span><span style="width:130px">顯示名稱</span><span style="width:110px">上下文長度</span><span style="width:100px">最大輸出</span>
+            <span style="width:90px">輸入價格</span><span style="width:90px">輸出價格</span><span style="width:120px">每個中文字幾 token</span></div>` : ""}
+          ${(p.models || []).map((m, j) => `<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+            <input type="text" data-m="${j}" data-mk="id" value="${esc(m.id || "")}" placeholder="模型代號" list="ml-${i}" style="width:190px">
+            <input type="text" data-m="${j}" data-mk="name" value="${esc(m.name || "")}" placeholder="顯示名稱（選填）" style="width:130px">
+            <input type="number" data-m="${j}" data-mk="context_tokens" value="${esc(m.context_tokens || "")}" placeholder="上下文長度" style="width:110px">
+            <input type="number" data-m="${j}" data-mk="max_output" value="${esc(m.max_output || "")}" placeholder="最大輸出" style="width:100px">
+            <input type="number" step="0.01" data-m="${j}" data-mk="price_in" value="${esc(m.price_in || "")}" placeholder="輸入價格" style="width:90px">
+            <input type="number" step="0.01" data-m="${j}" data-mk="price_out" value="${esc(m.price_out || "")}" placeholder="輸出價格" style="width:90px">
+            <input type="number" step="0.05" data-m="${j}" data-mk="cjk_token_ratio" value="${esc(m.cjk_token_ratio || "")}" placeholder="中文 token 比例" style="width:120px">
+            <button class="sm danger" data-mdel="${j}" title="移除這個模型">✕</button></div>`).join("") || '<div class="muted small">還沒有其他模型。按「測試連線／抓模型清單」後，可以從清單點選加入。</div>'}
+          <div class="small" data-mchips style="margin-top:6px"></div>
+        </div>` : ""}
         <label class="cb"><input type="checkbox" data-k="json_mode" ${p.json_mode !== false ? "checked" : ""}> 支援 JSON 模式（response_format）</label>
         <div class="reason-box">
           <div class="row" style="margin-bottom:6px"><b class="small">思考強度</b><span class="muted small">推理模型的思考也算在輸出 token 裡；整理 JSON 這類格式任務通常可以關閉。</span></div>
@@ -1218,6 +1241,25 @@ async function viewSettings(view) {
         provs[i][k] = inp.type === "checkbox" ? inp.checked : inp.value;
       });
       card.querySelector("[data-key]").oninput = (ev) => { keys[provs[i].id] = ev.target.value; };
+      card.querySelectorAll("[data-mk]").forEach((inp) => inp.oninput = () => {
+        const m = provs[i].models[+inp.dataset.m];
+        m[inp.dataset.mk] = inp.value.trim();
+      });
+      card.querySelectorAll("[data-mdel]").forEach((b) => b.onclick = () => { provs[i].models.splice(+b.dataset.mdel, 1); renderProvs(); });
+      if (card.querySelector('[data-a="addm"]')) card.querySelector('[data-a="addm"]').onclick = () => {
+        provs[i].models = provs[i].models || []; provs[i].models.push({ id: "" }); renderProvs();
+      };
+      const chips = (models) => {
+        const box = card.querySelector("[data-mchips]");
+        if (!box) return;
+        const have = new Set([provs[i].model, ...(provs[i].models || []).map((m) => m.id)]);
+        const left = models.filter((m) => !have.has(m));
+        box.innerHTML = left.length ? `<span class="muted">點一下加入：</span>${left.map((m) => `<button class="sm ghost" data-addm="${esc(m)}">＋ ${esc(m)}</button>`).join(" ")}` : "";
+        box.querySelectorAll("[data-addm]").forEach((b) => b.onclick = () => {
+          provs[i].models = provs[i].models || []; provs[i].models.push({ id: b.dataset.addm }); renderProvs();
+        });
+      };
+      if (provs[i]._fetched) chips(provs[i]._fetched);
       card.querySelectorAll("[data-r]").forEach((sel) => sel.onchange = () => {
         provs[i].reasoning = Object.assign({}, provs[i].reasoning || {}, { [sel.dataset.r]: sel.value });
       });
@@ -1242,6 +1284,7 @@ async function viewSettings(view) {
           const r = await api("POST", `/api/providers/${enc(provs[i].id)}/models`);
           $(`#ml-${i}`).innerHTML = r.models.map((m) => `<option value="${esc(m)}">`).join("");
           msg.innerHTML = `<span class="badge b-ok">連線成功</span> 可用模型：${r.models.map(esc).join("、") || "（伺服器沒有列出）"}`;
+          provs[i]._fetched = r.models; chips(r.models);
           if (!provs[i].model && r.models.length === 1) { provs[i].model = r.models[0]; card.querySelector('[data-k="model"]').value = r.models[0]; }
         } catch (e) { msg.innerHTML = `<span class="badge b-bad">失敗</span> ${esc(e.message)}`; }
       };
@@ -1268,6 +1311,7 @@ async function viewSettings(view) {
     const r = await api("POST", "/api/providers", { providers: provs, keys });
     S.config = r.config; S.keyStatus = r.key_status;
     Object.keys(keys).forEach((k) => delete keys[k]);
+    Panel.renderProv();
     return r;
   };
   renderProvs();
@@ -1358,17 +1402,32 @@ const STYLE_GENRES = ["本格推理", "冷硬派", "心理驚悚", "恐怖怪談
 // 整章自動流程的步驟與面板動作的對應；面板按鈕也預設用該步驟分配的執行者
 const STEP_OF_ACTION = { chapter_cards: "card", write: "write", goal_check: "goal", deslop: "deslop", review_notes: "review", revise_notes: "revise", accept: "accept" };
 const AI_STEP_LABELS = [["card", "章綱"], ["write", "寫章節（候選稿）"], ["goal", "章綱核對"], ["deslop", "去 AI 味"], ["review", "審查意見"], ["revise", "依勾選意見修訂"], ["accept", "定稿並回寫追蹤"]];
-function provName(id) { const p = ((S.config && S.config.providers) || []).find((x) => x.id === id); return p ? p.name : id; }
+/* 執行者＋模型的選項（設定裡同一個執行者可以有多個模型；id 寫成「執行者/模型」） */
+function provChoices() {
+  if (S.config && S.config.choices) return S.config.choices;
+  return ((S.config && S.config.providers) || [{ id: "claude_code", name: "Claude Code", type: "claude_code" }])
+    .map((p) => ({ id: p.id, name: p.name, type: p.type, group: p.name, label: p.name, base: p.id }));
+}
+function provOpts(cur, opts = {}) {
+  const groups = [];
+  provChoices().forEach((c) => {
+    let g = groups.find((x) => x.base === c.base);
+    if (!g) { g = { base: c.base, label: c.group, items: [] }; groups.push(g); }
+    g.items.push(c);
+  });
+  const one = (c, text) => `<option value="${esc(c.id)}" ${c.id === cur ? "selected" : ""}>${esc(text)}${opts.unset && c.unset ? "（未設定）" : ""}${opts.claudeNote && c.type === "claude_code" ? "（用訂閱額度）" : ""}</option>`;
+  return groups.map((g) => g.items.length === 1 ? one(g.items[0], g.items[0].name)
+    : `<optgroup label="${esc(g.label)}">${g.items.map((c) => one(c, c.label)).join("")}</optgroup>`).join("");
+}
+function provName(id) { const p = provChoices().find((x) => x.id === id); return p ? p.name : id; }
 function stepProv(action) {
   const m = (S.config && S.config.pipeline_providers) || {};
   const k = STEP_OF_ACTION[action];
-  const ids = ((S.config && S.config.providers) || []).map((p) => p.id);
+  const ids = provChoices().map((p) => p.id);
   return k && m[k] && ids.includes(m[k]) ? m[k] : Panel.prov();
 }
 function provSelectHtml(id) {
-  const ps = (S.config && S.config.providers) || [{ id: "claude_code", name: "Claude Code" }];
-  const cur = Panel.prov();
-  return `<select id="${id}">${ps.map((p) => `<option value="${esc(p.id)}" ${p.id === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
+  return `<select id="${id}">${provOpts(Panel.prov())}</select>`;
 }
 function styleAiModal(mode, books, name) {
   const titles = { design: "請 AI 設計文風", revise: `請 AI 調整「${esc(name || "")}」`, test: `照「${esc(name || "")}」試寫一段` };
@@ -1754,9 +1813,7 @@ async function waitJob(id) {
   }
 }
 function illProvOptions(cfg, cur) {
-  const list = (cfg.providers || []);
-  const def = cur || cfg.config.provider || Panel.prov();
-  return list.map((p) => `<option value="${esc(p.id)}" ${p.id === def ? "selected" : ""}>${esc(p.name)}${p.type === "claude_code" ? "（用訂閱額度）" : ""}</option>`).join("");
+  return provOpts(cur || cfg.config.provider || Panel.prov(), { claudeNote: true });
 }
 const tagAppend = (cur, add) => {
   const have = (cur || "").split(/\s*,\s*/).filter(Boolean);
@@ -1845,6 +1902,23 @@ async function renderIllust(el, target, opts = {}) {
   const sizeW = D.width || (isCover ? bs.cover_width : bs.width) || cfg.width, sizeH = D.height || (isCover ? bs.cover_height : bs.height) || cfg.height;
   D.width = sizeW; D.height = sizeH;
   const reload = () => renderIllust(el, target, Object.assign({}, opts, { open }));
+  if (!Array.isArray(D.texts)) D.texts = [];
+  const bookName = () => ((S.books || []).find((b) => b.id === S.book) || {}).name || "";
+  const TX_KIND = [["title", "標題"], ["sign", "招牌、標語"], ["bubble", "對白氣泡"], ["caption", "說明文字"], ["other", "其他"]];
+  const TX_POS = [["tl", "左上"], ["t", "上方"], ["tr", "右上"], ["l", "左側"], ["c", "中央"], ["r", "右側"], ["bl", "左下"], ["b", "下方"], ["br", "右下"]];
+  const TX_SIZE = [["l", "大"], ["m", "中"], ["s", "小"]];
+  const TX_FONT = [["", "字體不指定"], ["brush", "書法"], ["bold", "粗黑體"], ["serif", "襯線印刷體"], ["hand", "手寫"], ["pixel", "像素字"]];
+  const txSel = (i, f, list, v) => `<select data-tx="${i}" data-tf="${f}">${list.map(([k, l]) => `<option value="${k}" ${(v || "") === k ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const textRows = () => `<h3>圖中文字</h3>
+    <div class="muted small" style="margin-bottom:6px">MOSS-Image 會照引號裡的字畫出來，中文、英文都可以（英文最穩）。要換行就在文字裡打 \\n。最多 6 條；沒有加就不放文字。</div>
+    ${isCover ? `<label class="chip ${D.texts.some((x) => x.book) ? "on" : ""}" style="margin-bottom:6px"><input type="checkbox" id="il-booktitle" ${D.texts.some((x) => x.book) ? "checked" : ""}>放書名</label>` : ""}
+    ${D.texts.length ? `<table class="ill-chars">${D.texts.map((x, i) => `<tr>
+        <td><input type="text" data-tx="${i}" data-tf="text" value="${esc(x.text || "")}" placeholder="要出現在圖上的字"></td>
+        <td>${txSel(i, "kind", TX_KIND, x.kind || "title")}</td><td>${txSel(i, "pos", TX_POS, x.pos || "t")}</td>
+        <td>${txSel(i, "size", TX_SIZE, x.size || "l")}</td><td>${txSel(i, "font", TX_FONT, x.font || "")}</td>
+        <td><input type="text" data-tx="${i}" data-tf="color" value="${esc(x.color || "")}" placeholder="顏色（英文，例如 gold）" style="width:9em"></td>
+        <td><button class="sm" data-txdel="${i}" title="刪除">✕</button></td></tr>`).join("")}</table>` : ""}
+    ${D.texts.length < 6 ? '<div class="row" style="margin:6px 0 10px"><button class="sm" id="il-txadd">＋ 加一條文字</button></div>' : ""}`;
 
   const gallery = () => info.images.length ? `<div class="ill-gallery">${info.images.map((im, i) => `
       <div class="ill-thumb ${im.main ? "main" : ""}" data-i="${i}"><img loading="lazy" src="${imgUrl(im.path)}" alt="">
@@ -1911,6 +1985,7 @@ async function renderIllust(el, target, opts = {}) {
           <label class="f"><span>種子（-1＝隨機）</span><input type="number" data-k="seed" value="${esc(D.seed)}"></label>
           <label class="f"><span>張數</span><select data-k="count">${[1, 2, 3, 4].map((n) => `<option ${+D.count === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         </div>
+        ${isComfy && curProf().kind === "moss" ? textRows() : ""}
         <div class="row"><button class="sm" id="il-asm">組裝提示詞</button><span class="muted small">組裝後可以直接修改最終提示詞，或複製到 ${genName()} 自己用。</span></div>
         ${final ? `<label class="f" style="margin-top:8px"><span>正向提示詞</span><textarea id="il-pos" rows="7">${esc(final.positive)}</textarea></label>
           <label class="f"><span>負面提示詞</span><textarea id="il-neg" rows="2">${esc(final.negative)}</textarea></label>
@@ -1927,6 +2002,7 @@ async function renderIllust(el, target, opts = {}) {
     if ($("#il-passage", el)) D.passage = $("#il-passage", el).value;
     el.querySelectorAll("[data-act]").forEach((i) => { D.chars[+i.dataset.act].action = i.value; });
     el.querySelectorAll("[data-pos]").forEach((i) => { D.chars[+i.dataset.pos].position = i.value; });
+    el.querySelectorAll("[data-tx]").forEach((i) => { if (D.texts[+i.dataset.tx]) D.texts[+i.dataset.tx][i.dataset.tf] = i.value; });
     if ($("#il-size", el)) { const [w, h] = $("#il-size", el).value.split("x").map(Number); D.width = w; D.height = h; }
   };
 
@@ -1983,6 +2059,14 @@ async function renderIllust(el, target, opts = {}) {
 
   const bind = () => {
     if ($("#il-prof", el)) $("#il-prof", el).onchange = () => { collect(); final = null; render(); };
+    if ($("#il-txadd", el)) $("#il-txadd", el).onclick = () => { collect(); D.texts.push({ text: "", kind: "title", pos: "t", size: "l", font: "", color: "" }); final = null; render(); };
+    el.querySelectorAll("[data-txdel]").forEach((b) => b.onclick = () => { collect(); D.texts.splice(+b.dataset.txdel, 1); final = null; render(); });
+    if ($("#il-booktitle", el)) $("#il-booktitle", el).onchange = (ev) => {
+      collect();
+      if (ev.target.checked) D.texts.unshift({ text: bookName(), kind: "title", pos: "t", size: "l", font: "", color: "", book: true });
+      else D.texts = D.texts.filter((x) => !x.book);
+      D.texts = D.texts.slice(0, 6); final = null; render();
+    };
     el.querySelectorAll(".ill-thumb").forEach((t) => t.onclick = () => imageModal(target, info.images[+t.dataset.i], reload, (img) => {
       open = true; final = { positive: img.prompt, negative: img.negative || "", notes: [] }; D.seed = img.seed || -1; render();
     }));
@@ -2645,12 +2729,11 @@ const Panel = {
       (!collapsed && !Panel.isClaude() && S.actions.some((a) => !a.native) ? `<div class="muted small" style="margin-top:4px">灰色按鈕目前只支援 Claude Code。</div>` : "");
   },
   prov() { return S.provider || (S.config && S.config.default_provider) || "claude_code"; },
-  provObj() { return ((S.config && S.config.providers) || []).find((p) => p.id === this.prov()) || { id: "claude_code", type: "claude_code", name: "Claude Code" }; },
+  provObj() { return provChoices().find((p) => p.id === this.prov()) || { id: "claude_code", type: "claude_code", name: "Claude Code" }; },
   provName() { return this.provObj().name; },
   isClaude() { return this.provObj().type === "claude_code"; },
   renderProv() {
-    const ps = (S.config && S.config.providers) || [];
-    $("#prov-sel").innerHTML = ps.map((p) => `<option value="${esc(p.id)}" ${p.id === this.prov() ? "selected" : ""}>${esc(p.name)}${p.type !== "claude_code" && !p.base_url ? "（未設定）" : ""}</option>`).join("");
+    $("#prov-sel").innerHTML = provOpts(this.prov(), { unset: true });
     $("#fab-label").textContent = this.provName();
   },
   setProv(id) {
@@ -2678,7 +2761,7 @@ const Panel = {
         if (f.type === "checkbox") return `<label class="cb"><input type="checkbox" data-k="${f.key}" ${v ? "checked" : ""}> ${esc(f.label)}</label>`;
         return `<label class="f"><span>${esc(f.label)}</span><input type="${f.type === "number" ? "number" : "text"}" data-k="${f.key}" value="${esc(v)}"></label>`;
       }).join("")}
-      ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov">${((S.config && S.config.providers) || []).map((p) => `<option value="${esc(p.id)}" ${p.id === stepProv(id) ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>` : ""}
+      ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov">${provOpts(stepProv(id))}</select></label>` : ""}
       <div class="row"><span class="grow"></span><button class="primary" id="pf-go">執行</button></div>`;
     const first = el.querySelector("[data-k]"); if (first) first.focus();
     $("#pf-go").onclick = () => {
@@ -2857,7 +2940,7 @@ $("#reply-text").addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKe
   try { open = localStorage.getItem("panelOpen") === "1"; } catch (e) { /* ignore */ }
   Panel.toggle(open);
   try { S.provider = localStorage.getItem("provider") || null; } catch (e) { /* ignore */ }
-  if (S.provider && !((S.config && S.config.providers) || []).find((p) => p.id === S.provider)) S.provider = null;
+  if (S.provider && !provChoices().find((p) => p.id === S.provider)) S.provider = null;
   $("#prov-sel").onchange = (ev) => Panel.setProv(ev.target.value);
   Panel.renderProv();
   Panel.renderActions();

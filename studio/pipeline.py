@@ -373,7 +373,8 @@ class Pipeline:
         return _goal_brief(rec["items"]) if rec else "已核對"
 
     def _s_deslop(self, no):
-        self._wait("deslop", {"chapter": no, "candidate": True, "note": self._rerun_note("deslop")})
+        revision.discard_revision(self.d, no)   # 去 AI 味會產生一份修訂，流程裡直接全部套用
+        self._wait("deslop", {"chapter": no, "candidate": True, "note": self._rerun_note("deslop"), "auto_apply": True})
         if not self._cand(no):
             raise StepFailed("去 AI 味之後找不到候選稿")
         return "已處理"

@@ -28,6 +28,92 @@ DEFAULT_PROVIDERS = [
 ]
 
 # ---------------------------------------------------------------------------
+# 一個執行者底下的多個模型：選項的 id 寫成「執行者/模型」，例如 deepseek/deepseek-v4-pro
+# ---------------------------------------------------------------------------
+CLAUDE_MODELS = [("sonnet", "Sonnet"), ("opus", "Opus"), ("haiku", "Haiku")]
+MODEL_FIELDS = (("context_tokens", int), ("max_output", int), ("price_in", float), ("price_out", float),
+                ("cjk_token_ratio", float), ("temperature", float))
+
+
+def _supports_models(p):
+    """llama.cpp（本機）維持一個執行者一個模型。"""
+    return p.get("type") == "openai" and p.get("id") != "llamacpp"
+
+
+def choices(provs):
+    """所有可以選的「執行者＋模型」，給下拉選單用。"""
+    out = []
+    for p in provs or []:
+        base = {"base": p["id"], "group": p.get("name") or p["id"], "type": p.get("type"),
+                "unset": p.get("type") != "claude_code" and not p.get("base_url")}
+        if p.get("type") == "claude_code":
+            out.append(dict(base, id=p["id"], label="預設", name=p.get("name") or p["id"]))
+            out += [dict(base, id="%s/%s" % (p["id"], m), label=lbl, model=m, name="%s · %s" % (p.get("name"), lbl))
+                    for m, lbl in CLAUDE_MODELS]
+        elif _supports_models(p) and p.get("models"):
+            dm = p.get("model") or ""
+            out.append(dict(base, id=p["id"], label="%s（預設）" % (dm or "預設"), model=dm,
+                            name="%s · %s" % (p.get("name"), dm) if dm else p.get("name")))
+            for m in p["models"]:
+                if m.get("id") and m["id"] != dm:
+                    out.append(dict(base, id="%s/%s" % (p["id"], m["id"]), label=m.get("name") or m["id"], model=m["id"],
+                                    name="%s · %s" % (p.get("name"), m.get("name") or m["id"])))
+        else:
+            out.append(dict(base, id=p["id"], label=p.get("model") or "預設", model=p.get("model") or "", name=p.get("name") or p["id"]))
+    return out
+
+
+def resolve(provs, pid):
+    """把「執行者/模型」展開成一份完整的設定（執行者的設定＋這個模型覆寫的值）。找不到回傳 None。"""
+    base_id, _, mid = str(pid or "").partition("/")
+    base = next((p for p in provs or [] if p.get("id") == base_id), None)
+    if not base:
+        return None
+    if not mid:
+        return base
+    if base.get("type") == "claude_code":
+        if mid not in [m for m, _ in CLAUDE_MODELS]:
+            return None
+        lbl = dict(CLAUDE_MODELS)[mid]
+        return dict(base, id=pid, key_id=base_id, base_id=base_id, model=mid, name="%s · %s" % (base.get("name"), lbl))
+    m = next((x for x in base.get("models") or [] if x.get("id") == mid), None)
+    if not m:
+        return None
+    out = dict(base, id=pid, key_id=base_id, base_id=base_id, model=mid, name="%s · %s" % (base.get("name"), m.get("name") or mid))
+    out.pop("models", None)
+    for k, _ in MODEL_FIELDS:
+        if m.get(k) not in (None, "", 0):
+            out[k] = m[k]
+    if m.get("reasoning"):
+        out["reasoning"] = dict(base.get("reasoning") or {}, **m["reasoning"])
+    return out
+
+
+def clean_models(models, stages, efforts):
+    out, seen = [], set()
+    for m in models or []:
+        mid = str((m or {}).get("id") or "").strip()
+        if not mid or mid in seen:
+            continue
+        seen.add(mid)
+        c = {"id": mid}
+        if str(m.get("name") or "").strip():
+            c["name"] = str(m["name"]).strip()
+        for k, f in MODEL_FIELDS:
+            try:
+                v = f(m.get(k)) if m.get(k) not in (None, "") else None
+            except (TypeError, ValueError):
+                v = None
+            if v:
+                c[k] = round(min(3.0, max(0.2, v)), 2) if k == "cjk_token_ratio" else v
+        r = {st: v for st, v in (m.get("reasoning") or {}).items() if st in stages and v in efforts}
+        if r:
+            c["reasoning"] = r
+        out.append(c)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # 思考強度：依任務階段決定。思考過程也算在輸出 token 裡，整理 JSON 這類格式任務通常不需要思考。
 # ---------------------------------------------------------------------------
 STAGES = {"draft": "寫稿（寫章節、改稿、去 AI 味）", "plan": "規劃（大綱、章綱、設定、問答）",
@@ -196,12 +282,13 @@ def pending_secrets(home):
 
 
 def api_key(home, prov):
-    k = _kr_get(prov["id"])
+    kid = prov.get("key_id") or prov["id"]   # 同一個執行者底下的不同模型共用金鑰
+    k = _kr_get(kid)
     if k:
         return k
     s = load_secrets(home)
-    if s.get(prov["id"]):
-        return s[prov["id"]]
+    if s.get(kid):
+        return s[kid]
     env = prov.get("key_env")
     return os.environ.get(env, "") if env else ""
 
@@ -211,12 +298,13 @@ def _tail(k):
 
 
 def key_status(home, prov):
-    k = _kr_get(prov["id"])
+    kid = prov.get("key_id") or prov["id"]
+    k = _kr_get(kid)
     if k:
         return store_name() + _tail(k)
     s = load_secrets(home)
-    if s.get(prov["id"]):
-        return "secrets.json" + _tail(s[prov["id"]])
+    if s.get(kid):
+        return "secrets.json" + _tail(s[kid])
     env = prov.get("key_env")
     if env and os.environ.get(env):
         return "環境變數 %s" % env

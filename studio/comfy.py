@@ -56,6 +56,9 @@ UPSAMPLER_SYSTEM = {
         "Keep every subject, count, action, clothing, setting, style and mood the user gave; do not contradict or drop anything. "
         "Fill in what is left open with concrete visual choices: composition, viewpoint, lighting, colors, materials and medium. "
         "Describe only what can be seen. Give positions with words such as left, right, foreground and background.\n"
+        "Text: every piece of visible text is written inside double quotes. Copy it exactly, in its original language "
+        "(Chinese stays Chinese); never translate, rewrite, shorten or repeat it. Keep its carrier, position, size, typeface "
+        "and color. If the input has no quoted text, add no text, signs, captions or logos.\n"
         "Write in English plain prose, 60 to 180 words, starting with the medium and the main subject. "
         "No quality keywords, no lists, no headings, no negative prompt. Reply with the caption only."),
 }
@@ -435,7 +438,9 @@ def _add_upsampler(wf, pos_nodes, profile, positive):
 # ---------------------------------------------------------------------------
 def submit(base, wf):
     cid = uuid.uuid4().hex
-    r = _req(base, "/prompt", {"prompt": wf, "client_id": cid}, timeout=30)
+    # 有些自訂節點會讀網頁版才有的 extra_pnginfo.workflow，沒有就在 log 印錯誤；帶一份空的讓它安靜
+    r = _req(base, "/prompt", {"prompt": wf, "client_id": cid,
+                               "extra_data": {"extra_pnginfo": {"workflow": {"nodes": []}}}}, timeout=30)
     if r.get("node_errors"):
         raise ComfyError(_explain_error(400, json.dumps(r)))
     pid = r.get("prompt_id")

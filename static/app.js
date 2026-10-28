@@ -4,6 +4,7 @@
 const S = {
   config: null, claudeFound: null, actions: [], books: [],
   book: null,                 // 目前的書 id
+  bookLang: null,             // 目前這本書的語言（zh-TW／en／ja）；書的內容用它標 lang，字形才對
   job: null,                  // 面板目前顯示的任務 {id, status, session_id}
   es: null,                   // EventSource
   lastText: "",
@@ -20,6 +21,10 @@ const fmtNum = (n) => (n || 0).toLocaleString({ en: "en-US", ja: "ja-JP" }[windo
 const unitCh = (unit) => (unit === "words" ? "詞" : "字");   // i18n-skip
 const unitOfLang = (lang) => (lang === "en" ? "words" : "chars");
 const unitOfBook = (id) => { const b = (S.books || []).find((x) => x.id === (id || S.book)); return (b && b.unit) || "chars"; };
+// 書的語言：顯示書內容的容器加 lang（日文書在中文介面下用日文字形，中文書在日文介面下用繁中字形）。介面本身的 <html lang> 仍跟著介面語言
+const bookLang = () => S.bookLang || ((S.books || []).find((x) => x.id === S.book) || {}).lang || "zh-TW";
+const LA = () => ` lang="${bookLang()}"`;               // 只標語言
+const LP = () => ` lang="${bookLang()}" data-i18n-skip`;  // 標語言，並且不被介面翻譯動到（正文）
 function fmtTime(t) {
   if (!t) return "";
   const d = new Date(t * 1000), now = new Date();
@@ -132,6 +137,7 @@ async function setBook(id, keep) {
   if (id === S.book) return;
   if (!id && keep) { S.book = null; Panel.renderActions(); return; }
   S.book = id;
+  S.bookLang = ((S.books || []).find((x) => x.id === id) || {}).lang || null;
   Panel.renderActions();
   if (!id) return;
   // 若這本書有執行中的任務，接上
@@ -266,7 +272,7 @@ async function viewSearch(view, q, s) {
   box.innerHTML = `<div class="muted small" style="margin:0 0 8px">「${esc(r.terms.join("」＋「"))}」：${r.chapters ? `出現在 ${r.chapters} 章正文${r.first ? `，第一次在第 ${r.first} 章` : ""}；` : ""}共 ${r.files} 份檔案、${r.hits} 處${r.truncated ? "（結果太多，只列前面的）" : ""}</div>
     ${r.results.map((x, i) => `<div class="card" style="margin-bottom:10px;padding:12px 16px">
       <div class="row"><a href="javascript:void 0" class="nm" data-open="${i}">${tag(x)}${label(x)}</a><span class="grow"></span><span class="muted small">${x.count} 處</span></div>
-      ${x.snippets.map((sn, j) => `<div class="small" style="margin-top:6px;line-height:1.7${j >= 3 ? ";display:none" : ""}" data-more="${i}">${segs(sn)}</div>`).join("")}
+      ${x.snippets.map((sn, j) => `<div class="small"${LP()} style="margin-top:6px;line-height:1.7${j >= 3 ? ";display:none" : ""}" data-more="${i}">${segs(sn)}</div>`).join("")}
       ${x.snippets.length > 3 || x.more ? `<button class="ghost sm" style="margin-top:4px" data-expand="${i}">展開其餘 ${x.snippets.length - 3 + x.more} 處</button>` : ""}
     </div>`).join("")}`;
   box.querySelectorAll("[data-expand]").forEach((b) => b.onclick = () => {
@@ -415,6 +421,7 @@ async function viewOverview(view) {
   }
   const sc = ov.status_count, total = Math.max(ov.chapters, 1);
   const seg = (n, cls) => n ? `<div class="${cls}" style="width:${(n / total) * 100}%"></div>` : "";
+  S.bookLang = ov.lang || S.bookLang;
   const [, stateBody] = splitFM(ov.state_card || "");
   const next = ov.next;
   setTimeout(() => { const sel = $("#book-lang"); if (sel) sel.value = ov.lang || "zh-TW"; }, 0);
@@ -451,7 +458,7 @@ async function viewOverview(view) {
       </div>
       <div class="card state">
         <div class="card-title"><h2>狀態卡</h2><a href="#/b/${enc(S.book)}/tracking?t=state">開啟 →</a></div>
-        <div class="md">${stateBody.trim() ? md(stateBody) : '<span class="muted">還沒有狀態卡。寫完第一章後會自動產生。</span>'}</div>
+        <div class="md"${LA()}>${stateBody.trim() ? md(stateBody) : '<span class="muted">還沒有狀態卡。寫完第一章後會自動產生。</span>'}</div>
       </div>
     </div>
     ${ov.recent.length ? `<div class="card" style="margin-top:14px"><div class="card-title"><h2>最近章節</h2></div>
@@ -459,7 +466,7 @@ async function viewOverview(view) {
 }
 window.setBookLang = async (v) => {
   try {
-    await api("POST", B("/lang"), { lang: v }); toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]);
+    await api("POST", B("/lang"), { lang: v }); S.bookLang = v; toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]);
     S.books = (await api("GET", "/api/books")).books;      // 字數單位跟著語言換（字／詞）
     route && route();
   }
@@ -775,8 +782,8 @@ async function docView(el, path, opts = {}) {
             ${f.readonly || opts.readonly ? "" : editing ? `<button class="sm" data-a="cancel">取消</button><button class="sm primary" data-a="save">儲存</button>`
               : `<button class="sm" data-a="edit">編輯</button>`}
           </div>
-          ${editing ? `<textarea class="editor ${opts.prose ? "prose" : ""}" spellcheck="false">${esc(f.text)}</textarea>`
-            : `${fmHtml}<div class="md ${opts.prose ? "prose" : ""}">${md(body)}</div>`}
+          ${editing ? `<textarea class="editor ${opts.prose ? "prose" : ""}"${LA()} spellcheck="false">${esc(f.text)}</textarea>`
+            : `${fmHtml}<div class="md ${opts.prose ? "prose" : ""}"${opts.prose ? LP() : LA()}>${md(body)}</div>`}
         </div>
         ${findings ? `<div class="card"><div class="card-title"><h3>檢查結果</h3><button class="ghost sm" data-a="closecheck">✕</button></div>
           <div class="small muted">中文字數 ${fmtNum(findings["中文字數"])}</div>
@@ -907,18 +914,18 @@ function renderRevision(el, no, rv) {
         <div class="row"><b>${ds ? "去 AI 味對照" : "修訂對照"}</b><span class="badge">${rv.changes} 處變更</span>${ds && (rv.items || []).length ? `<span class="badge">逐處清單 ${rv.items.length} 條</span>` : ""}<span class="muted small">原稿：${esc(rv.base_path)}　·　${fmtTime(rv.created)}</span>
           <span class="grow"></span><button class="sm" id="rv-all-new">全部採用修訂</button><button class="sm" id="rv-all-old">全部保留原文</button></div>
         ${rv.stale ? '<div class="alert warn" style="margin-top:8px"><span class="k">對不上</span><span class="t">原稿在修訂之後被改過了，這份修訂不能套用，請捨棄後重新修訂。</span></div>' : ""}
-        <details style="margin-top:8px"${ds ? " open" : ""}><summary class="small">${ds ? "AI 的逐處清單與說明" : "處理的意見與 AI 的說明"}</summary><div class="md small" style="margin-top:6px">${md(ds ? (rv.report || "") : "**意見**\n\n" + (rv.notes || "") + "\n\n**說明**\n\n" + (rv.report || ""))}</div></details>
+        <details style="margin-top:8px"${ds ? " open" : ""}><summary class="small">${ds ? "AI 的逐處清單與說明" : "處理的意見與 AI 的說明"}</summary><div class="md small"${LA()} style="margin-top:6px">${md(ds ? (rv.report || "") : "**意見**\n\n" + (rv.notes || "") + "\n\n**說明**\n\n" + (rv.report || ""))}</div></details>
         ${ds && (rv.unmatched || []).length ? `<div class="muted small" style="margin-top:6px">清單裡有 ${rv.unmatched.length} 條對不到段落（AI 抄的原句和原稿不完全一樣），只列在上面的清單裡。</div>` : ""}
       </div>
       <div class="rv-blocks">${rv.blocks.map((b) => {
         if (b.type === "same") {
           return b.old.length > 2
-            ? `<details class="rv-same"><summary class="muted small">${b.old.length} 段沒有變更（展開）</summary>${b.old.map((x) => `<p>${esc(x)}</p>`).join("")}</details>`
-            : `<div class="rv-same">${b.old.map((x) => `<p>${esc(x)}</p>`).join("")}</div>`;
+            ? `<details class="rv-same"><summary class="muted small">${b.old.length} 段沒有變更（展開）</summary>${b.old.map((x) => `<p${LP()}>${esc(x)}</p>`).join("")}</details>`
+            : `<div class="rv-same">${b.old.map((x) => `<p${LP()}>${esc(x)}</p>`).join("")}</div>`;
         }
         const k = String(b.index); const useNew = (choice[k] || "new") === "new"; n++;
-        const oldHtml = b.old.length ? b.old.map((x, i) => `<p>${b.inline ? inlineHtml(b.inline[i], "old") : esc(x)}</p>`).join("") : '<p class="muted small">（原文沒有這段）</p>';
-        const newHtml = b.new.length ? b.new.map((x, i) => `<p>${b.inline ? inlineHtml(b.inline[i], "new") : esc(x)}</p>`).join("") : '<p class="muted small">（修訂刪掉了這段）</p>';
+        const oldHtml = b.old.length ? b.old.map((x, i) => `<p${LP()}>${b.inline ? inlineHtml(b.inline[i], "old") : esc(x)}</p>`).join("") : '<p class="muted small">（原文沒有這段）</p>';
+        const newHtml = b.new.length ? b.new.map((x, i) => `<p${LP()}>${b.inline ? inlineHtml(b.inline[i], "new") : esc(x)}</p>`).join("") : '<p class="muted small">（修訂刪掉了這段）</p>';
         return `<div class="rv-change">
           <div class="rv-side old ${useNew ? "" : "chosen"}" data-k="${k}" data-v="old"><div class="rv-tag">原文</div>${oldHtml}</div>
           <div class="rv-side new ${useNew ? "chosen" : ""}" data-k="${k}" data-v="new"><div class="rv-tag">修訂</div>${newHtml}${reasonsHtml(b)}</div>
@@ -959,8 +966,8 @@ window.recoverDiscard = async (id) => {
 window.recoverView = async (id) => {
   try {
     const r = await api("GET", B(`/recoveries/${id}`));
-    modal(`<h2>恢復稿</h2><div class="muted small" style="margin-bottom:8px">${esc(r.label)}　·　${esc(r.reason)}　·　${fmtNum(r.chars)} 字</div>
-      <textarea class="editor prose" style="min-height:50vh" readonly>${esc(r.text)}</textarea>
+    modal(`<h2>恢復稿</h2><div class="muted small" style="margin-bottom:8px">${esc(r.label)}　·　${esc(r.reason)}　·　${fmtNum(r.chars)} ${unitCh(unitOfBook())}</div>
+      <textarea class="editor prose"${LA()} style="min-height:50vh" readonly>${esc(r.text)}</textarea>
       <div class="row" style="margin-top:10px"><span class="grow"></span><button id="rc-copy">複製</button><button onclick="closeModal()">關閉</button></div>`, (el) => {
       $("#rc-copy", el).onclick = () => { navigator.clipboard.writeText(r.text).then(() => toast("已複製")); };
     });
@@ -3183,10 +3190,10 @@ const Panel = {
     if (e.kind === "stream_end" && box) {
       const st = $(".st", box);
       if (S.streamJson) { st.outerHTML = `<details class="ev-json"><summary>結構化資料（JSON）</summary><pre>${esc(st.textContent)}</pre></details>`; }
-      else { const raw = st.textContent; st.innerHTML = `<details class="ev-full"><summary>模型輸出全文（${raw.length} 字）</summary><div class="md">${md(raw)}</div></details>`; }
+      else { const raw = st.textContent; st.innerHTML = `<details class="ev-full"><summary>模型輸出全文（${raw.length} 字）</summary><div class="md"${LA()}>${md(raw)}</div></details>`; }
       return;
     }
-    if (e.kind === "text") { S.lastText = e.text; this.add(`<div class="ev-text"><div class="md">${md(e.text)}</div></div>`); }
+    if (e.kind === "text") { S.lastText = e.text; this.add(`<div class="ev-text"><div class="md"${LA()}>${md(e.text)}</div></div>`); }
     else if (e.kind === "tool") this.add(`<div class="ev-tool">${esc(e.text)}</div>`);
     else if (e.kind === "tool_error") this.add(`<div class="ev-log">工具回報錯誤：${esc(e.text)}</div>`);
     else if (e.kind === "error") this.add(`<div class="ev-err">${esc(e.text)}</div>`);
@@ -3197,7 +3204,7 @@ const Panel = {
         const last = [...$("#panel-log").querySelectorAll(".ev-text")].pop();
         if (last) { last.className = "ev-report"; last.insertAdjacentHTML("afterbegin", '<div class="rh">匯報</div>'); }
       } else if (e.text) {
-        this.add(`<div class="ev-report"><div class="rh">匯報</div><div class="md">${md(e.text)}</div></div>`);
+        this.add(`<div class="ev-report"><div class="rh">匯報</div><div class="md"${LA()}>${md(e.text)}</div></div>`);
       }
       const u = e.usage ? `輸入 ${fmtNum(e.usage.prompt_tokens)}／輸出 ${fmtNum(e.usage.completion_tokens)} tokens` : "";
       this.add(`<div class="ev-meta">${e.turns ? e.turns + " 輪　" : ""}${u}${e.cost != null ? "　$" + Number(e.cost).toFixed(4) : ""}</div>`);

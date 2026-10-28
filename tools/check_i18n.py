@@ -6,6 +6,7 @@
   2. 英文包的值不能有漢字句子（JSON 鍵名、中文列舉值、檔案路徑、第NNN章 這類「資料格式」允許）。
   3. 介面翻譯 static/locales/en.json、ja.json：{0} 變數與原文一致、en／ja 彼此一致；不能有空值
      （原文 4 字以內的片段，如「章」「張」，某語言不需要時允許留空）；英文值不能有假名。
+  4. 介面翻譯的資料夾路徑與 .md 檔名：key（中文原文）裡出現的路徑，值裡必須原樣出現（實際資料夾是中文名，不能翻譯）。
 有問題時列出鍵名並回傳 1，全過回傳 0。"""
 import json
 import os
@@ -106,6 +107,29 @@ def check_locales(errors):
                 vs = sorted(re.findall(r"\{\d+\}", v))
                 if ks != vs:
                     errors.append("%s.json 的 {0} 變數與原文不同：%s（原文 %s／譯文 %s）" % (n, k[:40], ks, vs))
+    check_paths(loc, errors)
+
+
+# 介面文字裡的資料夾路徑與檔名：實際資料夾叫中文名，翻譯時不能跟著翻
+PATH_RX = re.compile(r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|_共用|\.studio)(?:/[^\s\"'`()\[\]{}<>,;:、。，；：！？（）「」『』→＋+*]+)+")
+MD_RX = re.compile(r"[^\s/\"'`()\[\]{}<>,;:、。，；：！？（）「」『』→＋+*]+\.md\b")
+
+
+def ui_paths(key):
+    found = set(PATH_RX.findall(key)) | set(MD_RX.findall(key))
+    found = {p.rstrip("/.") for p in found}
+    # 被更長的路徑包含的短路徑不用另外比（例如 .studio/備份 已包含在 .studio/備份/插圖 裡）
+    return sorted(p for p in found if not any(p != q and p in q for q in found))
+
+
+def check_paths(loc, errors):
+    for n, d in loc.items():
+        for k, v in d.items():
+            if k.startswith("_") or not isinstance(v, str):
+                continue
+            for p in ui_paths(k):
+                if p not in v:
+                    errors.append("%s.json 的路徑被翻譯或改掉：%s（原文要有「%s」）→ %s" % (n, k[:30], p, v[:50]))
 
 
 def main():

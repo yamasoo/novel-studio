@@ -464,4 +464,5 @@ mark { background: #f6d98b; color: inherit; border-radius: 2px; padding: 0 1px; 
 
 .ef-bulk {display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;padding:8px;border:1px dashed var(--line, #ccc);border-radius:6px;font-size:12px}
 .ef-bulk select {max-width:100%}
-input.pick {margin:0 6px 0 0;flex:none}
+.pick-cell {display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin:-5px 2px -5px -5px;flex:none;cursor:pointer}
+.pick-cell input.pick {width:16px;height:16px;margin:0;cursor:pointer}

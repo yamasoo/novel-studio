@@ -788,6 +788,37 @@ def _strip_count(tags):
     return ", ".join(t for t in normalize_tags(tags).split(", ") if t and not COUNT_TAGS.match(t.lower()))
 
 
+# 沒有角色的畫面（艦艇、建築、物件展示圖）：補 no humans、拿掉人物取景標籤，負面提示詞擋人物
+NO_HUMANS = "no humans"
+PERSON_FRAMING = re.compile(r"^(full body|upper body|lower body|cowboy shot|portrait|looking at viewer|standing|sitting|solo focus)$", re.I)
+PERSON_WORDS = re.compile(r"\b(man|men|woman|women|girls?|boys?|people|person|persons|soldiers?|crew|crewmen|figures?|pilots?|officers?|crowd|"
+                          r"captain|sailors?|operators?|characters?)\b", re.I)
+NO_HUMANS_NEG = "1girl, 1boy, 1other, humans, person, crowd"
+
+
+def sanitize_card(card, kind):
+    """非角色的視覺卡：刪掉人數標籤（1girl、1other、solo……），第一個標籤固定是 no humans。"""
+    card = dict(card or {})
+    if kind == "角色":
+        return card
+    tags = [t for t in normalize_tags(card.get("tags", "")).split(", ") if t and not COUNT_TAGS.match(t.lower())
+            and t.lower() != NO_HUMANS]
+    card["tags"] = ", ".join([NO_HUMANS] + tags)
+    return card
+
+
+def _wants_people(*texts):
+    """場景標籤或描述句裡是不是本來就要有人（路人、船員之類）。"""
+    for t in texts:
+        if not t:
+            continue
+        if any(COUNT_TAGS.match(x.lower()) for x in normalize_tags(t).split(", ") if x):
+            return True
+        if PERSON_WORDS.search(t):
+            return True
+    return False
+
+
 def _sentence(s):
     s = (s or "").strip()
     return s if not s or s[-1] in ".!?。" else s + "."
@@ -853,9 +884,16 @@ def assemble(spec, cfg, sheet_path=None):
     head = normalize_tags(", ".join(x for x in [quality, safety] if x))
     count = _count_tags(chars)
     places = spec.get("places") or []
-    scene = normalize_tags(", ".join(x for x in [spec.get("action_tags", ""), spec.get("scene_tags", "")]
-                                     + [pl.get("tags", "") for pl in places]
+    # 地點、物件不是角色：舊視覺卡裡誤寫的 1girl、1other 之類一律拿掉
+    place_tags = [_strip_count(pl.get("tags", "")) for pl in places]
+    no_humans = bool(not chars and places and not _wants_people(spec.get("action_tags", ""), spec.get("scene_tags", ""),
+                                                                  spec.get("extra", ""), spec.get("sentences", "")))
+    scene = normalize_tags(", ".join(x for x in ([NO_HUMANS] if no_humans else [])
+                                     + [spec.get("action_tags", ""), spec.get("scene_tags", "")]
+                                     + place_tags
                                      + [spec.get("composition", ""), spec.get("extra", "")] if x))
+    if no_humans:
+        scene = ", ".join(t for t in scene.split(", ") if t and not PERSON_FRAMING.match(t))
     place_desc = " ".join(_sentence(pl.get("description", "")) for pl in places if pl.get("description"))
     sentences = (spec.get("sentences") or "").strip()
     lines = []
@@ -901,11 +939,14 @@ def assemble(spec, cfg, sheet_path=None):
             lines.append(place_desc)
         elif fmt == "natural" and scene:
             lines.append("Scene elements: " + scene + ".")
+    if no_humans and fmt != "tags":
+        lines.append("No people or characters appear in the image.")
     texts = text_sentences(spec.get("texts")) if cfg.get("allow_text") else ""
     if texts:
         lines.append(texts)
     core = "\n".join(l for l in lines if l.strip())
-    neg = normalize_tags(", ".join(x for x in [cfg.get("negative", ""), spec.get("negative_extra", "")] if x))
+    neg = normalize_tags(", ".join(x for x in [cfg.get("negative", ""), spec.get("negative_extra", ""),
+                                               NO_HUMANS_NEG if no_humans else ""] if x))
     if texts:   # 負面提示詞裡和文字有關的詞會跟要放的字互相抵消
         neg = ", ".join(t for t in neg.split(", ") if t and not TEXT_NEG.match(t.strip("() ").split(":")[0]))
     styles = spec.get("styles") or []
@@ -1003,12 +1044,24 @@ SCENE_SCHEMA = """只輸出一個 JSON 物件：
 - 標籤用空格不用底線，只寫畫面看得到的東西（不寫心理、不寫劇情因果）。
 - 角色外觀（髮色、服裝等）已經在視覺卡裡，不要重複寫在 action 裡。
 - 只畫一個瞬間；畫面裡最多三個角色，挑最重要的。
+- 沒有提供出場角色時（例如艦艇、建築、物件的設定圖），畫面裡不要有任何人物：characters 給空陣列，action_tags 寫 no humans，
+  構圖不要用 full body、cowboy shot、upper body 這類人物取景，sentences 也不要寫到人。
 - 不要加品質標籤、畫師、safe 之類的分級標籤，工作台會自己加。"""
 
 CARD_SCHEMA = """只輸出一個 JSON 物件：
-{"tags": "外觀的英文 Danbooru 標籤，逗號分隔：人數（1girl／1boy）、髮型髮色、瞳色、體型、招牌服裝、配件；地點或物件則寫建築、材質、色調",
+{"tags": "外觀的英文 Danbooru 標籤，逗號分隔：人數（1girl／1boy）、髮型髮色、瞳色、體型、招牌服裝、配件",
  "description": "一兩句英文，描述外觀與給人的感覺（不寫名字）"}
 規則：標籤用空格不用底線；只寫固定不變的外觀，不寫動作、表情、場景；設定沒寫到的外觀可以合理補上，但不要和設定衝突。"""
+
+# 勢力、世界觀：畫的是東西本身（艦艇、兵器、建築、地點、徽章），不是人
+OBJECT_CARD_SCHEMA = """只輸出一個 JSON 物件：
+{"tags": "外觀的英文 Danbooru 標籤，逗號分隔：第一個固定寫 no humans，接著寫種類（例如 spacecraft、battleship、castle、city）、外形、材質、色調、標誌性的部件",
+ "description": "一兩句英文，描述這個東西本身的外觀與給人的感覺（不寫名字、不寫人）"}
+規則：
+- 畫的是這個東西本身，不是擬人化角色：不要寫 1girl、1boy、1other、solo 之類的人數標籤，也不要寫髮型、瞳色、服裝、表情。
+- 設定裡提到的艦長、乘員、駐守人員都不要畫進去；艦艇或載具優先畫外觀全景，不要只畫艦橋內部。
+- 勢力就畫它的象徵物（旗幟、徽章、據點建築或代表性的艦艇兵器）。
+- 標籤用空格不用底線；只寫固定不變的外觀；設定沒寫到的外觀可以合理補上，但不要和設定衝突。"""
 
 
 def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind="chapter"):
@@ -1039,8 +1092,11 @@ def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind
 
 
 def ai_card_prompt(entry_text, name, kind):
-    system = prompts.cur()["illust_card_sys"]
-    user = "【%s：%s】\n%s\n\n%s" % (kind, name, project.split_frontmatter(entry_text)[1][:3000], CARD_SCHEMA)
+    if kind == "角色":
+        system, schema = prompts.cur()["illust_card_sys"], CARD_SCHEMA
+    else:
+        system, schema = prompts.cur()["illust_obj_card_sys"], OBJECT_CARD_SCHEMA
+    user = "【%s：%s】\n%s\n\n%s" % (kind, name, project.split_frontmatter(entry_text)[1][:3000], schema)
     return system, user
 
 

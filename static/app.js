@@ -1009,17 +1009,10 @@ function entityFilterBar(t, list, f) {
   return `<div class="ef-bar"><label class="ef"><span>搜尋</span><input type="search" data-ef="q" placeholder="名稱、別名、一句話" value="${esc(f.q || "")}"></label>${out}${grouping}</div>`;
 }
 let pickSet = new Set();   // 批次移入分類：目前勾選的世界觀檔（換頁時清空）
-function pickToggle(el) {
-  const f = el.dataset.file;
-  pickSet.has(f) ? pickSet.delete(f) : pickSet.add(f);
-  const cb = el.querySelector("input.pick");
-  if (cb) cb.checked = pickSet.has(f);
-  const n = document.getElementById("ef-n");
-  if (n) n.textContent = `已選 ${pickSet.size} 項`;
-}
 function entityItemHtml(t, e, file, pick) {
-  const cb = pick ? `<input type="checkbox" class="pick" data-pick="${esc(e.file)}" ${pickSet.has(e.file) ? "checked" : ""} onclick="event.stopPropagation()">` : "";
-  const nav = pick ? `onclick="pickToggle(this)"` : `onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')"`;
+  // 勾選框獨立成一格（點得到就勾選），整列仍然是「看內容」
+  const cb = pick ? `<label class="pick-cell" onclick="event.stopPropagation()"><input type="checkbox" class="pick" data-pick="${esc(e.file)}" ${pickSet.has(e.file) ? "checked" : ""}></label>` : "";
+  const nav = `onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')"`;
   const badge = t === "世界觀" ? esc(e.category || "未分類") : (e.role ? esc(e.role) : "");
   const tagLine = (e.tags || []).length ? `<div class="ds">${esc(e.tags.join("、"))}</div>` : "";
   return `
@@ -1094,8 +1087,9 @@ function bindEntryFilter(view, t, list, file, f) {
   paint();
 }
 
+let pickKey = "";
 async function viewBible(view, t, file) {
-  pickSet = new Set();
+  if (pickKey !== `${S.book}|${t}`) { pickSet = new Set(); pickKey = `${S.book}|${t}`; }
   const b = await api("GET", B("/bible"));
   t = t || "角色";
   const tabs = ["角色", "勢力", "世界觀", "核心", "章節結構", "草稿"];

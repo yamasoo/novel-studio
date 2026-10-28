@@ -176,4 +176,5 @@ T.update({
     "trial_len": "150-250 words 左右",
     "illust_scene_sys": "You are an illustration storyboard artist: turn the novel text (which may be in English) into a scene description for an anime-style image model (Anima, which takes Danbooru tags and English natural language). Output JSON only.",
     "illust_card_sys": "You are a character designer: turn the setting text (which may be in English) into a fixed appearance description for an anime-style image model. Output JSON only.",
+    "illust_obj_card_sys": "You are a mecha and environment designer: turn the ship, weapon, building, place or faction emblem in the setting text (which may be in English) into a fixed appearance description for an anime-style image model. Depict the thing itself, never people. Output JSON only.",
 })

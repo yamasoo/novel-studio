@@ -741,6 +741,7 @@ def save_card_result(book, p, data):
     card = {"tags": str((data or {}).get("tags") or ""), "description": str((data or {}).get("description") or "")}
     if not card["tags"] and not card["description"]:
         raise NativeError("模型沒有回傳視覺卡內容")
+    card = illust.sanitize_card(card, f.split("/")[1] if f.count("/") >= 2 else "")
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(illust.write_card(text, card))
     return "**視覺卡已寫入 %s**\n- 標籤：%s\n- 描述：%s" % (f, illust.normalize_tags(card["tags"]), card["description"])

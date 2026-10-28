@@ -17,8 +17,15 @@ from . import context, project, prompts, shared, tracking
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
+APPEND_RE = re.compile(r"<<<\s*追加\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
+APPEND_TARGETS = ("設定/名詞表.md",)   # 名詞表太大，只能用追加，不讓模型整份重寫
+GLOSSARY_REL = "設定/名詞表.md"
+CLAIM_RE = re.compile(r"已(?:登錄|寫入|入庫|建立|新增|存入|更新|登記)")
 WRITE_PREFIXES = ("設定/", "大綱/", "範例/")
 DELETE_PREFIXES = ("設定/草稿/",)
+DRAFT_PREFIX = "設定/草稿/"
+# 自由指令裡要求「設計設定」的句子：走草稿流程，產出直接存進 設定/草稿/
+DESIGN_RE = re.compile(r"novel-bible|設計世界觀|設計勢力|設計力量體系|建角色|建立角色|生成設定|設定草稿|設計設定")
 
 FILE_RULE = prompts.pack("zh-TW")["file_rule"]       # 相容舊程式碼；實際用 prompts.cur()["file_rule"]
 CONFIRM_RULE = prompts.pack("zh-TW")["confirm_rule"]
@@ -96,14 +103,78 @@ def parse_blocks(text):
     t = text.strip()
     files = [(_norm(m.group(1)), m.group(2)) for m in FILE_RE.finditer(t)]
     dels = [_norm(m.group(1)) for m in DEL_RE.finditer(t)]
-    report = DEL_RE.sub("", FILE_RE.sub("", t)).strip()
+    report = DEL_RE.sub("", FILE_RE.sub("", APPEND_RE.sub("", t))).strip()
     report = re.sub(r"\n{3,}", "\n\n", report)
     return files, dels, report
 
 
-def apply_blocks(book_dir, files, dels):
+def parse_appends(text):
+    return [(_norm(m.group(1)), m.group(2)) for m in APPEND_RE.finditer(text.strip())]
+
+
+def _glossary_names(text):
+    names = set()
+    for line in text.split("\n"):
+        if line.startswith("|"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if cells and cells[0] and cells[0] != "名詞" and not set(cells[0]) <= set("-: "):
+                names.update(n.strip() for n in cells[0].split("／") if n.strip())
+    return names
+
+
+def apply_appends(book_dir, appends):
+    """把新列追加到名詞表末尾；名稱已存在的略過，既有的列一律不動。"""
+    done, skipped = [], []
+    for rel, body in appends:
+        if rel != GLOSSARY_REL:
+            skipped.append("追加 %s（只能追加到 設定/名詞表.md）" % rel)
+            continue
+        try:
+            full = project.safe_path(book_dir, rel)
+        except project.ProjectError:
+            skipped.append("追加 %s（路徑不合法）" % rel)
+            continue
+        if not os.path.isfile(full):
+            skipped.append("追加 %s（名詞表不存在）" % rel)
+            continue
+        cur = project.read_text(full)
+        known = _glossary_names(cur)
+        new_rows, dup = [], []
+        for line in body.split("\n"):
+            ls = line.strip()
+            if not ls.startswith("|"):
+                continue
+            cells = [c.strip() for c in ls.strip("|").split("|")]
+            if not cells or cells[0] in ("名詞", "") or set(cells[0]) <= set("-: "):
+                continue
+            names = [n.strip() for n in cells[0].split("／") if n.strip()]
+            if not names:
+                continue
+            if any(n in known for n in names):
+                dup.append(names[0])
+                continue
+            known.update(names)
+            new_rows.append(ls)
+        if not new_rows:
+            skipped.append("追加名詞：沒有新名稱" + ("（已存在：%s）" % "、".join(dup) if dup else ""))
+            continue
+        tracking.backup(book_dir, full, "追加前")
+        with open(full, "a", encoding="utf-8", newline="\n") as f:
+            if not cur.endswith("\n"):
+                f.write("\n")
+            f.write("\n".join(new_rows) + "\n")
+        done.append("追加名詞 %d 筆：%s" % (len(new_rows), "、".join(r.split("|")[1].strip() for r in new_rows)))
+        if dup:
+            skipped.append("已存在、略過：%s" % "、".join(dup))
+    return done, skipped
+
+
+def apply_blocks(book_dir, files, dels, appends=None):
     done, skipped = [], []
     for rel, content in files:
+        if rel in APPEND_TARGETS:
+            skipped.append("%s（名詞表不整份改寫，請用 <<<追加 設定/名詞表.md>>> 只列新增的列）" % rel)
+            continue
         ok = (rel == "CLAUDE.md" or rel.startswith(WRITE_PREFIXES)) and rel.endswith(".md")
         try:
             full = project.safe_path(book_dir, rel) if ok else None
@@ -133,6 +204,10 @@ def apply_blocks(book_dir, files, dels):
         tracking.backup(book_dir, full, "刪除前")
         os.remove(full)
         done.append("刪除 %s（已備份）" % rel)
+    if appends:
+        d2, s2 = apply_appends(book_dir, appends)
+        done += d2
+        skipped += s2
     return done, skipped
 
 
@@ -348,6 +423,25 @@ def spec_intake(c, p):
     return "整理入庫", task, pk, False
 
 
+def is_design_request(text):
+    return bool(DESIGN_RE.search(text or ""))
+
+
+def spec_design_draft(c, p):
+    """自由指令設計設定：只讀索引（不整份讀名詞表），產出寫進設定/草稿/。"""
+    pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
+    pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
+    pk.add(1, "世界觀設計方法", ref(c, "novel-bible/references/worldbuilding.md"))
+    pk.add(1, "角色設計方法", ref(c, "novel-bible/references/character-design.md"))
+    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
+    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
+    pk.add(2, "角色範本", tpl(c, "角色.md"))
+    pk.add(1, "設定索引", context.read(c.book, "設定/_索引.md"))
+    add_book_core(pk, c)
+    task = prompts.cur()["task_design_draft"].format(text=p.get("text", ""))
+    return "設計設定草稿", task, pk, False
+
+
 def spec_promote(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
@@ -368,7 +462,7 @@ SPECS = {"setup_new": spec_setup_new, "style": spec_style, "preference": spec_pr
          "intake": spec_intake, "promote_drafts": spec_promote}
 
 
-def run_spec(c, p, spec, system):
+def run_spec(c, p, spec, system, draft_only=False):
     label, task, pk, confirm = spec(c, p)
     ctx_text, used, dropped = pk.build()
     if dropped:
@@ -378,9 +472,18 @@ def run_spec(c, p, spec, system):
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=int(c.prov.get("max_output") or 8192), label=label, stage="plan")
     files, dels, report = parse_blocks(out)
+    appends = parse_appends(out)
+    blocked = []
+    if draft_only:   # 草稿模式：只允許寫進 設定/草稿/，正式設定與名詞表一律不動
+        blocked = ["%s（設計結果先放草稿，不直接進正式設定）" % r for r, _ in files if not r.startswith(DRAFT_PREFIX)]
+        blocked += ["%s（設計結果不直接追加名詞表）" % r for r, _ in appends]
+        blocked += ["刪除 %s（設計模式不刪檔）" % r for r in dels]
+        files = [(r, b) for r, b in files if r.startswith(DRAFT_PREFIX)]
+        appends, dels = [], []
     if c.truncated:
         report += "\n\n⚠ 這次輸出被截斷，最後一個檔案可能沒寫完（沒寫完的檔案不會寫入）。請調高「最大輸出」後再執行一次。"
-    done, skipped = apply_blocks(c.book, files, dels) if (files or dels) else ([], [])
+    done, skipped = apply_blocks(c.book, files, dels, appends) if (files or dels or appends) else ([], [])
+    skipped = skipped + blocked
     hook = getattr(c, "after_files", None)
     if hook:
         c.after_files = None
@@ -394,8 +497,16 @@ def run_spec(c, p, spec, system):
 
 def reply_files(c, out):
     files, dels, report = parse_blocks(out)
-    done, skipped = apply_blocks(c.book, files, dels) if (files or dels) else ([], [])
-    return result_text(report, done, skipped)
+    appends = parse_appends(out)
+    done, skipped = apply_blocks(c.book, files, dels, appends) if (files or dels or appends) else ([], [])
+    return result_text(report, done, skipped) + saved_claim_warning(out, done)
+
+
+def saved_claim_warning(out, done):
+    """模型說「已登錄／已寫入」，但這一輪沒有任何檔案被寫入：明確警告，避免被當成已入庫。"""
+    if done or not CLAIM_RE.search(out or ""):
+        return ""
+    return "\n\n⚠ 這次**沒有寫入任何檔案**，上面「已登錄」之類的說法只是文字。要入庫請用「整理內容入庫」。"
 
 
 # ---------------------------------------------------------------------------

@@ -167,13 +167,30 @@ def card_text(book_dir, no):
     return ("大綱/章綱/" + f, project.read_text(os.path.join(book_dir, "大綱", "章綱", f))) if f else (None, "")
 
 
+_LATIN = re.compile(r"[A-Za-z]")
+_name_rx = {}
+
+
+def name_in_text(name, text):
+    """名稱有沒有出現在文字裡。含拉丁字母的名稱（英文書）：不分大小寫、要是完整單字，
+    所以 jim 對得到 Jim Hawkins，Jimmy 不會被誤認成 Jim；中文、日文名稱照舊用子字串比對。"""
+    if not name:
+        return False
+    if not _LATIN.search(name):
+        return name in text
+    rx = _name_rx.get(name)
+    if rx is None:
+        rx = _name_rx[name] = re.compile(r"(?<![A-Za-z])" + re.escape(name) + r"(?![A-Za-z])", re.I)
+    return rx.search(text) is not None
+
+
 def mentioned_entities(book_dir, text):
     """找出文字中提到的角色、勢力、世界觀檔案。"""
     hits = []
     for sub in ("設定/角色", "設定/勢力", "設定/世界觀"):
         for e in project.list_entries(book_dir, sub):
             names = [e["name"]] + [str(a) for a in (e.get("aliases") or [])]
-            if any(n and n in text for n in names):
+            if any(name_in_text(n, text) for n in names):
                 hits.append(e)
     return hits
 

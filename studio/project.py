@@ -61,6 +61,21 @@ def count_chars(text):
     return words if words > cjk else cjk
 
 
+def safe_filename(name, maxlen=40):
+    """標題、名稱 → 檔名用的字串。只去掉 Windows 不能用的字元（\\ / : * ? " < > |）和換行，
+    保留空白（連續空白縮成一個、頭尾去掉），太長就截斷，空字串回傳「未命名」。
+    匯入、整理名詞表、從正文建立設定都用這一個，檔名規則才會一致。"""
+    s = re.sub(r'[\\/:*?"<>|]+', "", str(name or ""))
+    s = re.sub(r"\s+", " ", s).strip()                 # 換行、tab、全形空白一律變成一個半形空白
+    if len(s) > maxlen:
+        cut = s[:maxlen]
+        if s[maxlen] != " " and " " in cut and cut.rfind(" ") >= maxlen * 0.6:
+            cut = cut[:cut.rfind(" ")]                  # 英文標題：盡量斷在單字之間，不把單字切一半
+        s = cut
+    s = s.strip().rstrip(".")                           # 截斷後再清一次；Windows 檔名不能以「.」或空白結尾
+    return s.strip() or "未命名"
+
+
 def chapter_no(name):
     m = CH_NUM.search(name)
     return int(m.group(1)) if m else None
@@ -132,6 +147,9 @@ def list_books(library):
                 "updated": latest_mtime(d),
                 "pending_candidates": sum(1 for c in chs if c["candidate_file"]),
             })
+            from . import lang as lang_mod
+            info["lang"] = lang_mod.book_lang(d)
+            info["unit"] = lang_mod.count_unit(info["lang"])
         books.append(info)
     books.sort(key=lambda b: (not b["is_book"], -(b.get("updated") or 0)))
     return books

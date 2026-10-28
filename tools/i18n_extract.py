@@ -77,10 +77,29 @@ def segments(s):
     return out
 
 
+def fold_units(src):
+    """字數單位：`${unitCh(...)}` 在執行時是「字」或「詞」，翻譯鍵一律以「字」為準（「詞」那組另外手動補在語言檔）。
+    另外，標了 `// i18n-skip` 的整行不抓（單位函式本身）。"""
+    src = "\n".join(ln for ln in src.split("\n") if "// i18n-skip" not in ln)
+    out, i, tag = [], 0, "${unitCh("
+    while True:
+        j = src.find(tag, i)
+        if j < 0:
+            out.append(src[i:]); break
+        out.append(src[i:j])
+        k, depth = j + len(tag), 1
+        while k < len(src) and depth:
+            depth += {"(": 1, ")": -1}.get(src[k], 0)
+            k += 1
+        i = k + 1 if src[k:k + 1] == "}" else k      # 吃掉結尾的 }
+        out.append("字")
+    return "".join(out)
+
+
 def extract():
     keys = {}
     for f in FILES:
-        src = open(os.path.join(ROOT, f), encoding="utf-8").read()
+        src = fold_units(open(os.path.join(ROOT, f), encoding="utf-8").read())
         strs = [src] if f.endswith(".html") else js_strings(src)
         for s in strs:
             for seg in segments(s):

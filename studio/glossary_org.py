@@ -6,11 +6,13 @@
 - 事件留在名詞表，指到時間線；稱謂留在名詞表。
 - 每個名詞從正文抓前後幾句當參考（本機搜尋，不重讀整本）。
 結果寫成草稿，由「從正文建立設定」頁的「設定」組採用。
+
+提示詞與寫出的說明文字跟著書的語言走（prompts 的語言包）；類別、欄位鍵名與 JSON 的列舉值維持中文，程式靠它們判斷。
 """
 import os
 import re
 
-from . import context, project, search
+from . import context, project, prompts, search
 
 BIG = ("地點", "組織", "物品", "能力與技術", "制度與習俗", "生物", "事件", "稱謂", "人物", "其他")
 TOPIC_BIG = ("地點", "物品", "能力與技術", "制度與習俗", "生物", "其他")
@@ -19,42 +21,16 @@ OWN_FILE_BIG = ("地點", "物品", "能力與技術")
 CLASSIFY_BATCH = 60
 TOPIC_BATCH = 40
 OWN_BATCH = 4
-JUNK = re.compile(r"未提及|正文(?:無|沒有)此?資訊|正文未明確|無相關資訊|^\s*$")
+JUNK = re.compile(r"未提及|正文(?:無|沒有)此?資訊|正文未明確|無相關資訊|not stated in the text|not mentioned in the text|本文に明記なし|言及なし|^\s*$")
 
-TOPIC_HINT = "地理、船艦與載具、武器與裝備、科技與能力、物資與物品、物產與生物、社會制度與習俗（古風、奇幻可用：門派、功法與境界、兵器、靈獸、丹藥與法寶……）"
 
-CLASSIFY_SCHEMA = """請只輸出一個 JSON 物件：
-{"名詞": [{"名詞": "照輸入", "大類": "地點|組織|物品|能力與技術|制度與習俗|生物|事件|稱謂|人物|其他",
-  "小類": "依題材自己寫，例如：港口、堡壘、船艦、火器、艦載系統、植物、門派、功法", "主題": "這一條要寫進哪一份設定檔",
-  "處理": "保留|刪除|人物"}]}
-規則：
-- 「主題」用簡短的檔名，同一本書最多 8 個主題，同類的放在一起。可以參考：%s。大類是事件、稱謂、人物、組織時，主題留空。
-- 「處理」：說明沒有內容、或根本不是專有名詞（例如「原始森林」「種子」這種普通名詞且說明沒有特殊設定）寫「刪除」；其實是一個人（例如被誤列成勢力的人名）寫「人物」；其他寫「保留」。
-- 「大類」看這個名詞本身是什麼：船、槍、機器是物品；一支部隊、一家公司、一個政權是組織；議會、投票、公約是制度與習俗；艦上的系統功能、技術方法是能力與技術。""" % TOPIC_HINT
+def _p(key, **kw):
+    """取出目前語言的提示詞／文字，替換 {名字} 的變數。只換有給的名字，JSON 的花括號不動。"""
+    return re.sub(r"\{(\w+)\}", lambda m: str(kw[m.group(1)]) if m.group(1) in kw else m.group(0), prompts.cur()[key])
 
-FACTION_SCHEMA = """請只輸出一個 JSON 物件：
-{"勢力": [{"名稱": "正式名稱", "別名": ["同一個組織的其他名稱"], "沿革": "同一個政權或組織在不同階段的名稱與變化（沒有就留空）",
-  "內部編組": ["屬於這個勢力的小隊、部門"], "一句話": "", "規模與地盤": "", "首領": "", "主要成員": "", "資源與手段": "",
-  "想要什麼": "", "和誰有衝突": "", "和誰有合作": "", "內部規矩": "", "對主角的態度": "", "相關角色": [],
-  "需要作者確認": "拿不準的合併判斷寫在這裡，例如「青雲門與青雲宗是否同一個門派的前後名稱」；沒有就留空"}],
- "不是勢力": [{"名詞": "", "改成": "人物|物品|其他", "原因": ""}]}
-規則：
-- 確定是同一個組織的不同名稱才合併（例如縮寫與全名）；同一個政權不同階段的名稱可以合併，但要寫進「沿革」並在「需要作者確認」說明。
-- 屬於某個勢力的小隊、部門放進那個勢力的「內部編組」，不要另外建勢力。
-- 「現有的勢力檔」裡已經有的資訊要保留，只補充、不刪除。
-- 看不出來的欄位寫「（正文未明確）」，不要編。"""
 
-TOPIC_SCHEMA = """請只輸出一個 JSON 物件：
-{"一句話": "這一類設定在故事裡的作用", "分區": [{"標題": "例如依地區、用途分組", "條目": [{"名詞": "", "說明": "一到兩句，只寫正文給的資訊"}]}],
- "規則與限制": ["寫成可以檢查的規則，例如射程、數量、代價；沒有就留空陣列"], "與劇情的關係": ""}
-每個輸入的名詞都要出現在某個分區裡，不要新增輸入沒有的名詞，不要編。"""
-
-OWN_SCHEMA = """請只輸出一個 JSON 物件：
-{"條目": [{"名稱": "照輸入", "一句話": "", "特性": ["規格、能力、外觀、位置等，一條一項"], "來歷": "", "在故事中的作用": "",
-  "目前狀態": "截至最後一次出現", "限制與代價": [""]}]}
-只根據提供的說明與正文片段；看不出來的寫「（正文未明確）」，不要編。"""
-
-UNKNOWN = "（正文未明確）"
+def _u():
+    return prompts.cur()["gl_unknown"]
 
 
 def _clean(s):
@@ -62,7 +38,7 @@ def _clean(s):
 
 
 def _fname(s):
-    return re.sub(r'[\\/:*?"<>|\s]+', "", s or "")[:40] or "未命名"
+    return project.safe_filename(s, 40)
 
 
 # ---------------------------------------------------------------------------
@@ -122,10 +98,10 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     todo = [r for r in keep_rows if r["類別"] != "人物"]
     for i in range(0, len(todo), CLASSIFY_BATCH):
         part = todo[i:i + CLASSIFY_BATCH]
-        body = "\n".join("- %s〔原分類：%s；出場 %d 章〕%s" % (r["名詞"], r["類別"] or "無", len(info[r["名詞"]]["chapters"]), r["說明"])
+        body = "\n".join(_p("gl_cls_line", name=r["名詞"], cat=r["類別"] or _p("gl_none"), n=len(info[r["名詞"]]["chapters"]), desc=r["說明"])
                          for r in part)
-        d = step("org_cls_%d" % (i // CLASSIFY_BATCH), "名詞分類 %d／%d" % (i // CLASSIFY_BATCH + 1, (len(todo) + CLASSIFY_BATCH - 1) // CLASSIFY_BATCH),
-                 "以下是一本小說名詞表的條目。請重新分類，並決定每一條要寫進哪一份設定檔。\n\n" + body + "\n\n" + CLASSIFY_SCHEMA) or {}
+        d = step("org_cls_%d" % (i // CLASSIFY_BATCH), _p("gl_lbl_cls", i=i // CLASSIFY_BATCH + 1, total=(len(todo) + CLASSIFY_BATCH - 1) // CLASSIFY_BATCH),
+                 _p("gl_classify_wrap", body=body, schema=_p("gl_classify_schema", topic_hint=_p("gl_topic_hint")))) or {}
         for x in d.get("名詞") or []:
             if isinstance(x, dict) and _clean(x.get("名詞")):
                 cls[_clean(x.get("名詞"))] = x
@@ -143,10 +119,10 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     if orgs or existing_factions:
         ex = existing_factions if existing_factions is not None else [
             (e["name"], context.body(project.read_text(os.path.join(book_dir, e["file"])))[:700]) for e in project.list_entries(book_dir, "設定/勢力")]
-        body = "【名詞表裡的組織】\n" + "\n".join("- %s（出場 %d 章）：%s" % (r["名詞"], len(info[r["名詞"]]["chapters"]), r["說明"]) for r in orgs)
+        body = _p("gl_fac_head") + "\n" + "\n".join(_p("gl_fac_line", name=r["名詞"], n=len(info[r["名詞"]]["chapters"]), desc=r["說明"]) for r in orgs)
         if ex:
-            body += "\n\n【現有的勢力檔】\n" + "\n\n".join("〔%s〕\n%s" % (n, t) for n, t in ex)
-        d = step("org_fac", "整理勢力", "請把下面的組織整理成勢力設定：合併重複、移走不是勢力的。\n\n" + body + "\n\n" + FACTION_SCHEMA) or {}
+            body += "\n\n" + _p("gl_fac_ex") + "\n" + "\n\n".join("〔%s〕\n%s" % (n, t) for n, t in ex)
+        d = step("org_fac", _p("gl_lbl_fac"), _p("gl_fac_wrap", body=body, schema=_p("gl_faction_schema", unknown=_u()))) or {}
         from .reverse import render_faction
         for f in d.get("勢力") or []:
             if not isinstance(f, dict) or not _clean(f.get("名稱")):
@@ -190,9 +166,9 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
             part = items[j:j + TOPIC_BATCH]
             body = "\n".join("- %s〔%s〕%s%s" % (
                 r["名詞"], _clean((cls.get(r["名詞"]) or {}).get("小類")) or big_of(r), r["說明"],
-                "".join("\n  > 第%d章：%s" % s for s in info[r["名詞"]]["snips"][:1])) for r in part)
-            d = step("org_topic_%s_%d" % (t, j // TOPIC_BATCH), "整理設定：%s" % t,
-                     "請把下面的名詞整理成小說設定集「%s」的內容。\n\n%s\n\n%s" % (t, body, TOPIC_SCHEMA)) or {}
+                "".join("\n  " + _p("gl_snip", n=s[0], s=s[1]) for s in info[r["名詞"]]["snips"][:1])) for r in part)
+            d = step("org_topic_%s_%d" % (t, j // TOPIC_BATCH), _p("gl_lbl_topic", topic=t),
+                     _p("gl_topic_wrap", topic=t, body=body, schema=_p("gl_topic_schema", unknown=_u()))) or {}
             merged["一句話"] = merged["一句話"] or _clean(d.get("一句話"))
             merged["分區"] += [s for s in d.get("分區") or [] if isinstance(s, dict)]
             merged["規則與限制"] += [_clean(x) for x in d.get("規則與限制") or [] if _clean(x)]
@@ -211,28 +187,28 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
                 shown.add(n)
                 tail = []
                 if firsts.get(n):
-                    tail.append("首次出現：第%03d章" % firsts[n])
+                    tail.append(_p("gl_first_seen", n="%03d" % firsts[n]))
                 if n in own_names:
                     tail.append("詳見 設定/世界觀/%s.md" % _fname(n))
-                lines.append("- **%s**：%s%s" % (n, _clean(e.get("說明")) or UNKNOWN, "（%s）" % "；".join(tail) if tail else ""))
+                lines.append("- **%s**：%s%s" % (n, _clean(e.get("說明")) or _u(), "（%s）" % "；".join(tail) if tail else ""))
             if lines:
                 secs.append("## %s\n%s" % (_clean(s.get("標題")) or "其他", "\n".join(lines)))
         left = [r for r in items if r["名詞"] not in shown]
         if left:   # AI 漏掉的照原說明補上，不讓名詞消失
-            secs.append("## 其他\n" + "\n".join("- **%s**：%s" % (r["名詞"], r["說明"] or UNKNOWN) for r in left))
-        rules = "\n".join("- " + x for x in merged["規則與限制"]) or "- " + UNKNOWN
+            secs.append("## 其他\n" + "\n".join("- **%s**：%s" % (r["名詞"], r["說明"] or _u()) for r in left))
+        rules = "\n".join("- " + x for x in merged["規則與限制"]) or "- " + _u()
         write(rel, ("---\n類型: 世界觀\n名稱: %s\n狀態: 草稿\n來源: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n%s\n\n## 規則與限制\n%s\n\n"
-                    "## 與劇情的關係\n%s\n\n## 備註\n- 由工作台從名詞表與正文整理，請作者核對。\n") % (
-            t, t, merged["一句話"] or UNKNOWN, "\n\n".join(secs), rules, merged["與劇情的關係"] or UNKNOWN))
+                    "## 與劇情的關係\n%s\n\n## 備註\n- %s\n") % (
+            t, t, merged["一句話"] or _u(), "\n\n".join(secs), rules, merged["與劇情的關係"] or _u(), _p("gl_note_review")))
         for r in items:
             where.setdefault(r["名詞"], rel)
     for j in range(0, len(own), OWN_BATCH):
         part = own[j:j + OWN_BATCH]
-        body = "\n\n".join("【%s】出場 %d 章（第%d～%d章）\n說明：%s\n%s" % (
-            r["名詞"], len(info[r["名詞"]]["chapters"]), info[r["名詞"]]["chapters"][0], info[r["名詞"]]["chapters"][-1], r["說明"],
-            "\n".join("> 第%d章：%s" % s for s in info[r["名詞"]]["snips"])) for r in part)
-        d = step("org_own_%d" % (j // OWN_BATCH), "整理重要條目 %d／%d" % (j // OWN_BATCH + 1, (len(own) + OWN_BATCH - 1) // OWN_BATCH),
-                 "請把下面幾個重要的名詞各自整理成一份設定。\n\n" + body + "\n\n" + OWN_SCHEMA) or {}
+        body = "\n\n".join(_p("gl_own_line", name=r["名詞"], n=len(info[r["名詞"]]["chapters"]), a=info[r["名詞"]]["chapters"][0],
+                              b=info[r["名詞"]]["chapters"][-1], desc=r["說明"],
+                              snips="\n".join(_p("gl_snip", n=s[0], s=s[1]) for s in info[r["名詞"]]["snips"])) for r in part)
+        d = step("org_own_%d" % (j // OWN_BATCH), _p("gl_lbl_own", i=j // OWN_BATCH + 1, total=(len(own) + OWN_BATCH - 1) // OWN_BATCH),
+                 _p("gl_own_wrap", body=body, schema=_p("gl_own_schema", unknown=_u()))) or {}
         got = {_clean(e.get("名稱")): e for e in d.get("條目") or [] if isinstance(e, dict)}
         for r in part:
             e = got.get(r["名詞"]) or {"一句話": r["說明"]}
@@ -240,12 +216,12 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
 
             def lst(v):
                 v = [_clean(x) for x in (v or []) if _clean(x)] if isinstance(v, list) else ([_clean(v)] if _clean(v) else [])
-                return "\n".join("- " + x for x in v) or "- " + UNKNOWN
+                return "\n".join("- " + x for x in v) or "- " + _u()
             write(rel, ("---\n類型: 世界觀\n名稱: %s\n狀態: 草稿\n來源: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n## 特性\n%s\n\n## 來歷\n%s\n\n"
-                        "## 在故事中的作用\n%s\n\n## 目前狀態\n%s\n\n## 限制與代價\n%s\n\n## 備註\n- 出場 %d 章（第%03d～%03d章）。由工作台從名詞表與正文整理，請作者核對。\n") % (
-                r["名詞"], r["名詞"], _clean(e.get("一句話")) or UNKNOWN, lst(e.get("特性")), _clean(e.get("來歷")) or UNKNOWN,
-                _clean(e.get("在故事中的作用")) or UNKNOWN, _clean(e.get("目前狀態")) or UNKNOWN, lst(e.get("限制與代價")),
-                len(info[r["名詞"]]["chapters"]), info[r["名詞"]]["chapters"][0], info[r["名詞"]]["chapters"][-1]))
+                        "## 在故事中的作用\n%s\n\n## 目前狀態\n%s\n\n## 限制與代價\n%s\n\n## 備註\n- %s\n") % (
+                r["名詞"], r["名詞"], _clean(e.get("一句話")) or _u(), lst(e.get("特性")), _clean(e.get("來歷")) or _u(),
+                _clean(e.get("在故事中的作用")) or _u(), _clean(e.get("目前狀態")) or _u(), lst(e.get("限制與代價")),
+                _p("gl_own_note", n=len(info[r["名詞"]]["chapters"]), a="%03d" % info[r["名詞"]]["chapters"][0], b="%03d" % info[r["名詞"]]["chapters"][-1])))
             where[r["名詞"]] = rel
 
     # 4. 名詞表（索引）
@@ -269,7 +245,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     order = {b: i for i, b in enumerate(BIG)}
     out_rows.sort(key=lambda x: (order.get(x["類別"].split("／")[0], 99), x["類別"]))
     from . import tracking
-    write("設定/名詞表.md", "---\n類型: 名詞表\n來源: 從名詞表整理\n---\n\n# 名詞表\n\n> 專有名詞、稱謂、統一用字。詳細設定在「注意」欄指到的檔案。\n\n" +
+    write("設定/名詞表.md", "---\n類型: 名詞表\n來源: 從名詞表整理\n---\n\n# 名詞表\n\n> " + _p("gl_table_note") + "\n\n" +
           tracking._render_table(["名詞", "類別", "說明", "注意"], out_rows) + "\n")
     cnt = {}
     for r in out_rows:

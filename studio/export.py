@@ -12,7 +12,7 @@ import re
 import uuid
 import zipfile
 
-from . import illust, project
+from . import illust, lang as lang_mod, project
 
 OUT_DIR = "匯出"
 PREFS = os.path.join(".studio", "匯出設定.json")
@@ -25,10 +25,22 @@ ITEMS = [
     ("tracking", "追蹤資料"),
 ]
 TITLE_STYLES = {
+    "auto": "依書的語言（中文、日文「第1章」，英文「Chapter 1」）",
     "arabic": "第1章 章名",
     "chinese": "第一章 章名",
+    "ja_wa": "第1話 章名",
     "name": "只有章名",
     "original": "照稿子裡的標題",
+}
+
+# 匯出檔裡出現的固定文字（目錄標題、作者、封面等）依書的語言
+STR = {
+    "zh-TW": {"contents": "目錄", "author": "作者：", "cover": "封面", "text": "正文", "code": "zh-TW",
+              "g_outline": "全書大綱與卷綱", "g_cards": "章綱", "g_bible": "設定集", "g_tracking": "追蹤資料"},
+    "en": {"contents": "Contents", "author": "Author: ", "cover": "Cover", "text": "Text", "code": "en",
+           "g_outline": "Book and Volume Outlines", "g_cards": "Chapter Cards", "g_bible": "Story Bible", "g_tracking": "Tracking"},
+    "ja": {"contents": "目次", "author": "作者：", "cover": "表紙", "text": "本文", "code": "ja",
+           "g_outline": "全体プロットと巻プロット", "g_cards": "章カード", "g_bible": "設定集", "g_tracking": "追跡データ"},
 }
 PARA_STYLES = {
     "indent": "段首空兩格",
@@ -39,7 +51,7 @@ ENCODINGS = {"utf-8": "UTF-8（建議）", "utf-8-sig": "UTF-8 含 BOM（舊版�
 COVER_NAMES = ("封面.jpg", "封面.jpeg", "封面.png", "cover.jpg", "cover.jpeg", "cover.png")
 
 DEFAULTS = {"format": "epub", "items": ["text"], "from": None, "to": None, "title": "", "author": "",
-            "title_style": "arabic", "para_style": "indent", "encoding": "utf-8",
+            "title_style": "auto", "para_style": "indent", "encoding": "utf-8",
             "vertical": False, "use_cover": True, "include_illust": True}
 
 
@@ -122,12 +134,18 @@ def _clean(text):
     return body.strip("\n")
 
 
-def chapter_heading(no, name, original, style):
+def chapter_heading(no, name, original, style, lang="zh-TW"):
     name = (name or "").strip()
     if style == "original" and original:
         return original
     if style == "name" and name:
         return name
+    if style == "auto":      # 跟著書的語言：英文書是 Chapter 1，其他和 arabic 一樣
+        style = "english" if lang == "en" else "arabic"
+    if style == "english":
+        return ("Chapter %d: %s" % (no, name)) if name else "Chapter %d" % no
+    if style == "ja_wa":
+        return ("第%d話 %s" % (no, name)).strip()
     num = "第%s章" % (chinese_number(no) if style == "chinese" else no)
     return ("%s %s" % (num, name)).strip()
 
@@ -140,7 +158,7 @@ def _split_chapter(text, no):
     if m:
         original = m.group(1).strip()
         body = body[m.end():]
-        name = re.sub(r"^第\s*[0-9一二三四五六七八九十百千零〇]+\s*章[\s:：、.．]*", "", original).strip()
+        name = re.sub(r"^(?:第\s*[0-9一二三四五六七八九十百千零〇]+\s*[章話]|(?i:chapter)\s+(?:\d+|[IVXLC]+)\b)[\s:：、.．]*", "", original).strip()
     paras = [re.sub(r"[ \t]*\n[ \t]*", "", p).strip() for p in re.split(r"\n\s*\n", body)]
     # 一行一段的稿子（段落之間沒有空行）也要拆開
     if len(paras) <= 2 and body.count("\n") > 4:
@@ -176,6 +194,8 @@ def _md_files(book_dir, rel_dir):
 
 def gather(book_dir, opts):
     """依選項整理要匯出的內容。回傳 (章節清單, 附錄分組清單)。"""
+    lang = opts.get("lang") or lang_mod.book_lang(book_dir)
+    S = STR.get(lang, STR["zh-TW"])
     items = set(opts.get("items") or [])
     chapters, groups = [], []
     rows = [r for r in project.scan_chapters(book_dir) if r["text_file"]]
@@ -188,31 +208,31 @@ def gather(book_dir, opts):
             original, name, paras = _split_chapter(project.read_text(os.path.join(book_dir, r["text_file"])), r["no"])
             name = name or r["title"]
             img = illust.main_image(book_dir, "chapter:%d" % r["no"]) if opts.get("include_illust", True) else None
-            chapters.append({"no": r["no"], "image": img, "title": chapter_heading(r["no"], name, original, opts.get("title_style")),
+            chapters.append({"no": r["no"], "image": img, "title": chapter_heading(r["no"], name, original, opts.get("title_style"), lang),
                              "paras": paras})
     if "outline" in items:
         rels = [x for x in _md_files(book_dir, "大綱") if os.path.basename(x).startswith("全書大綱")]
         rels += [x for x in _md_files(book_dir, "大綱") if x not in rels]
-        groups.append(("全書大綱與卷綱", _docs(book_dir, rels)))
+        groups.append((S["g_outline"], _docs(book_dir, rels)))
     if "cards" in items:
         docs = []
         for r in project.scan_chapters(book_dir):
             if r["card_file"] and not ((lo and r["no"] < lo) or (hi and r["no"] > hi)):
                 for doc in _docs(book_dir, [r["card_file"]]):
                     style = opts.get("title_style") if opts.get("title_style") != "name" else "arabic"
-                    doc["title"] = chapter_heading(r["no"], r["title"], "", style if style != "original" else "arabic")
+                    doc["title"] = chapter_heading(r["no"], r["title"], "", style if style != "original" else "arabic", lang)
                     docs.append(doc)
-        groups.append(("章綱", docs))
+        groups.append((S["g_cards"], docs))
     if "bible" in items:
         rels = ["設定/故事核心.md", "設定/文風.md", "設定/作者偏好.md", "設定/名詞表.md"]
         for sub in ("角色", "勢力", "世界觀"):
             rels += _md_files(book_dir, "設定/" + sub)
-        groups.append(("設定集", _docs(book_dir, rels)))
+        groups.append((S["g_bible"], _docs(book_dir, rels)))
     if "tracking" in items:
         rels = ["追蹤/狀態卡.md", "追蹤/伏筆.md", "追蹤/時間線.md"]
         rels += _md_files(book_dir, "追蹤/角色狀態")
         rels += _md_files(book_dir, "追蹤/章節摘要")
-        groups.append(("追蹤資料", _docs(book_dir, rels)))
+        groups.append((S["g_tracking"], _docs(book_dir, rels)))
     groups = [(g, docs) for g, docs in groups if docs]
     return chapters, groups
 
@@ -349,17 +369,18 @@ def md_to_xhtml(md):
 # ---------------------------------------------------------------------------
 # TXT
 # ---------------------------------------------------------------------------
-def build_txt(title, author, chapters, groups, para_style):
-    indent = "　　" if para_style in ("indent", "both") else ""
+def build_txt(title, author, chapters, groups, para_style, lang="zh-TW"):
+    # 段首縮排：中文兩個全形空白、日文一個、英文四個半形空白（章的第一段不縮）
+    indent = {"en": "    ", "ja": "　"}.get(lang, "　　") if para_style in ("indent", "both") else ""
     gap = para_style in ("blank", "both")
     lines = [title]
     if author:
-        lines.append("作者：" + author)
+        lines.append(STR.get(lang, STR["zh-TW"])["author"] + author)
     lines.append("")
     for ch in chapters:
         lines += ["", ch["title"], ""]
-        for p in ch["paras"]:
-            lines.append(indent + p)
+        for i, p in enumerate(ch["paras"]):
+            lines.append((indent if (i or lang != "en") else "") + p)
             if gap:
                 lines.append("")
         if not gap:
@@ -402,7 +423,7 @@ blockquote { margin: 0.8em 1.5em; color: #555; }
 .illust { text-align: center; margin: 1em 0; text-indent: 0; }
 .illust img { max-width: 100%%; max-height: 90vh; }
 .cover img { max-width: 100%%; max-height: 100%%; }
-"""
+%(first)s"""
 
 
 def _xhtml(title, body, lang="zh-TW", body_class=""):
@@ -415,16 +436,20 @@ def _xhtml(title, body, lang="zh-TW", body_class=""):
 IMG_MT = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 
 
-def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, vertical, cover_path):
+def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, vertical, cover_path, lang="zh-TW"):
     uid = "urn:uuid:" + str(uuid.uuid5(uuid.NAMESPACE_URL, "novel-studio:" + book_id_seed))
     modified = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    indent = "2em" if para_style in ("indent", "both") else "0"
+    S = STR.get(lang, STR["zh-TW"])
+    code = S["code"]
+    # 段首縮排：中文 2em、日文 1em、英文 1.5em（章的第一段不縮）
+    indent = {"en": "1.5em", "ja": "1em"}.get(lang, "2em") if para_style in ("indent", "both") else "0"
     pmargin = "0 0 1em 0" if para_style in ("blank", "both") else "0"
     if vertical:
         pmargin = "0 0 0 1em" if para_style in ("blank", "both") else "0"
     css = CSS % {"wm": "writing-mode: vertical-rl; -epub-writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;" if vertical else "",
                  "indent": indent, "pmargin": pmargin, "h_align": "start" if vertical else "center",
-                 "start": "top" if vertical else "left"}
+                 "start": "top" if vertical else "left",
+                 "first": ".ch p:first-of-type { text-indent: 0; }\n" if lang == "en" else ""}
 
     manifest, spine, nav_items, ncx_points = [], [], [], []
     files = {}
@@ -438,14 +463,14 @@ def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, 
             files["OEBPS/" + cname] = f.read()
         manifest.append('<item id="cover-image" href="%s" media-type="%s" properties="cover-image"/>' % (cname, mt))
         files["OEBPS/text/cover.xhtml"] = _xhtml(title, '<div class="cover"><img src="../%s" alt="%s"/></div>'
-                                                 % (cname, html.escape(title)))
+                                                 % (cname, html.escape(title)), code)
         manifest.append('<item id="cover" href="text/cover.xhtml" media-type="application/xhtml+xml"/>')
         spine.append('<itemref idref="cover" linear="yes"/>')
         cover_item = "text/cover.xhtml"
 
     tp = '<div class="title-page"><h1>%s</h1>%s</div>' % (
         html.escape(title), '<p class="author">%s</p>' % html.escape(author) if author else "")
-    files["OEBPS/text/title.xhtml"] = _xhtml(title, tp)
+    files["OEBPS/text/title.xhtml"] = _xhtml(title, tp, code)
     manifest.append('<item id="titlepage" href="text/title.xhtml" media-type="application/xhtml+xml"/>')
     spine.append('<itemref idref="titlepage"/>')
     spine.append('<itemref idref="nav"/>')
@@ -453,7 +478,7 @@ def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, 
     order = [0]
 
     def add_page(fid, fname, page_title, body, body_class=""):
-        files["OEBPS/text/" + fname] = _xhtml(page_title, body, body_class=body_class)
+        files["OEBPS/text/" + fname] = _xhtml(page_title, body, code, body_class=body_class)
         manifest.append('<item id="%s" href="text/%s" media-type="application/xhtml+xml"/>' % (fid, fname))
         spine.append('<itemref idref="%s"/>' % fid)
 
@@ -503,27 +528,28 @@ def build_epub(path, book_id_seed, title, author, chapters, groups, para_style, 
     if not nav_items:
         raise ExportError("沒有可以匯出的內容")
 
-    landmarks = ['<li><a epub:type="toc" href="nav.xhtml">目錄</a></li>']
+    landmarks = ['<li><a epub:type="toc" href="nav.xhtml">%s</a></li>' % S["contents"]]
     if cover_item:
-        landmarks.insert(0, '<li><a epub:type="cover" href="%s">封面</a></li>' % cover_item)
+        landmarks.insert(0, '<li><a epub:type="cover" href="%s">%s</a></li>' % (cover_item, S["cover"]))
     if chapters:
-        landmarks.append('<li><a epub:type="bodymatter" href="text/c0001.xhtml">正文</a></li>')
+        landmarks.append('<li><a epub:type="bodymatter" href="text/c0001.xhtml">%s</a></li>' % S["text"])
     nav = ('<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
-           '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-TW" xml:lang="zh-TW">\n'
-           '<head><meta charset="utf-8"/><title>目錄</title><link rel="stylesheet" type="text/css" href="style.css"/></head>\n<body>\n'
-           '<nav epub:type="toc" id="toc"><h1 class="group">目錄</h1><ol>%s</ol></nav>\n'
-           '<nav epub:type="landmarks" hidden="hidden"><ol>%s</ol></nav>\n</body>\n</html>\n') % ("".join(nav_items), "".join(landmarks))
+           '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="%(c)s" xml:lang="%(c)s">\n'
+           '<head><meta charset="utf-8"/><title>%(t)s</title><link rel="stylesheet" type="text/css" href="style.css"/></head>\n<body>\n'
+           '<nav epub:type="toc" id="toc"><h1 class="group">%(t)s</h1><ol>%(n)s</ol></nav>\n'
+           '<nav epub:type="landmarks" hidden="hidden"><ol>%(l)s</ol></nav>\n</body>\n</html>\n') % {
+        "c": code, "t": S["contents"], "n": "".join(nav_items), "l": "".join(landmarks)}
     files["OEBPS/nav.xhtml"] = nav
     files["OEBPS/style.css"] = css
     files["OEBPS/toc.ncx"] = ('<?xml version="1.0" encoding="utf-8"?>\n'
-                              '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="zh-TW">\n'
+                              '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="%s">\n'
                               '<head><meta name="dtb:uid" content="%s"/></head>\n<docTitle><text>%s</text></docTitle>\n'
-                              '<navMap>%s</navMap>\n</ncx>\n') % (uid, html.escape(title), "".join(ncx_points))
+                              '<navMap>%s</navMap>\n</ncx>\n') % (code, uid, html.escape(title), "".join(ncx_points))
 
     opf = ('<?xml version="1.0" encoding="utf-8"?>\n'
-           '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="zh-TW">\n'
+           '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="' + code + '">\n'
            '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">\n'
-           '<dc:identifier id="bookid">%s</dc:identifier>\n<dc:title>%s</dc:title>\n%s<dc:language>zh-TW</dc:language>\n'
+           '<dc:identifier id="bookid">%s</dc:identifier>\n<dc:title>%s</dc:title>\n%s<dc:language>' + code + '</dc:language>\n'
            '<meta property="dcterms:modified">%s</meta>\n%s</metadata>\n'
            '<manifest>\n<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n'
            '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n'
@@ -560,8 +586,12 @@ def export(book_dir, opts):
         raise ExportError("不支援的格式：%s" % fmt)
     if not opts.get("items"):
         raise ExportError("請至少勾選一項要匯出的內容")
+    lang = lang_mod.book_lang(book_dir)
+    opts["lang"] = lang
+    if lang == "en":
+        opts["vertical"] = False        # 直排只給中文、日文
     if opts.get("title_style") not in TITLE_STYLES:
-        opts["title_style"] = "arabic"
+        opts["title_style"] = "auto"
     if opts.get("para_style") not in PARA_STYLES:
         opts["para_style"] = "indent"
     title = (opts.get("title") or "").strip() or book_title(book_dir)
@@ -575,7 +605,10 @@ def export(book_dir, opts):
     rng = ""
     if chapters and (opts.get("from") or opts.get("to")):
         a, b = chapters[0]["no"], chapters[-1]["no"]
-        rng = "_第%d章" % a if a == b else "_第%d-%d章" % (a, b)
+        if lang == "en":
+            rng = "_ch%d" % a if a == b else "_ch%d-%d" % (a, b)
+        else:
+            rng = "_第%d章" % a if a == b else "_第%d-%d章" % (a, b)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     name = "%s%s_%s.%s" % (_safe_name(title), rng, stamp, fmt)
     path = os.path.join(out_dir, name)
@@ -586,18 +619,21 @@ def export(book_dir, opts):
         n += 1
 
     if fmt == "txt":
-        text = build_txt(title, author, chapters, groups, opts["para_style"])
+        text = build_txt(title, author, chapters, groups, opts["para_style"], lang)
         enc = opts.get("encoding") if opts.get("encoding") in ENCODINGS else "utf-8"
         with open(path, "w", encoding=enc, newline="") as f:
             f.write(text)
     else:
         cover = find_cover(book_dir) if opts.get("use_cover") else None
         build_epub(path, os.path.basename(os.path.normpath(book_dir)), title, author, chapters, groups,
-                   opts["para_style"], bool(opts.get("vertical")), os.path.join(book_dir, cover) if cover else None)
+                   opts["para_style"], bool(opts.get("vertical")), os.path.join(book_dir, cover) if cover else None, lang)
     save_prefs(book_dir, opts)
-    chars = sum(len(project.CJK.findall("".join(c["paras"]))) for c in chapters)
+    if lang == "en":        # 英文算詞數
+        chars = sum(project.count_chars("\n\n".join(c["paras"])) for c in chapters)
+    else:
+        chars = sum(len(project.CJK.findall("".join(c["paras"]))) for c in chapters)
     return {"file": name, "path": OUT_DIR + "/" + name, "size": os.path.getsize(path),
-            "chapters": len(chapters), "chars": chars, "docs": sum(len(d) for _, d in groups)}
+            "chapters": len(chapters), "chars": chars, "unit": lang_mod.count_unit(lang), "docs": sum(len(d) for _, d in groups)}
 
 
 def list_exports(book_dir):
@@ -627,7 +663,7 @@ def delete_export(book_dir, name):
 
 def meta(book_dir):
     rows = [r for r in project.scan_chapters(book_dir) if r["text_file"]]
-    return {"items": ITEMS, "title_styles": TITLE_STYLES, "para_styles": PARA_STYLES, "encodings": ENCODINGS,
+    return {"items": ITEMS, "lang": lang_mod.book_lang(book_dir), "unit": lang_mod.book_unit(book_dir), "title_styles": TITLE_STYLES, "para_styles": PARA_STYLES, "encodings": ENCODINGS,
             "prefs": load_prefs(book_dir), "book_title": book_title(book_dir), "cover": find_cover(book_dir),
             "illust_chapters": sum(1 for r in rows if illust.main_image(book_dir, "chapter:%d" % r["no"])),
             "chapters": [{"no": r["no"], "title": r["title"], "chars": r["chars"]} for r in rows],

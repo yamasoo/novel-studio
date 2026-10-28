@@ -13,7 +13,6 @@ import uuid
 from . import lang as lang_mod, prompts
 
 # 系統提示詞依書的語言取自 studio/prompts/（保持單行：Windows 的 claude.cmd 會把參數裡的換行切斷）
-STUDIO_SYSTEM = prompts.pack("zh-TW")["studio_system"]   # 相容舊程式碼
 
 
 def studio_system(book_dir):

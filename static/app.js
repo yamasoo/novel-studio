@@ -15,7 +15,11 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const enc = encodeURIComponent;
 const pad3 = (n) => String(n).padStart(3, "0");
-const fmtNum = (n) => (n || 0).toLocaleString("zh-TW");
+const fmtNum = (n) => (n || 0).toLocaleString({ en: "en-US", ja: "ja-JP" }[window.I18N && I18N.lang] || "zh-TW");
+// 字數單位：中文、日文書算「字」（chars），英文書算「詞」（words）；後端回傳 unit，這裡決定顯示哪個字
+const unitCh = (unit) => (unit === "words" ? "詞" : "字");   // i18n-skip
+const unitOfLang = (lang) => (lang === "en" ? "words" : "chars");
+const unitOfBook = (id) => { const b = (S.books || []).find((x) => x.id === (id || S.book)); return (b && b.unit) || "chars"; };
 function fmtTime(t) {
   if (!t) return "";
   const d = new Date(t * 1000), now = new Date();
@@ -176,7 +180,7 @@ async function viewReverse(view, upto) {
     <div class="card" style="margin-bottom:14px">
       <div class="card-title"><h2>1. 估算</h2><span class="muted small">執行者：${esc(Panel.provName())}（右側面板上方可以切換）</span></div>
       <div class="grid g3" style="margin-bottom:10px">
-        <div><div class="muted small">要讀的章節</div><div class="big">${est.chapters || 0} 章</div><div class="muted small">${fmtNum(est.chars || 0)} 字，共 ${est.total_chapters || 0} 章</div></div>
+        <div><div class="muted small">要讀的章節</div><div class="big">${est.chapters || 0} 章</div><div class="muted small">${fmtNum(est.chars || 0)} ${unitCh(unitOfBook())}，共 ${est.total_chapters || 0} 章</div></div>
         <div><div class="muted small">分批</div><div class="big">${est.batches || 0} 批</div><div class="muted small">依執行者的上下文長度，每批 1～3 章</div></div>
         <div><div class="muted small">預估 token</div><div class="big">${fmtNum(est.tokens_in || 0)}</div><div class="muted small">輸出約 ${fmtNum(est.tokens_out || 0)}；${esc(cost)}</div></div>
       </div>
@@ -355,7 +359,7 @@ async function viewShelf(view) {
         <div class="card book" onclick="go('#/b/${enc(b.id)}')">
           <div class="title">${esc(b.name)}</div>
           <div class="hook">${esc(b.hook || "（還沒有一句話鉤子）")}</div>
-          <div class="meta"><span>已寫 ${b.chapters_written} 章</span><span>${fmtNum(b.chars)} 字</span>
+          <div class="meta"><span>已寫 ${b.chapters_written} 章</span><span>${fmtNum(b.chars)} ${unitCh(b.unit)}</span>
           ${b.pending_candidates ? `<span class="badge b-accent">${b.pending_candidates} 份候選稿</span>` : ""}</div>
           <div class="meta">更新於 ${fmtTime(b.updated) || "—"}</div>
         </div>`).join("")}
@@ -430,7 +434,7 @@ async function viewOverview(view) {
     <div class="pipe-box"></div>
     <div class="grid g4">
       <div class="card stat"><div class="num">${ov.written}</div><div class="lbl">已寫章數</div></div>
-      <div class="card stat"><div class="num">${fmtNum(ov.chars)}</div><div class="lbl">正文字數</div></div>
+      <div class="card stat"><div class="num">${fmtNum(ov.chars)}</div><div class="lbl">${ov.unit === "words" ? "正文詞數" : "正文字數"}</div></div>
       <div class="card stat"><div class="num">${ov.chapters}</div><div class="lbl">已規劃章數（含章綱）</div></div>
       <div class="card stat"><div class="num">${next.no}</div><div class="lbl">下一章 ${next.has_card ? statusBadge(next.card_status) : '<span class="badge b-bad">沒有章綱</span>'}</div></div>
     </div>
@@ -451,10 +455,14 @@ async function viewOverview(view) {
       </div>
     </div>
     ${ov.recent.length ? `<div class="card" style="margin-top:14px"><div class="card-title"><h2>最近章節</h2></div>
-      <table>${ov.recent.map((c) => `<tr class="click" onclick="go('#/b/${enc(S.book)}/ch/${c.no}')"><td>第${c.no}章</td><td>${esc(c.title)}</td><td class="num">${fmtNum(c.chars)} 字</td></tr>`).join("")}</table></div>` : ""}`;
+      <table>${ov.recent.map((c) => `<tr class="click" onclick="go('#/b/${enc(S.book)}/ch/${c.no}')"><td>第${c.no}章</td><td>${esc(c.title)}</td><td class="num">${fmtNum(c.chars)} ${unitCh(ov.unit)}</td></tr>`).join("")}</table></div>` : ""}`;
 }
 window.setBookLang = async (v) => {
-  try { await api("POST", B("/lang"), { lang: v }); toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]); }
+  try {
+    await api("POST", B("/lang"), { lang: v }); toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]);
+    S.books = (await api("GET", "/api/books")).books;      // 字數單位跟著語言換（字／詞）
+    route && route();
+  }
   catch (e) { fail(e); route && route(); }
 };
 function alertHtml(a) {
@@ -475,6 +483,7 @@ function alertHtml(a) {
 /* ------------------------------------------------------------------ 章節列表 */
 async function viewChapters(view) {
   const chs = await api("GET", B("/chapters"));
+  const wu = unitOfBook();
   setTimeout(() => renderPipe(), 0);
   view.innerHTML = `
     <div class="page-head"><div><h1>章節</h1><div class="sub">共 ${chs.length} 章　·　點一列開啟</div></div>
@@ -482,12 +491,12 @@ async function viewChapters(view) {
     <div class="pipe-box"></div>
     <div class="card">
       ${chs.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>章</th><th>章名</th><th>功能</th><th>章綱</th><th style="text-align:right">正文字數</th><th>候選稿</th></tr></thead>
+        <thead><tr><th>章</th><th>章名</th><th>功能</th><th>章綱</th><th style="text-align:right">${wu === "words" ? "正文詞數" : "正文字數"}</th><th>候選稿</th></tr></thead>
         <tbody>${chs.map((c) => `<tr class="click" onclick="go('#/b/${enc(S.book)}/ch/${c.no}')">
           <td>第${c.no}章</td><td>${esc(c.title)}</td><td class="muted">${esc(c.func)}</td>
           <td>${c.card_file ? statusBadge(c.card_status || "草稿") : '<span class="badge b-bad">無</span>'}</td>
           <td class="num">${c.text_file ? fmtNum(c.chars) : '<span class="muted">—</span>'}</td>
-          <td>${c.candidate_file ? `<span class="badge b-accent">待審 ${fmtNum(c.candidate_chars)} 字</span>` : ""}</td></tr>`).join("")}
+          <td>${c.candidate_file ? `<span class="badge b-accent">待審 ${fmtNum(c.candidate_chars)} ${unitCh(wu)}</span>` : ""}</td></tr>`).join("")}
         </tbody></table></div>`
         : `<div class="empty"><div class="big">☰</div>還沒有任何章綱或正文。<br><button class="primary" style="margin-top:10px" onclick="Panel.openForm('chapter_cards',{from:1,to:10})">排第一批章綱</button></div>`}
     </div>`;
@@ -729,6 +738,22 @@ async function pipeModal(no) {
 window.pipeModal = pipeModal; window.pipeStop = pipeStop; window.pipeResume = pipeResume; window.pipeClear = pipeClear; window.pipeShowJob = pipeShowJob;
 
 /* ------------------------------------------------------------------ 文件檢視／編輯 */
+// 設定檔裡的「欄位標籤」（例如「想要：」）和正文同一個文字節點，整段對不上鍵，所以要切開來翻。
+// 只改顯示，檔案內容不動；中文介面直接略過。
+function localizeLabels(root) {
+  if (!root || !window.I18N || I18N.lang === "zh-TW") return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (w.nextNode()) nodes.push(w.currentNode);
+  for (const n of nodes) {
+    const m = n.nodeValue.match(/^(\s*)([^：:\n]{1,30}[：:])([\s\S]*)$/);
+    if (!m) continue;
+    const label = I18N.tr(m[2]), rest = I18N.tr(m[3]);
+    const next = m[1] + label + rest;
+    if (next !== n.nodeValue) n.nodeValue = next;
+  }
+}
+
 async function docView(el, path, opts = {}) {
   const fbase = opts.base || B("");
   let f;
@@ -739,12 +764,12 @@ async function docView(el, path, opts = {}) {
   [fm, body] = splitFM(f.text);
   const render = () => {
     const fmHtml = Object.keys(fm).length ? `<div class="fm">${Object.entries(fm).filter(([, v]) => v !== "" && v !== "[]")
-      .map(([k, v]) => `<span class="badge">${esc(k)}：${esc(v)}</span>`).join("")}</div>` : "";
+      .map(([k, v]) => `<span class="badge">${esc(I18N.t(String(k)))}：${esc(I18N.t(String(v)))}</span>`).join("")}</div>` : "";
     el.innerHTML = `
       <div class="doc-wrap ${findings ? "with-side" : ""}">
         <div class="card">
           <div class="doc-bar">
-            <span class="path">${esc(f.path)}</span>${opts.prose ? `<span class="badge">${fmtNum(f.chars)} 字</span>` : ""}
+            <span class="path">${esc(f.path)}</span>${opts.prose ? `<span class="badge">${fmtNum(f.chars)} ${unitCh(unitOfBook())}</span>` : ""}
             <span class="grow"></span>
             ${opts.checkable ? `<button class="sm" data-a="check">檢查用語與 AI 味</button>` : ""}
             ${f.readonly || opts.readonly ? "" : editing ? `<button class="sm" data-a="cancel">取消</button><button class="sm primary" data-a="save">儲存</button>`
@@ -763,6 +788,7 @@ async function docView(el, path, opts = {}) {
           ${findings["問題"].length ? `<button class="sm" style="margin-top:8px" onclick="Panel.openForm('deslop',{chapter:${parseInt((f.path.match(/第0*(\d+)章/) || [])[1]) || 1},candidate:${f.path.startsWith("候選")}})">請 Claude 處理</button>` : ""}
         </div>` : ""}
       </div>`;
+    if (!opts.prose && !editing) localizeLabels(el.querySelector(".md"));
     el.querySelectorAll("[data-a]").forEach((b) => b.onclick = () => act(b.dataset.a));
     el.querySelectorAll(".finding").forEach((d) => d.onclick = () => jump(findings["問題"][d.dataset.i]["行"]));
     if (editing) {
@@ -1087,6 +1113,75 @@ function bindEntryFilter(view, t, list, file, f) {
   paint();
 }
 
+/* ------------------------------------------------------------------ 設定索引：疑似重複勾選合併 */
+const BIBLE_FOLDER = { "角色": "角色", "勢力": "勢力", "世界觀": "世界觀" };
+// 只列出這一類（角色／勢力／世界觀）裡、至少涵蓋兩個設定檔的疑似重複組
+function dupGroupsFor(t, idx) {
+  const prefix = "設定/" + BIBLE_FOLDER[t] + "/";
+  const out = [];
+  (idx.duplicates || []).forEach((g) => {
+    const byFile = {};
+    g.members.filter((m) => m.source === "設定檔" && m.file.startsWith(prefix)).forEach((m) => {
+      (byFile[m.file] = byFile[m.file] || { file: m.file, names: new Set() }).names.add(m.name);
+    });
+    const files = Object.values(byFile).map((f) => ({ file: f.file, names: [...f.names] }));
+    if (files.length < 2) return;
+    const known = new Set(files.flatMap((f) => f.names));
+    const ghosts = [...new Set(g.members.filter((m) => m.source === "名詞表" && !known.has(m.name)).map((m) => m.name))];
+    const keepDefault = files.some((f) => f.file === g.suggest) ? g.suggest : files[0].file;
+    out.push({ key: g.key, files, ghosts, keepDefault, loose: !!g.loose });
+  });
+  return out;
+}
+function dupPanelHtml(t, idx) {
+  const groups = dupGroupsFor(t, idx);
+  if (!groups.length) return "";
+  return `<div class="card" id="dup-box" style="margin-bottom:12px">
+    <div class="row"><b>疑似重複（${groups.length} 組）</b></div>
+    <div class="muted small" style="margin:4px 0 8px">選一份「保留」，勾選要「併入」的。被併入的內容會接在保留檔後面（標示待核對），舊檔移到 設定/_已合併，不會刪除。名稱會加進保留檔的別名。</div>
+    ${groups.map((g, gi) => `<div class="dup-group" style="border-top:1px solid var(--line,#ddd);padding:6px 0">
+      <div class="small muted">${esc(g.key)}${g.loose ? ` <span class="badge">近似，請確認是不是同一個地方</span>` : ""}</div>
+      ${g.files.map((f) => `<div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
+        <label class="small"><input type="radio" name="keep-${gi}" value="${esc(f.file)}" ${f.file === g.keepDefault ? "checked" : ""}> 保留</label>
+        <label class="small"><input type="checkbox" class="dup-cb" data-gi="${gi}" value="${esc(f.file)}"> 併入</label>
+        <span class="nm">${esc(f.names.join("、"))}</span><span class="muted small">${esc(f.file.split("/").pop())}</span></div>`).join("")}
+      ${g.ghosts.length ? `<div class="muted small">名詞表另有：${esc(g.ghosts.join("、"))}（只在名詞表出現，合併不會改動它）</div>` : ""}
+    </div>`).join("")}
+    <div class="row" style="margin-top:8px"><button class="primary" id="dup-merge-btn">合併勾選的項目</button></div>
+  </div>`;
+}
+function bindDupPanel(view, t, idx, file) {
+  const box = $("#dup-box", view);
+  if (!box) return;
+  box.addEventListener("click", async (ev) => {
+    if (!(ev.target.closest && ev.target.closest("#dup-merge-btn"))) return;
+    const jobs = [];
+    dupGroupsFor(t, idx).forEach((g, gi) => {
+      const keep = box.querySelector(`input[name="keep-${gi}"]:checked`);
+      if (!keep) return;
+      const dups = [...box.querySelectorAll(`input.dup-cb[data-gi="${gi}"]:checked`)].map((c) => c.value).filter((v) => v !== keep.value);
+      if (dups.length) jobs.push({ canonical: keep.value, duplicates: dups });
+    });
+    if (!jobs.length) { toast("請先選擇保留的檔案，並勾選要併入的項目。", true); return; }
+    const total = jobs.reduce((n, j) => n + j.duplicates.length, 0);
+    if (!confirm(`要併入 ${total} 個設定檔（${jobs.length} 組）嗎？舊檔會移到「設定/_已合併」，不會刪除。`)) return;
+    try {
+      for (const j of jobs) await api("POST", B("/bible/merge"), j);
+      toast(`已併入 ${total} 個設定檔`);
+      await viewBible(view, t, jobs[0].canonical);
+    } catch (e) {
+      toast(e.message || String(e), true);
+      await viewBible(view, t, file);
+    }
+  });
+}
+async function rebuildBibleIndex() {
+  try {
+    const r = await api("POST", B("/bible/index/rebuild"));
+    toast(`已重建設定索引：設定檔 ${r.counts.settings} 筆，名詞表 ${r.counts.glossary} 筆。`);
+  } catch (e) { toast(e.message || String(e), true); }
+}
+
 let pickKey = "";
 async function viewBible(view, t, file) {
   if (pickKey !== `${S.book}|${t}`) { pickSet = new Set(); pickKey = `${S.book}|${t}`; }
@@ -1112,16 +1207,21 @@ async function viewBible(view, t, file) {
           ${e.summary ? `<div class="ds">${esc(e.summary)}</div>` : ""}</div>`).join("")
         : `<div class="muted">這裡還是空的。</div>`;
   const listHtml = isEnt ? `${entityFilterBar(t, list, filt)}<div id="ent-list"></div>` : plainList;
+  // 設定索引（本機計算，不用 AI）：疑似重複可勾選合併
+  const idx = isEnt ? await api("GET", B("/bible/index")).catch(() => null) : null;
+  const dupHtml = idx ? dupPanelHtml(t, idx) : "";
+  const idxBtn = isEnt ? `<button onclick="rebuildBibleIndex()" title="重新產生 設定/_索引.md，給 novel-bible 先讀">重建索引</button>` : "";
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
-      <div class="row">${btns[t] || ""}<button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
+      <div class="row">${btns[t] || ""}${idxBtn}<button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
-      <div class="list">${listHtml}</div>
+      <div class="list">${dupHtml}${listHtml}</div>
       <div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div>
         <div id="ent-card" style="margin-top:14px"></div><div id="ent-ill" style="margin-top:14px"></div></div>
     </div>`;
   if (isEnt) bindEntryFilter(view, t, list, file, filt);
+  if (idx) bindDupPanel(view, t, idx, file);
   if (t === "章節結構") { $(".split", view).outerHTML = '<div id="bs-box"></div>'; return renderBookStructures($("#bs-box"), file); }
   if (file) await docView($("#doc"), file);
   if (file && ["角色", "勢力", "世界觀"].includes(t)) {
@@ -1564,7 +1664,13 @@ const readFiles = (input) => Promise.all([...input.files].map((f) => new Promise
   r.onerror = () => rej(new Error("讀取 " + f.name + " 失敗"));
   r.readAsDataURL(f);
 })));
-const bookOpts = (books, cur) => books.map((b) => `<option value="${esc(b)}" ${b === cur ? "selected" : ""}>${esc(b)}</option>`).join("");
+// lang 有值時（套用共用文風、結構）：同語言的書排前面，語言不同的標「（語言不同）」，不擋，讓作者自己決定
+const bookOpts = (books, cur, lang) => {
+  const langs = S.sharedLangs || {};
+  const diff = (b) => !!lang && !!langs[b] && langs[b] !== lang;
+  const list = lang ? [...books.filter((b) => !diff(b)), ...books.filter(diff)] : books;
+  return list.map((b) => `<option value="${esc(b)}" ${b === cur ? "selected" : ""}>${diff(b) ? `${esc(b)}（語言不同）` : esc(b)}</option>`).join("");
+};
 
 // 文風樣本來源（建立、重新統計、比較共用）
 function sampleSourceHtml(books, kinds) {
@@ -1712,6 +1818,7 @@ S.onSharedJob = (job) => {
 async function viewShared(view, t, file) {
   const o = await api("GET", "/api/shared");
   S.sharedBooks = o.books;
+  S.sharedLangs = o.book_langs || {};
   t = t || "文風";
   const tabs = ["文風", "章節結構", "共用作者偏好"];
   if (!o.exists) {
@@ -1727,9 +1834,9 @@ async function viewShared(view, t, file) {
   const base = "#/shared";
   let list = [], side = "";
   if (t === "文風") {
-    list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.has_metrics ? `已統計 ${fmtNum(+s.sample)} 字` : "" }));
+    list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, lang: s.lang, badge: s.has_metrics ? `已統計 ${fmtNum(+s.sample)} 字` : "" }));
   } else if (t === "章節結構") {
-    list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", scope: s.scope, origin: s.origin }));
+    list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", lang: s.lang, scope: s.scope, origin: s.origin }));
   } else {
     file = "作者偏好.md";
   }
@@ -1751,7 +1858,7 @@ async function viewShared(view, t, file) {
     <div class="split">
       <div class="list">${list.length ? list.map((e) => `
         <div class="item ${e.file === file ? "active" : ""}" onclick="go('${base}?t=${enc(t)}&f=${enc(e.file)}')">
-          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${e.badge ? `<span class="badge">${esc(e.badge)}</span>` : ""}</div>
+          <div class="row"><span class="nm">${esc(e.name)}</span><span class="grow"></span>${e.lang && e.lang !== "zh-TW" ? `<span class="badge">${e.lang === "en" ? "English" : "日本語"}</span>` : ""}${e.badge ? `<span class="badge">${esc(e.badge)}</span>` : ""}</div>
           ${e.desc ? `<div class="ds">${esc(e.desc)}</div>` : ""}${e.scope ? `<div class="ds">適用：${esc(e.scope)}</div>` : ""}</div>`).join("")
         : `<div class="muted">還沒有${t}。按右上角新增。</div>`}</div>
       <div><div id="sh-actions"></div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div></div>
@@ -1761,6 +1868,8 @@ async function viewShared(view, t, file) {
     $("#sh-ai-style").onclick = () => styleAiModal("design", books);
     $("#sh-new-style").onclick = () => modal(`<h2>新增文風</h2>
       <label class="f"><span>名稱</span><input type="text" id="ns-name" placeholder="例如：冷調短句、古風權謀"></label>
+      <label class="f"><span>文風語言</span><select id="ns-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
+      <div class="muted small" style="margin:-6px 0 10px">從某本書的正文或設定建立時，自動用那本書的語言。</div>
       <div class="f"><span>從哪裡建立</span></div>${sampleSourceHtml(books, ["book", "text", "files", "copy_book", "blank"])}
       <div class="row" style="margin-top:14px"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="ns-go">建立</button></div>`, (el) => {
       sampleSourceBind(el);
@@ -1768,6 +1877,7 @@ async function viewShared(view, t, file) {
         try {
           const v = await sampleSourceValue(el);
           v.name = $("#ns-name", el).value.trim();
+          v.lang = $("#ns-lang", el).value;
           if (!v.name) return toast("請輸入名稱", true);
           const r = await api("POST", "/api/shared/styles", v);
           closeModal(); toast("已建立文風「" + r.name + "」");
@@ -1786,7 +1896,7 @@ async function viewShared(view, t, file) {
       $("#st-ai-test").onclick = () => styleAiModal("test", books, name);
       $("#st-apply").onclick = () => modal(`<h2>把「${esc(name)}」套用到書</h2>
         <p class="muted small">會複製成那本書的 <code>設定/文風.md</code>。原本的文風檔會先備份到 <code>.studio/備份</code>。之後在書裡修改不會影響共用庫。</p>
-        <label class="f"><span>套用到</span><select id="ap-book">${bookOpts(books, S.book)}</select></label>
+        <label class="f"><span>套用到</span><select id="ap-book">${bookOpts(books, S.book, curItem.lang)}</select></label>
         <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="ap-go">套用</button></div>`, (el) => {
         $("#ap-go", el).onclick = async () => {
           try { await api("POST", `/api/shared/styles/${enc(name)}/apply`, { book: $("#ap-book", el).value }); closeModal(); toast("已套用到《" + $("#ap-book", el).value + "》"); } catch (e) { fail(e); }
@@ -1794,7 +1904,7 @@ async function viewShared(view, t, file) {
       });
       $("#st-compare").onclick = () => modal(`<h2>「${esc(name)}」和正文比較</h2>
         <p class="muted small">在本機統計那本書的正文，和這個文風的文字指標並排比較。</p>
-        <div class="row"><select id="cp-book">${bookOpts(books, S.book)}</select><span class="small muted">章節</span>
+        <div class="row"><select id="cp-book">${bookOpts(books, S.book, curItem.lang)}</select><span class="small muted">章節</span>
           <input type="number" id="cp-from" class="num-in" placeholder="全部"><span class="small muted">到</span><input type="number" id="cp-to" class="num-in" placeholder="全部">
           <button class="primary sm" id="cp-go">比較</button></div><div id="cp-out" style="margin-top:12px"></div>`, (el) => {
         $("#cp-go", el).onclick = async () => {
@@ -1824,7 +1934,7 @@ async function viewShared(view, t, file) {
       <p class="muted small">會建立一份節拍表範本，之後直接編輯。也可以選左邊的內建結構，按「複製到我的結構」再修改。</p>
       <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="nt-go">建立</button></div>`, (el) => {
       $("#nt-go", el).onclick = async () => {
-        try { const r = await api("POST", "/api/shared/structures", { name: $("#nt-name", el).value.trim() }); closeModal(); go(`${base}?t=${enc("章節結構")}&f=${enc("結構/" + r.name + ".md")}`); } catch (e) { fail(e); }
+        try { const r = await api("POST", "/api/shared/structures", { name: $("#nt-name", el).value.trim(), lang: (S.sharedLangs || {})[S.book] }); closeModal(); go(`${base}?t=${enc("章節結構")}&f=${enc("結構/" + r.name + ".md")}`); } catch (e) { fail(e); }
       };
     });
     if (curItem) {
@@ -1835,7 +1945,7 @@ async function viewShared(view, t, file) {
         <span class="grow"></span>${origin === "mine" ? '<button class="sm danger" id="sc-del">刪除</button>' : '<span class="muted small">內建結構不能直接修改</span>'}</div>`;
       $("#sc-apply").onclick = () => modal(`<h2>把「${esc(name)}」套用到書</h2>
         <p class="muted small">會複製到那本書的 <code>設定/章節結構/</code>。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。</p>
-        <label class="f"><span>套用到</span><select id="sa-book">${bookOpts(books, S.book)}</select></label>
+        <label class="f"><span>套用到</span><select id="sa-book">${bookOpts(books, S.book, curItem.lang)}</select></label>
         <label class="cb"><input type="checkbox" id="sa-def" ${curItem.scope && curItem.scope.includes("卷") ? "" : "checked"}> 設為全書預設</label>
         <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="sa-go">套用</button></div>`, (el) => {
         $("#sa-go", el).onclick = async () => {
@@ -1866,6 +1976,7 @@ async function viewImport(view) {
     <div class="grid exp-grid">
       <div class="card">
         <h2 style="margin-bottom:10px">1. 選擇稿子</h2>
+        <label class="f"><span>稿子的語言</span><select id="im-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
         <label class="f"><span>檔案（可以一次選多個；一個檔案一章也可以）</span><input type="file" id="im-files" multiple accept=".txt,.md,.markdown,.docx"></label>
         <label class="f"><span>或直接貼上</span><textarea id="im-text" rows="6" placeholder="第一章 ……&#10;正文……&#10;&#10;第二章 ……"></textarea></label>
         <div class="muted small">編碼會自動判斷（UTF-8、Big5、GB18030）。舊版 .doc 請先在 Word 另存成 .docx。</div>
@@ -1882,7 +1993,7 @@ async function viewImport(view) {
             <option value="sequential">依順序重新編號</option></select></label>
           <label class="f"><span>依順序編號時從第幾章開始</span><input type="number" id="im-start" value="1" min="1"></label>
         </div>
-        <label class="cb"><input type="checkbox" id="im-conv" ${info.has_opencc ? "" : "disabled"}> 簡體轉成台灣繁體（含用語，例如「軟件」→「軟體」）
+        <label class="cb" id="im-conv-wrap"><input type="checkbox" id="im-conv" ${info.has_opencc ? "" : "disabled"}> 簡體轉成台灣繁體（含用語，例如「軟件」→「軟體」）
           ${info.has_opencc ? "" : '<span class="badge b-warn">需要 OpenCC：關閉工作台後重新執行 start.bat 會自動安裝</span>'}</label>
         <label class="cb"><input type="checkbox" id="im-pre"> 把第一個章節標題之前的文字當成一章（例如楔子）</label>
         <label class="cb"><input type="checkbox" id="im-punct" checked> 修正標點（西式引號改「」、半形逗號改全形等）</label>
@@ -1891,8 +2002,15 @@ async function viewImport(view) {
     </div>
     <div id="im-out"></div>`;
   const opts = () => ({ mode: $("#im-mode").value, numbering: $("#im-num").value, start: parseInt($("#im-start").value) || 1,
-    convert: $("#im-conv").checked, preface_as_chapter: $("#im-pre").checked, fix_punct: $("#im-punct").checked });
+    convert: IMP.lang === "zh-TW" && $("#im-conv").checked, lang: IMP.lang, preface_as_chapter: $("#im-pre").checked, fix_punct: $("#im-punct").checked });
   const payload = () => ({ files: IMP.files, text: $("#im-text").value });
+  // 英文、日文稿子不需要簡轉繁，簡體相關的選項與對照一起收起來
+  const syncLang = () => {
+    IMP.lang = $("#im-lang").value;
+    $("#im-conv-wrap").style.display = IMP.lang === "zh-TW" ? "" : "none";
+  };
+  $("#im-lang").onchange = syncLang;
+  syncLang();
   $("#im-files").onchange = async (ev) => { try { IMP.files = await readFiles(ev.target); } catch (e) { fail(e); } };
   $("#im-preview").onclick = async () => {
     const btn = $("#im-preview"); btn.disabled = true; btn.textContent = "處理中……";
@@ -1906,18 +2024,21 @@ async function viewImport(view) {
 
 function renderImportPreview(r, info, payload, opts) {
   const total = r.chapters.reduce((a, c) => a + c.chars, 0);
+  const zhOn = IMP.lang === "zh-TW";   // 只有繁體中文稿才顯示簡體相關的檢查與對照
+  const wu = unitOfLang(IMP.lang);
+  const flagsOf = (c) => (c.flags || []).filter((f) => zhOn || !/簡體/.test(f));
   const guessName = (IMP.files[0] && IMP.files[0].name.replace(/\.[^.]+$/, "").replace(/^\d+[\s._\-、]*/, "")) || "";
   $("#im-out").innerHTML = `
     <div class="card" style="margin-top:14px">
-      <div class="card-title"><h2>拆章結果：${r.chapters.length} 章，${fmtNum(total)} 字${(() => { const n = r.chapters.filter((c) => (c.flags || []).length).length; return n ? `<span class="badge b-warn" style="margin-left:8px">${n} 章要檢查</span>` : `<span class="badge b-ok" style="margin-left:8px">沒有發現問題</span>`; })()}</h2>
+      <div class="card-title"><h2>拆章結果：${r.chapters.length} 章，${fmtNum(total)} ${unitCh(wu)}${(() => { const n = r.chapters.filter((c) => flagsOf(c).length).length; return n ? `<span class="badge b-warn" style="margin-left:8px">${n} 章要檢查</span>` : `<span class="badge b-ok" style="margin-left:8px">沒有發現問題</span>`; })()}</h2>
         <span class="muted small">${r.numbered_by_title ? "章號照標題" : "章號依順序"}</span></div>
-      <div class="row small muted" style="margin-bottom:8px">${r.sources.map((s) => `<span class="badge">${esc(s.name)}：${esc(s.encoding)}${s.simplified ? `，簡體字約 ${s.simplified}` : ""}</span>`).join("")}</div>
+      <div class="row small muted" style="margin-bottom:8px">${r.sources.map((s) => `<span class="badge">${esc(s.name)}：${esc(s.encoding)}${zhOn && s.simplified ? `，簡體字約 ${s.simplified}` : ""}</span>`).join("")}</div>
       ${r.warnings.map((w) => `<div class="alert warn"><span class="t">${esc(w)}</span></div>`).join("")}
-      ${r.preface.map((p) => `<div class="muted small" style="margin:6px 0">開頭文字（${esc(p.name)}，${p.chars} 字）：${esc(p.preview)}……</div>`).join("")}
+      ${r.preface.map((p) => `<div class="muted small" style="margin:6px 0">開頭文字（${esc(p.name)}，${p.chars} ${unitCh(wu)}）：${esc(p.preview)}……</div>`).join("")}
       <div class="table-wrap" style="max-height:360px"><table>
-        <tr><th class="num">章</th><th>章名</th><th class="num">字數</th><th>檢查</th><th>開頭</th></tr>
-        ${r.chapters.map((c) => `<tr class="${(c.flags || []).length ? "hl" : ""}"><td class="num">${c.no}</td><td>${esc(c.title) || '<span class="muted">（無章名）</span>'}</td>
-          <td class="num">${fmtNum(c.chars)}</td><td>${(c.flags || []).map((f) => `<span class="badge ${/空章|重複|倒退|簡體/.test(f) ? "b-bad" : "b-warn"}">${esc(f)}</span>`).join(" ")}</td>
+        <tr><th class="num">章</th><th>章名</th><th class="num">${wu === "words" ? "詞數" : "字數"}</th><th>檢查</th><th>開頭</th></tr>
+        ${r.chapters.map((c) => `<tr class="${flagsOf(c).length ? "hl" : ""}"><td class="num">${c.no}</td><td>${esc(c.title) || '<span class="muted">（無章名）</span>'}</td>
+          <td class="num">${fmtNum(c.chars)}</td><td>${flagsOf(c).map((f) => `<span class="badge ${/空章|重複|倒退|簡體/.test(f) ? "b-bad" : "b-warn"}">${esc(f)}</span>`).join(" ")}</td>
           <td class="muted small">${esc(c.head)}</td></tr>`).join("")}
       </table></div>
     </div>
@@ -1950,7 +2071,7 @@ function renderImportPreview(r, info, payload, opts) {
       const res = await api("POST", "/api/import/commit", body);
       S.books = (await api("GET", "/api/books")).books;
       $("#im-result").innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="k">完成</span><span class="t">
-        匯入 ${res.written.length} 章（${fmtNum(res.chars)} 字）到《${esc(res.book)}》的${esc(res.target)}。
+        匯入 ${res.written.length} 章（${fmtNum(res.chars)} ${unitCh(unitOfLang(IMP.lang))}）到《${esc(res.book)}》的${esc(res.target)}。
         ${res.skipped.length ? `跳過已存在的第 ${res.skipped.join("、")} 章。` : ""}${res.replaced.length ? `覆蓋了第 ${res.replaced.join("、")} 章（原檔已備份）。` : ""}</span>
         <button class="sm primary" onclick="go('#/b/${enc(res.book)}')">開啟這本書</button></div>
         <div class="muted small" style="margin-top:8px">下一步建議：${res.target === "正文"
@@ -2806,7 +2927,7 @@ async function viewExport(view) {
           <span class="small muted">章節範圍</span>
           <input type="number" id="x-from" class="num-in" value="${esc(first)}" min="${esc(first)}" max="${esc(last)}"> <span class="small muted">到</span>
           <input type="number" id="x-to" class="num-in" value="${esc(last)}" min="${esc(first)}" max="${esc(last)}">
-          <span class="small muted">（正文共 ${chs.length} 章，${fmtNum(chs.reduce((a, c) => a + c.chars, 0))} 字；章綱也套用這個範圍）</span>
+          <span class="small muted">（正文共 ${chs.length} 章，${fmtNum(chs.reduce((a, c) => a + c.chars, 0))} ${unitCh(m.unit)}；章綱也套用這個範圍）</span>
         </div>
         ${chs.length ? "" : '<div class="muted small" style="margin:6px 0 0 26px">還沒有採用的正文。候選稿要先採用才會匯出。</div>'}
       </div>
@@ -2873,7 +2994,7 @@ async function viewExport(view) {
     try {
       const r = await api("POST", B("/export"), body);
       const parts = [];
-      if (r.chapters) parts.push(`${r.chapters} 章、${fmtNum(r.chars)} 字`);
+      if (r.chapters) parts.push(`${r.chapters} 章、${fmtNum(r.chars)} ${unitCh(r.unit)}`);
       if (r.docs) parts.push(`${r.docs} 份資料`);
       $("#x-result").innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="k">完成</span>
         <span class="t">${esc(r.file)}（${parts.join("，")}，${fmtSize(r.size)}）</span>
@@ -2965,18 +3086,32 @@ const Panel = {
         const v = prefill[f.key] ?? f.default ?? "";
         if (f.type === "textarea") return `<label class="f"><span>${esc(f.label)}</span><textarea data-k="${f.key}" rows="3">${esc(v)}</textarea></label>`;
         if (f.type === "checkbox") return `<label class="cb"><input type="checkbox" data-k="${f.key}" ${v ? "checked" : ""}> ${esc(f.label)}</label>`;
+        if (f.type === "drafts") return `<div class="f"><span>${esc(f.label)}</span><div id="pf-drafts" class="muted">讀取草稿中…</div></div>`;
         return `<label class="f"><span>${esc(f.label)}</span><input type="${f.type === "number" ? "number" : "text"}" data-k="${f.key}" value="${esc(v)}"></label>`;
       }).join("")}
       ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov">${provOpts(stepProv(id))}</select></label>` : ""}
       <div class="row"><span class="grow"></span><button class="primary" id="pf-go">執行</button></div>`;
+    if (a.fields.some((f) => f.type === "drafts")) this.loadDraftPicks(el);
     const first = el.querySelector("[data-k]"); if (first) first.focus();
     $("#pf-go").onclick = () => {
       const p = {};
       el.querySelectorAll("[data-k]").forEach((i) => p[i.dataset.k] = i.type === "checkbox" ? i.checked : (i.type === "number" ? (i.value ? parseInt(i.value) : null) : i.value));
+      if (el.querySelector("#pf-drafts")) p.text = [...el.querySelectorAll("[data-draft]:checked")].map((i) => i.dataset.draft).join("、");
       this.run(id, p, $("#pf-prov") ? $("#pf-prov").value : undefined);
     };
   },
   closeForm() { $("#panel-form").innerHTML = ""; },
+  async loadDraftPicks(el) {   // 「草稿轉正式」：列出目前的草稿讓作者勾選，不用自己打名字
+    const box = el.querySelector("#pf-drafts");
+    if (!box) return;
+    try {
+      const b = await api("GET", B("/bible"));
+      const list = b["草稿"] || [];
+      if (!list.length) { box.innerHTML = `<span class="muted">目前沒有草稿。</span>`; return; }
+      box.innerHTML = list.map((e) => `<label class="cb"><input type="checkbox" data-draft="${esc(e.name)}"> ${esc(e.name)}${e.summary ? ` <span class="muted">— ${esc(e.summary)}</span>` : ""}</label>`).join("")
+        + `<div class="muted">沒勾任何一個，AI 只會列出草稿，不會定案。</div>`;
+    } catch (e) { box.textContent = "讀取草稿失敗"; }
+  },
   async run(action, params, provider) {
     try {
       const pid = provider || stepProv(action);

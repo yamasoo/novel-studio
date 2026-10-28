@@ -64,7 +64,7 @@ ACTIONS = {
     },
     "promote_drafts": {
         "group": "設定", "label": "草稿轉正式",
-        "fields": [{"key": "text", "label": "哪些草稿要定案（名稱）", "type": "text"}],
+        "fields": [{"key": "text", "label": "勾選要定案的草稿（沒勾＝只列出）", "type": "drafts"}],
     },
     # ---------------- 寫作 ----------------
     "write": {
@@ -116,8 +116,6 @@ ACTIONS = {
         "fields": [{"key": "text", "label": "想讓 Claude 做什麼", "type": "textarea"}],
     },
 }
-
-CANDIDATE_RULE = prompts.pack("zh-TW")["candidate_rule"]   # 相容舊程式碼；新程式請用 candidate_rule(lang)
 
 
 def candidate_rule(lang="zh-TW"):

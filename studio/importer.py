@@ -17,8 +17,13 @@ from . import project
 NUM = r"[0-9０-９一二三四五六七八九十百千零〇兩]+"
 SEP = r"(?:\s*$|[\s:：、.．·\-—　]+(.*?)\s*$)"
 CHAPTER_RE = re.compile(r"^\s*(?:#{1,4}\s*)?第\s*(" + NUM + r")\s*[章回節话話]" + SEP)
-EN_RE = re.compile(r"^\s*(?:#{1,4}\s*)?chapter\s*(\d+)" + SEP, re.I)
-SPECIAL_RE = re.compile(r"^\s*(?:#{1,4}\s*)?(序章|序幕|楔子|引子|序|尾聲|終章|後記|番外(?:\s*" + NUM + r")?)" + SEP)
+EN_RE = re.compile(r"^\s*(?:#{1,4}\s*)?chapter\s*(\d+|[IVXLC]+)" + SEP, re.I)   # 阿拉伯數字或羅馬數字（CHAPTER VI）
+# 英文的「PART II」單獨一行：卷名，不當成章節，也不放進正文（下一行若是全大寫的卷名也一起略過）
+EN_PART_RE = re.compile(r"^\s*(?:PART|Part)\s+([IVXLC]+|\d+)\s*$")
+# 序章、尾聲這類特殊章：中文、英文（Prologue 等，不分大小寫）、日文（プロローグ 等）
+SPECIAL_RE = re.compile(r"^\s*(?:#{1,4}\s*)?(序章|序幕|楔子|引子|序|尾聲|終章|後記|番外(?:\s*" + NUM + r")?"
+                        r"|(?i:prologue|epilogue|interlude|afterword)"
+                        r"|プロローグ|エピローグ|幕間|(?:閑話|番外編)(?:\s*" + NUM + r")?)" + SEP)
 VOLUME_RE = re.compile(r"^\s*(?:#{1,4}\s*)?第\s*" + NUM + r"\s*[卷部集篇]\b.*$|^\s*(?:#{1,4}\s*)?第\s*" + NUM + r"\s*[卷部集篇](\s|$|[:：])")
 MD_HEAD_RE = re.compile(r"^\s*#{1,3}\s+(.+?)\s*$")
 MAX_TITLE = 30
@@ -29,6 +34,23 @@ _CN.update({"〇": 0, "兩": 2})
 
 class ImportError_(project.ProjectError):
     pass
+
+
+_ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+
+def roman_to_int(s):
+    s = s.upper()
+    total = 0
+    for i, ch in enumerate(s):
+        v = _ROMAN.get(ch, 0)
+        nxt = _ROMAN.get(s[i + 1], 0) if i + 1 < len(s) else 0
+        total += -v if v < nxt else v
+    return total
+
+
+def en_num(s):
+    return int(s) if s.isdigit() else roman_to_int(s)
 
 
 def cn_to_int(s):
@@ -192,8 +214,9 @@ def _heading(line, mode):
             if kind == "cn":
                 return cn_to_int(m.group(1)), rest, s
             if kind == "en":
-                return int(m.group(1)), rest, s
-            return None, (m.group(1) + ("　" + rest if rest else ""))[:MAX_TITLE], s
+                return en_num(m.group(1)), rest, s
+            joiner = " " if re.match(r"[A-Za-z]", m.group(1)) else "　"      # 英文的 Prologue 後面接半形空白
+            return None, (m.group(1) + (joiner + rest if rest else ""))[:MAX_TITLE], s
         return None
     m = MD_HEAD_RE.match(s)
     if m:
@@ -247,13 +270,28 @@ def _drop_leading_toc(chunks):
 
 def _split(lines, mode, stats=None):
     chunks, cur, preface = [], None, []
+    want_title, skip_part_title = False, False   # want_title：英文「CHAPTER VI」後面下一行是章名；skip_part_title：PART 後面的卷名
     for i, ln in enumerate(lines):
-        if len(ln.strip()) <= 40 and VOLUME_RE.match(ln.strip()):
+        s = ln.strip()
+        if skip_part_title and s:
+            skip_part_title = False
+            if len(s) <= 60 and s == s.upper() and not re.search(r"[.!?]$", s):
+                continue   # 「PART II」下一行的卷名（THE SEA COOK）
+        if len(s) <= 40 and VOLUME_RE.match(s):
             continue  # 卷名：不當成章節，也不放進正文
+        if EN_PART_RE.match(s):
+            skip_part_title = True
+            continue
+        if want_title and s:
+            want_title = False
+            if cur is not None and not cur["title"] and len(s) <= 100 and not re.search(r"[.!?,;:]$", s):
+                cur["title"] = s[:60]     # 「CHAPTER VI」的下一行「THE CAPTAIN'S PAPERS」是章名（英文章名較長，最多取 60 字）
+                continue
         h = _heading(ln, mode)
         if h:
             cur = {"num": h[0], "title": h[1], "heading": h[2], "lines": [], "line": i + 1}
             chunks.append(cur)
+            want_title = bool(EN_RE.match(s)) and not h[1]
         elif cur is None:
             preface.append(ln)
         else:
@@ -281,8 +319,9 @@ def split_text(text, mode="auto", stats=None):
     return _split(lines, "markdown", stats)
 
 
-def normalize(body):
-    """整理段落：一段一行、段落之間空一行，去掉段首空白。"""
+def normalize(body, lang="zh-TW"):
+    """整理段落：一段一行、段落之間空一行，去掉段首空白。場景分隔線：中文統一成「＊＊＊」，
+    英文統一成「* * *」，日文保留作者原本的寫法（◇、＊、——…各家習慣不同）。"""
     body = body.replace("\t", "").strip("\n")
     body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
     has_blank = re.search(r"\n[ \t　]*\n", body) is not None
@@ -303,22 +342,33 @@ def normalize(body):
         # 若「空行分段」其實是每一行都隔一個空行，結果一樣；若段落很長且行很多，保留原樣
     else:
         paras = [ln for ln in lines if ln]
-    # 場景分隔線（***、＊＊＊、——— 等）統一成「＊＊＊」，維持分隔的作用
-    paras = ["＊＊＊" if re.fullmatch(r"[-*_=＝—~～·•＊※◆◇○●\s]{3,}", p) else p for p in paras]
+    # 場景分隔線（***、＊＊＊、——— 等）：中文統一成「＊＊＊」、英文統一成「* * *」，日文不動
+    sep = {"en": "* * *", "ja": None}.get(lang, "＊＊＊")
+    if sep:
+        paras = [sep if re.fullmatch(r"[-*_=＝—~～·•＊※◆◇○●\s]{3,}", p) else p for p in paras]
     return "\n\n".join(paras)
+
+
+def count_text(text, lang="zh-TW"):
+    """字數：與章節列表同一個算法（project.count_chars）——中日文算字（漢字與假名）、英文算詞。
+    lang 保留只為相容舊呼叫；預覽和匯入後的字數才會一致。"""
+    return project.count_chars(text or "")
 
 
 def plan(payload, opts):
     """依選項拆章，回傳預覽資料（不寫檔）。"""
     mode = opts.get("mode") or "auto"
-    convert = bool(opts.get("convert"))
+    # 只有繁體中文稿才做簡體偵測與簡轉繁；日文的新字體（伝、戦、竜…）在簡體字表裡，會被誤判
+    zh = (opts.get("lang") or "zh-TW") == "zh-TW"
+    lang = opts.get("lang") or "zh-TW"
+    convert = bool(opts.get("convert")) and zh
     sources = load_sources(payload)
     sources.sort(key=lambda s: (s[0] == "貼上的文字", _natural_key(s[0])))
     infos, chapters, preface_all = [], [], []
     simp_total = 0
     stats = {}
     for name, text, enc in sources:
-        simp = count_simplified(text)
+        simp = count_simplified(text) if zh else 0
         simp_total += simp
         if convert:
             text = to_traditional(text)
@@ -333,7 +383,7 @@ def plan(payload, opts):
                 h = (None, "", "")
             chunks = [{"num": h[0], "title": h[1], "heading": "", "body": text}]
             pre = ""
-        if pre and len(re.findall(r"[一-鿿]", pre)) >= 1:
+        if pre and count_text(pre, lang) >= 1:
             preface_all.append((name, pre))
         infos.append({"name": name, "encoding": enc, "simplified": simp, "chapters": len(chunks)})
         chapters += chunks
@@ -350,22 +400,22 @@ def plan(payload, opts):
         raise ImportError_("標題上的章號不連續、重複或有缺（例如有楔子、番外），請改用「依順序重新編號」")
     for i, c in enumerate(chapters):
         c["no"] = c["num"] if use_titles else start + i
-        c["text"] = normalize(c["body"])
-        c["chars"] = len(re.findall(r"[㐀-鿿]", c["text"]))
+        c["text"] = normalize(c["body"], lang)
+        c["chars"] = count_text(c["text"], lang)
     chapters = [c for c in chapters if c["chars"] > 0 or c["title"]]
     warnings = []
     if stats.get("merged"):
         warnings.append("有 %d 章的章名連寫了兩次（寫法不同），已經合併成同一章。" % stats["merged"])
     if stats.get("toc"):
         warnings.append("開頭有一份目錄（%d 條章名），已經略過，不當成章節。" % stats["toc"])
-    _flag_chapters(chapters, convert, warnings)
-    if simp_total and not convert:
+    _flag_chapters(chapters, convert, warnings, zh)
+    if zh and simp_total and not convert:
         warnings.append("偵測到約 %d 個簡體字。可以勾選「轉成台灣繁體」再預覽。" % simp_total)
     if preface_all:
-        n = sum(len(re.findall(r"[一-鿿]", p)) for _, p in preface_all)
+        n = sum(count_text(p, lang) for _, p in preface_all)
         warnings.append("第一個章節標題之前有 %d 字（例如書名、簡介、楔子），預設不會匯入；需要的話勾選「把開頭的文字當成一章」。" % n)
     return {"sources": infos, "chapters": chapters, "warnings": warnings, "numbered_by_title": use_titles,
-            "preface": [{"name": n, "chars": len(re.findall(r"[一-鿿]", p)), "preview": p.strip()[:80]} for n, p in preface_all]}
+            "preface": [{"name": n, "chars": count_text(p, lang), "preview": p.strip()[:80]} for n, p in preface_all]}
 
 
 def _nos(cs):
@@ -374,7 +424,7 @@ def _nos(cs):
     return s + ("……等 %d 章" % len(nos) if len(nos) > 12 else "")
 
 
-def _flag_chapters(chapters, convert, warnings):
+def _flag_chapters(chapters, convert, warnings, zh=True):
     """逐章標出可疑的地方（給預覽表上色），並彙整成提醒。"""
     sizes = sorted(c["chars"] for c in chapters if c["chars"] > 0)
     median = sizes[len(sizes) // 2] if sizes else 0
@@ -397,7 +447,7 @@ def _flag_chapters(chapters, convert, warnings):
                 f.append("章號倒退")
         if n is not None:
             prev = n
-        simp = count_simplified(c["text"])
+        simp = count_simplified(c["text"]) if zh else 0
         if simp >= 5:
             f.append(("轉繁後仍有簡體字 %d" if convert else "簡體字 %d") % simp)
         c["flags"] = f
@@ -418,8 +468,7 @@ def preview(payload, opts):
 
 
 def _fname_title(t):
-    t = re.sub(r'[\\/:*?"<>|\s]+', "", t or "")
-    return t[:MAX_TITLE] or "未命名"
+    return project.safe_filename(t, MAX_TITLE)
 
 
 def commit(book_dir, payload, opts, checker=None):
@@ -454,6 +503,13 @@ def commit(book_dir, payload, opts, checker=None):
         written.append({"no": no, "file": target + "/" + name, "chars": c["chars"]})
     return {"target": target, "written": written, "skipped": skipped, "replaced": replaced,
             "chars": sum(w["chars"] for w in written)}
+
+
+def set_import_lang(book_dir, value):
+    """匯入建立新書時，把「稿子的語言」記成這本書的寫作語言（之後提示詞、CLAUDE.md 都依此）。"""
+    if value:
+        from . import lang as lang_mod
+        lang_mod.set_book_lang(book_dir, value)
 
 
 def make_claude_md(book_dir, plugin_dir, title):

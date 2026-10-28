@@ -21,6 +21,15 @@ _ALIASES = {
 }
 
 
+# 字數單位：中文、日文算字（漢字＋假名），英文算詞
+UNITS = {"zh-TW": "chars", "en": "words", "ja": "chars"}
+
+
+def count_unit(lang):
+    """"chars" 或 "words"。API 回傳字數時一併附上，前端才知道要顯示「字」還是「詞」。"""
+    return UNITS.get(normalize(lang), "chars")
+
+
 def normalize(value):
     """各種寫法 → zh-TW / en / ja；認不得的一律當 zh-TW。"""
     if not value:
@@ -58,6 +67,10 @@ def book_lang(book_dir):
     if not book_dir:
         return DEFAULT
     return normalize(_fm_lang(book_dir) or _file_lang(book_dir))
+
+
+def book_unit(book_dir):
+    return count_unit(book_lang(book_dir))
 
 
 def set_book_lang(book_dir, value):

@@ -149,6 +149,27 @@ def load_messages(book_dir, job_id):
 
 
 # ---------------------------------------------------------------------------
+_RANGE = re.compile(r"(\d[\d,]*)\s*[～~\-－–—到至]\s*(\d[\d,]*)")
+
+
+def _core_target(book_dir):
+    """設定/故事核心.md 開頭資料區的「每章字數: 2500-3500」（或單一數字）；沒有或看不懂回傳 None。
+    單位跟著書的語言：中日文是字數、英文是單詞數。"""
+    core = context.read(book_dir, "設定/故事核心.md")
+    v = project.split_frontmatter(core)[0].get("每章字數") if core else None
+    if v is None or v == "":
+        return None
+    s = str(v).replace("，", ",")
+    m = _RANGE.search(s)
+    try:
+        if m:
+            return (int(m.group(1).replace(",", "")) + int(m.group(2).replace(",", ""))) // 2
+        m = re.search(r"\d[\d,]*", s)
+        return int(m.group(0).replace(",", "")) if m else None
+    except ValueError:
+        return None
+
+
 def _target_chars(book_dir, no):
     _, card = context.card_text(book_dir, no)
     fm, _ = project.split_frontmatter(card)
@@ -157,6 +178,9 @@ def _target_chars(book_dir, no):
             return int(fm["字數目標"])
     except (TypeError, ValueError):
         pass
+    t = _core_target(book_dir)          # 先看故事核心的「每章字數」，再退回 CLAUDE.md 的中文寫法
+    if t:
+        return t
     m = re.search(r"每章字數[：:]\s*(\d+)\s*[～~\-－到至]\s*(\d+)", context.read(book_dir, "CLAUDE.md"))
     if m:
         return (int(m.group(1)) + int(m.group(2))) // 2
@@ -460,6 +484,10 @@ def act_free(c, p):
     q = (p.get("text") or "").strip()
     if not q:
         raise NativeError("指令是空的")
+    if native_files.is_design_request(q):
+        # 設定設計：直接把產出存成草稿（設定/草稿/），不用再手動貼
+        native_files.run_spec(c, {"text": q}, native_files.spec_design_draft, c.sys(), draft_only=True)
+        return
     ctx_text, used, dropped = context.for_chat(c.book, c.budget(4000))
     msgs = [{"role": "system", "content": c.sys("discuss")},
             {"role": "user", "content": ctx_text + _P()["author_h"] + q}]

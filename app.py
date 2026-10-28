@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, comfy, context, export, fidelity, forge, goals, illust, importer, native, native_files, project, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, export, fidelity, forge, goals, illust, importer, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
 
-VERSION = "1.15.2"
+VERSION = "1.15.3"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -428,9 +428,8 @@ def claude_recover_job(book_id, d, prov, params):
     if not rec.get("chapter"):
         raise HTTPException(400, "這份恢復稿不屬於任何章節")
     no = int(rec["chapter"])
-    prompt = ("第%d章之前寫到一半中斷了，已寫內容在 .studio/恢復稿/%s.json 的 text 欄位（用 Read 讀取）。"
-              "請使用 novel-write skill，從中斷處接著寫完，不要重複已寫內容；把完整章節（已寫部分＋續寫）寫進 候選/第%03d章_章名.md。\n%s"
-              % (no, rec["id"], no, actions.CANDIDATE_RULE))
+    lang = lang_mod.book_lang(d)
+    prompt = prompts.t(lang, "recover_continue", n=no, rid=rec["id"], ch="第%03d章" % no, rule=actions.candidate_rule(lang))
     job = runner_mod.Job(book_id, d, "續寫第%d章" % no, prompt, provider=prov, meta={"action": "recover_continue", "params": params})
     job.after = lambda j: recovery.discard(d, rec["id"]) if project._scan_dir(os.path.join(d, "候選")).get(no) else None
     return job
@@ -540,7 +539,8 @@ def shared_overview():
             "structures": wrap(lambda: shared.list_structures(lib)),
             "prefs": {"exists": os.path.isfile(prefs), "banned": len(banned),
                       "active": bool(os.path.isfile(prefs) and shared._meaningful(project.read_text(prefs)))},
-            "books": _book_list()}
+            "books": _book_list(),
+            "book_langs": {b: lang_mod.book_lang(book_dir(b)) for b in _book_list()}}   # 套用時，語言不同的書要標出來
 
 
 @app.post("/api/shared/init")
@@ -590,10 +590,13 @@ async def shared_style_new(req: Request):
     if src == "copy_book":
         d = book_dir(body.get("book") or "")
         return wrap(lambda: shared.create_style(lib, body.get("name"), source=("book", d)))
+    # 語言：用某本書的正文當樣本就是那本書的語言，其他（貼上、上傳、空白範本）用選的語言
+    lang = lang_mod.book_lang(book_dir(body.get("book") or "")) if src == "book" else lang_mod.normalize(body.get("lang"))
+    prompts.set_lang(lang)      # 文字指標與範本都依這個語言挑
     text, names = _sample_text(body)
     if text:
         wrap(lambda: shared.analyze(text, names))  # 樣本太短時先報錯
-    return wrap(lambda: shared.create_style(lib, body.get("name"), sample_text=text, exclude=names))
+    return wrap(lambda: shared.create_style(lib, body.get("name"), sample_text=text, exclude=names, lang=lang))
 
 
 @app.post("/api/shared/styles/{name}/restat")
@@ -649,7 +652,7 @@ async def shared_style_design(req: Request):
     except (style_design.DesignError, shared.SharedError) as e:
         raise HTTPException(400, str(e))
     prov = get_provider(body.get("provider"))
-    title = actions.build("style_design", params, shared.SHARED)[0]
+    title = actions.build("style_design", params, shared.SHARED, lang=lang_mod.normalize(body.get("lang") or prompts.cur_lang()))[0]
     try:
         if prov.get("type") == "claude_code":
             job = runner_mod.Job(shared.SHARED, d, title, style_design.claude_prompt(info, params, PLUGIN_DIR),
@@ -691,7 +694,7 @@ async def shared_structure_new(req: Request):
     body = await req.json()
     if body.get("copy_preset"):
         return wrap(lambda: shared.copy_preset(library(), body["copy_preset"], body.get("name")))
-    return wrap(lambda: shared.new_structure(library(), body.get("name")))
+    return wrap(lambda: shared.new_structure(library(), body.get("name"), lang=body.get("lang")))
 
 
 @app.post("/api/shared/structures/{name}/apply")
@@ -766,6 +769,7 @@ async def import_commit(req: Request):
         name = (body.get("new_book") or "").strip()
         wrap(lambda: importer.plan(body.get("payload") or {}, opts))  # 先確認拆得出章節，再建書
         d = wrap(lambda: project.create_book(lib, name))
+        importer.set_import_lang(d, opts.get("lang"))   # 先記語言，骨架（_範本/文風.md 等）、CLAUDE.md 與之後的提示詞才會用對的語言
         native_files.ensure_skeleton(d, PLUGIN_DIR)
         importer.make_claude_md(d, PLUGIN_DIR, name)
         book_id = os.path.basename(d)
@@ -1432,10 +1436,11 @@ async def new_book(req: Request):
     os.makedirs(lib, exist_ok=True)
     d = wrap(lambda: project.create_book(lib, body.get("name", "")))
     name = os.path.basename(d)
+    lang_mod.set_book_lang(d, body.get("lang"))   # 先記下這本書的語言，開書訪談的指令與之後的所有提示詞才會用對的語言
     job = None
     if body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
-        title, prompt = actions.build("setup_new", params, name)
+        title, prompt = actions.build("setup_new", params, name, lang=lang_mod.book_lang(d))
         job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
                                           provider=get_provider(body.get("provider"))))
     return {"id": name, "job": job.to_dict() if job else None}
@@ -1461,6 +1466,8 @@ def book_overview(book_id: str):
     d = book_dir(book_id)
     ov = project.overview(d, int(CONFIG.get("stale_foreshadow", 10)), int(CONFIG.get("stale_character", 15)))
     ov["is_book"] = project.is_book(d)
+    ov["lang"] = lang_mod.book_lang(d)
+    ov["unit"] = lang_mod.count_unit(ov["lang"])      # chars＝字（中日文）、words＝詞（英文）
     wb = wb_check.alerts(d, ov.get("latest") or 0)   # 回寫檢查放在追蹤落後後面、其他提醒前面
     lag = 1 if ov["alerts"] and ov["alerts"][0]["kind"] == "追蹤落後" else 0
     ov["alerts"][lag:lag] = [a for a in wb if a["kind"] == "回寫檢查"]
@@ -1489,6 +1496,15 @@ def book_overview(book_id: str):
     run = RUNNER.running_for(book_id)
     ov["running"] = run.to_dict() if run else None
     return ov
+
+
+@app.post("/api/books/{book_id}/lang")
+async def set_book_language(book_id: str, req: Request):
+    d = book_dir(book_id)
+    _guard_book(book_id)
+    body = await req.json()
+    lang = lang_mod.set_book_lang(d, body.get("lang"))
+    return {"lang": lang, "unit": lang_mod.count_unit(lang)}
 
 
 @app.get("/api/books/{book_id}/chapters")
@@ -1626,6 +1642,31 @@ async def write_file(book_id: str, req: Request):
     return {"ok": True, "mtime": os.path.getmtime(p)}
 
 
+@app.get("/api/books/{book_id}/bible/index")
+def bible_index_view(book_id: str):
+    """設定索引（即時掃描，不寫檔）：設定檔、名詞表、疑似重複。"""
+    return bible_index.build(book_dir(book_id))
+
+
+@app.post("/api/books/{book_id}/bible/index/rebuild")
+def bible_index_rebuild(book_id: str):
+    """重新產生 設定/_索引.md（給 novel-bible skill 先讀）。"""
+    d = book_dir(book_id)
+    return bible_index.rebuild(d)
+
+
+@app.post("/api/books/{book_id}/bible/merge")
+async def bible_merge(book_id: str, req: Request):
+    """把勾選的疑似重複併入保留的那一份。舊檔移到 設定/_已合併/，不刪除。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    if RUNNER.running_for(book_id):
+        raise HTTPException(409, "Claude 正在處理這本書，請等任務結束再合併設定。")
+    report = wrap(lambda: bible_index.merge(d, body.get("canonical"), body.get("duplicates") or []))
+    bible_index.rebuild(d)
+    return report
+
+
 @app.post("/api/books/{book_id}/bible/category")
 async def bible_set_category(book_id: str, req: Request):
     """批次把世界觀檔的「分類」改成固定清單中的一項。先全部檢查，通過才寫入。"""
@@ -1694,7 +1735,7 @@ def accept(book_id: str, no: int, provider: str = None):
         raise HTTPException(409, "還有任務在執行，請稍後再採用。")
     path = wrap(lambda: project.accept_candidate(d, no))
     params = {"chapter": no, "path": path}
-    title, prompt = actions.build("accept", params, book_id)
+    title, prompt = actions.build("accept", params, book_id, lang=lang_mod.book_lang(d))
     job = RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, meta={"action": "accept", "params": params},
                                                       provider=prov), d, "accept", params, prov))
     return {"path": path, "job": job.to_dict()}
@@ -1706,7 +1747,7 @@ async def reject(book_id: str, no: int, req: Request):
     _guard_pipeline(book_id)
     body = await req.json()
     params = {"chapter": no, "note": body.get("note", "")}
-    title, prompt = actions.build("reject", params, book_id)
+    title, prompt = actions.build("reject", params, book_id, lang=lang_mod.book_lang(d))
     try:
         job = RUNNER.start(runner_mod.Job(book_id, d, title, prompt, meta={"action": "reject", "params": params},
                                           provider=get_provider(body.get("provider"))))
@@ -1773,7 +1814,7 @@ def launch_job(book_id, d, action, params, prov, resume=None, text=None):
         if action == "reply":
             title, prompt = "回覆", text or ""
         else:
-            title, prompt = actions.build(action, params or {}, book_id)
+            title, prompt = actions.build(action, params or {}, book_id, lang=lang_mod.book_lang(d))
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(400, "參數不完整：%s" % e)
     if not prompt.strip():

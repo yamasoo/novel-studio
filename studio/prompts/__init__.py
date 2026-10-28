@@ -63,10 +63,12 @@ def _compile(lang):
         if re.search(r"\{\d+\}", k):
             rx = re.escape(k)
             rx = re.sub(r"\\\{(\d+)\\\}", r"(?P<g\1>.*?)", rx)
-            pats.append((re.compile("^" + rx + "$", re.S), v))
+            pats.append((re.compile("^" + rx + "$", re.S), v, len(re.sub(r"\{\d+\}", "", k))))
         else:
             exact[k] = v
-    pats.sort(key=lambda x: -len(x[0].pattern))
+    # 固定文字多的優先（「第{0}章正文（已採用）」要比「第{0}章正文（{1}）」先比對）
+    pats.sort(key=lambda x: -x[2])
+    pats = [(rx, to) for rx, to, _ in pats]
     _lab[lang] = (exact, pats)
 
 

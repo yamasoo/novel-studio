@@ -25,9 +25,9 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, export, fidelity, forge, goals, illust, importer, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, export, fidelity, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, textguard, tracking, wb_check  # noqa: E402
 
-VERSION = "1.15.4"
+VERSION = "1.16.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -88,6 +88,7 @@ _spec = importlib.util.spec_from_file_location(
     "check_text", os.path.join(PLUGIN_DIR, "skills", "novel-deslop", "scripts", "check_text.py"))
 check_text = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_text)
+check_text = textguard.wrap(check_text)   # 英文、日文正文改用 plugin-en／plugin-ja 的檢查；繁中正文行為不變
 
 RUNNER = runner_mod.Runner(lambda: CONFIG, HERE, PLUGIN_DIR, check_text)
 PIPES = pipeline.Manager()
@@ -652,7 +653,10 @@ async def shared_style_design(req: Request):
     except (style_design.DesignError, shared.SharedError) as e:
         raise HTTPException(400, str(e))
     prov = get_provider(body.get("provider"))
-    title = actions.build("style_design", params, shared.SHARED, lang=lang_mod.normalize(body.get("lang") or prompts.cur_lang()))[0]
+    lang = lang_mod.normalize(body.get("lang") or prompts.cur_lang())
+    params["lang"] = lang          # 共用庫沒有「書的語言」：任務照介面選的語言組提示詞
+    prompts.set_lang(lang)
+    title = actions.build("style_design", params, shared.SHARED, lang=lang)[0]
     try:
         if prov.get("type") == "claude_code":
             job = runner_mod.Job(shared.SHARED, d, title, style_design.claude_prompt(info, params, PLUGIN_DIR),
@@ -1275,7 +1279,7 @@ def claude_reader_job(book_id, d, prov, params):
             data = providers.parse_json(j.result or "")
         except providers.ProviderError as e:
             raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
-        j.result = reader_ledger.save_draft(d, reader_ledger.merge([data]))
+        j.result = reader_ledger.save_draft(d, reader_ledger.merge([jsonkeys.to_zh(data)]))
         j.emit("result", text=j.result)
     job.after = after
     return job
@@ -1293,7 +1297,7 @@ def claude_reader_recon_job(book_id, d, prov, params):
             data = providers.parse_json(j.result or "")
         except providers.ProviderError as e:
             raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
-        j.result = reader_ledger.apply_recon(d, [data])
+        j.result = reader_ledger.apply_recon(d, [jsonkeys.to_zh(data)])
         j.emit("result", text=j.result)
     job.after = after
     return job

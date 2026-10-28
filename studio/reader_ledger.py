@@ -8,26 +8,14 @@ import os
 import re
 
 from . import context, project, tracking
+from . import prompts as _prompts   # 本模組有個函式也叫 prompts()
 
 BATCH = 40   # 每次送給模型的時間線列數
 
-SCHEMA = """請只輸出一個 JSON 物件，格式：
-{"items": [
-  {"類型": "已知|懸念|誤認", "內容": "讀者的認知（懸念寫成讀者在問的問題；誤認寫成讀者以為的事）",
-   "作者真相": "答案或真相（時間線的實際發生有寫才填，沒有就留空，不要自己編）",
-   "種下章": "第NNN章（讀者開始有這個認知的章；看不出來就留空）",
-   "回收章": "已經揭曉或澄清的章；預計揭曉的章也可以填；還沒定就留空",
-   "相關角色": "…", "來源": "時間線編號"}
-]}"""
-
-RULES = """轉換規則：
-- 從每一列的「讀者目前知道」判斷讀者腦中的狀態，「實際發生（作者真相）」是答案。
-- 讀者完全不知道這件事發生過的，不用登記（那是作者的底牌，時間線已經記了）；讀者察覺到異狀、在等答案的，登記成「懸念」。
-- 讀者被引導相信了錯的版本，登記成「誤認」，內容寫讀者以為的版本，作者真相寫實際的版本。
-- 讀者知道、但劇中某些角色還不知道的關鍵資訊（戲劇反諷），登記成「已知」，內容寫明「誰還不知道」。一般已揭曉的事件不用登記成已知。
-- 已經在某章揭曉的懸念和誤認也要登記，回收章填那一章（帳本會記得它已經回收，寫稿時不會再帶）。
-- 一列時間線可以產生零到多條；同一個問題跨好幾列的，合併成一條，來源寫多個編號。
-- 內容要短（一句話），用讀者的角度寫，不要加評論。"""
+# 給模型的格式與規則在語言包（prompts 的 rl_*），依書的語言；JSON 鍵名與列舉值維持中文（程式解析用）。
+def _t(key, **kw):
+    s = _prompts.cur()[key]
+    return s.format(**kw) if kw else s
 
 
 def _rows_md(headers, rows):
@@ -41,19 +29,18 @@ def prompts(book_dir):
     if not rows:
         raise project.ProjectError("這本書還沒有時間線，沒有東西可以轉換")
     to = tracking.tracked_to(book_dir) or 0
-    head = "這本書目前寫到第%d章。以下是時間線的一部分，請轉換成讀者認知帳本的條目。\n%s\n\n%s" % (to, RULES, SCHEMA)
+    head = _t("rl_head", n=to, rules=_t("rl_rules"), schema=_t("rl_schema"))
     out = []
     for i in range(0, len(rows), BATCH):
         part = rows[i:i + BATCH]
         label = "轉換讀者認知 %d／%d" % (i // BATCH + 1, (len(rows) + BATCH - 1) // BATCH)
-        out.append((label, head + "\n\n【時間線】\n" + _rows_md(hs, part)))
+        out.append((label, head + _t("rl_h_timeline") + _rows_md(hs, part)))
     return out
 
 
 def claude_prompt(book_dir):
     to = tracking.tracked_to(book_dir) or 0
-    return ("請讀取 追蹤/時間線.md（用 Read），把它轉換成讀者認知帳本的條目。這本書目前寫到第%d章。\n%s\n\n%s\n\n"
-            "不要修改任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (to, RULES, SCHEMA))
+    return _t("rl_claude", n=to, rules=_t("rl_rules"), schema=_t("rl_schema"))
 
 
 def _norm(s):
@@ -103,23 +90,6 @@ def save_draft(book_dir, items):
 # 回收比對：轉換只看得到「當時讀者不知道」，看不到後面哪一章揭曉。這一步拿後面的時間線與章節摘要逐條比對。
 RECON_BATCH = 30
 
-RECON_SCHEMA = """請只輸出一個 JSON 物件，格式（沒有變化的條目不用列）：
-{"changes": [
-  {"編號": "R005", "動作": "回收|部分|合併",
-   "回收章": "動作是回收時：讀者知道答案的那一章（第NNN章）",
-   "內容": "動作是部分時：改寫成讀者剩下還不知道的部分",
-   "合併到": "動作是合併時：要併入的條目編號",
-   "理由": "一句話，寫出根據（時間線編號或第幾章摘要）"}
-]}"""
-
-RECON_RULES = """判斷規則：
-- 「回收」：後面的時間線或章節摘要寫明讀者已經知道答案（不是角色知道，是讀者讀到了）。回收章填讀者知道的那一章，不能晚於目前寫到的章。
-- 「部分」：只回答了一部分，把內容改寫成剩下的問題（例如「是誰陷害了林父？」→「沈老爺之外，還有誰參與陷害林父？」）；回收章留空。
-- 「合併」：和另一條是同一個問題，併入那一條（留下種下章比較早、寫得比較清楚的那條）。
-- 只根據提供的資料判斷，看不出來就不要列；寧可漏判，不要把還沒揭曉的寫成回收。
-- 已知類型不用判斷。"""
-
-
 def ledger_source(book_dir):
     """回收比對的來源：有草稿就比對草稿，沒有就比對正式帳本。"""
     for rel in (tracking.RP_DRAFT, tracking.RP_FILE):
@@ -140,12 +110,12 @@ def _index(rows):
 def _timeline_after(book_dir, start):
     tl = project.read_table(book_dir, "追蹤/時間線.md")
     keep = [r for r in tl["rows"] if _first(r.get("揭示章")) >= start]
-    return "\n".join("- %s（%s）讀者知道：%s" % (r.get("編號", ""), r.get("揭示章", ""), r.get("讀者目前知道", "")) for r in keep)
+    return "\n".join(_t("rl_tl_line", id=r.get("編號", ""), ch=r.get("揭示章", ""), text=r.get("讀者目前知道", "")) for r in keep)
 
 
 def _summaries_after(book_dir, start):
     sums = project._scan_dir(os.path.join(book_dir, "追蹤", "章節摘要"))
-    return "\n\n".join("第%d章：%s" % (k, context.body(context.read(book_dir, "追蹤/章節摘要/" + sums[k])).strip())
+    return "\n\n".join(_t("rl_sum_line", n=k, text=context.body(context.read(book_dir, "追蹤/章節摘要/" + sums[k])).strip())
                        for k in sorted(sums) if k >= start)
 
 
@@ -168,9 +138,8 @@ def recon_packs(book_dir, budget):
         pk.add(2, "時間線：各章讀者知道了什麼（第%d章以後）" % start, _timeline_after(book_dir, start))
         pk.add(3, "章節摘要（第%d章以後）" % start, _summaries_after(book_dir, start), keep="tail")
         text, used, dropped = pk.build()
-        task = ("這本書目前寫到第%d章。讀者認知帳本是從時間線轉換的，只記了「當時讀者不知道」，沒記後面哪一章揭曉。"
-                "請逐條判斷上面「要判斷的條目」到第%d章為止是否已經揭曉。\n%s\n\n%s" % (to, to, RECON_RULES, RECON_SCHEMA))
-        out.append(("比對讀者認知回收 %d／%d" % (i // RECON_BATCH + 1, n), text + "\n\n【任務】" + task, dropped))
+        task = _t("rl_recon_task", n=to, rules=_t("rl_recon_rules"), schema=_t("rl_recon_schema"))
+        out.append(("比對讀者認知回收 %d／%d" % (i // RECON_BATCH + 1, n), text + _t("task_mark") + task, dropped))
     return out
 
 
@@ -179,10 +148,7 @@ def recon_claude_prompt(book_dir):
     if not _open_rows(rows):
         raise project.ProjectError("沒有還沒回收的懸念或誤認")
     to = tracking.tracked_to(book_dir) or 0
-    return ("請讀取 %s、追蹤/時間線.md、追蹤/章節摘要/ 裡的各章摘要（用 Read；摘要很多時，從每條懸念的種下章往後讀）。"
-            "這本書目前寫到第%d章。讀者認知帳本是從時間線轉換的，只記了「當時讀者不知道」，沒記後面哪一章揭曉。"
-            "請逐條判斷「回收章」空白的懸念與誤認，到第%d章為止是否已經揭曉。\n%s\n\n%s\n\n"
-            "不要修改任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (rel, to, to, RECON_RULES, RECON_SCHEMA))
+    return _t("rl_recon_claude", rel=rel, n=to, rules=_t("rl_recon_rules"), schema=_t("rl_recon_schema"))
 
 
 def apply_recon(book_dir, results):

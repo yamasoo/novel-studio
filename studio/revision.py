@@ -11,7 +11,7 @@ import os
 import re
 import time
 
-from . import goals, project, prompts, tracking
+from . import enums, goals, project, prompts, tracking
 
 SEVERITIES = ["必須修", "建議修", "提醒"]
 
@@ -48,10 +48,14 @@ def normalize_review(data, chapter_text):
     for i, it in enumerate((data or {}).get("items") or []):
         if not isinstance(it, dict) or not str(it.get("issue", "")).strip():
             continue
-        sev = it.get("severity") if it.get("severity") in SEVERITIES else "建議修"
+        sev, cat = it.get("severity"), str(it.get("category") or "").strip()
+        if prompts.cur_lang() != "zh-TW":      # 英文、日文書寫的是 must fix、plot logic 這類，換回中文固定詞
+            sev = enums.norm("severity", sev) or sev
+            cat = enums.norm("review_cat", cat) or cat
+        sev = sev if sev in SEVERITIES else "建議修"
         q = str(it.get("quote") or "").strip()
         items.append({"id": "R%d" % (len(items) + 1), "severity": sev,
-                      "category": str(it.get("category") or "").strip()[:10],
+                      "category": cat[:10],
                       "quote": q, "located": goals.quote_found(q, tn) if q else False,
                       "issue": str(it["issue"]).strip(), "suggestion": str(it.get("suggestion") or "").strip()})
     items.sort(key=lambda x: SEVERITIES.index(x["severity"]))
@@ -81,6 +85,10 @@ def _quote_around(line, needle, width=60):
 def merge_local_checks(review, book_dir, path, checker):
     """把本機檢查的發現加進審查結果（不呼叫 AI）。同一個詞出現多次合併成一條。失敗時原樣回傳。"""
     if not checker or not path:
+        return review
+    from . import lang as lang_mod
+    if lang_mod.book_lang(book_dir) != "zh-TW":
+        # 內建檢查是繁中規則（簡繁、兩岸用語）：拿去檢查日文會把新字體當成簡體字，英文也沒有意義
         return review
     full = os.path.join(book_dir, path)
     try:
@@ -181,12 +189,16 @@ def review_md(no, rec):
 
 def notes_text(rec, ids, extra):
     chosen = [x for x in (rec or {}).get("items", []) if x["id"] in (ids or [])]
+    P = prompts.cur()
     lines = []
     for x in chosen:
-        lines.append("- 【%s｜%s】%s%s\n  修法：%s" % (x["severity"], x["category"], x["issue"],
-                                                  ("\n  位置：「%s」" % x["quote"]) if x["quote"] else "", x["suggestion"]))
+        lang = prompts.cur_lang()
+        lines.append(P["rv_note_line"].format(sev=enums.show("severity", x["severity"], lang), cat=enums.show("review_cat", x["category"], lang),
+                                              issue=x["issue"],
+                                              where=P["rv_note_where"].format(quote=x["quote"]) if x["quote"] else "",
+                                              fix=x["suggestion"]))
     if (extra or "").strip():
-        lines.append("- 【作者意見】" + extra.strip())
+        lines.append(P["rv_note_author"].format(text=extra.strip()))
     return "\n".join(lines)
 
 

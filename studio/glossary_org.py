@@ -12,7 +12,7 @@
 import os
 import re
 
-from . import context, project, prompts, search
+from . import context, enums, project, prompts, search
 
 BIG = ("地點", "組織", "物品", "能力與技術", "制度與習俗", "生物", "事件", "稱謂", "人物", "其他")
 TOPIC_BIG = ("地點", "物品", "能力與技術", "制度與習俗", "生物", "其他")
@@ -27,6 +27,12 @@ JUNK = re.compile(r"未提及|正文(?:無|沒有)此?資訊|正文未明確|無
 def _p(key, **kw):
     """取出目前語言的提示詞／文字，替換 {名字} 的變數。只換有給的名字，JSON 的花括號不動。"""
     return re.sub(r"\{(\w+)\}", lambda m: str(kw[m.group(1)]) if m.group(1) in kw else m.group(0), prompts.cur()[key])
+
+
+def _default_topic(big):
+    """AI 沒給主題時的預設主題檔名（依書的語言）。語言包 gl_default_topics：「大類=主題|…|*=其他」。"""
+    table = dict(x.split("=", 1) for x in prompts.cur()["gl_default_topics"].split("|"))
+    return table.get(big) or table["*"]
 
 
 def _u():
@@ -98,7 +104,8 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     todo = [r for r in keep_rows if r["類別"] != "人物"]
     for i in range(0, len(todo), CLASSIFY_BATCH):
         part = todo[i:i + CLASSIFY_BATCH]
-        body = "\n".join(_p("gl_cls_line", name=r["名詞"], cat=r["類別"] or _p("gl_none"), n=len(info[r["名詞"]]["chapters"]), desc=r["說明"])
+        body = "\n".join(_p("gl_cls_line", name=r["名詞"], cat=enums.show("term_cat", r["類別"], prompts.cur_lang()) or _p("gl_none"),
+                             n=len(info[r["名詞"]]["chapters"]), desc=r["說明"])
                          for r in part)
         d = step("org_cls_%d" % (i // CLASSIFY_BATCH), _p("gl_lbl_cls", i=i // CLASSIFY_BATCH + 1, total=(len(todo) + CLASSIFY_BATCH - 1) // CLASSIFY_BATCH),
                  _p("gl_classify_wrap", body=body, schema=_p("gl_classify_schema", topic_hint=_p("gl_topic_hint")))) or {}
@@ -157,11 +164,10 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         n_ch = len(info[r["名詞"]]["chapters"])
         if b in OWN_FILE_BIG and n_ch >= OWN_FILE_MIN:
             own.append(r)
-        t = _clean(x.get("主題")) or {"地點": "地理", "生物": "物產與生物", "制度與習俗": "社會制度與習俗",
-                                       "能力與技術": "科技與能力"}.get(b, "物資與物品")
+        t = _clean(x.get("主題")) or _default_topic(b)
         topics.setdefault(t, []).append(r)
     for t, items in topics.items():
-        merged = {"一句話": "", "分區": [], "規則與限制": [], "與劇情的關係": ""}
+        merged = {"一句話": "", "分區": [], "規則與限制": [], "與劇情的關係": "", "flag": False}
         for j in range(0, len(items), TOPIC_BATCH):
             part = items[j:j + TOPIC_BATCH]
             body = "\n".join("- %s〔%s〕%s%s" % (
@@ -173,6 +179,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
             merged["分區"] += [s for s in d.get("分區") or [] if isinstance(s, dict)]
             merged["規則與限制"] += [_clean(x) for x in d.get("規則與限制") or [] if _clean(x)]
             merged["與劇情的關係"] = merged["與劇情的關係"] or _clean(d.get("與劇情的關係"))
+            merged["flag"] = merged["flag"] or bool(d.get("_lang_mismatch"))
         rel = "設定/世界觀/%s.md" % _fname(t)
         firsts = {r["名詞"]: (info[r["名詞"]]["chapters"] or [0])[0] for r in items}
         own_names = {r["名詞"] for r in own}
@@ -199,7 +206,8 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         rules = "\n".join("- " + x for x in merged["規則與限制"]) or "- " + _u()
         write(rel, ("---\n類型: 世界觀\n名稱: %s\n狀態: 草稿\n來源: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n%s\n\n## 規則與限制\n%s\n\n"
                     "## 與劇情的關係\n%s\n\n## 備註\n- %s\n") % (
-            t, t, merged["一句話"] or _u(), "\n\n".join(secs), rules, merged["與劇情的關係"] or _u(), _p("gl_note_review")))
+            t, t, merged["一句話"] or _u(), "\n\n".join(secs), rules, merged["與劇情的關係"] or _u(),
+            _p("gl_note_review") + (("\n- " + _p("lang_flag_note")) if merged["flag"] else "")))
         for r in items:
             where.setdefault(r["名詞"], rel)
     for j in range(0, len(own), OWN_BATCH):
@@ -221,7 +229,8 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
                         "## 在故事中的作用\n%s\n\n## 目前狀態\n%s\n\n## 限制與代價\n%s\n\n## 備註\n- %s\n") % (
                 r["名詞"], r["名詞"], _clean(e.get("一句話")) or _u(), lst(e.get("特性")), _clean(e.get("來歷")) or _u(),
                 _clean(e.get("在故事中的作用")) or _u(), _clean(e.get("目前狀態")) or _u(), lst(e.get("限制與代價")),
-                _p("gl_own_note", n=len(info[r["名詞"]]["chapters"]), a="%03d" % info[r["名詞"]]["chapters"][0], b="%03d" % info[r["名詞"]]["chapters"][-1])))
+                _p("gl_own_note", n=len(info[r["名詞"]]["chapters"]), a="%03d" % info[r["名詞"]]["chapters"][0], b="%03d" % info[r["名詞"]]["chapters"][-1]) +
+                (("\n- " + _p("lang_flag_note")) if e.get("_lang_mismatch") else "")))
             where[r["名詞"]] = rel
 
     # 4. 名詞表（索引）

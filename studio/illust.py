@@ -354,7 +354,7 @@ def read_card(text):
 
 def write_card(text, card):
     lines = [CARD_HEAD,
-             "<!-- 給繪圖用的外觀描述。標籤用英文 Danbooru 標籤（用空格不用底線），描述用英文句子。工作台出圖時會自動帶入。 -->",
+             prompts.cur()["il_card_comment"],
              "- 標籤：%s" % normalize_tags(card.get("tags", "")),
              "- 描述：%s" % (card.get("description") or "").strip()]
     sec = "\n".join(lines) + "\n"
@@ -1034,69 +1034,45 @@ def params_size(line):
 # ---------------------------------------------------------------------------
 # 給 AI 的指示（產生場景描述、視覺卡）：只要一小段 JSON，其他由程式組裝
 # ---------------------------------------------------------------------------
-SCENE_SCHEMA = """只輸出一個 JSON 物件：
-{"characters": [{"name": "角色名（照提供的名單）", "position": "left|right|center", "action": "這個角色的姿勢、表情、手上動作，英文 Danbooru 標籤，逗號分隔"}],
- "action_tags": "整體動作與互動的英文 Danbooru 標籤",
- "scene_tags": "地點、時間、天氣、光線、背景物件的英文 Danbooru 標籤",
- "composition": "構圖與鏡頭的英文 Danbooru 標籤，例如 cowboy shot, from side, dutch angle, close-up",
- "sentences": "兩到三句英文，描述畫面：誰、在做什麼、在哪裡、氣氛。角色用外觀稱呼（例如 the black-haired girl），不要用中文名字"}
-規則：
-- 標籤用空格不用底線，只寫畫面看得到的東西（不寫心理、不寫劇情因果）。
-- 角色外觀（髮色、服裝等）已經在視覺卡裡，不要重複寫在 action 裡。
-- 只畫一個瞬間；畫面裡最多三個角色，挑最重要的。
-- 沒有提供出場角色時（例如艦艇、建築、物件的設定圖），畫面裡不要有任何人物：characters 給空陣列，action_tags 寫 no humans，
-  構圖不要用 full body、cowboy shot、upper body 這類人物取景，sentences 也不要寫到人。
-- 不要加品質標籤、畫師、safe 之類的分級標籤，工作台會自己加。"""
-
-CARD_SCHEMA = """只輸出一個 JSON 物件：
-{"tags": "外觀的英文 Danbooru 標籤，逗號分隔：人數（1girl／1boy）、髮型髮色、瞳色、體型、招牌服裝、配件",
- "description": "一兩句英文，描述外觀與給人的感覺（不寫名字）"}
-規則：標籤用空格不用底線；只寫固定不變的外觀，不寫動作、表情、場景；設定沒寫到的外觀可以合理補上，但不要和設定衝突。"""
-
-# 勢力、世界觀：畫的是東西本身（艦艇、兵器、建築、地點、徽章），不是人
-OBJECT_CARD_SCHEMA = """只輸出一個 JSON 物件：
-{"tags": "外觀的英文 Danbooru 標籤，逗號分隔：第一個固定寫 no humans，接著寫種類（例如 spacecraft、battleship、castle、city）、外形、材質、色調、標誌性的部件",
- "description": "一兩句英文，描述這個東西本身的外觀與給人的感覺（不寫名字、不寫人）"}
-規則：
-- 畫的是這個東西本身，不是擬人化角色：不要寫 1girl、1boy、1other、solo 之類的人數標籤，也不要寫髮型、瞳色、服裝、表情。
-- 設定裡提到的艦長、乘員、駐守人員都不要畫進去；艦艇或載具優先畫外觀全景，不要只畫艦橋內部。
-- 勢力就畫它的象徵物（旗幟、徽章、據點建築或代表性的艦艇兵器）。
-- 標籤用空格不用底線；只寫固定不變的外觀；設定沒寫到的外觀可以合理補上，但不要和設定衝突。"""
+# 格式與規則在語言包（prompts 的 il_*），依書的語言
+def _il(key):
+    return prompts.cur()[key]
 
 
 def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind="chapter"):
     """回傳 (system, user)。char_entries/place_entries 是 entity_cards() 的項目。"""
     def card_line(e):
         c = e.get("card") or {}
-        return "- %s（%s）：%s%s" % (e["name"], e["kind"], c.get("tags") or "（沒有視覺卡）",
-                                   ("；" + c["description"]) if c.get("description") else "")
+        return _il("il_card_line").format(name=e["name"], kind=prompts.label(e["kind"]), tags=c.get("tags") or _il("il_no_card"),
+                                          desc=_il("il_card_desc").format(desc=c["description"]) if c.get("description") else "")
     parts = []
     if kind == "cover":
         core = project.read_text(os.path.join(book_dir, "設定", "故事核心.md")) if os.path.isfile(os.path.join(book_dir, "設定", "故事核心.md")) else ""
-        parts.append("【任務】為這本小說的封面設計一個畫面：要能代表整本書的題材與氣氛，主角放在最顯眼的位置，不要放文字。")
-        parts.append("【故事核心】\n" + project.split_frontmatter(core)[1][:2500])
+        parts.append(_il("il_task_cover"))
+        parts.append(_il("il_h_core") + project.split_frontmatter(core)[1][:2500])
     elif kind == "entity":
-        parts.append("【任務】為這個設定項目畫一張設定圖（角色就是全身或半身立繪，地點或物件就是清楚的展示圖）。")
+        parts.append(_il("il_task_entity"))
         if passage:
-            parts.append("【設定內容】\n" + passage[:2500])
+            parts.append(_il("il_h_entity") + passage[:2500])
     else:
-        parts.append("【任務】把下面這段小說片段畫成一張插畫。")
-        parts.append("【片段】\n" + passage[:3000])
+        parts.append(_il("il_task_chapter"))
+        parts.append(_il("il_h_passage") + passage[:3000])
     if char_entries:
-        parts.append("【出場角色與視覺卡】\n" + "\n".join(card_line(e) for e in char_entries))
+        parts.append(_il("il_h_chars") + "\n".join(card_line(e) for e in char_entries))
     if place_entries:
-        parts.append("【相關地點、物件】\n" + "\n".join(card_line(e) for e in place_entries))
-    parts.append(SCENE_SCHEMA)
+        parts.append(_il("il_h_places") + "\n".join(card_line(e) for e in place_entries))
+    parts.append(_il("il_scene_schema"))
     system = prompts.cur()["illust_scene_sys"]
     return system, "\n\n".join(parts)
 
 
 def ai_card_prompt(entry_text, name, kind):
     if kind == "角色":
-        system, schema = prompts.cur()["illust_card_sys"], CARD_SCHEMA
+        system, schema = prompts.cur()["illust_card_sys"], _il("il_card_schema")
     else:
-        system, schema = prompts.cur()["illust_obj_card_sys"], OBJECT_CARD_SCHEMA
-    user = "【%s：%s】\n%s\n\n%s" % (kind, name, project.split_frontmatter(entry_text)[1][:3000], schema)
+        system, schema = prompts.cur()["illust_obj_card_sys"], _il("il_obj_card_schema")
+    user = "%s\n%s\n\n%s" % (_il("il_card_head").format(kind=prompts.label(kind), name=name),
+                              project.split_frontmatter(entry_text)[1][:3000], schema)
     return system, user
 
 

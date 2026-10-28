@@ -87,3 +87,63 @@ class Checker:
 
 def wrap(module):
     return Checker(module)
+
+
+# ---------------------------------------------------------------------------
+# 產出語言檢查（英文、日文書）：模型回傳的 JSON 自由文字是不是寫成了中文
+# ---------------------------------------------------------------------------
+_CH_REF = re.compile(r"^第\s*\d+\s*[章卷]$|^[A-Z]\d{2,4}$|^(?:設定|大綱|追蹤|正文|候選|範例|_範本|\.studio)/")
+
+
+def _strings(data, out):
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if str(k).startswith("_"):
+                continue
+            _strings(v, out)
+    elif isinstance(data, list):
+        for v in data:
+            _strings(v, out)
+    elif isinstance(data, str):
+        out.append(data.strip())
+    return out
+
+
+def _is_enum(s):
+    from . import enums
+    return any(enums.norm(kind, s) is not None for kind in enums.TABLES)
+
+
+def lang_mismatch(data, book_lang):
+    """回傳 (不符?, 可疑字串數, 檢查的字串數)。繁中書不檢查。
+    英文書：長度 8 以上的字串中，含 3 個以上漢字的超過 10%。
+    日文書：長度 20 以上、有漢字但完全沒有假名的字串超過 30%（日文的專有名詞常只有漢字，所以只看長句）。
+    列舉值、第N章、F001 這類編號、資料夾路徑不算。"""
+    if book_lang not in ("en", "ja"):
+        return False, 0, 0
+    vals = [s for s in _strings(data, []) if s and not _CH_REF.search(s) and not _is_enum(s)]
+    if book_lang == "en":
+        pool = [s for s in vals if len(s) >= 8]
+        bad = [s for s in pool if len(_HAN.findall(s)) >= 3]
+        limit = 0.10
+    else:
+        pool = [s for s in vals if len(s) >= 20]
+        bad = [s for s in pool if _HAN.search(s) and not _KANA.search(s)]
+        limit = 0.30
+    if not pool:
+        return False, 0, 0
+    return len(bad) / len(pool) > limit, len(bad), len(pool)
+
+
+def flag_mismatch(data):
+    """兩次都不符：在資料（與清單裡的每一筆）加上 _lang_mismatch，寫檔時會在「備註」加一行待核對。"""
+    if isinstance(data, dict):
+        data["_lang_mismatch"] = True
+        for v in data.values():
+            if isinstance(v, list):
+                for x in v:
+                    if isinstance(x, dict):
+                        flag_mismatch(x)
+            elif isinstance(v, dict):
+                flag_mismatch(v)
+    return data

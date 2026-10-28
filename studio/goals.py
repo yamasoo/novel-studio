@@ -14,6 +14,13 @@ from . import context, project, prompts
 STATUS_LABEL = {"completed": "已寫到", "unmet": "沒寫到", "unknown": "無法判斷", "unverified": "引文對不上"}
 
 
+def _todo_other(s):
+    """英文、日文章綱裡「待補」的寫法（(to fill in)／（未記入））。繁中的判斷維持原樣。"""
+    if prompts.cur_lang() == "zh-TW":
+        return False
+    return any(prompts.pack(l)["rev_todo"] in s for l in prompts.MODULES if l != "zh-TW")
+
+
 def freeze_goals(card_text):
     """從章綱取出情節點與章末鉤子，回傳 [{"id","text"}]。"""
     _, body = project.split_frontmatter(card_text or "")
@@ -23,12 +30,12 @@ def freeze_goals(card_text):
     if m:
         for line in m.group(1).split("\n"):
             mm = re.match(r"\s*(?:\d+[.、．)]|[-*])\s*(.+)", line)
-            if mm and mm.group(1).strip() and "待補" not in mm.group(1):
+            if mm and mm.group(1).strip() and "待補" not in mm.group(1) and not _todo_other(mm.group(1)):
                 goals.append(mm.group(1).strip())
     m = re.search(r"##\s*章末鉤子\s*\n(.*?)(?=\n##\s|\Z)", body, re.S)
     if m:
         mm = re.search(r"停在[：:]\s*(.+)", m.group(1))
-        if mm and mm.group(1).strip() and "待定" not in mm.group(1):
+        if mm and mm.group(1).strip() and "待定" not in mm.group(1) and not _todo_other(mm.group(1)):
             goals.append(prompts.cur()["goal_ending"].format(t=mm.group(1).strip()))
     return [{"id": "G%d" % (i + 1), "text": t} for i, t in enumerate(goals)]
 

@@ -372,7 +372,7 @@ def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=Fa
         rows.append(row)
     head = "---\n類型: 讀者認知\n更新至: %s\n%s---\n\n# 讀者認知%s\n\n" % (
         chapter_label_text, "狀態: 草稿\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
-    _write(path, head + RP_INTRO + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
+    _write(path, head + prompts.cur()["rp_intro"] + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
     return len(rows)
 
 

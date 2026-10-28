@@ -10,7 +10,7 @@ import shutil
 import time
 import urllib.parse
 
-from . import lang as lang_mod, prompts, context, fidelity, goals, illust, native_files, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, tracking, wb_check
+from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, tracking, wb_check
 
 DELIM = "<<<匯報>>>"
 
@@ -32,6 +32,7 @@ class Ctx:
         self.opts = opts or {}
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0}
         self.truncated = False
+        self.lang_issues = []     # 語言重試後仍不符的步驟（任務結果最後列出）
 
     @property
     def book(self):
@@ -41,9 +42,9 @@ class Ctx:
     def lang(self):
         return lang_mod.book_lang(self.job.book_dir)
 
-    def sys(self, kind=None):
-        """系統提示詞（依書的語言）。kind：json／json_short／discuss／style 會接上對應的補充句。"""
-        P = prompts.pack(self.lang)
+    def sys(self, kind=None, lang=None):
+        """系統提示詞（依書的語言；lang 可以另外指定，例如共用文風）。kind：json／json_short／discuss／style 會接上對應的補充句。"""
+        P = prompts.pack(lang or self.lang)
         key = {"json": "sys_json", "json_short": "sys_json_short", "discuss": "sys_discuss", "style": "sys_style_design"}.get(kind)
         return P["native_system"] + (P[key] if key else "")
 
@@ -420,6 +421,7 @@ def _writeback(c, no):
             data = providers.parse_json(out)
         except providers.ProviderError as e:
             raise NativeError("%s。%s" % (e, "輸出仍被截斷，請到設定調高「最大輸出」後再試。" if c.truncated else "可以再試一次，或改用其他模型。"))
+    data = _lang_check(c, msgs, out, _zh(c, data, "整理第%d章的追蹤資料" % no), "整理第%d章的追蹤資料" % no, out_tok)
     log = tracking.apply_writeback(c.book, no, title, project.count_chars(text), data, revision=revision)
     if revision:
         log.append("（修訂舊章：狀態卡與角色狀態保留第%d章的版本）" % tracked)
@@ -792,6 +794,8 @@ def act_visual_card(c, p):
 def act_style_design(c, p):
     """共用庫的文風設計／調整／試寫。c.book 是 書庫/_共用。"""
     library = os.path.dirname(c.book)
+    if p.get("lang"):           # 共用庫沒有「書的語言」：用作者在介面上選的語言（繁中維持原樣）
+        prompts.set_lang(lang_mod.normalize(p["lang"]))
     try:
         info = style_design.prepare(library, p)
     except (style_design.DesignError, shared.SharedError) as e:
@@ -800,9 +804,9 @@ def act_style_design(c, p):
     ctx_text, used, dropped = style_design.reference_pack(info, c.plugin_dir, c.budget(out_tok)).build()
     if dropped:
         c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
-    system = c.sys("style")
+    system = c.sys("style", lang=prompts.cur_lang())
     out = c.call([{"role": "system", "content": system},
-                  {"role": "user", "content": ctx_text + "\n\n【任務】" + style_design.task_text(info, p)}],
+                  {"role": "user", "content": ctx_text + _P()["task_mark"] + style_design.task_text(info, p)}],
                  max_tokens=out_tok, label=style_design.MODES[info["mode"]], stage="plan")
     try:
         c.job.result = style_design.finish(library, info, out, c.truncated)
@@ -821,14 +825,14 @@ def act_reader_init(c, p):
         msgs = [{"role": "system", "content": c.sys("json")}, {"role": "user", "content": user}]
         out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label=label, stage="structured")
         try:
-            results.append(providers.parse_json(out))
+            results.append(_lang_check(c, msgs, out, _zh(c, providers.parse_json(out), label), label))
         except providers.ProviderError:
             c.job.emit("log", text="JSON 格式有誤，請模型重新輸出一次……")
             out = c.call(msgs + [{"role": "assistant", "content": out},
-                                 {"role": "user", "content": "上面的輸出不是合法 JSON。請只輸出符合格式的 JSON 物件。"}],
+                                 {"role": "user", "content": _P()["json_retry_short"]}],
                          json_mode=True, max_tokens=_out_tokens(c), label=label + "（重試）", stage="structured")
             try:
-                results.append(providers.parse_json(out))
+                results.append(_zh(c, providers.parse_json(out), label))
             except providers.ProviderError as e:
                 raise NativeError("%s：%s" % (label, e))
     try:
@@ -837,19 +841,50 @@ def act_reader_init(c, p):
         raise NativeError(str(e))
 
 
+def _zh(c, data, label):
+    """英文、日文書：英文鍵換回中文鍵、列舉值換回中文固定詞；認不得的列舉值在任務紀錄提醒一次。繁中書原樣通過。"""
+    unknown = []
+    data = jsonkeys.to_zh(data, unknown)
+    if unknown and c.lang != "zh-TW":
+        seen = list(dict.fromkeys("%s=%s" % (k, v) for k, v in unknown))
+        c.job.emit("log", text="%s：有認不得的選項值，照原樣寫入：%s" % (label, "、".join(seen[:8])))
+    return data
+
+
+def _lang_check(c, msgs, out, data, label, max_tokens=None):
+    """英文、日文書：自由文字大多是中文時，請模型用書的語言重寫一次；還是不符就照寫，但標上待核對。"""
+    bad, n, total = textguard.lang_mismatch(data, c.lang)
+    if not bad:
+        return data
+    c.job.emit("log", text="%s：輸出的文字大多不是書的語言（%d／%d 段），請模型重寫一次……" % (label, n, total))
+    retry = msgs + [{"role": "assistant", "content": out}, {"role": "user", "content": _P()["lang_retry"]}]
+    try:
+        out2 = c.call(retry, json_mode=True, max_tokens=max_tokens or _out_tokens(c), label=label + "（語言重試）", stage="structured")
+        data2 = _zh(c, providers.parse_json(out2), label)
+    except providers.ProviderError as e:
+        c.job.emit("log", text="%s：語言重試失敗（%s），沿用第一次的結果並標上待核對。" % (label, e))
+        data2 = None
+    if data2 is not None and not textguard.lang_mismatch(data2, c.lang)[0]:
+        return data2
+    c.job.emit("log", text="%s：重試後仍不是書的語言，照寫並在備註標上「%s」。" % (label, _P()["lang_flag_note"]))
+    c.lang_issues.append(label)
+    return textguard.flag_mismatch(data2 if data2 is not None else data)
+
+
 def _json_call(c, msgs, label):
     out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label=label, stage="structured")
     try:
-        return providers.parse_json(out)
+        return _lang_check(c, msgs, out, _zh(c, providers.parse_json(out), label), label)
     except providers.ProviderError:
         c.job.emit("log", text="JSON 格式有誤，請模型重新輸出一次……")
         out = c.call(msgs + [{"role": "assistant", "content": out},
-                             {"role": "user", "content": "上面的輸出不是合法 JSON。請只輸出符合格式的 JSON 物件。"}],
+                             {"role": "user", "content": _P()["json_retry_short"]}],
                      json_mode=True, max_tokens=_out_tokens(c), label=label + "（重試）", stage="structured")
         try:
-            return providers.parse_json(out)
+            data = _zh(c, providers.parse_json(out), label)
         except providers.ProviderError as e:
             raise NativeError("%s：%s" % (label, e))
+        return _lang_check(c, msgs, out, data, label)
 
 
 def act_reader_reconcile(c, p):
@@ -946,6 +981,9 @@ def run(job, prov, home, plugin_dir, checker, opts=None):
             job.emit("cancelled", text="已停止")
         else:
             job.status = "done"
+            if c.lang_issues:
+                job.result = (job.result or "") + "\n\n" + _P()["lang_issue_report"].format(
+                    steps=_P()["list_sep"].join(dict.fromkeys(c.lang_issues)), note=_P()["lang_flag_note"])
             job.cost = providers.cost_of(prov, c.usage)
             job.emit("result", text=job.result, cost=job.cost,
                      usage=c.usage, turns=None)

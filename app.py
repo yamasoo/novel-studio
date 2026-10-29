@@ -133,6 +133,23 @@ def wrap(fn):
         raise HTTPException(400, str(e))
 
 
+# 審查與修訂只處理書裡的這幾種稿子（報告 S1：不要把用戶端送來的路徑直接拼成檔案路徑）
+REVIEWABLE_DIRS = ("正文", "候選", "設定")
+
+
+def book_path(d, rel, must_exist=True):
+    """用戶端送來的相對路徑 → 驗證過的書內相對路徑（限 正文／候選／設定）。"""
+    if not isinstance(rel, str) or not rel.strip():
+        raise HTTPException(400, "缺少要處理的檔案路徑")
+    full = wrap(lambda: project.safe_path(d, rel.strip()))
+    rel_norm = project.rel_of(d, full)
+    if rel_norm.split("/")[0] not in REVIEWABLE_DIRS:
+        raise HTTPException(400, "只能指定 %s 底下的檔案：%s" % ("、".join(x + "/" for x in REVIEWABLE_DIRS), rel))
+    if must_exist and not os.path.isfile(full):
+        raise HTTPException(404, "找不到檔案：%s" % rel)
+    return rel_norm
+
+
 @app.exception_handler(HTTPException)
 async def http_err(request, exc):
     return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
@@ -369,7 +386,10 @@ def recovery_to_candidate(book_id: str, rid: str):
 
 def claude_review_job(book_id, d, prov, params):
     no = int(params.get("chapter"))
-    rel = params.get("path") or (context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0])
+    if params.get("path"):
+        rel = book_path(d, params.get("path"))          # 用戶端指定稿子：一律驗證在 正文／候選／設定 底下
+    else:
+        rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以審查的稿子" % no)
     prompt = ("請使用 novel-review skill 審查第%d章，稿子在 %s（用 Read 讀取，也讀相關的章綱、狀態卡、角色狀態、時間線）。"
@@ -398,7 +418,8 @@ def claude_revise_job(book_id, d, prov, params):
     notes = revision.notes_text(rv, params.get("ids") or [], params.get("extra") or "")
     if not notes:
         raise HTTPException(400, "請至少勾選一條審查意見，或寫下你自己的修改意見。")
-    rel = (rv or {}).get("path") or goals.target(d, no, True)[0]
+    rel = (rv or {}).get("path")
+    rel = book_path(d, rel) if rel else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以修訂的稿子" % no)
     draft = ".studio/修訂/第%03d章.draft.md" % no

@@ -20,6 +20,7 @@ import traceback
 import webbrowser
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from urllib.parse import quote, urlsplit
 from fastapi.staticfiles import StaticFiles
@@ -1635,8 +1636,8 @@ async def drift_plan(book_id: str, req: Request):
     if prov.get("type") == "claude_code":
         raise HTTPException(400, "產生卷綱草稿要走 API 的執行者（Claude Code 不行）。")
     prompts.set_lang(lang_mod.book_lang(d))
-    info = drift.drift(d, a, b)
-    res = drift.llm_pass(prov, d, info)
+    info = await run_in_threadpool(drift.drift, d, a, b)
+    res = await run_in_threadpool(drift.llm_pass, prov, d, info)
     if res.get("error"):        # 失敗不存草稿：不然「附加」會把失敗訊息寫進卷綱
         return {"plan_md": "", "draft": "", "volume_file": drift.volume_rel(d, b),
                 "error": res["error"]}

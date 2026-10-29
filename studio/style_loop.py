@@ -49,16 +49,55 @@ def _book_lang(book_dir):
         prompts.set_lang(prev)
 
 
+_TARGET_CACHE = {}      # (book_dir, 版本指紋) → (指標, 來源)；避免每章都重量一次整本書
+
+
+def _fingerprint(book_dir):
+    """書的版本指紋：文風檔 + 正文檔的檔名/大小/mtime。內容沒變就重用上次算的目標。"""
+    items = []
+    p = os.path.join(book_dir, "設定", "文風.md")
+    try:
+        st = os.stat(p)
+        items.append((st.st_size, int(st.st_mtime)))
+    except OSError:
+        items.append(0)
+    ch = os.path.join(book_dir, "正文")
+    try:
+        names = sorted(os.listdir(ch))
+    except OSError:
+        names = []
+    items.append((len(names), names[:1], names[-1:]))
+    try:
+        last = os.stat(os.path.join(ch, names[-1])).st_mtime if names else 0
+        items.append(int(last))
+    except OSError:
+        pass
+    return hash(tuple(str(x) for x in items))
+
+
 def target_metrics(book_dir):
-    """回傳 (指標 dict, 來源說明)。優先 設定/文風.md，沒填就用作者自己的正文。"""
+    """回傳 (指標 dict, 來源說明)。優先 設定/文風.md，沒填就用作者自己的正文。
+
+    量整本書不便宜（百萬字的書要幾秒），而一次漂移掃描會對每一章都問一次同樣的目標，
+    所以用「文風檔＋正文變動」當指紋快取：書沒改就重用。
+    """
+    key = (os.path.abspath(book_dir), _fingerprint(book_dir))
+    hit = _TARGET_CACHE.get(key)
+    if hit is not None:
+        return hit
     with _book_lang(book_dir):
         m = shared.parse_metrics(_read(os.path.join(book_dir, "設定", "文風.md")))
         if m:
-            return m, "文風檔"
+            _TARGET_CACHE.clear()
+            _TARGET_CACHE[key] = (m, "文風檔")
+            return _TARGET_CACHE[key]
         sample = shared.book_sample(book_dir)
         if sample.strip():
             try:
-                return shared.analyze(sample, exclude=shared.book_names(book_dir)), "作者正文"
+                got = (shared.analyze(sample, exclude=shared.book_names(book_dir)), "作者正文")
+                _TARGET_CACHE.clear()
+                _TARGET_CACHE[key] = got
+                return got
             except shared.SharedError:
                 pass
     return {}, ""

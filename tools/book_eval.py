@@ -60,6 +60,7 @@ HIGHER_BETTER = {
     "names_kept": True, "digits_kept": True, "lang_ok": True,
     "review_json_ok": True, "review_quote_hit": True,
     "card_coverage": True, "llm_ok": True,
+    "card_coverage_vs_human": True, "names_kept_vs_human": True,
     "llm_card": True, "llm_style": True, "llm_continuity": True, "llm_readable": True,
     "style_obvious": False, "style_slight": False,
     "issues": False, "issues_must": False, "length_ratio_off": False,
@@ -67,7 +68,7 @@ HIGHER_BETTER = {
 # 容許浮動：在門檻內不算退步（避免每次跑都在跳噪音）
 TOLERANCE = {"names_kept": 0.05, "digits_kept": 0.02, "review_quote_hit": 0.1,
              "length_ratio_off": 0.05, "style_slight": 1, "style_obvious": 0.5,
-             "card_coverage": 0.05,
+             "card_coverage": 0.05, "card_coverage_vs_human": 0.1, "names_kept_vs_human": 0.1,
              # LLM 評分是 1–5 分、有噪音：差 0.5 分以內不算退步
              "llm_card": 0.5, "llm_style": 0.5, "llm_continuity": 0.5, "llm_readable": 0.5}
 
@@ -441,16 +442,25 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None):
             elif task == "continue":
                 no = target or (max(ch) if ch else 0)
                 if no:
-                    removed = mask_from(book, no)      # 遮住這一章以後的稿子
+                    # 先量「人類原作」當對照（同一張章綱、同一章），再遮掉它
+                    human = read(os.path.join(book, "正文", ch[no])) if no in ch else ""
                     _, card = context.card_text(book, no)
                     if not card:
                         print("   %-6s continue  跳過：第%d章沒有章綱" % (lang, no), flush=True)
                         continue
+                    ref = score_continue(book, lang, card, human) if human else {}
+                    removed = mask_from(book, no)      # 遮住這一章以後的稿子
                     run_action(book, lang, "write", {"from": no, "to": no}, prov)
                     made = project._scan_dir(os.path.join(book, "候選")).get(no)
                     text = read(os.path.join(book, "候選", made)) if made else ""
                     m = score_continue(book, lang, card, text)
                     m["masked"] = removed
+                    if ref:
+                        for k, v in ref.items():
+                            m["ref_" + k] = v
+                        # 和人類原作的比例（1.0＝和作者自己寫的一樣；低於 1 就是輸給原作）
+                        for k in ("card_coverage", "names_kept"):
+                            m[k + "_vs_human"] = (round(m[k] / ref[k], 2) if ref.get(k) else 0)
                     out["continue"] = m
                     if judge_on:
                         m.update(judge(prov, lang, card, text))

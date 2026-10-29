@@ -62,13 +62,13 @@ HIGHER_BETTER = {
     "card_coverage": True, "llm_ok": True,
     "card_coverage_vs_human": True, "names_kept_vs_human": True,
     "llm_card": True, "llm_style": True, "llm_continuity": True, "llm_readable": True,
-    "style_obvious": False, "style_slight": False, "style_max_rel": False,
+    "style_obvious": False, "style_slight": False, "style_max_rel": False, "style_mean_rel": False,
     "issues": False, "issues_must": False, "length_ratio_off": False,
 }
 # 容許浮動：在門檻內不算退步（避免每次跑都在跳噪音）
 TOLERANCE = {"names_kept": 0.05, "digits_kept": 0.02, "review_quote_hit": 0.1,
              "length_ratio_off": 0.05, "style_slight": 1, "style_obvious": 0.5,
-             "style_max_rel": 0.1,
+             "style_max_rel": 0.1, "style_mean_rel": 0.05,
              "card_coverage": 0.05, "card_coverage_vs_human": 0.1, "names_kept_vs_human": 0.1,
              # LLM 評分是 1–5 分、有噪音：差 0.5 分以內不算退步
              "llm_card": 0.5, "llm_style": 0.5, "llm_continuity": 0.5, "llm_readable": 0.5}
@@ -161,6 +161,8 @@ def style_metrics(book, text):
          "style_basis": ev.get("basis") or "?"}
     if ev.get("max_rel") is not None:
         m["style_max_rel"] = ev["max_rel"]
+    if ev.get("mean_rel") is not None:
+        m["style_mean_rel"] = round(ev["mean_rel"], 3)
     return m
 
 

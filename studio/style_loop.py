@@ -85,6 +85,7 @@ def evaluate(book_dir, text):
     out["obvious"] = sum(1 for r in rows if r["偏離"] == "明顯")
     out["slight"] = sum(1 for r in rows if r["偏離"] == "稍有")
     out["max_rel"] = max([r.get("偏離值") or 0 for r in rows] or [0])
+    out["mean_rel"] = (sum(r.get("偏離值") or 0 for r in rows) / len(rows)) if rows else 0
     out["worst"] = max(rows, key=lambda r: r.get("偏離值") or 0)["指標"] if rows else ""
     off = (out["max_rel"] >= LIMIT["rel"] or out["obvious"] >= LIMIT["obvious"]
            or out["slight"] >= LIMIT["slight"])

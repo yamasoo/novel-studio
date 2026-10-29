@@ -25,11 +25,14 @@
 
 ## 目前狀態（2026-10-29，第 1 週完成）
 
-- 分支 `chore/i18n-guardrails`，8 個 commit，**尚未 merge 回 `main`**。
-- `check_i18n` 全過；`check_parity` **FAIL 0、WARN 47**（起點是 FAIL 4、WARN 45）。
+- 分支 `chore/i18n-guardrails`，**18 個 commit**，尚未 merge 回 `main`。
+- `check_i18n` 全過；`check_parity` **FAIL 0、WARN 0**（`--strict` 也過），CI 從第 2 週起就是 `--strict`。
 - 介面字串：en／ja 都收斂到 1535 鍵，missing 0、stale 0、empty 0；16 條路徑／檔名類填 `==`（同形標記）。
 - `i18n/glossary.tsv`：23 條術語，`check_parity` 會抓「禁用譯法」與「表跟介面不一致」。
-- 翻譯基準 `tools/i18n.lock.json`：30 → 80 組（+17 範本、+33 個示範書檔案）。
+- 翻譯基準 `tools/i18n.lock.json`：30 → 83 組（+17 範本、+36 個示範書檔案）。
+- 三份 README 標題樹一致（1／11／20）；三本示範書 `_範本/` 都是 18 個檔。
+- `tools/i18n_fill.py`：翻譯缺口 → 初翻 patch → 人工核可 → `--apply`。
+- `studio/contract.py`：`設定/續寫合約.md`，priority 0 注入每章上下文（見 `docs/續寫合約.md`）。
 
 ### 第 1 週清單對照（一個項目一個 commit）
 
@@ -45,15 +48,36 @@
 
 > 附錄 E 原本列 13 句，實測是 **14 句**（多了「`{0} → {1}`／關係」那條），已一併補上。
 
-## 下一步（第 2 週）
+### 第 2 週清單對照
 
-1. **WARN 燒減**：47 條最大宗是提示詞長度比例（en 是繁中的 2.9 倍，A8）與 README 標題分佈（A4）。
-   清到 0 之後，CI 的 `check_parity` 才能改 `--strict`。
-2. **T3 剩下的**：範本佔位符比對（A5：`{主題}`／`{topic}`／`{項目名}`）。
-3. **A7**：繁中示範書缺 `_範本/讀者認知.md`、`關係.md`，多了 `專案規範.md`——補檔或列白名單，選一個。
-4. **A9**：`prompt_lang_audit.py` 固定讀 `plugin/`；另外這次發現 `claude_review_job`／`claude_revise_job`
-   的提示詞本身是**硬寫繁中**，en／ja 書會收到中文指令（S5 只補了 contextvar，沒動文案）。
-5. T4 翻譯工作流（`i18n_fill.py`）與 P1 續寫合約。
+| # | 項目 | commit | 驗證 |
+|---|---|---|---|
+| 1 | WARN 47 → 8：換掉提示詞的兩條誤報檢查 | `9f7ac1c` | 字元比例與「英包有中文」都是假警報（見下） |
+| 2 | A7：三本示範書 `_範本/` 補成 18 個檔 | `33ff67a` | demo WARN 6 → 0 |
+| 3 | A4／T6 最小方案：繁中 README 補 4 節 | `d135264` | 三份都是 1／11／20 個標題 |
+| 4 | CI 改 `--strict` | `dc78cfd` | WARN 8 → 0 後才開 |
+| 5 | A5：範本 `{佔位符}` 對等檢查 | `ad65ea8` | 故意改壞會被抓（測過兩種） |
+| 6 | A9：驗證載入的是自己那一版的 skill | `c1dbedd` | 負向測試強制讀 plugin/ → 兩條都抓到 |
+| 7 | T4：`tools/i18n_fill.py` | `5533673` | list／apply 實測；fill 用假 provider 端到端 |
+| 8 | P1：`設定/續寫合約.md` ＋ priority 0 注入 | `dd09434` | 預算 4000 時合約還在，其餘被丟 |
+
+**兩個「報告說錯」的地方（重要，不要再重做一次）**
+
+- **A8「英文是繁中 2.9 倍 → 內容不對稱」是指標問題。** 中文算字元、英文算單詞，整包 2.95 倍屬正常；
+  15 條離群全是誤報（短標籤、格式列）。現在改比**句數**（ja 全部 1.00、en 最低 0.67，低於 0.6 才警告）。
+- **A9「prompt_lang_audit 固定讀 plugin/」是誤報。** `plugin/` 只是基底，切換在
+  `context.lang_plugin／skill_ref`（依 `prompts.cur_lang()`）；探針實測 en 書讀 plugin-en、ja 讀 plugin-ja。
+  現在每次跑都會驗「該版在、別版不在」。
+
+## 下一步（第 3 週）
+
+1. **P3 文風保真閉環**：把 `shared.compare` 的 13 指標接進寫稿／去 AI 味之後，偏離就帶數字重寫一次。
+2. **T6 完整版**（選配）：把安裝／後端設定搬到 `docs/<lang>/`，README 只留導覽；現在只做了結構對齊。
+3. **續寫合約的兩件收尾**：
+   - Claude Code 模式還沒吃到合約（`plugin*/skills/novel-setup/references/claude-md-template.md` 要加一行，三份）
+   - 「連續 10 章零衝突」還沒量：要真的跑十章，配合 P4 的回歸工具才有數字
+4. **`claude_review_job`／`claude_revise_job` 的提示詞還是硬寫繁中**（S5 只補了 contextvar），
+   en／ja 書會收到中文指令——這是 A1 家族最後一個明顯的洞。
 
 ## 注意（本次新增）
 

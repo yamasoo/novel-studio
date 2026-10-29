@@ -257,11 +257,20 @@ def real_provider(pid):
         raise SystemExit("執行者「%s」還沒選模型。先到工作台「設定 → AI 執行者」按「測試連線／抓模型清單」選一個，\n"
                          "或用 --provider %s/<模型 id> 指定。" % (prov.get("id"), prov.get("id")))
     if not providers.key_status(ROOT, prov):
+        env = prov.get("key_env") or "DEEPSEEK_API_KEY"
+        hint = ""
+        if not providers._keyring():
+            hint = ("\n這支 python 讀不到系統金鑰庫（多半是沒安裝 keyring、或不是工作台用的那個 venv）。"
+                    "\n請用工作台同一個 venv 跑，例如：\n"
+                    "  & 'C:\\Users\\你\\venvs\\novel-studio\\Scripts\\python.exe' tools/book_eval.py --provider %s"
+                    % (prov.get("id"),))
         raise SystemExit("執行者「%s」還沒有 API 金鑰。三種放法（擇一）：\n"
-                         "  1. 工作台「設定 → AI 執行者」貼上金鑰（存進系統金鑰庫，推薦）\n"
-                         "  2. 設環境變數 %s（在跑這支指令的同一個 shell 裡）\n"
-                         "  3. 工作台資料夾的 secrets.json（明文，不進 git）"
-                         % (prov.get("id"), prov.get("key_env") or "API 金鑰"))
+                         "  1. 工作台「設定 → AI 執行者」貼上金鑰（存進系統金鑰庫，推薦；app 與工具都讀得到）\n"
+                         "  2. 設環境變數 %s —— 只在「設定它的那個視窗」有效：\n"
+                         "       這個視窗：$env:%s = 'sk-...'\n"
+                         "       以後都有效：setx %s \"sk-...\" 然後「開一個新視窗」\n"
+                         "  3. 工作台資料夾的 secrets.json（明文，不進 git）%s"
+                         % (prov.get("id"), env, env, env, hint))
     return prov
 
 

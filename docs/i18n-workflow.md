@@ -82,7 +82,22 @@ python tools/check_parity.py --update-lock   # 三語都補完、確認過，才
 
 - 新增使用者看得到的文字時，同時補 `static/locales/en.json` 與 `ja.json`，否則 `check_parity` 會 FAIL「沒翻」。
 - 路徑、檔名、語言名稱這類三語本來就相同的字串，等值填 `"=="`（同形標記），不要用假翻譯充數。
-- 譯文品質由人工核可；AI 只產出 patch，不直接改正式檔（見檢視報告 T4）。
+- 譯文品質由人工核可；AI 只產出 patch，不直接改正式檔（見下面 T4）。
+
+## 翻譯缺口 → 初翻 patch（`tools/i18n_fill.py`）
+
+```powershell
+python tools/i18n_fill.py --list              # 缺哪幾條、哪些建議填 "=="、有待核可的初翻
+python tools/i18n_fill.py --fill              # 呼叫模型初翻 → i18n/pending/<lang>.json ＋ .review.md
+python tools/i18n_fill.py --apply --lang en   # 人工核可後才併進 static/locales/
+```
+
+- `--fill` 需要 OpenAI 相容的執行者（`--provider deepseek` 之類）；Claude Code 不行。CI 不會跑這支。
+- 送給模型的是**只有缺口的那幾條**＋術語表，不是整包語言檔；路徑類字串不送模型，直接建議 `==`。
+- 模型只寫 `i18n/pending/`：`<lang>.json` 是機器可讀的提案，`<lang>.review.md` 是給人核可的兩欄表。
+  `--apply` 之前請看過 review 檔——這是「人工只花在判斷」的那一步。
+- `--apply` 之後跑 `python tools/check_i18n.py` 與 `python tools/check_parity.py --update-lock`，
+  前者驗變數與路徑沒被翻壞，後者把新譯文登記成新的翻譯基準。
 
 ## 術語表（`i18n/glossary.tsv`）
 

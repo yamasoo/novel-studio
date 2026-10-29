@@ -27,7 +27,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, export, fidelity, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, textguard, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, wb_check  # noqa: E402
 
 VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -1568,13 +1568,51 @@ async def new_book(req: Request):
     d = wrap(lambda: project.create_book(lib, body.get("name", "")))
     name = os.path.basename(d)
     lang_mod.set_book_lang(d, body.get("lang"))   # 先記下這本書的語言，開書訪談的指令與之後的所有提示詞才會用對的語言
+    seeded = []
+    ref = (body.get("ref") or "").strip()
+    if ref:                          # 參考書（P6）：把它的風格指標與章節結構補進新書，全程不呼叫模型
+        try:
+            ref_dir = book_dir(ref)
+            prompts.set_lang(lang_mod.book_lang(ref_dir))
+            seeded = spawn.seed(d, name, fingerprint.build(ref_dir), sdna.build(ref_dir), source=ref)
+        except Exception as e:       # 參考書讀不到不該讓「開新書」失敗
+            print("（參考書 seed 失敗：%s）" % e, flush=True)
+        finally:
+            prompts.set_lang(lang_mod.book_lang(d))
     job = None
     if body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
         title, prompt = actions.build("setup_new", params, name, lang=lang_mod.book_lang(d))
         job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
                                           provider=get_provider(body.get("provider"))))
-    return {"id": name, "job": job.to_dict() if job else None}
+    return {"id": name, "job": job.to_dict() if job else None, "seeded": seeded}
+
+
+@app.post("/api/books/{book_id}/spinoff")
+async def spinoff_generate(book_id: str, req: Request):
+    """用參考書的指紋與 DNA 產生故事骨架草稿（會呼叫模型，約 3 次）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    source = (body.get("source") or "").strip()
+    if not source:
+        raise HTTPException(400, "請先選一本參考書")
+    src = book_dir(source)
+    if os.path.normpath(src) == os.path.normpath(d):
+        raise HTTPException(400, "參考書不能是同一本")
+    prov = get_provider(body.get("provider"))
+    if prov.get("type") == "claude_code":
+        raise HTTPException(400, "產生骨架要走 API 的執行者（Claude Code 不行），請在右側面板上方切換。")
+    try:
+        prompts.set_lang(lang_mod.book_lang(src))
+        data = spinoff.generate(prov, src, (body.get("note") or "").strip())
+        rel = spinoff.save(d, data)
+    except SystemExit as e:
+        raise HTTPException(400, str(e))
+    except providers.ProviderError as e:
+        raise HTTPException(400, "模型回覆有問題：%s" % e)
+    finally:
+        prompts.set_lang(lang_mod.book_lang(d))
+    return {"draft": rel, "preview": spinoff.show(data), "guard": data.get("護欄") or {}}
 
 
 # 各語言的示範書：語言 → (demo/ 底下的資料夾, 放進書庫後的名稱)

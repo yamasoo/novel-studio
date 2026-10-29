@@ -98,7 +98,8 @@
 | 2 | 結構 DNA（`studio/sdna.py`、`tools/sdna.py`） | `2dfe203` | 四本真書：視角判得出來（3 人稱／1 人稱／混合）、DNA 兩次相同、JSON 撞名 0；副本寫檔 692 bytes |
 | 4 | 護欄（`similarity.check()`、`tools/similarity.py`） | `ab475f0` | 照抄 1000 字 → containment 1.000／814 字、指到第 3/4/5 段 100%；換名字 → 0.834／111 字；自己寫的 0.02～0.024 → 可以 |
 | 5 | 建專案（`studio/spawn.py`、`tools/spawn.py`） | `8218444` | 用B 書建新書：is_book True、19 項、parse_metrics 讀得到 6 項、合約 741 字、for_chapter 4,438 tokens 含章綱與文風目標、37 檔 |
-| 3 | 新書骨架（`studio/spinoff.py`、`tools/spinoff.py`） | 本 commit | 假模型：禁用名單 48 個、第一次故意撞名 → 護欄擋下並重寫 → 共 3 次呼叫、最終撞名 0、草稿寫進 候選/新書草稿/ |
+| 3 | 新書骨架（`studio/spinoff.py`、`tools/spinoff.py`） | `4b1f2e0` | 假模型：禁用名單 48 個、第一次故意撞名 → 護欄擋下並重寫 → 共 3 次呼叫、最終撞名 0、草稿寫進 候選/新書草稿/ |
+| 6 | 接進工作台（開新書對話框＋`/api/books/{id}/spinoff`） | 本 commit | 端點存在、前端含 nb-ref／nb-gen／spinoffGenerate、node --check 通過；spawn.seed 在 app 建的新書寫出 4 檔、指標 6 項 |
 
 ## 下一步
 

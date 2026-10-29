@@ -400,6 +400,7 @@ function renderDemoCard(lang) {
 }
 
 function newBookDialog() {
+  const others = (S.books || []).map((b) => `<option value="${esc(b.name)}">${esc(b.title || b.name)}</option>`).join("");
   modal(`
     <h2>開新書</h2>
     <p class="muted small">會在書庫建立資料夾，然後請 ${esc(Panel.provName())} 跟你做開書訪談（可以在右側面板上方切換執行者）。訪談問題會出現在右側面板，直接在下方回覆即可。</p>
@@ -407,20 +408,43 @@ function newBookDialog() {
     <label class="f"><span>寫作語言</span><select id="nb-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
     <p class="muted small">決定這本書的提示詞和模型輸出的語言。介面語言是另外的設定（右下角）。</p>
     <label class="f"><span>初步構想（選填）</span><textarea id="nb-idea" rows="4" placeholder="一句話、一段簡介，或幾個關鍵字"></textarea></label>
+    <label class="f"><span>參考書（選填）</span><select id="nb-ref"><option value="">（不參考）</option>${others}</select></label>
+    <p class="muted small">只沿用它的<b>文風指標</b>與<b>章節結構</b>（數字），不會帶入任何名字或情節。勾選下面的選項才會請模型另外生故事骨架（約 3 次呼叫）。</p>
+    <label class="f"><span><input type="checkbox" id="nb-gen"> 順便產生故事骨架（用上面的參考書，1–2 分鐘）</span></label>
     <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="nb-go">建立並開始訪談</button></div>`,
   (el) => {
     try { const ul = localStorage.getItem("ns_lang"); if (ul) $("#nb-lang", el).value = ul; } catch (e) {}
     $("#nb-name", el).focus();
     $("#nb-go", el).onclick = async () => {
+      const ref = $("#nb-ref", el).value;
+      const gen = $("#nb-gen", el).checked;
+      const idea = $("#nb-idea", el).value;
       try {
-        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea: $("#nb-idea", el).value, lang: $("#nb-lang", el).value, provider: Panel.prov() });
+        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea, lang: $("#nb-lang", el).value, provider: Panel.prov(), ref });
         closeModal();
         S.books = (await api("GET", "/api/books")).books;
         go("#/b/" + enc(r.id));
         if (r.job) Panel.attach(r.job);
+        if (r.seeded && r.seeded.length) toast("已沿用參考書的文風指標與章節結構");
+        if (gen && ref) spinoffGenerate(r.id, ref, idea);
+        else if (gen && !ref) toast("要先選一本參考書", true);
       } catch (e) { fail(e); }
     };
   });
+}
+
+async function spinoffGenerate(id, source, note) {
+  toast("正在用參考書產生故事骨架…");
+  try {
+    const r = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    const bad = (r.guard && r.guard["撞到名字"]) || [];
+    modal(`<h2>故事骨架草稿</h2>
+      <p class="muted small">已寫到 <code>${esc(r.draft)}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
+      ${bad.length ? `<p class="muted small" style="color:#b45309">護欄：有名字和參考書重複（${esc(bad.join("、"))}），請手動改掉。</p>` : ""}
+      <div class="md">${md(r.preview)}</div>
+      <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
+    toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
+  } catch (e) { fail(e); }
 }
 window.initFolder = async (id) => {
   go("#/b/" + enc(id));

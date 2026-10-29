@@ -203,6 +203,31 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
     return {"target": target, "created": created, "lang": lang}
 
 
+def seed(book_dir, title, fp, dna, source=""):
+    """把「從參考書量到的東西」補進一本**已經存在**的書（工作台開新書時用）。
+
+    只寫這幾個檔，不動 CLAUDE.md 與其他內容：
+      設定/文風.md（原本是空範本才寫）、設定/章節結構/結構.md、
+      設定/風格指紋.json、設定/結構DNA.json
+    """
+    created = []
+    p = os.path.join(book_dir, "設定", "文風.md")
+    text = project.read_text(p) if os.path.isfile(p) else ""
+    from . import shared
+    if not shared.parse_metrics(text):          # 已經有指標就不覆蓋（尊重作者手填的）
+        _write(p, style_md(title, fp, dna))
+        created.append("設定/文風.md")
+    _write(os.path.join(book_dir, "設定", "章節結構", "結構.md"), structure_md(dna=dna, fp=fp, title=title))
+    created.append("設定/章節結構/結構.md")
+    if fp:
+        _write(os.path.join(book_dir, "設定", "風格指紋.json"), json.dumps(fp, ensure_ascii=False, indent=1))
+        created.append("設定/風格指紋.json")
+    if dna:
+        _write(os.path.join(book_dir, "設定", "結構DNA.json"), json.dumps(dna, ensure_ascii=False, indent=1))
+        created.append("設定/結構DNA.json")
+    return created
+
+
 def claude_md(title, lang, fp, dna, source=""):
     ch = (fp or {}).get("章節") or {}
     pov = (dna.get("視角") or {}).get("人稱") if dna else "（待填）"

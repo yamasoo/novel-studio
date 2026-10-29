@@ -2,8 +2,7 @@ name: checks
 
 # 目的：把「靠人記得跑」的檢查變成 push 就擋。
 # 這支 workflow 不呼叫任何模型、不花錢，跑完約 1 分鐘（prompt_lang_audit 用的是假 provider）。
-# 現階段只擋 FAIL；check_parity 的 WARN 要用 --strict 才會擋，等 WARN 燒完再打開
-# （見 docs/i18n-workflow.md）。
+# check_parity 以 --strict 跑：WARN 也擋（2026-10-29 起 WARN 已歸零；那天之前只擋 FAIL）。
 
 on:
   push:
@@ -30,10 +29,11 @@ jobs:
       - name: check_i18n
         run: python tools/check_i18n.py
 
-      # 2) 結構對等檢查：外掛三份的檔案與章節骨架、範本、README、介面翻譯覆蓋率、
-      #    術語表禁用譯法、翻譯新鮮度。FAIL 就紅燈，WARN 先只印出來。
+      # 2) 結構對等檢查：外掛三份的檔案與章節骨架、範本、README、示範書 _範本/、
+      #    介面翻譯覆蓋率、術語表禁用譯法、翻譯新鮮度、提示詞句數。
+      #    --strict：WARN 也算失敗，所以「待更新翻譯」這種提醒會直接擋下來。
       - name: check_parity
-        run: python tools/check_parity.py
+        run: python tools/check_parity.py --strict
 
       # 3) 提示詞語言稽核：用假 provider 跑一本 3 章的測試書，列出 en／ja 書送出的中文
       - name: prompt_lang_audit

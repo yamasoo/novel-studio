@@ -10,17 +10,24 @@ python tools/check_parity.py     # 結構對等＋介面翻譯覆蓋率＋翻譯
 python tools/prompt_lang_audit.py  # 假 provider 跑 3 章，列出 en／ja 書送出的中文（不花錢）
 ```
 
-三者都不呼叫真模型。CI（`.github/workflows/checks.yml`）在 push 與 PR 上跑同一組指令。
+三者都不呼叫真模型。CI（`.github/workflows/checks.yml`）在 push 與 PR 上跑同一組指令，
+而且 `check_parity` 是以 `--strict` 跑的：**WARN 也會擋**（2026-10-29 起 WARN 歸零）。
 
-## 現在擋什麼、不擋什麼
+## 現在擋什麼
 
-| 檢查 | FAIL（擋 push） | WARN（只印出來） |
+| 檢查 | FAIL（擋 push） | WARN（`--strict` 下也擋） |
 |---|---|---|
 | `check_i18n` | 鍵或 `{變數}` 不一致、空值、路徑被翻譯 | — |
 | `check_parity` | 外掛檔案不對等、SKILL frontmatter／標題層級／引用不同（繁中專屬檔已白名單）、範本缺檔、README 連到不存在的路徑、介面字串沒翻 | README 標題分佈、失效舊鍵、翻譯新鮮度、示範書 `_範本/` 檔案集不一致、術語表禁用譯法、提示詞句數少一半 |
 | `prompt_lang_audit` | 送出的訊息含中文句子 | — |
 
-WARN 燒完（`check_parity --strict` 無 WARN）之後，才把 CI 改成 `--strict` 並讓 WARN 也擋。
+本機要看得寬鬆一點就跑不帶參數的 `python tools/check_parity.py`（只擋 FAIL）。
+
+## 改繁中之前先想一下
+
+`check_parity --strict` 在 CI 上會擋「繁中改了、en／ja 沒動」——這是刻意設計：它讓「翻譯還沒跟上」
+變成紅燈，而不是靠人記得。所以改繁中內容的那個 PR 要把三語一起補，或先在本機確認、跑
+`--update-lock` 並說明為什麼譯文不用改（例如只是把繁中補成英日已經有的內容）。
 
 ### 為什麼不比字元長度比例
 

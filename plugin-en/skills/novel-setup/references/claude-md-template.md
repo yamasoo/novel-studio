@@ -28,6 +28,7 @@ When novel-setup builds a project, write what lies between `---範本開始---` 
 2. Keep drafts and official apart: chapter text may cite only official settings, never `設定/草稿/`.
 3. The chapter card is the only plot blueprint for the chapter. The text does not change results the card has settled.
 4. When writing, obey "what the reader knows now" in `追蹤/時間線.md`; do not spoil early.
+5. **The continuation contract wins**: before writing any chapter, read `設定/續寫合約.md` (the app keeps it current: chapter count, characters, revealed and unrevealed secrets, open threads, the promise made for the end of the volume, and the forbidden zone). Facts it marks as unchangeable outrank the outline and outrank style.
 
 ## Three tiers of new things
 Handle people and things that turn up while writing or planning by tier:

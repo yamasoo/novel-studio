@@ -478,7 +478,7 @@ def style_targets(book_dir):
     for k in STYLE_KEYS:
         v = m.get(k)
         if v not in (None, "", 0):
-            vals.append("%s %s" % (k, v))
+            vals.append("%s %s" % (prompts.label(k), v))
     if not vals:
         return ""
     return "｜".join(vals) + "\n" + prompts.t(lang_mod.book_lang(book_dir), "style_target_note")

@@ -166,6 +166,21 @@ class Pipeline:
                 no = self.s["chapter"]
                 self._run_chapter(no)
                 self.s["done_chapters"].append(no)
+                # 自動駕駛的檢查點：每 K 章停下來驗一次必須修與文風，不及格就不往下寫
+                every = int(self.h.get("autopilot_every") or 0)
+                if every and self.s["mode"] != "stop" and len(self.s["done_chapters"]) % every == 0:
+                    from . import autopilot
+                    res = autopilot.checkpoint(self.d, no, every, checker=self.h.get("checker"))
+                    self.s.setdefault("checkpoints", []).append(
+                        {"upto": no, "ok": res["ok"], "stats": res["stats"], "reasons": res["reasons"]})
+                    if not res["ok"]:
+                        self.s["status"] = "paused"
+                        self.s["message"] = (autopilot.summary(res)
+                                             + "\n\n（已寫到第%d章；處理完再按「繼續」就會接著寫。）" % no)
+                        self.s["chapter"] = no + 1
+                        self.s["steps"] = new_steps()
+                        self.s.pop("accepted_path", None)
+                        break
                 if no >= self.s["to"]:
                     self.s["status"] = "done"
                     self.s["message"] = "第%d章已定稿。" % no + ("全部章節都完成了。" if self.s["from"] != no else "")

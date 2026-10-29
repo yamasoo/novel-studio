@@ -51,6 +51,9 @@ DEFAULT_CONFIG = {
     "style_retry": True,                # 寫稿／去 AI 味後，文風偏離太多就帶數字重寫一次
     "recall": True,                     # 檢索式記憶：把作者寫過的相似段落注入寫稿上下文
     "recall_paragraphs": 6,             # 檢索注入幾個段落
+    "autopilot_every": 0,               # 自動駕駛：每幾章停下來檢查一次（0＝不檢查）
+    "autopilot_stop_must": 1,           # 檢查點：累計幾個「必須修」就停
+    "autopilot_stop_style": 2.4,        # 檢查點：文風偏離幾倍就停（閘門 1.2 的兩倍）
     "pipeline_providers": {},           # 整章自動流程：各步驟的執行者（空白＝跟流程的執行者）；面板按鈕也預設帶入
     "stale_foreshadow": 10,
     "stale_character": 15,
@@ -248,7 +251,8 @@ async def set_config(req: Request):
     for k in ("library", "claude_cmd", "model", "permission_mode", "allowed_tools", "add_dirs",
               "stale_foreshadow", "stale_character", "default_provider",
               "reconcile_before_write", "goal_check_after_write", "pipeline_severities", "pipeline_mode",
-              "pipeline_style_check", "style_retry", "recall", "recall_paragraphs"):
+              "pipeline_style_check", "style_retry", "recall", "recall_paragraphs",
+              "autopilot_every", "autopilot_stop_must", "autopilot_stop_style"):
         if k in body:
             CONFIG[k] = body[k]
     if "pipeline_providers" in body:
@@ -2018,7 +2022,9 @@ def _pipe_hooks(book_id, d, prov_id):
         return launch_job(book_id, d, action, params, get_provider(pid or prov_id))
     return {"launch": launch, "cancel": RUNNER.cancel, "checker": check_text,
             "busy": lambda: RUNNER.running_for(book_id) is not None,
-            "style_check": lambda: bool(CONFIG.get("pipeline_style_check", True))}
+            "style_check": lambda: bool(CONFIG.get("pipeline_style_check", True)),
+            # 自動駕駛：每 K 章停下來驗「必須修」與「文風」（K=0 表示不檢查）
+            "autopilot_every": int(CONFIG.get("autopilot_every") or 0)}
 
 
 def _pipe_view(book_id, d):

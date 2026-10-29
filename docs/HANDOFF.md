@@ -60,9 +60,12 @@
 - **S2 之後變更 API 要帶權杖**：`POST`／`PUT`／`DELETE` 需要 `X-NS-Token`（每次啟動產生、注入首頁），
   用 curl 或腳本直接打 API 會 403；`GET`／SSE 不受影響，頁面上的操作照常。
 - 驗 S2 時用 TestClient 打過 `/api/config`，`config.json` 被寫回預設值（該檔在 `.gitignore`，內容是空書庫）。
-- **工作區權限**：只有根目錄可寫，`docs/`、`tools/`、`.git/` 這些既有子資料夾在受限沙箱下寫不進去
-  （自動修復工具跑過兩次仍如此）。第 1 週的 git 指令都是在「完全權限」下執行的；
-  換 clone 或換機器前先確認這一點，否則 `git checkout -b` 會直接失敗。
+- **工作區權限（2026-10-29 實測）**：`workspace-write` 模式下只有書庫根目錄可寫，
+  `docs/`、`tools/`、`.git/` 這些既有子資料夾寫不進去（自動修復工具跑過兩次仍如此），
+  `git checkout -b` 會直接失敗。解法是**會話層級切到完全權限**：
+  輸入框的權限控制項選「完全权限」，或直接打 `/permission danger-full-access`
+  （設定 → 一般那一列只改「之後新開的會話」的預設）。切完後實測 `docs/`、`tools/`、`static/`、`.git/`
+  都可寫，`git checkout -b` 正常。沙箱模式本身還是壞的，只是被繞過；要根治得處理那幾個資料夾缺的寫入授權。
 - 舊的 clone 在 `<舊的 clone>`（OneDrive 底下，`.git` 同步容易衝突）；以 `<專案資料夾>` 為準。
 - 不要直接把 AI 初翻 merge 進語言檔：先出 patch、人工核可（見報告 T4）。
 

@@ -151,7 +151,8 @@ def list_styles(library):
                 text = project.read_text(p)
                 m = parse_metrics(text)
                 core = _core_line(text)
-                summ = core or ("平均句長 %s 字・對白 %s・段長 %s 字" % (m.get("平均句長"), m.get("對白比例"), m.get("平均段長"))
+                uz = lang_mod.unit_zh(text_lang(text))
+                summ = core or ("平均句長 %s %s・對白 %s・段長 %s %s" % (m.get("平均句長"), uz, m.get("對白比例"), m.get("平均段長"), uz)
                                 if m else _first_line(text))
                 out.append({"name": f[:-3], "file": "文風/" + f, "mtime": os.path.getmtime(p),
                             "summary": summ, "has_metrics": bool(m),

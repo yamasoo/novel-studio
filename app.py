@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, bible_index, comfy, context, export, fidelity, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, textguard, tracking, wb_check  # noqa: E402
 
-VERSION = "1.16.1"
+VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -1450,15 +1450,29 @@ async def new_book(req: Request):
     return {"id": name, "job": job.to_dict() if job else None}
 
 
+# 各語言的示範書：語言 → (demo/ 底下的資料夾, 放進書庫後的名稱)
+DEMO_BOOKS = {
+    "zh-TW": ("退婚之後", "退婚之後（示範）"),
+    "en": ("en_TheLanternRoad", "The Lantern Road (Demo)"),
+    "ja": ("ja_辺境の薬師と竜の約束", "辺境の薬師と竜の約束（サンプル）"),
+}
+
+
 @app.post("/api/demo")
-def add_demo():
+async def add_demo(req: Request):
     import shutil
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}          # 舊版前端不送內容：維持繁中示範書
+    lang = lang_mod.normalize((body or {}).get("lang"))
     lib = CONFIG.get("library")
     if not lib:
         raise HTTPException(400, "請先設定書庫資料夾")
     os.makedirs(lib, exist_ok=True)
-    src = os.path.join(HERE, "demo", "退婚之後")
-    dst = os.path.join(lib, "退婚之後（示範）")
+    src_name, dst_name = DEMO_BOOKS[lang]
+    src = os.path.join(HERE, "demo", src_name)
+    dst = os.path.join(lib, dst_name)
     if os.path.exists(dst):
         raise HTTPException(400, "示範書已經在書架上了")
     shutil.copytree(src, dst)

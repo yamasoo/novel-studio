@@ -12,7 +12,7 @@ import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-from . import project
+from . import lang as lang_mod, project
 
 NUM = r"[0-9０-９一二三四五六七八九十百千零〇兩]+"
 SEP = r"(?:\s*$|[\s:：、.．·\-—　]+(.*?)\s*$)"
@@ -408,12 +408,13 @@ def plan(payload, opts):
         warnings.append("有 %d 章的章名連寫了兩次（寫法不同），已經合併成同一章。" % stats["merged"])
     if stats.get("toc"):
         warnings.append("開頭有一份目錄（%d 條章名），已經略過，不當成章節。" % stats["toc"])
-    _flag_chapters(chapters, convert, warnings, zh)
+    uz = lang_mod.unit_zh(lang)        # 英文書算詞：訊息寫「詞」，其他寫「字」
+    _flag_chapters(chapters, convert, warnings, zh, uz)
     if zh and simp_total and not convert:
         warnings.append("偵測到約 %d 個簡體字。可以勾選「轉成台灣繁體」再預覽。" % simp_total)
     if preface_all:
         n = sum(count_text(p, lang) for _, p in preface_all)
-        warnings.append("第一個章節標題之前有 %d 字（例如書名、簡介、楔子），預設不會匯入；需要的話勾選「把開頭的文字當成一章」。" % n)
+        warnings.append("第一個章節標題之前有 %d %s（例如書名、簡介、楔子），預設不會匯入；需要的話勾選「把開頭的文字當成一章」。" % (n, uz))
     return {"sources": infos, "chapters": chapters, "warnings": warnings, "numbered_by_title": use_titles,
             "preface": [{"name": n, "chars": count_text(p, lang), "preview": p.strip()[:80]} for n, p in preface_all]}
 
@@ -424,7 +425,7 @@ def _nos(cs):
     return s + ("……等 %d 章" % len(nos) if len(nos) > 12 else "")
 
 
-def _flag_chapters(chapters, convert, warnings, zh=True):
+def _flag_chapters(chapters, convert, warnings, zh=True, unit="字"):
     """逐章標出可疑的地方（給預覽表上色），並彙整成提醒。"""
     sizes = sorted(c["chars"] for c in chapters if c["chars"] > 0)
     median = sizes[len(sizes) // 2] if sizes else 0
@@ -451,7 +452,7 @@ def _flag_chapters(chapters, convert, warnings, zh=True):
         if simp >= 5:
             f.append(("轉繁後仍有簡體字 %d" if convert else "簡體字 %d") % simp)
         c["flags"] = f
-    groups = [("空章", "內容不到 50 字（可能是目錄或標題誤判）"), ("過短", "比一般章節短很多"),
+    groups = [("空章", "內容不到 50 %s（可能是目錄或標題誤判）" % unit), ("過短", "比一般章節短很多"),
               ("過長", "比一般章節長很多（可能有章節標題沒被認出來）"), ("重複章號", "章號重複"),
               ("跳號", "章號不連續"), ("章號倒退", "章號比上一章小"), ("簡體字", "含簡體字"), ("轉繁後", "轉繁後仍有簡體字")]
     for key, text in groups:

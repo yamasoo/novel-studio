@@ -372,13 +372,31 @@ async function viewShelf(view) {
       <div class="card book new" id="new-book"><div class="plus">＋</div><div>開新書</div></div>
       <div class="card book new" onclick="go('#/import')"><div class="plus">⇪</div><div>匯入舊稿</div></div>
     </div>
-    ${books.length ? "" : `<div class="card" style="margin-top:16px"><h3>第一次使用？</h3><p class="muted">可以先放一本示範書《退婚之後》進書架，看看各頁面長什麼樣子。示範書只是資料夾，隨時可以刪掉。</p><button id="add-demo">加入示範書</button></div>`}
+    ${books.length ? "" : `<div class="card" style="margin-top:16px" id="demo-card"></div>`}
     ${others.length ? `<hr class="sep"><div class="muted small">書庫裡還有這些資料夾（沒有 CLAUDE.md，不是小說專案）：</div>
       <div class="row" style="margin-top:6px">${others.map((o) => `<span class="badge">${esc(o.name)}</span>
       <button class="sm" onclick="initFolder('${esc(o.id)}')">在這裡開書</button>`).join("")}</div>` : ""}`;
   $("#new-book").onclick = newBookDialog;
-  if ($("#add-demo")) $("#add-demo").onclick = async () => { try { await api("POST", "/api/demo"); toast("已加入示範書"); refresh(); } catch (e) { fail(e); } };
+  renderDemoCard();
   renderNav();
+}
+
+// 書架的「第一次使用？」卡片：預設帶目前介面語言的示範書，可改選另外兩種語言
+const DEMO_LANGS = { "zh-TW": "繁體中文", en: "English", ja: "日本語" };   // i18n-skip
+const DEMO_INTRO = {   // 三句各自一個翻譯 key（書名不翻成別的語言，三語的示範書各用自己的書名）
+  "zh-TW": "可以先放一本示範書《退婚之後》進書架，看看各頁面長什麼樣子。示範書只是資料夾，隨時可以刪掉。",
+  en: "可以先放一本示範書《The Lantern Road》進書架，看看各頁面長什麼樣子。示範書只是資料夾，隨時可以刪掉。",
+  ja: "可以先放一本示範書《辺境の薬師と竜の約束》進書架，看看各頁面長什麼樣子。示範書只是資料夾，隨時可以刪掉。",
+};
+function renderDemoCard(lang) {
+  const card = $("#demo-card");
+  if (!card) return;
+  lang = lang || ((window.I18N && I18N.lang) || "zh-TW");
+  if (!DEMO_INTRO[lang]) lang = "zh-TW";
+  card.innerHTML = `<h3>第一次使用？</h3><p class="muted">${DEMO_INTRO[lang]}</p>
+    <div class="row"><select id="demo-lang">${Object.keys(DEMO_INTRO).map((l) => `<option value="${l}"${l === lang ? " selected" : ""}>${DEMO_LANGS[l]}</option>`).join("")}</select><button id="add-demo">加入示範書</button></div>`;
+  $("#demo-lang").onchange = (e) => renderDemoCard(e.target.value);
+  $("#add-demo").onclick = async () => { try { await api("POST", "/api/demo", { lang }); toast("已加入示範書"); refresh(); } catch (e) { fail(e); } };
 }
 
 function newBookDialog() {

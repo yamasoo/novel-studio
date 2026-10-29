@@ -8,7 +8,7 @@ import os
 import re
 from collections import Counter
 
-from . import context, goals, project
+from . import context, goals, lang as lang_mod, project
 
 DIR = os.path.join(".studio", "保真")
 NAME_DROP = 0.3       # 名字少了三成以上（而且至少少 3 次）才列
@@ -67,7 +67,7 @@ def compare(book_dir, before, after):
         out.append({"kind": "對白被改寫或刪掉", "text": "%d／%d 句：%s%s" % (len(changed), len(db), ex, "……" if len(changed) > 5 else "")})
     lb, la = project.count_chars(b), project.count_chars(a)
     if lb and abs(la - lb) / lb > LENGTH_CHANGE:
-        out.append({"kind": "字數變化大", "text": "%d → %d 字（%+d%%）" % (lb, la, round((la - lb) * 100 / lb))})
+        out.append({"kind": "字數變化大", "text": "%d → %d %s（%+d%%）" % (lb, la, lang_mod.unit_zh(lang_mod.book_lang(book_dir)), round((la - lb) * 100 / lb))})
     return out
 
 

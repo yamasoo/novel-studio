@@ -132,7 +132,8 @@ class Ctx:
         rec = recovery.save(self.book, self.job.id, label, text, reason, chapter=recover.get("chapter"),
                             kind=recover.get("kind", "text"), provider=self.prov.get("id"))
         if rec:
-            self.job.emit("log", text="已把中斷前寫出的 %d 字存成恢復稿，可以在章節頁或任務紀錄接著寫。" % rec["chars"])
+            self.job.emit("log", text="已把中斷前寫出的 %d %s存成恢復稿，可以在章節頁或任務紀錄接著寫。"
+                          % (rec["chars"], lang_mod.unit_zh(lang_mod.book_lang(self.book))))
 
     def save_messages(self, messages, extra=None):
         d = os.path.join(self.book, ".studio", "jobs")
@@ -273,7 +274,8 @@ def act_write(c, p):
                                                       prev_from_candidate=(n > a))
         if dropped:
             c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
-        c.job.emit("log", text="第%d章：上下文約 %d tokens，目標 %d 字" % (n, used, target))
+        c.job.emit("log", text="第%d章：上下文約 %d tokens，目標 %d %s"
+                   % (n, used, target, lang_mod.unit_zh(lang_mod.book_lang(c.book))))
         c.job.emit("log", text=context.last_breakdown())
         rec = _reconcile(c, n, prev_from_candidate=(n > a)) if c.opts.get("reconcile_before_write", True) else None
         if rec:

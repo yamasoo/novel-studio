@@ -30,6 +30,12 @@ def count_unit(lang):
     return UNITS.get(normalize(lang), "chars")
 
 
+def unit_zh(lang):
+    """後端訊息裡的中文單位字：chars → 「字」、words → 「詞」。
+    訊息原文是介面翻譯的 key，繁中／日文書維持「字」（顯示與以前完全一樣），英文書用「詞」。"""
+    return "詞" if count_unit(lang) == "words" else "字"
+
+
 def normalize(value):
     """各種寫法 → zh-TW / en / ja；認不得的一律當 zh-TW。"""
     if not value:

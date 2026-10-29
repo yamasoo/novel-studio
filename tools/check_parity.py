@@ -45,8 +45,8 @@ ALLOW_DIFF_NAMES = {"plugin.json", "THIRD_PARTY_NOTICES.md"}
 # 同形標記：值填 "==" 表示三語相同（路徑、檔名、語言名稱）。執行期 static/i18n.js 會略過，
 # 直接顯示中文原文；所以它讓覆蓋率能真的到 100%，而不是用假翻譯充數。
 SAME = "=="
-# 看起來就不需要翻譯的鍵（路徑、檔名、語言選單）
-NEUTRAL_RX = re.compile(r"[/\\]|\.md\b|^Language |^繁體中文$|^日本語$")
+# 看起來就不需要翻譯的鍵（路徑、檔名、語言選單、範例佔位字串）
+NEUTRAL_RX = re.compile(r"[/\\]|\.md\b|&#10;|^Language |^繁體中文$|^日本語$")
 # 抽取器的已知雜訊：i18n_extract.py 把 JS 模板字串切壞了，真正的句子在原始碼裡（報告 §2.2 A1 註）。
 # 修好抽取器之前先列在這裡，免得覆蓋率永遠被這幾條卡住。
 LOCALE_IGNORE = {

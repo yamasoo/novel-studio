@@ -225,22 +225,66 @@ def _save_candidate(c, no, title, text):
     return "候選/" + name, n
 
 
-def _check_summary(c, rel):
-    res = c.checker.check_file(os.path.join(c.book, rel), c.checker.load_whitelist(c.book))
+def _fix_simplified(c, rel, res):
+    """把候選稿裡「被檢查器標成簡體字」的字逐一換成繁體，只換那幾個字、整篇不動。
+
+    為什麼只換標記到的字：一簡對多繁（干／乾／幹）整篇轉會改錯意思；逐字對照
+    （OpenCC s2t）在「已經被判定是簡體字」的範圍內是安全的，而且每一處都列進匯報。
+    回傳 (新的檢查結果, 說明文字)。
+    """
+    chars = sorted({ch for f in res.get("問題") or [] if f.get("類型") == "簡體字"
+                    for ch in (f.get("片段") or "")})
+    if not chars:
+        return res, ""
+    from . import importer
+    if not importer.has_opencc():
+        return res, ""
+    try:
+        from opencc import OpenCC
+        cc = OpenCC("s2t")
+    except Exception:
+        return res, ""
+    mapping = {}
+    for ch in chars:
+        t = cc.convert(ch)
+        if len(t) == 1 and t != ch:
+            mapping[ch] = t
+    if not mapping:
+        return res, ""
+    p = os.path.join(c.book, *rel.split("/"))
+    text = project.read_text(p)
+    hits = sum(text.count(k) for k in mapping)
+    if not hits:
+        return res, ""
+    for k, v in mapping.items():
+        text = text.replace(k, v)
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    pairs = "、".join("%s→%s" % kv for kv in list(mapping.items())[:6])
+    return c.checker.check_file(p, c.checker.load_whitelist(c.book)), "簡體字自動轉繁 %d 處（%s）" % (hits, pairs)
+
+
+def _summary_of(res):
+    """把檢查結果寫成一句給作者看的話：數量 ＋ 必須修／用語／錯字的具體建議（最多 5 條）。"""
     must = [f for f in res["問題"] if f["等級"] == "必須修"]
     sug = [f for f in res["問題"] if f["等級"] == "建議修"]
-    # 只報數量，作者還是得自己找是哪一句；把「必須修」與「用語／錯字」的具體建議列出來（最多 5 條）
     tips = []
     for f in res["問題"]:
-        if f["等級"] != "必須修" and f.get("類型") not in ("大陸用語", "錯字"):
+        if f["等級"] != "必須修" and f.get("類型") not in ("大陸用語", "錯字", "疑似誤字"):
             continue
         fix = (f.get("建議") or "").split("：")[-1].strip()
+        fix = fix.split("（")[0].strip()
         tip = "%s→%s" % (f.get("片段") or "", fix) if fix and fix != f.get("片段") else (f.get("片段") or "")
         if tip and tip not in tips:
             tips.append(tip)
     more = ("（%s%s）" % ("、".join(tips[:5]), "…" if len(tips) > 5 else "")) if tips else ""
-    return res, "中文字數約 %d；用語檢查：必須修 %d 項、建議修 %d 項。%s" % (
+    return "中文字數約 %d；用語檢查：必須修 %d 項、建議修 %d 項。%s" % (
         res["中文字數"], len(must), len(sug), more)
+
+
+def _check_summary(c, rel):
+    res = c.checker.check_file(os.path.join(c.book, rel), c.checker.load_whitelist(c.book))
+    return res, _summary_of(res)
 
 
 def _out_tokens(c, chars=None):
@@ -331,7 +375,11 @@ def act_write(c, p):
                 style_notes.append("仍偏離門檻；下面是 13 指標的目標／實際，可決定要不要手改。")
             c.job.emit("log", text=style_loop.summary(ev))
         rel, fixed = _save_candidate(c, n, title, text)
-        _, chk = _check_summary(c, rel)
+        res, chk = _check_summary(c, rel)
+        # 簡體字是「必須修」等級的錯，而且 OpenCC 逐字對照是安全的 → 直接改掉並列出來
+        res, fixnote = _fix_simplified(c, rel, res)
+        if fixnote:
+            chk = _summary_of(res)
         msgs.append({"role": "assistant", "content": out})
         c.save_messages(msgs, {"kind": "chapter", "chapter": n})
         parts = ["**第%d章《%s》候選稿已存到 %s**" % (n, title, rel), report or "（模型沒有附匯報）"]
@@ -341,7 +389,8 @@ def act_write(c, p):
             g = _goal_check(c, n, rel)
             if g:
                 parts.append(g)
-        parts.append(chk + ("（已自動修正標點 %d 處）" % fixed if fixed else ""))
+        parts.append(chk + ("（已自動修正標點 %d 處）" % fixed if fixed else "")
+                     + ("（%s）" % fixnote if fixnote else ""))
         if style_notes:
             parts.append("**文風**\n" + "\n".join(style_notes) + ("\n\n" + style_loop.table_md(ev) if ev.get("rows") else ""))
         reports.append("\n\n".join(parts))

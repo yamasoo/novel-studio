@@ -477,21 +477,70 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
     return out
 
 
-def evaluate(entries, tasks, pid, judge_on=False, texts=None):
-    """回傳 ({key: {task: 指標}}, 假 provider 呼叫次數or None)。texts：收集產出文字。"""
+def aggregate(runs):
+    """多跑幾次時取中位數：數值指標取中位數，非數值（例如 style_basis）取最後一次。
+
+    單次的分數抖動很大（同一本書同一章 max_rel 跑過 0.95／1.32／2.05），
+    拿單次跟基線比會看到一堆假退步；要判讀就 --repeat 3 看中位數。
+    """
+    if not runs:
+        return {}
+    if len(runs) == 1:
+        return runs[0]
+    keys = set()
+    for r in runs:
+        keys |= set(r)
+    out = {}
+    for k in keys:
+        vals = [r.get(k) for r in runs if isinstance(r.get(k), (int, float))]
+        if len(vals) >= 2:
+            vals.sort()
+            out[k] = vals[len(vals) // 2]
+        else:
+            tail = [r[k] for r in reversed(runs) if k in r]
+            if tail:
+                out[k] = tail[0]
+    return out
+
+
+def evaluate(entries, tasks, pid, judge_on=False, texts=None, repeat=1):
+    """回傳 ({key: {task: 指標}}, 假 provider 呼叫次數or None)。texts：收集產出文字。
+
+    repeat > 1 時每本跑 repeat 次，指標取中位數（單次抖動太大，見 aggregate()）。
+    """
+    repeat = max(1, int(repeat or 1))
+
+    def one(e, prov, fake=None, t=None):
+        runs = []
+        for _ in range(repeat):
+            if fake is not None:
+                runs.append(with_fake(fake, lambda e=e, t=t: eval_book(e, tasks, prov, judge_on, texts=t)))
+            else:
+                runs.append(eval_book(e, tasks, prov, judge_on, texts=t))
+        merged = {}
+        for task in tasks:
+            ms = [r[task] for r in runs if task in r]
+            if ms:
+                merged[task] = aggregate(ms)
+        return merged
+
     if pid:
         prov = real_provider(pid)
-        return {e["key"]: eval_book(e, tasks, prov, judge_on, texts=(texts.setdefault(e["key"], {}) if texts is not None else None))
-                for e in entries}, None
+        out = {}
+        for e in entries:
+            t = texts.setdefault(e["key"], {}) if texts is not None else None
+            out[e["key"]] = one(e, prov, None, t)
+        return out, None
     prov = {"id": "eval-fake", "type": "openai", "name": "fake", "model": "fake",
             "context_tokens": 65536, "max_output": 4096}
     res = {}
+    calls = 0
     for e in entries:
         fake = FakeChat(e["lang"])
         t = texts.setdefault(e["key"], {}) if texts is not None else None
-        res[e["key"]] = with_fake(fake, lambda e=e, t=t: eval_book(e, tasks, prov, judge_on, texts=t))
-        res[e["key"]]["_calls"] = fake.calls
-    return res, sum(v.pop("_calls", 0) for v in res.values())
+        res[e["key"]] = one(e, prov, fake, t)
+        calls += fake.calls
+    return res, calls
 
 
 # ---------------------------------------------------------------------------
@@ -582,6 +631,8 @@ def main():
     ap.add_argument("--probe", action="store_true", help="只測金鑰與模型通不通：送一則極短請求就結束")
     ap.add_argument("--judge", action="store_true", help="額外用 LLM 依固定 rubric 評分（多花錢、有噪音）")
     ap.add_argument("--chapter", type=int, help="指定要遮／要處理的章號（預設：fixture 設定的或最後一章）")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="每本跑幾次取中位數（預設 1；單次抖動很大，要比基線建議 3）")
     a = ap.parse_args()
 
     base_path = resolve_baseline(a.baseline) if a.baseline else None
@@ -601,12 +652,12 @@ def main():
         raise SystemExit("--judge 要搭配 --provider（假 provider 的評分沒有意義）")
     t0 = time.time()
     texts = {}
-    results, calls = evaluate(entries, tasks, a.provider, a.judge, texts)
+    results, calls = evaluate(entries, tasks, a.provider, a.judge, texts, a.repeat)
 
     stamp = time.strftime("%Y-%m-%d-%H%M")
     payload = {"date": time.strftime("%Y-%m-%dT%H:%M:%S"), "mode": mode,
                "provider": a.provider or "fake", "tasks": tasks,
-               "books": [e["key"] for e in entries], "judge": bool(a.judge),
+               "books": [e["key"] for e in entries], "judge": bool(a.judge), "repeat": a.repeat,
                "fixtures": [{"key": e["key"], "path": shown(e["path"]), "lang": e["lang"], "chapter": e["chapter"]}
                             for e in entries],
                "seconds": round(time.time() - t0, 1), "results": results}

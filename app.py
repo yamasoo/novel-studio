@@ -11,6 +11,7 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
@@ -19,7 +20,7 @@ import webbrowser
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -111,6 +112,46 @@ def provider_ids():
     return {c["id"] for c in providers.choices(CONFIG.get("providers") or [])}
 
 app = FastAPI(title="小說工作台")
+
+# ---------------------------------------------------------------------------
+# 變更端點的守門（報告 S2）
+# 只綁 127.0.0.1 擋不住瀏覽器的 CSRF 與 DNS rebinding，所以：
+#   1. 變更方法（POST／PUT／DELETE…）只接受「同來源」請求：Origin 的 host 要等於這次的 Host，
+#      Sec-Fetch-Site 要是 same-origin／none。
+#   2. 變更方法還要帶一次性權杖 X-NS-Token：每次啟動產生，由 index() 注入頁面，
+#      前端在 index.html 載入時包一層 fetch 自動加上（見 TOKEN_JS）。
+# 這兩道都不影響 GET／SSE；直接用 curl 打 API 的腳本要自己帶權杖（重新啟動就失效）。
+# ---------------------------------------------------------------------------
+MUTATE_TOKEN = secrets.token_urlsafe(32)
+TOKEN_HEADER = "x-ns-token"
+SAFE_METHODS = frozenset(["GET", "HEAD", "OPTIONS"])
+TOKEN_JS = (
+    "window.__NS_TOKEN__=%s;(function(){var f=window.fetch;window.fetch=function(u,o){"
+    "o=o||{};var h=new Headers(o.headers||{});h.set('X-NS-Token',window.__NS_TOKEN__);"
+    "o.headers=h;return f(u,o)};})();" % json.dumps(MUTATE_TOKEN)
+)
+
+
+def same_origin(request):
+    """請求是不是同一個來源（擋跨站表單與 DNS rebinding）。"""
+    site = (request.headers.get("sec-fetch-site") or "").strip().lower()
+    if site and site not in ("same-origin", "none"):
+        return False
+    origin = request.headers.get("origin")
+    if not origin:
+        return True          # 老瀏覽器不送 Origin：還是要靠下面的權杖
+    return urlsplit(origin).netloc.lower() == (request.headers.get("host") or "").lower()
+
+
+@app.middleware("http")
+async def guard_mutations(request: Request, call_next):
+    if request.method not in SAFE_METHODS:
+        if not same_origin(request):
+            return JSONResponse({"error": "拒絕跨來源的變更請求（請從工作台頁面操作）"}, status_code=403)
+        if not secrets.compare_digest(request.headers.get(TOKEN_HEADER, "") or "", MUTATE_TOKEN):
+            return JSONResponse({"error": "請求權杖不正確，請重新整理頁面再試一次"}, status_code=403)
+    return await call_next(request)
+
 
 
 # ---------------------------------------------------------------------------
@@ -2116,6 +2157,8 @@ def index():
         except OSError:
             continue
         html = html.replace('/static/%s"' % name, '/static/%s?v=%d"' % (name, v))
+    # 一次性權杖：只注入給這個頁面，變更端點會驗它（前端 fetch 由 TOKEN_JS 自動帶上）
+    html = html.replace("</head>", "<script>%s</script>\n</head>" % TOKEN_JS, 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 

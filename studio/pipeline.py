@@ -119,6 +119,12 @@ class Pipeline:
                 raise PipelineError(
                     "%s不在任何卷綱的章節範圍內；先補對應的 大綱/卷綱_第N卷.md 再開流程"
                     "（見 docs/卷先行.md）。" % volume.brief(missing))
+            # 卷先行（第二段）：章綱要先排好，不然還是一章一章臨場接
+            no_card = [n for n in range(int(start), int(end) + 1) if not context.card_text(book_dir, n)[1]]
+            if no_card:
+                raise PipelineError(
+                    "%s還沒有章綱；先到大綱頁按「排這一卷的章綱」把整卷排好，再開整章自動流程。"
+                    % volume.brief(no_card))
         state = {"id": uuid.uuid4().hex[:10], "book": book_id, "from": int(start), "to": int(end),
                  "mode": mode if mode in ("stop", "continue") else "stop",
                  "severities": [s for s in (severities or DEFAULT_SEVERITIES) if s in revision.SEVERITIES],

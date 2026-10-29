@@ -15,19 +15,19 @@
  "fixtures": [
   {
    "key": "a-200",
-   "path": "..\\novel1\\A 書",
+   "path": "<本機書庫>/A 書",
    "lang": "zh-TW",
    "chapter": 200
   },
   {
    "key": "b-40",
-   "path": "..\\novel1\\B 書",
+   "path": "<本機書庫>/B 書",
    "lang": "zh-TW",
    "chapter": 40
   },
   {
    "key": "c-100",
-   "path": "..\\novel1\\C 書",
+   "path": "<本機書庫>/C 書（日文）",
    "lang": "ja",
    "chapter": 100
   }

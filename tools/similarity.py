@@ -13,15 +13,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 from studio import contract, project, similarity  # noqa: E402
 
-# 實測的自然重複（同作者、後面的章節對前面的章節）：
-#   zh-TW containment 0.034、最長共同 0 字
-#   ja    containment 0.081、最長共同 0 字
-#   en    containment 0.347、最長共同 33 字
-LIMITS = {
-    "zh-TW": {"containment": 0.10, "lcs": 20},
-    "ja": {"containment": 0.20, "lcs": 20},
-    "en": {"containment": 0.50, "lcs": 60},
-}
+LIMITS = similarity.LIMITS
 
 
 def book_text(d):
@@ -47,32 +39,28 @@ def main():
 
     src = book_text(a.source) if os.path.isdir(a.source) else project.read_text(a.source)
     new = read_new(a.new)
-    fp_src, fp_new = similarity.fingerprint(src), similarity.fingerprint(new)
-    r = similarity.compare_prints(fp_src, fp_new)
-    lcs = similarity.longest_common(src, new)
     names = [c[0] for c in contract.characters(a.source)] if os.path.isdir(a.source) else []
-    hit = similarity.names_in(new, names)
-    lim = LIMITS[a.lang]
+    r = similarity.check(new, src, a.lang, names)
+    m, sp = r["metrics"], r["span"]
 
     print("來源 %d 字、新稿 %d 字" % (len(src), len(new)))
-    print("  containment（新稿的 6-gram 有多少在來源）：%.4f（門檻 %.2f）" % (r["containment"], lim["containment"]))
-    print("  jaccard：%.5f" % r["jaccard"])
-    print("  最長共同片段：%d 字（門檻 %d）" % (lcs, lim["lcs"]))
+    print("  containment：%.2f%%（門檻 %.0f%%）" % (m["containment"] * 100, m["limit_containment"] * 100))
+    print("  jaccard：%.5f" % m["jaccard"])
+    print("  最長共同片段：%d 字（門檻 %d）" % (sp["length"], m["limit_lcs"]))
+    if sp["text"]:
+        print("    片段：%s" % sp["text"][:60])
     if names:
-        print("  命中來源角色名：%s（任何一個都不行）" % ("、".join(hit) if hit else "沒有"))
+        print("  命中來源角色名：%s" % ("、".join(r["names"]) if r["names"] else "沒有"))
+    for p in r["paragraphs"][:5]:
+        print("  第 %d 段有 %.0f%% 來自來源：%s…" % (p["paragraph"], p["containment"] * 100, p["preview"][:40]))
 
-    bad = []
-    if r["containment"] >= lim["containment"]:
-        bad.append("6-gram 重疊 %.2f%% 超過 %.0f%%" % (r["containment"] * 100, lim["containment"] * 100))
-    if lcs >= lim["lcs"]:
-        bad.append("最長共同片段 %d 字（門檻 %d）" % (lcs, lim["lcs"]))
-    if hit:
-        bad.append("沿用了來源角色名：%s" % "、".join(hit))
-    if bad:
-        print("\n結果：**太像了**——" + "；".join(bad))
-        return 1
-    print("\n結果：可以（沒有超過門檻）")
-    return 0
+    if r["ok"]:
+        print("\n結果：可以（沒有超過門檻）")
+        return 0
+    print("\n結果：**太像了**")
+    for why in r["reasons"]:
+        print("  - " + why)
+    return 1
 
 
 if __name__ == "__main__":

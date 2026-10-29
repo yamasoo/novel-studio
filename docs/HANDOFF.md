@@ -95,7 +95,8 @@
 |---|---|---|---|
 | 0 | 相似度基準與門檻（`studio/similarity.py`、`tools/similarity.py`） | `4088127` | 語言差很大：zh containment 0.034／LCS 0 字、ja 0.081／0、en 0.347／33 字；照抄 1200 字 → 1.000／982 字、換名字 → 0.877／111 字 |
 | 1 | 風格指紋（`studio/fingerprint.py`、`tools/fingerprint.py`） | `dcbd67b` | 三本真書都產得出；同一本書跑兩次逐位元組相同；代表句不撞來源名字（0 個）；副本上寫檔 2,187 bytes 可讀回 |
-| 2 | 結構 DNA（`studio/sdna.py`、`tools/sdna.py`） | 本 commit | 四本真書：視角判得出來（3 人稱／1 人稱／混合）、DNA 兩次相同、JSON 撞名 0；副本寫檔 692 bytes |
+| 2 | 結構 DNA（`studio/sdna.py`、`tools/sdna.py`） | `2dfe203` | 四本真書：視角判得出來（3 人稱／1 人稱／混合）、DNA 兩次相同、JSON 撞名 0；副本寫檔 692 bytes |
+| 4 | 護欄（`similarity.check()`、`tools/similarity.py`） | 本 commit | 照抄 1000 字 → containment 1.000／814 字、指到第 3/4/5 段 100%；換名字 → 0.834／111 字；自己寫的 0.02～0.024 → 可以 |
 
 ## 下一步
 

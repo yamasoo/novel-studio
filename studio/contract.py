@@ -18,7 +18,7 @@ import os
 import re
 import time
 
-from . import project
+from . import project, volume
 
 REL = "設定/續寫合約.md"
 KEEP_MARK = "## 作者補充"
@@ -132,20 +132,14 @@ def secrets(book_dir):
 
 
 def volume_outline(book_dir, no):
-    """當前章節所在那一卷的卷綱（看 frontmatter 的「章節範圍」）；找不到就取第一份。"""
-    d = os.path.join(book_dir, "大綱")
-    files = sorted(f for f in os.listdir(d) if f.startswith("卷綱") and f.endswith(".md")) if os.path.isdir(d) else []
-    best = None
-    for f in files:
-        body = _body(book_dir, "大綱/" + f)
-        fm = _front(book_dir, "大綱/" + f)
-        span = fm.get("章節範圍") or ""
-        nums = [int(x) for x in re.findall(r"第0*(\d+)章", span)]
-        if len(nums) >= 2 and nums[0] <= no <= nums[1]:
-            return fm.get("卷名") or f, body
-        if best is None:
-            best = (fm.get("卷名") or f, body)
-    return best or ("", "")
+    """當前章節所在那一卷的卷綱（看 frontmatter 的「章節範圍」）。
+
+    找不到就回空——不要退回第一卷：退回會讓「第 51 章」拿到第一卷的卷末承諾（2026-10-29 實測）。
+    """
+    v = volume.find(book_dir, no)
+    if not v:
+        return "", ""
+    return v["name"], _body(book_dir, v["rel"])
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +211,13 @@ def build(book_dir, keep=""):
             L.append("")
         L.append(_clip(_strip_h1(vol_body), 900))
     else:
-        L.append("- 還沒有卷綱；先寫 `大綱/卷綱_第N卷.md`，續寫才對得上整卷走向。")
+        if volume.has_volumes(book_dir):
+            last = max([v["hi"] for v in volume.list_volumes(book_dir) if v["hi"]] or [0])
+            L.append("- 第 %d 章不在任何卷綱的章節範圍內（現有卷綱只到第 %d 章）；"
+                     "先補對應的 `大綱/卷綱_第N卷.md`，續寫才對得上整卷走向（見 `docs/卷先行.md`）。"
+                     % (no + 1, last))
+        else:
+            L.append("- 還沒有卷綱；先寫 `大綱/卷綱_第N卷.md`，續寫才對得上整卷走向。")
     L += ["", "## 5. 禁區", ""]
     L.append("- 作者的硬性偏好（`設定/作者偏好.md`）與本書規則（`CLAUDE.md`）優先於任何寫作技法；違反就重寫。")
     if prefs:

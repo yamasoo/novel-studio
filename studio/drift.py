@@ -13,7 +13,7 @@
 import os
 import re
 
-from . import contract, project, prompts, recall, shared, style_loop
+from . import contract, project, prompts, recall, shared, style_loop, volume
 
 IDLE_CHARS = 20      # 幾章沒登場算「消失」
 THREAD_AGE = 30      # 伏筆埋設後幾章還沒回收算「欠帳」
@@ -321,49 +321,14 @@ def llm_pass(prov, book_dir, d, max_chars=4000):
 
 # ---------------------------------------------------------------------------
 # 卷綱更新草稿：寫成檔案、附加回卷綱（都不覆蓋原本內容）
-def _volumes(book_dir):
-    """列出所有卷綱檔 → [(相對路徑, 起始章, 結束章, 卷名)]。
-
-    卷綱可能放在 大綱/ 或 大綱/卷綱/；章節範圍寫在 frontmatter 的「章節範圍: 第031章～第050章」。
-    """
-    out = []
-    for sub in ("大綱", "大綱/卷綱"):
-        d = os.path.join(book_dir, *sub.split("/"))
-        if not os.path.isdir(d):
-            continue
-        for f in sorted(os.listdir(d)):
-            if not (f.endswith(".md") and f.startswith("卷綱")):
-                continue
-            p = os.path.join(d, f)
-            try:
-                fm = project.split_frontmatter(project.read_text(p))[0] or {}
-            except OSError:
-                continue
-            rng = str(fm.get("章節範圍") or "")
-            nums = [int(x) for x in re.findall(r"\d+", rng)]
-            lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-            out.append(("%s/%s" % (sub, f), lo, hi, str(fm.get("卷名") or f)))
-    return out
-
-
 def volume_rel(book_dir, no):
-    """這一章屬於哪一份卷綱：先看卷綱自己寫的「章節範圍」，再看章綱的「所屬卷」，最後退第一卷。
+    """這一章屬於哪一份正式卷綱；不在任何範圍就回空字串。
 
-    原本只看 大綱/卷綱/ 資料夾，找不到就回第一卷——B 書的卷綱放在 大綱/ 底下，
-    於是第 31–50 章的更新被寫到第一卷（錯的）。
+    不在任何範圍時**不要退回任何一卷**：退回第一卷／最後一卷都會把更新寫進錯的卷綱
+    （2026-10-29 實測：第 51～60 章被標成第一卷）。
     """
-    vols = _volumes(book_dir)
-    for rel, lo, hi, _name in vols:
-        if lo is not None and hi is not None and lo <= int(no) <= hi:
-            return rel
-    vol = (project.split_frontmatter(_card(book_dir, no))[0] or {}).get("所屬卷") or ""
-    if vol:
-        for rel, _lo, _hi, name in vols:
-            if vol in rel or vol in name:
-                return rel
-    if vols:
-        return vols[-1][0]
-    return "大綱/卷綱_第一卷.md"
+    v = volume.find(book_dir, no)
+    return v["rel"] if v else ""
 
 
 def plan_md(res, a, b):
@@ -402,6 +367,9 @@ def apply_plan(book_dir, no, text, a=None, b=None):
     """把草稿「附加」到卷綱檔尾（原檔先備份），回傳 (卷綱相對路徑, 備份路徑)。"""
     from . import tracking
     rel = volume_rel(book_dir, no)
+    if not rel:
+        raise project.ProjectError(
+            "第 %d 章不在任何卷綱的章節範圍內，不知道要附加到哪一份卷綱；先補卷綱再試。" % no)
     p = project.safe_path(book_dir, rel)
     bak = tracking.backup(book_dir, p, "卷綱更新前")
     old = project.read_text(p) if os.path.isfile(p) else ("---\n類型: 卷綱\n---\n\n# 卷綱\n")

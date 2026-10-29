@@ -2175,9 +2175,9 @@ async def pipeline_start(book_id: str, req: Request):
     missing = [v for v in (sp or {}).values() if v and v not in ids]
     if missing:
         raise HTTPException(400, "步驟指定的執行者不存在：%s，請到設定修改。" % "、".join(missing))
-    p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"),
-                                 pipeline.clean_step_providers(sp, ids))
     try:
+        p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"),
+                                     pipeline.clean_step_providers(sp, ids))
         PIPES.put(p)
     except pipeline.PipelineError as e:
         raise HTTPException(409, str(e))

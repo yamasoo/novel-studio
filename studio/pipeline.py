@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 
-from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking
+from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking, volume
 
 STEPS = [
     ("card", "章綱"),
@@ -111,6 +111,14 @@ class Pipeline:
     # ------------------------------------------------------------------ 狀態
     @classmethod
     def create(cls, book_id, book_dir, hooks, start, end, mode, severities, provider, note="", step_providers=None):
+        # 卷先行：有卷綱的書，只准寫在正式卷綱的章節範圍內。
+        # 沒有卷綱的舊書不擋（不然整批書突然不能寫）；缺的是「使用者還沒建立卷綱」的情況。
+        if volume.has_volumes(book_dir):
+            missing = volume.cover(book_dir, start, end)
+            if missing:
+                raise PipelineError(
+                    "%s不在任何卷綱的章節範圍內；先補對應的 大綱/卷綱_第N卷.md 再開流程"
+                    "（見 docs/卷先行.md）。" % volume.brief(missing))
         state = {"id": uuid.uuid4().hex[:10], "book": book_id, "from": int(start), "to": int(end),
                  "mode": mode if mode in ("stop", "continue") else "stop",
                  "severities": [s for s in (severities or DEFAULT_SEVERITIES) if s in revision.SEVERITIES],

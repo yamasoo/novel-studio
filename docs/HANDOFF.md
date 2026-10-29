@@ -102,6 +102,19 @@
   輸入框的權限控制項選「完全权限」，或直接打 `/permission danger-full-access`
   （設定 → 一般那一列只改「之後新開的會話」的預設）。切完後實測 `docs/`、`tools/`、`static/`、`.git/`
   都可寫，`git checkout -b` 正常。沙箱模式本身還是壞的，只是被繞過；要根治得處理那幾個資料夾缺的寫入授權。
+- **在 DSH 工作階段裡跑 app：把 venv 放在專案外**（2026-10-29 實測）。從專案內的 `.venv` 啟動的 Python
+  會被限制成「只能寫工作區」，於是書庫（`<書庫>`）、示範書複製、`config.json` 都會 `WinError 5 存取被拒`；
+  換成專案外的 venv（`C:\Users\<你>\venvs\novel-studio`）同樣動作就全部成功，系統 Python 也成功。
+  所以不是資料夾權限、也不是程式問題。啟動方式：
+
+  ```powershell
+  cd <專案資料夾>
+  $env:NS_VENV = 'C:\Users\<你>\venvs\novel-studio'   # 或 setx 一次，之後新視窗都有
+  .\start.bat
+  ```
+
+  `start.bat`／`start.sh` 都支援 `NS_VENV`，沒設就用專案內的 `.venv`。
+  一般 Windows 環境（直接雙擊 `start.bat`，不經過這個工作階段）用專案內 `.venv` 是正常的。
 - 舊的 clone 在 `<舊的 clone>`（OneDrive 底下，`.git` 同步容易衝突）；以 `<專案資料夾>` 為準。
 - 不要直接把 AI 初翻 merge 進語言檔：先出 patch、人工核可（見報告 T4）。
 

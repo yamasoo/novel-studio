@@ -316,6 +316,18 @@ def check_locales():
 # ---------------------------------------------------------------------------
 # 6. 提示詞包
 # ---------------------------------------------------------------------------
+SENT_RX = {
+    "zh": re.compile(r"[。！？]"),
+    "ja": re.compile(r"[。！？]"),
+    # 英文的句點可能是小數點或 e.g.，要求後面接空白或字串結尾
+    "en": re.compile(r"[.!?](?=\s|$)"),
+}
+
+
+def sentence_count(text, lang):
+    return len(SENT_RX[lang].findall(text))
+
+
 def check_prompts():
     sys.path.insert(0, ROOT)
     try:
@@ -337,14 +349,17 @@ def check_prompts():
                 continue
             if a and sorted(set(VAR.findall(a))) != sorted(set(VAR.findall(b))):
                 add("FAIL", "prompt", "%s 的 {變數} 不同：%s" % (n, k))
-            if a and len(b) and k != "claude_out_lang":
-                ratio = len(b) / len(a)
-                if ratio < 0.35 or ratio > 4.5:
-                    add("WARN", "prompt", "%s 的 %s 長度比例 %.2f（可能漏翻或整段改寫）" % (n, k, ratio))
-        if n == "en":
-            for k, v in p.items():
-                if isinstance(v, str) and len(HAN.findall(v)) > 8:
-                    add("WARN", "prompt", "英文包的 %s 還有中文句子" % k)
+            # 字元長度比例不是好指標：中英字元比在 1.0～5.1 之間都正常（格式列 vs 說明文、
+            # 短標籤 vs 列舉規則），實測 15 條「離群」全是誤報。
+            # 改用句數：同一段話的句子數跨語言幾乎不變（實測 ja 全部 1.00、en 最低 0.67），
+            # 真的漏翻一句或截斷一段時會掉到 0.5 以下。
+            a_s, b_s = sentence_count(a, "zh"), sentence_count(b, n)
+            if a_s >= 3 and b_s < a_s * 0.6:
+                add("WARN", "prompt", "%s 的 %s 句數少了一半以上（繁中 %d 句 → %s %d 句，可能漏翻一句）"
+                    % (n, k, a_s, n, b_s))
+    # 英文包有沒有殘留中文句子，交給 check_i18n 判斷：它會先把路徑、第NNN章、JSON 鍵名、
+    # 「」欄位名、表格列、<<<>>> 標記剝掉，只看真正的行文。這裡不重複驗，
+    # 免得資料格式（設定/故事核心.md、狀態：草稿、| 編號 | 內容 |）被當成漏翻。
 
 
 # ---------------------------------------------------------------------------

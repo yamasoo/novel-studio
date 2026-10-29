@@ -416,6 +416,7 @@ Run these from the project folder; they are for people who want to help translat
 | Tool | What it does |
 |---|---|
 | `python tools/check_i18n.py` | Run before pushing. Checks that the three prompt packs have the same keys and variables, that English values contain no Chinese sentences or kana, that the interface translations in `static/locales/` keep their `{0}` variables and folder paths exactly, and that no value is empty |
+| `python tools/check_parity.py` | Checks that the three plugin editions have the same files and heading skeleton, that templates and the sample books' `_範本/` hold the same file set, that the three READMEs share one heading structure, that every UI string is translated, that no banned wording from the glossary is used, and whether a Traditional Chinese edit still waits for its translation (`--strict` fails on warnings too, `--update-lock` re-records the baseline) |
 | `python tools/prompt_lang_audit.py` | Runs a short chapter flow against a mock model and checks that the prompts sent for English and Japanese books contain no Chinese sentences (it should return 0) |
 | `python tools/i18n_extract.py [--merge static/locales/en.json]` | Extracts every Chinese UI string from the front end and the back end (messages and errors); with `--merge` it lists the ones a language file has not translated yet |
 | `python tools/fix_filenames.py <book folder> [--apply]` | Repairs file names in older books that lost their spaces (for example `JimHawkins.md`); it only lists the changes unless you add `--apply` |

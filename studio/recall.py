@@ -93,6 +93,7 @@ def build(book_dir):
 
 
 _CACHE = {}
+_TOKEN_CACHE = {}      # 指紋 → 與 paras 對齊的分詞結果（同一本書第二次查詢就不用重切）
 
 
 def index(book_dir, force=False):
@@ -144,16 +145,29 @@ def _bm25(docs, query_tokens, k):
     return scored[:k]
 
 
+def _tokens_for(data):
+    """把整本書的分詞結果快取起來：12,000 段重切一次要 0.4 秒，同一本書之後都直接重用。"""
+    key = data.get("manifest") or ""
+    hit = _TOKEN_CACHE.get(key)
+    if hit is not None and len(hit) == len(data.get("paras") or []):
+        return hit
+    toks = [_tokens(p[2]) for p in data.get("paras") or []]
+    _TOKEN_CACHE.clear()
+    _TOKEN_CACHE[key] = toks
+    return toks
+
+
 def search(book_dir, query, k=6, before=None, exclude=(), min_score=0.5):
     """找跟 query 最像的作者段落。before：只看這章之前（預設全部）；exclude：不要的章號。"""
     data = index(book_dir)
+    toks = _tokens_for(data)
     docs = []
-    for no, i, text in data.get("paras") or []:
+    for (no, i, text), tk in zip(data.get("paras") or [], toks):
         if before is not None and no >= before:
             continue
         if no in exclude:
             continue
-        docs.append({"chapter": no, "i": i, "text": text, "tokens": _tokens(text)})
+        docs.append({"chapter": no, "i": i, "text": text, "tokens": tk})
     hits = []
     seen = []
     top = 0.0

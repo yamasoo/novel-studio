@@ -174,10 +174,11 @@ def build(book_dir, keep=""):
     else:
         L.append("- 這本書還沒有定稿的正文章節（從第一章開始寫）。")
     if chars:
-        L.append("- 角色（%d 位）：%s" % (len(chars), "、".join(
-            "%s（%s，首次登場 %s%s）" % (n, pos or "未標", first or "未標",
-                                       "，最後登場 " + last if last else "")
-            for n, pos, first, last in chars)))
+        names = ["%s（%s，首次登場 %s%s）" % (n, pos or "未標", first or "未標",
+                                          "，最後登場 " + last if last else "")
+                 for n, pos, first, last in chars[:20]]
+        more = "……另有 %d 位，見 `設定/角色/`" % (len(chars) - 20) if len(chars) > 20 else ""
+        L.append("- 角色（%d 位）：%s%s" % (len(chars), "、".join(names), ("（%s）" % more) if more else ""))
     if known:
         L.append("- 讀者**已經知道**的事（不能再當成新資訊，也不能反過來推翻）：")
         for code, fact, at in known[:12]:

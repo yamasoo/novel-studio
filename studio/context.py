@@ -6,7 +6,7 @@ import contextvars
 import os
 import re
 
-from . import project, prompts, shared
+from . import contract, project, prompts, shared
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -461,6 +461,9 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
     pk = Pack(budget)
     card_path, card = card_text(book_dir, no)
     pk.add(0, "本書規則", book_rules(book_dir))
+    # 續寫合約：這本書不能違背的事實（章數、角色、已揭示／未揭曉的秘密、未回收伏筆、卷末承諾、禁區）。
+    # priority 0：預算不夠時最後才被砍，因為它比任何單一資料表都可靠。沒有合約就自動略過。
+    pk.add(0, "續寫合約（不可變事實，不能違背）", body(contract.text(book_dir)))
     pk.add(0, "第%d章章綱（唯一劇情藍圖）" % no, body(card))
     pk.add(1, "本書文風（優先於一般寫作技法）", body(read(book_dir, "設定/文風.md")))
     pk.add(1, "作者偏好", body(read(book_dir, "設定/作者偏好.md")))

@@ -26,7 +26,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, export, fidelity, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, textguard, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, export, fidelity, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, textguard, tracking, wb_check  # noqa: E402
 
 VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -1646,13 +1646,33 @@ async def reverse_op(book_id: str, op: str, req: Request):
     if RUNNER.running_for(book_id):
         raise HTTPException(409, "還有任務在執行，請等它結束。")
     if op == "adopt":
-        return wrap(lambda: reverse.adopt(d, body.get("group")))
+        r = wrap(lambda: reverse.adopt(d, body.get("group")))
+        wrap(lambda: contract.ensure(d))      # 拆書採用之後就有資料可以立續寫合約了（已存在且章數沒變就不動）
+        return r
     if op == "discard":
         return wrap(lambda: reverse.discard(d, body.get("group")))
     if op == "reset":
         reverse.reset(d)
         return {"ok": True}
     raise HTTPException(404, "不支援的操作")
+
+
+@app.get("/api/books/{book_id}/contract")
+def contract_get(book_id: str):
+    """續寫合約：這本書不能違背的事實（唯讀；要重產生用 POST）。"""
+    d = book_dir(book_id)
+    return {"path": contract.REL, "exists": os.path.isfile(contract.path(d)), "text": contract.text(d)}
+
+
+@app.post("/api/books/{book_id}/contract")
+async def contract_build(book_id: str, req: Request):
+    d = book_dir(book_id)
+    try:
+        body = await req.json() if (req.headers.get("content-type") or "").startswith("application/json") else {}
+    except ValueError:
+        body = {}
+    rel = wrap(lambda: contract.ensure(d, force=bool((body or {}).get("force"))))
+    return {"path": contract.REL, "changed": bool(rel), "text": contract.text(d)}
 
 
 @app.get("/api/books/{book_id}/search")
@@ -1983,6 +2003,7 @@ async def pipeline_start(book_id: str, req: Request):
     prov = get_provider(body.get("provider"))
     mode = body.get("mode") or CONFIG.get("pipeline_mode") or "stop"
     sev = body.get("severities")
+    wrap(lambda: contract.ensure(d))     # 開始整章自動流程前，先把續寫合約補到最新章數
     if sev is None:
         sev = CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES
     ids = provider_ids()

@@ -107,7 +107,8 @@
    先看「對白比例」這類偏差是否下降；沒降就是提示詞要再改。
 2. **重建基線（`--repeat 3`）**：單次抖動很大（同一章 `style_max_rel` 0.95／1.32／2.05），要判讀得用中位數。
 3. **P5 的收尾**：工作台按鈕與卷末提示（目前只有 CLI）、`--plan-out` 貼回卷綱的流程。
-4. **T6 完整版**（選配）：把安裝／後端設定搬到 `docs/<lang>/`，README 只留導覽；現在只做了結構對齊。
+4. **T6 已完成**（T6 完整版）：需求／安裝／設定後端／設定四個區段搬到 `docs/安裝與設定.md`、
+   `docs/en/install.md`、`docs/ja/install.md`；README 只留導覽與文件索引（三語標題分佈仍是 1／8／17）。
 5. **續寫合約的兩件收尾**：
    - Claude Code 模式還沒吃到合約（`plugin*/skills/novel-setup/references/claude-md-template.md` 要加一行，三份）
    - 「連續 10 章零衝突」還沒量：要真的跑十章＋長篇 fixture，P4 才量得出來

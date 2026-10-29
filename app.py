@@ -1767,8 +1767,10 @@ def book_outline(book_id: str):
 def book_volumes(book_id: str):
     """卷先行的狀態：正式卷綱、草稿、下一個卷號與建議起始章。"""
     d = book_dir(book_id)
-    return {"volumes": volume.list_volumes(d), "drafts": volume.drafts(d),
+    data = {"volumes": volume.list_volumes(d), "drafts": volume.drafts(d),
             "next": volume.next_no(d), "from": volume.next_start(d)}
+    # 草稿一產生就要看得到：不要讓瀏覽器拿舊的卷況
+    return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/books/{book_id}/volumes/adopt")

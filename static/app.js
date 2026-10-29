@@ -3380,6 +3380,9 @@ const Panel = {
     if (document.querySelector("textarea.editor")) toast("任務完成。你正在編輯，所以頁面沒有自動重新整理。");
     else if (S.job && S.job.book === "_共用") { if (typeof S.onSharedJob === "function") S.onSharedJob(S.job); }
     else if (S.book) refresh();
+    if (S.job && S.job.meta && S.job.meta.action === "volume_draft" && S.job.status === "done") {
+      toast("卷綱草稿已產生：到大綱頁的「卷況」按「採用」才會變成正式卷綱。");
+    }
     $("#reply-text").focus();
   },
   setRunning(on) {

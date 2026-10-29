@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 
-from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking, volume
+from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking, upcheck, volume
 
 STEPS = [
     ("card", "章綱"),
@@ -125,6 +125,11 @@ class Pipeline:
                 raise PipelineError(
                     "%s還沒有章綱；先到大綱頁按「排這一卷的章綱」把整卷排好，再開整章自動流程。"
                     % volume.brief(no_card))
+            # 章綱體檢：正文還沒寫就先抓劇透（提前登場）
+            hit = [c for c in upcheck.findings(book_dir, int(start), int(end), cards=True) if c["kind"] == "提前登場"]
+            if hit:
+                raise PipelineError("章綱有劇透風險：%s；先修章綱再開流程（見 docs/卷先行.md）。"
+                                    % upcheck.summary(hit))
         state = {"id": uuid.uuid4().hex[:10], "book": book_id, "from": int(start), "to": int(end),
                  "mode": mode if mode in ("stop", "continue") else "stop",
                  "severities": [s for s in (severities or DEFAULT_SEVERITIES) if s in revision.SEVERITIES],

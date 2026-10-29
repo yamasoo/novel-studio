@@ -1083,6 +1083,7 @@ window.recoverView = async (id) => {
 function volCard(v) {
   const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
     ${x.kind === "卷" ? `<button class="sm" data-sync="${x.no}">${t("同步大綱")}</button>` : ""}
+    <button class="sm" data-check="${x.lo}-${x.hi}">${t("章綱體檢")}</button>
     <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
   const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
     <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
@@ -1111,6 +1112,21 @@ function bindVol(v) {
         if (warn.length) toast(warn.join("；"), true);
         else toast(t("已同步全書大綱"));
         go(location.hash);
+      } catch (e) { fail(e); }
+    };
+  });
+  el.querySelectorAll("[data-check]").forEach((b) => {
+    b.onclick = async () => {
+      const [a, z] = b.dataset.check.split("-").map(Number);
+      try {
+        const r = await api("GET", B(`/card-check?from=${a}&to=${z}`));
+        const rows = r.findings || [];
+        modal(`<h2>${t("章綱體檢")}（第 ${a}–${z} 章）</h2>
+          ${rows.length ? `<div class="card"><div class="small muted">${t("把設定和章綱對照：提前登場（劇透風險）與久別重逢（設定說已退場）。")}</div>
+            ${rows.map((f) => `<div class="row" style="align-items:flex-start"><span class="badge">${esc(f.kind)}</span>
+              <span>${t("第 {0} 章", f.chapter)}「${esc(f.name)}」：${esc(f.detail)}</span></div>`).join("")}</div>`
+            : `<div class="card"><p>${t("章綱沒有發現衝突。")}</p></div>`}
+          <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">${t("知道了")}</button></div>`);
       } catch (e) { fail(e); }
     };
   });

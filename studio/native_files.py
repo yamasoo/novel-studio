@@ -13,7 +13,7 @@ import re
 import shutil
 import time
 
-from . import contract, context, project, prompts, shared, tracking
+from . import contract, context, project, prompts, shared, tracking, volume
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -419,6 +419,11 @@ def spec_volume_draft(c, p):
         pk.add(0, "續寫合約（已定稿的事實與未回收伏筆；新卷還沒有卷末承諾）", ct)
     pk.add(1, "卷綱範本", tpl(c, "卷綱.md"))
     pk.add(1, "其他卷綱", outline_files_text(c))
+    plans = volume.plan_drafts(c.book)
+    if plans:
+        latest = plans[-1]
+        pk.add(1, "上一卷的卷末體檢草稿（%s）" % latest["name"],
+               context.body(context.read(c.book, latest["rel"])))
     pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()

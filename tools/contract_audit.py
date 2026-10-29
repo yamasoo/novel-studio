@@ -16,13 +16,13 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from studio import contract, project  # noqa: E402
+from studio import project, upcheck  # noqa: E402
 
 # 「提前登場」：只是被提到（傳聞、對話）很正常，差 15 章以上才算真的劇透風險
-SPOILER_GAP = 15
+SPOILER_GAP = upcheck.SPOILER_GAP
 # 「久別重逢」：反派被打倒之後被回憶提起不算衝突，只看主角與配角
-KEEP_ROLES = ("主角", "主要配角", "配角")
-IDLE_GAP = 30
+KEEP_ROLES = upcheck.KEEP_ROLES
+IDLE_GAP = upcheck.IDLE_GAP
 
 
 def _num(v):
@@ -36,22 +36,7 @@ def audit(book_dir, start=None, end=None):
         return []
     end = int(end or max(ch))
     start = int(start or 1)
-    chars = contract.characters(book_dir)
-    out = []
-    for no in sorted(n for n in ch if start <= n <= end):
-        text = project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", ch[no])))[1]
-        for name, pos, first, last in chars:
-            if not name or len(name) < 2 or name not in text:
-                continue
-            f, l = _num(first), _num(last)
-            if f and no < f and f - no >= SPOILER_GAP:
-                out.append({"chapter": no, "name": name, "kind": "提前登場",
-                            "detail": "設定的首次登場是第%d章，但第%d章就提到（早了 %d 章）"
-                                      % (f, no, f - no)})
-            elif (l and no > l + IDLE_GAP and any(k in str(pos or "") for k in KEEP_ROLES)):
-                out.append({"chapter": no, "name": name, "kind": "久別重逢",
-                            "detail": "最後登場記在第%d章，第%d章又出現（差了 %d 章）" % (l, no, no - l)})
-    return out
+    return upcheck.findings(book_dir, start, end, cards=False)
 
 
 def main():

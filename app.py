@@ -28,7 +28,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, volume, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
 
 VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -1798,6 +1798,16 @@ async def book_volume_outline_sync(book_id: str, req: Request):
         raise HTTPException(400, "缺少卷號")
     warnings = wrap(lambda: volume.sync_outline(d, no))
     return {"warnings": warnings, "volumes": volume.list_volumes(d)}
+
+
+@app.get("/api/books/{book_id}/card-check")
+def book_card_check(book_id: str, from_: int = Query(None, alias="from"), to: int = None):
+    """章綱體檢：拿角色設定回頭對章綱（正文還沒寫就先抓劇透）。"""
+    d = book_dir(book_id)
+    a, b = int(from_ or 1), int(to or from_ or 1)
+    a, b = min(a, b), max(a, b)
+    rows = wrap(lambda: upcheck.findings(d, a, b, cards=True))
+    return {"range": [a, b], "findings": rows, "count": len(rows)}
 
 
 @app.get("/api/books/{book_id}/tracking")

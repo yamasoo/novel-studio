@@ -1554,5 +1554,11 @@
  "{0}還沒有章綱；先到大綱頁按「排這一卷的章綱」把整卷排好，再開整章自動流程。": "{0} still has no chapter cards; lay out the whole volume with “Lay out this volume's chapter cards” on the Outline page before starting the whole-chapter pipeline.",
  "卷綱更新草稿": "Volume-outline update draft",
  "同步大綱": "Sync outline",
- "已同步全書大綱": "Outline synced"
+ "已同步全書大綱": "Outline synced",
+ "第 {0} 章": "Chapter {0}",
+ "章綱體檢": "Card check",
+ "章綱沒有發現衝突。": "No conflicts found in the chapter cards.",
+ "把設定和章綱對照：提前登場（劇透風險）與久別重逢（設定說已退場）。": "Compares the setting against the chapter cards: early appearances (spoiler risk) and long absences (the setting says the character has left).",
+ "章綱有劇透風險：{0}；先修章綱再開流程（見 docs/卷先行.md）。": "The chapter cards have a spoiler risk: {0}. Fix the cards before starting the pipeline (see docs/卷先行.md).",
+ "找不到正式的 {0}，先採用卷綱再同步。": "No official {0} found; adopt the volume outline before syncing."
 }

@@ -62,6 +62,10 @@ VAR = re.compile(r"\{[A-Za-z_0-9]*\}")
 LOCK = os.path.join(ROOT, "tools", "i18n.lock.json")
 DEMO_DIR = os.path.join(ROOT, "demo")
 TEMPLATE_DIR = os.path.join("skills", "novel-setup", "templates")
+# 範本裡的「填這裡」指示：{主題}、{title}、{N}……
+PLACEHOLDER_RX = re.compile(r"\{[^{}\n]{1,20}\}")
+PLACEHOLDER_N = "{N}"        # 章號，三語共用
+PLACEHOLDER_LATIN = re.compile(r"[A-Za-z]")
 
 results = []   # (level, area, message)
 
@@ -144,6 +148,11 @@ def ref_links(text):
     return sorted(set(re.findall(r"(?:references|scripts)/[\w./-]+", text)))
 
 
+def placeholders(text):
+    """範本裡的 {佔位符}，依出現順序（用來跨版本對位）。"""
+    return PLACEHOLDER_RX.findall(text)
+
+
 def diff_summary(a, b):
     keys = sorted(set(a) | set(b))
     return ["%s %s≠%s" % (k, a.get(k, 0), b.get(k, 0)) for k in keys if a.get(k, 0) != b.get(k, 0)]
@@ -224,8 +233,15 @@ def check_templates():
     base_dir = os.path.join(ROOT, "plugin", "skills", "novel-setup", "templates")
     if not os.path.isdir(base_dir):
         return
+    # 範本裡的 {佔位符} 是「填這裡」的指示：模型會照抄，所以三版的數量要對等，
+    # 同一個繁中佔位符在每一版只能有一種寫法，而且不該把別語言的佔位符抄過來。
+    mapping = {}          # 繁中佔位符 → {"en": {…}, "ja": {…}}
     for fn in templates():
         z = read(os.path.join(base_dir, fn))
+        if z:
+            for ph in placeholders(z):
+                if ph != PLACEHOLDER_N and PLACEHOLDER_LATIN.search(ph):
+                    add("WARN", "template", "繁中 %s 的佔位符混了拉丁字母：%s" % (fn, ph))
         for k, ed in (("en", "plugin-en"), ("ja", "plugin-ja")):
             p = os.path.join(ROOT, ed, "skills", "novel-setup", "templates", fn)
             if not os.path.isfile(p):
@@ -240,6 +256,23 @@ def check_templates():
                 add("WARN", "template", "%s/%s 標題層級分佈不同：%s" % (k, fn, "、".join(d)))
             if frontmatter_keys(z) != frontmatter_keys(t):
                 add("FAIL", "template", "%s/%s frontmatter 鍵不同：%s≠%s" % (k, fn, frontmatter_keys(z), frontmatter_keys(t)))
+            zs, ts = placeholders(z), placeholders(t)
+            if len(zs) != len(ts):
+                add("FAIL", "template", "%s/%s 的 {佔位符} 數量不同：繁中 %d、%s %d（多半是漏抄或多抄一個）"
+                    % (k, fn, len(zs), k, len(ts)))
+            elif zs:
+                for a, b in zip(zs, ts):
+                    mapping.setdefault(a, {"en": set(), "ja": set()})[k].add(b)
+            for ph in ts:
+                if k == "en" and HAN.search(ph):
+                    add("WARN", "template", "%s/%s 的佔位符還是中文：%s" % (k, fn, ph))
+                elif k == "ja" and ph != PLACEHOLDER_N and PLACEHOLDER_LATIN.search(ph):
+                    add("WARN", "template", "%s/%s 的佔位符混了拉丁字母：%s" % (k, fn, ph))
+    for zh, m in sorted(mapping.items()):
+        for k in ("en", "ja"):
+            if len(m[k]) > 1:
+                add("FAIL", "template", "繁中的 %s 在 %s 版有 %d 種寫法：%s"
+                    % (zh, k, len(m[k]), "、".join(sorted(m[k]))))
 
 
 # ---------------------------------------------------------------------------

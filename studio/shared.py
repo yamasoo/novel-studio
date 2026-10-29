@@ -372,7 +372,11 @@ COMPARE_KEYS = ["平均句長", "短句比例", "長句比例", "平均段長", 
 
 
 def compare(target, actual):
-    """target、actual 都是指標 dict。回傳每列 {指標, 目標, 實際, 差距, 偏離}。"""
+    """target、actual 都是指標 dict。回傳每列 {指標, 目標, 實際, 差距, 偏離, 偏離值}。
+
+    偏離值＝|差距| ÷ 基準（1.0＝偏了一個「明顯」門檻的兩倍），給「要不要重寫」這種判斷用——
+    只看「幾項偏離」會被雜訊騙，看幅度才分得出「作者自己的起伏」與「整組跑掉」。
+    """
     rows = []
     for k in COMPARE_KEYS:
         t, a = _num(target.get(k)), _num(actual.get(k))
@@ -385,7 +389,8 @@ def compare(target, actual):
         rel = abs(diff) / base
         rows.append({"指標": k, "目標": target.get(k), "實際": actual.get(k),
                      "差距": ("+" if diff > 0 else "") + ("%.1f" % diff).rstrip("0").rstrip("."),
-                     "偏離": "明顯" if rel >= 0.6 else "稍有" if rel >= 0.3 else ""})
+                     "偏離": "明顯" if rel >= 0.6 else "稍有" if rel >= 0.3 else "",
+                     "偏離值": round(rel, 2)})
     return rows
 
 

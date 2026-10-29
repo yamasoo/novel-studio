@@ -7,18 +7,30 @@
   零件（shared.parse_metrics／analyze／compare 的 13 指標）都沿用，只是接線。
 
 門檻怎麼定
-  文學本來就會波動，門檻太緊會把好稿子改壞。實測 demo 三本書每一章對自己的文風目標：
-  多半是 0「明顯」、1～3「稍有」，所以預設門檻是 明顯 3、稍有 7——
-  真的走鐘（句子長度、對白比例、段落節奏整組跑掉）才會觸發。可用環境變數調整。
+  文學本來就會波動，門檻太緊會把好稿子改壞。但真書實測發現「明顯」這一級很乾淨：
+    - 作者自己的章節：幾乎都是 0 項明顯（示範書 6 章、真書抽樣 36 章，最多 1 項）
+    - 模型寫的章節：常見 2～3 項明顯（對白比例偏高、刪節號幾乎不用、段落偏碎）
+  所以預設門檻是 明顯 2、稍有 7——作者自己不會被誤擋，模型的典型走鐘會被抓到。
+  代價是約 17% 的章節會多重寫一次（示範書 12 章抽樣實測）。可用環境變數
+  NS_STYLE_OBVIOUS／NS_STYLE_SLIGHT 調整。
 """
 import contextlib
 import os
 
 from . import lang as lang_mod, project, prompts, shared
 
-# 超過就重寫（可用 NS_STYLE_OBVIOUS／NS_STYLE_SLIGHT 覆寫）
-LIMIT = {"obvious": int(os.environ.get("NS_STYLE_OBVIOUS") or 3),
-         "slight": int(os.environ.get("NS_STYLE_SLIGHT") or 7)}
+# 達到門檻就重寫（可用 NS_STYLE_REL／NS_STYLE_OBVIOUS／NS_STYLE_SLIGHT 覆寫）。
+#
+# 為什麼是「幅度」而不是「幾項偏離」：真書實測 24 章，作者自己的章節有 7 章出現 2 項以上「明顯」，
+# 光看項數會誤擋 29% 的稿子。改看單一指標偏離了幾個「明顯」門檻（偏離值）：
+#   作者自己：中位數 0.56、最大 1.18
+#   模型寫的：1.32（對白比例 44% vs 目標 19%）
+#   故意走鐘：22
+# 所以門檻定 1.2（單一指標偏離達 1.2 倍），並用 obvious 4／slight 8 當「整組跑掉」的保險。
+# 注意：這是 tripwire（抓明顯走鐘），不是品質閘門——1.18 與 1.32 的邊界很窄。
+LIMIT = {"rel": float(os.environ.get("NS_STYLE_REL") or 1.2),
+         "obvious": int(os.environ.get("NS_STYLE_OBVIOUS") or 4),
+         "slight": int(os.environ.get("NS_STYLE_SLIGHT") or 8)}
 SAMPLE_MIN, SAMPLE_MAX = 40, 160      # 作者原句的長度範圍
 
 
@@ -72,7 +84,11 @@ def evaluate(book_dir, text):
     out["rows"] = rows
     out["obvious"] = sum(1 for r in rows if r["偏離"] == "明顯")
     out["slight"] = sum(1 for r in rows if r["偏離"] == "稍有")
-    out["verdict"] = "off" if (out["obvious"] > LIMIT["obvious"] or out["slight"] > LIMIT["slight"]) else "ok"
+    out["max_rel"] = max([r.get("偏離值") or 0 for r in rows] or [0])
+    out["worst"] = max(rows, key=lambda r: r.get("偏離值") or 0)["指標"] if rows else ""
+    off = (out["max_rel"] >= LIMIT["rel"] or out["obvious"] >= LIMIT["obvious"]
+           or out["slight"] >= LIMIT["slight"])
+    out["verdict"] = "off" if off else "ok"
     return out
 
 
@@ -99,8 +115,10 @@ def summary(ev):
         return "文風無法量測（樣本太短）"
     if ev.get("verdict") == "skip":
         return "沒有文風目標，跳過文風檢查"
-    return "文風偏差：明顯 %d、稍有 %d（門檻 %d／%d）" % (
-        ev.get("obvious", 0), ev.get("slight", 0), LIMIT["obvious"], LIMIT["slight"])
+    tail = ""
+    if ev.get("worst"):
+        tail = "；偏最多：%s（%.2f 倍）" % (ev["worst"], ev.get("max_rel") or 0)
+    return "文風偏差：明顯 %d、稍有 %d%s" % (ev.get("obvious", 0), ev.get("slight", 0), tail)
 
 
 def samples(book_dir, n=2):
@@ -127,7 +145,8 @@ def feedback(book_dir, ev, n=0, lang=None):
     lines = [prompts.t(lang, "style_retry_head").strip(), ""]
     for r in rows:
         lines.append(prompts.t(lang, "style_retry_line", name=r["指標"], target=r["目標"],
-                               actual=r["實際"], level=r["偏離"]))
+                               actual=r["實際"],
+                               level="%s，偏離 %.2f 倍" % (r["偏離"], r.get("偏離值") or 0)))
     ss = samples(book_dir)
     if ss:
         lines += ["", prompts.t(lang, "style_retry_samples", s1=ss[0], s2=ss[1] if len(ss) > 1 else ss[0])]

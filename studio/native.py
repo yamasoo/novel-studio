@@ -229,7 +229,18 @@ def _check_summary(c, rel):
     res = c.checker.check_file(os.path.join(c.book, rel), c.checker.load_whitelist(c.book))
     must = [f for f in res["問題"] if f["等級"] == "必須修"]
     sug = [f for f in res["問題"] if f["等級"] == "建議修"]
-    return res, "中文字數約 %d；用語檢查：必須修 %d 項、建議修 %d 項。" % (res["中文字數"], len(must), len(sug))
+    # 只報數量，作者還是得自己找是哪一句；把「必須修」與「用語／錯字」的具體建議列出來（最多 5 條）
+    tips = []
+    for f in res["問題"]:
+        if f["等級"] != "必須修" and f.get("類型") not in ("大陸用語", "錯字"):
+            continue
+        fix = (f.get("建議") or "").split("：")[-1].strip()
+        tip = "%s→%s" % (f.get("片段") or "", fix) if fix and fix != f.get("片段") else (f.get("片段") or "")
+        if tip and tip not in tips:
+            tips.append(tip)
+    more = ("（%s%s）" % ("、".join(tips[:5]), "…" if len(tips) > 5 else "")) if tips else ""
+    return res, "中文字數約 %d；用語檢查：必須修 %d 項、建議修 %d 項。%s" % (
+        res["中文字數"], len(must), len(sug), more)
 
 
 def _out_tokens(c, chars=None):

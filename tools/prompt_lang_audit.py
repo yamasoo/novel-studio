@@ -6,6 +6,9 @@
   對一本 3 章的小測試書依序跑：從正文建立設定 → 採用草稿 → 整理名詞表 → 回寫追蹤（一般＋修訂舊章）
   → 單章審查 → 依意見修訂 → 讀者認知轉換與比對 → 章綱核對 → 寫下一章 → 視覺卡 → 插圖提示詞 → 共用文風設計。
   英文、日文書：列出訊息裡的中文句子（JSON 鍵、中文列舉值、資料夾路徑、第NNN章、檔案裡的標題與欄位名不算），有就回傳 1。
+  三種書都會另外確認「提示詞載入的是它自己那一版的 skill 內文」（plugin／plugin-en／plugin-ja）：
+  該版的句子不在、或混進別版的句子，一樣回傳 1。plugin/ 只是基底資料夾，真正切換發生在
+  context.lang_plugin／context.skill_ref（依 prompts.cur_lang()），這條檢查就是防止那個切換壞掉。
   繁中書：不檢查語言，只用來比對「改前改後送出的訊息是否逐字相同」。
 
 用法
@@ -491,6 +494,47 @@ def _book_text(lang, src):
     return [project.read_text(os.path.join(d, f)) for _, f in sorted(project._scan_dir(d).items())[:3]]
 
 
+EDITION = {"zh-TW": "plugin", "en": "plugin-en", "ja": "plugin-ja"}
+_PROBE = {}
+
+
+def edition_probe(ed):
+    """該版本 skill 內文裡的一句獨有文字，用來確認提示詞真的載入了那一版。"""
+    if ed not in _PROBE:
+        p = os.path.join(ROOT, ed, "skills", "novel-write", "references", "writing-craft.md")
+        probe = ""
+        for line in project.read_text(p).splitlines():
+            line = line.strip()
+            if len(line) > 30 and not line.startswith(("#", "|", "-", "*", ">", "`")):
+                probe = line
+                break
+        _PROBE[ed] = probe
+    return _PROBE[ed]
+
+
+def check_edition(lang, calls):
+    """這本書的提示詞只該載入它自己那一版的 skill 內文（plugin／plugin-en／plugin-ja）。
+
+    報告 A9 說這支工具「固定讀 plugin/」——其實 plugin/ 只是基底，
+    真正切換發生在 context.lang_plugin／skill_ref（依 prompts.cur_lang()）。
+    與其相信，不如每次跑都驗：該版的句子要在、其他版的句子不能混進來。
+    """
+    want = EDITION.get(lang)
+    if not want:
+        return []
+    joined = "\n".join(m["content"] for c in calls for m in c["messages"])
+    probs = []
+    probe = edition_probe(want)
+    if not probe:
+        probs.append("找不到 %s 的探針句（skills/novel-write/references/writing-craft.md），無法確認載入哪一版" % want)
+    elif probe not in joined:
+        probs.append("提示詞沒有載入 %s 的 skill 內文（找不到該版獨有的句子）" % want)
+    for ed in EDITION.values():
+        if ed != want and edition_probe(ed) in joined:
+            probs.append("提示詞混入了 %s 的 skill 內文" % ed)
+    return probs
+
+
 def audit(lang, calls, src=None):
     texts = _book_text(lang, src)
     found = {}
@@ -557,6 +601,13 @@ def main():
                     print("   - " + d)
             else:
                 print("  和 %s 逐字相同" % p)
+        probs = check_edition(lang, calls)
+        if probs:
+            rc = 1
+            for p in probs:
+                print("  版本載入有問題：%s" % p)
+        elif not a.compare and not a.dump:
+            print("  載入的 skill 版本正確（%s）" % EDITION[lang])
         if lang == "zh-TW":
             continue
         found = audit(lang, calls, a.src)

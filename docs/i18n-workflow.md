@@ -19,7 +19,7 @@ python tools/prompt_lang_audit.py  # 假 provider 跑 3 章，列出 en／ja 書
 |---|---|---|
 | `check_i18n` | 鍵或 `{變數}` 不一致、空值、路徑被翻譯 | — |
 | `check_parity` | 外掛檔案不對等、SKILL frontmatter／標題層級／引用不同（繁中專屬檔已白名單）、範本缺檔、README 連到不存在的路徑、介面字串沒翻 | README 標題分佈、失效舊鍵、翻譯新鮮度、示範書 `_範本/` 檔案集不一致、術語表禁用譯法、提示詞句數少一半 |
-| `prompt_lang_audit` | 送出的訊息含中文句子 | — |
+| `prompt_lang_audit` | 送出的訊息含中文句子；載入到別版的 skill 內文（en 書卻讀到 `plugin/`） | — |
 
 本機要看得寬鬆一點就跑不帶參數的 `python tools/check_parity.py`（只擋 FAIL）。
 

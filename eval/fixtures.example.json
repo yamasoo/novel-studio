@@ -1,0 +1,9 @@
+[
+ {
+  "_comment": "長篇 fixture 範例（複製成 eval/fixtures.local.json 再改路徑；.local 不進版控）",
+  "key": "a-200",
+  "path": "E:/dev/novel1/A 書",
+  "lang": "zh-TW",
+  "chapter": 200
+ }
+]

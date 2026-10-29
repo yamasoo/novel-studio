@@ -41,17 +41,35 @@ PLUGIN_DIR = os.path.join(ROOT, "plugin")
 FIXTURES = [("zh-TW", "退婚之後"), ("en", "en_TheLanternRoad"), ("ja", "ja_辺境の薬師と竜の約束")]
 TASKS = ("continue", "deslop", "review")
 RESULTS = os.path.join(ROOT, "eval", "results")
+# 長篇 fixture：放在 eval/fixtures.local.json（不進版控，因為是本機路徑）。
+# 格式見 eval/fixtures.example.json；每一筆：{"key": ..., "path": 書的資料夾, "lang": ..., "chapter": 要遮的章}
+FIXTURES_LOCAL = os.path.join(ROOT, "eval", "fixtures.local.json")
+FIXTURES_EXAMPLE = os.path.join(ROOT, "eval", "fixtures.example.json")
+
+# LLM 評分的固定 rubric（以確定性指標為主，這個只是輔助；分數有噪音，退步要看趨勢）
+RUBRIC = """你是資深小說編輯。請只看「這一章」給 1–5 分（5 最好），四個面向各自給分：
+- card：有沒有照章綱寫（章綱列的情節點、場景、鉤子）
+- style：和這本書的寫法像不像（敘述視角、句子長度、對白比例）
+- continuity：和前文接不接得上（人際關係、已知事實、時間地點）
+- readable：能不能直接給讀者看（錯字、視角混亂、語意不通）
+只輸出一個 JSON 物件：{"card": n, "style": n, "continuity": n, "readable": n, "reason": "一句話理由"}
+不要加說明或程式碼圍欄。"""
 
 # 分數方向：True＝越大越好。沒列到的指標只記錄、不判退步。
 HIGHER_BETTER = {
     "names_kept": True, "digits_kept": True, "lang_ok": True,
     "review_json_ok": True, "review_quote_hit": True,
+    "card_coverage": True, "llm_ok": True,
+    "llm_card": True, "llm_style": True, "llm_continuity": True, "llm_readable": True,
     "style_obvious": False, "style_slight": False,
     "issues": False, "issues_must": False, "length_ratio_off": False,
 }
 # 容許浮動：在門檻內不算退步（避免每次跑都在跳噪音）
 TOLERANCE = {"names_kept": 0.05, "digits_kept": 0.02, "review_quote_hit": 0.1,
-             "length_ratio_off": 0.05, "style_slight": 1, "style_obvious": 0.5}
+             "length_ratio_off": 0.05, "style_slight": 1, "style_obvious": 0.5,
+             "card_coverage": 0.05,
+             # LLM 評分是 1–5 分、有噪音：差 0.5 分以內不算退步
+             "llm_card": 0.5, "llm_style": 0.5, "llm_continuity": 0.5, "llm_readable": 0.5}
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +171,52 @@ def style_metrics(book, text):
             "style_slight": sum(1 for r in rows if r["偏離"] == "稍有")}
 
 
+def card_coverage(card, output):
+    """章綱的內容字有多少出現在稿子裡（不要求逐字，只看用詞有沒有跟上）。
+
+    用跟檢索一樣的 bigram／單詞切法；只比章綱裡「比較罕見」的詞（出現兩次以上的去掉），
+    所以「他」「說」這種到處都有的字不會把分數撐高。
+    """
+    if not (card or "").strip() or not (output or "").strip():
+        return 0.0
+    from studio.recall import _tokens      # 與檢索同一套分詞，避免兩邊算法不一致
+    card_t = _tokens(card)
+    out_t = set(_tokens(output))
+    if not card_t:
+        return 0.0
+    freq = {}
+    for t in card_t:
+        freq[t] = freq.get(t, 0) + 1
+    rare = [t for t in card_t if freq[t] <= 2]
+    if not rare:
+        return 0.0
+    hit = sum(1 for t in set(rare) if t in out_t)
+    return round(hit / len(set(rare)), 3)
+
+
+def judge(prov, lang, card, output):
+    """LLM 評分（可選）：固定 rubric，1–5 分。回傳 llm_* 指標；解析失敗只記錄不中斷。"""
+    if not (output or "").strip():
+        return {"llm_ok": 0}
+    user = "【章綱】\n%s\n\n【要評的這一章】\n%s" % ((card or "（沒有章綱）")[:2000], output[:8000])
+    try:
+        text, _ = providers.chat(ROOT, prov, [{"role": "system", "content": RUBRIC},
+                                             {"role": "user", "content": user}],
+                                 json_mode=True, max_tokens=600)
+        data = providers.parse_json(text)
+    except Exception as e:
+        return {"llm_ok": 0, "llm_note": str(e)[:60]}
+    if not isinstance(data, dict):
+        return {"llm_ok": 0}
+    out = {"llm_ok": 1, "llm_reason": str(data.get("reason") or "")[:80]}
+    for k in ("card", "style", "continuity", "readable"):
+        try:
+            out["llm_" + k] = float(data.get(k))
+        except (TypeError, ValueError):
+            out["llm_ok"] = 0
+    return out
+
+
 def score_deslop(book, lang, source, output):
     iss = issues_of(book, output)
     src_digits, pool = digit_runs(source), list(digit_runs(output))
@@ -183,6 +247,7 @@ def score_continue(book, lang, card, output):
         "issues": len(iss),
         "issues_must": sum(1 for i in iss if (i.get("等級") or "") == "必須修"),
         "names_kept": (len(got) / len(want)) if want else 1.0,
+        "card_coverage": card_coverage(card, output),
         "lang_ok": lang_ok(lang, output),
     }
     m.update(style_metrics(book, output))
@@ -275,23 +340,53 @@ def real_provider(pid):
 
 
 # ---------------------------------------------------------------------------
-def copy_book(name, tmp):
+def load_fixtures():
+    """回傳 [{key, name, path, lang, chapter(可空)}]。
+
+    內建三本示範書；另外可加 eval/fixtures.local.json（本機路徑，不進版控）跑長篇。
+    例：
+      [{"key": "long-273", "path": "E:/dev/novel1/某本書", "lang": "zh-TW", "chapter": 200}]
+    chapter 沒給就用最後一章（示範書的行為）。
+    """
+    out = [{"key": lang, "name": name, "path": os.path.join(ROOT, "demo", name), "lang": lang, "chapter": None}
+           for lang, name in FIXTURES]
+    if not os.path.isfile(FIXTURES_LOCAL):
+        return out
+    try:
+        with open(FIXTURES_LOCAL, encoding="utf-8") as f:
+            extra = json.load(f)
+    except ValueError as e:
+        raise SystemExit("eval/fixtures.local.json 不是合法 JSON：%s" % e)
+    for it in extra if isinstance(extra, list) else []:
+        path = it.get("path") or ""
+        lang = it.get("lang") or "zh-TW"
+        if not os.path.isdir(path):
+            print("  （跳過 fixture：資料夾不存在 %s）" % path, flush=True)
+            continue
+        out.append({"key": it.get("key") or os.path.basename(path), "name": os.path.basename(path),
+                    "path": path, "lang": lang, "chapter": it.get("chapter")})
+    return out
+
+
+def copy_book(entry, tmp):
     dst = os.path.join(tmp, "book")
-    shutil.copytree(os.path.join(ROOT, "demo", name), dst)
+    shutil.copytree(entry["path"], dst)
     return dst
 
 
-def hide_last_chapter(book):
-    ch = project._scan_dir(os.path.join(book, "正文"))
-    if not ch:
-        return 0
-    no = max(ch)
-    os.remove(os.path.join(book, "正文", ch[no]))
-    for sub in ("追蹤/章節摘要", "候選"):
+def mask_from(book, no):
+    """把第 no 章以後的稿子全部遮起來（正文、章節摘要、候選），模擬「寫到這裡」的當下。"""
+    removed = 0
+    for sub in ("正文", "追蹤/章節摘要", "候選"):
         d = project._scan_dir(os.path.join(book, sub))
-        if no in d:
-            os.remove(os.path.join(book, sub, d[no]))
-    return no
+        for n, fn in list(d.items()):
+            if n >= no:
+                try:
+                    os.remove(os.path.join(book, sub, fn))
+                    removed += 1
+                except OSError:
+                    pass
+    return removed
 
 
 def run_action(book, lang, action, params, prov):
@@ -306,23 +401,24 @@ def run_action(book, lang, action, params, prov):
     return job
 
 
-def eval_book(lang, name, tasks, prov):
+def eval_book(entry, tasks, prov, judge_on=False, chapter=None):
+    lang = entry["lang"]
+    target = chapter or entry.get("chapter")
     tmp = tempfile.mkdtemp(prefix="ns_eval_")
     out = {}
     try:
-        book = copy_book(name, tmp)
+        book = copy_book(entry, tmp)
         for task in tasks:
             t0 = time.time()
+            ch = project._scan_dir(os.path.join(book, "正文"))
             if task == "review":
-                ch = project._scan_dir(os.path.join(book, "正文"))
-                no = max(ch) if ch else 0
+                no = target or (max(ch) if ch else 0)
                 if no:
                     run_action(book, lang, "review_notes", {"chapter": no}, prov)
-                    out["review"] = score_review(read(os.path.join(book, "正文", ch[no])),
-                                                 revision.load_review(book, no) or {})
+                    rec = revision.load_review(book, no) or {}
+                    out["review"] = score_review(read(os.path.join(book, "正文", ch[no])) if no in ch else "", rec)
             elif task == "deslop":
-                ch = project._scan_dir(os.path.join(book, "正文"))
-                no = max(ch) if ch else 0
+                no = target or (max(ch) if ch else 0)
                 if no:
                     src = read(os.path.join(book, "正文", ch[no]))
                     run_action(book, lang, "deslop", {"chapter": no}, prov)
@@ -333,31 +429,39 @@ def eval_book(lang, name, tasks, prov):
                                                        if no in now_files else "")
                     out["deslop"] = score_deslop(book, lang, src, polished or "")
             elif task == "continue":
-                no = hide_last_chapter(book)
+                no = target or (max(ch) if ch else 0)
                 if no:
+                    removed = mask_from(book, no)      # 遮住這一章以後的稿子
                     _, card = context.card_text(book, no)
+                    if not card:
+                        print("   %-6s continue  跳過：第%d章沒有章綱" % (lang, no), flush=True)
+                        continue
                     run_action(book, lang, "write", {"from": no, "to": no}, prov)
                     made = project._scan_dir(os.path.join(book, "候選")).get(no)
-                    out["continue"] = score_continue(book, lang, card,
-                                                     read(os.path.join(book, "候選", made)) if made else "")
+                    text = read(os.path.join(book, "候選", made)) if made else ""
+                    m = score_continue(book, lang, card, text)
+                    m["masked"] = removed
+                    out["continue"] = m
+                    if judge_on:
+                        m.update(judge(prov, lang, card, text))
             print("   %-6s %-9s %5.1f 秒" % (lang, task, time.time() - t0), flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return out
 
 
-def evaluate(langs, tasks, pid):
-    """回傳 ({lang: {task: 指標}}, 假 provider 呼叫次數or None)。"""
+def evaluate(entries, tasks, pid, judge_on=False):
+    """回傳 ({key: {task: 指標}}, 假 provider 呼叫次數or None)。"""
     if pid:
         prov = real_provider(pid)
-        return {lang: eval_book(lang, dict(FIXTURES)[lang], tasks, prov) for lang in langs}, None
+        return {e["key"]: eval_book(e, tasks, prov, judge_on) for e in entries}, None
     prov = {"id": "eval-fake", "type": "openai", "name": "fake", "model": "fake",
             "context_tokens": 65536, "max_output": 4096}
     res = {}
-    for lang in langs:
-        fake = FakeChat(lang)
-        res[lang] = with_fake(fake, lambda: eval_book(lang, dict(FIXTURES)[lang], tasks, prov))
-        res[lang]["_calls"] = fake.calls
+    for e in entries:
+        fake = FakeChat(e["lang"])
+        res[e["key"]] = with_fake(fake, lambda e=e: eval_book(e, tasks, prov, judge_on))
+        res[e["key"]]["_calls"] = fake.calls
     return res, sum(v.pop("_calls", 0) for v in res.values())
 
 
@@ -440,40 +544,53 @@ def resolve_baseline(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--books", default="zh-TW,en,ja", help="zh-TW、en、ja，可用逗號分隔")
+    ap.add_argument("--books", default="zh-TW,en,ja",
+                    help="要跑哪些 fixture：示範書用語言（zh-TW／en／ja），長篇用 fixtures.local.json 裡的 key")
     ap.add_argument("--tasks", default=",".join(TASKS), help="continue、deslop、review")
     ap.add_argument("--provider", help="真 provider 的執行者 id；不給就用假 provider")
     ap.add_argument("--out", default=RESULTS, help="結果資料夾（預設 eval/results）")
     ap.add_argument("--baseline", help="跟這份比對（.json，或給資料夾取最新一份）")
     ap.add_argument("--probe", action="store_true", help="只測金鑰與模型通不通：送一則極短請求就結束")
+    ap.add_argument("--judge", action="store_true", help="額外用 LLM 依固定 rubric 評分（多花錢、有噪音）")
+    ap.add_argument("--chapter", type=int, help="指定要遮／要處理的章號（預設：fixture 設定的或最後一章）")
     a = ap.parse_args()
 
     base_path = resolve_baseline(a.baseline) if a.baseline else None
     if a.probe:
         return probe(a.provider)
 
-    langs = [x.strip() for x in a.books.split(",") if x.strip() in dict(FIXTURES)]
+    all_fx = load_fixtures()
+    want = [x.strip() for x in a.books.split(",") if x.strip()]
+    entries = [e for e in all_fx if e["key"] in want]
+    if not entries:
+        raise SystemExit("找不到 fixture：%s\n可用的有：%s" % ("、".join(want), "、".join(e["key"] for e in all_fx)))
     tasks = [x.strip() for x in a.tasks.split(",") if x.strip() in TASKS]
-    if not langs or not tasks:
-        raise SystemExit("--books 或 --tasks 是空的（books：zh-TW,en,ja；tasks：continue,deslop,review）")
+    if not tasks:
+        raise SystemExit("--tasks 是空的（continue、deslop、review）")
     mode = "real" if a.provider else "fake"
+    if a.judge and not a.provider:
+        raise SystemExit("--judge 要搭配 --provider（假 provider 的評分沒有意義）")
     t0 = time.time()
-    results, calls = evaluate(langs, tasks, a.provider)
+    results, calls = evaluate(entries, tasks, a.provider, a.judge)
 
     stamp = time.strftime("%Y-%m-%d-%H%M")
     payload = {"date": time.strftime("%Y-%m-%dT%H:%M:%S"), "mode": mode,
-               "provider": a.provider or "fake", "tasks": tasks, "books": langs,
+               "provider": a.provider or "fake", "tasks": tasks,
+               "books": [e["key"] for e in entries], "judge": bool(a.judge),
+               "fixtures": [{"key": e["key"], "path": shown(e["path"]), "lang": e["lang"], "chapter": e["chapter"]}
+                            for e in entries],
                "seconds": round(time.time() - t0, 1), "results": results}
     os.makedirs(a.out, exist_ok=True)
     path = os.path.join(a.out, "%s-%s.json" % (stamp, mode))
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(payload, f, ensure_ascii=False, indent=1)
 
-    print("== %s（%s，%.1f 秒%s）" % (",".join(langs), mode, payload["seconds"],
-                                     "，假 provider 共 %d 次呼叫" % calls if calls is not None else ""))
-    for lang, tasks_res in results.items():
+    print("== %s（%s，%.1f 秒%s%s）" % ("、".join(e["key"] for e in entries), mode, payload["seconds"],
+                                       "，假 provider 共 %d 次呼叫" % calls if calls is not None else "",
+                                       "，含 LLM 評分" if a.judge else ""))
+    for key, tasks_res in results.items():
         for task, m in tasks_res.items():
-            print("   %-6s %-9s %s" % (lang, task, json.dumps(m, ensure_ascii=False)))
+            print("   %-14s %-9s %s" % (key, task, json.dumps(m, ensure_ascii=False)))
     print("   結果：%s" % shown(path))
     if calls is not None:
         print("\n   （假 provider 只驗流程與提示詞組裝；數字不代表品質，要比品質請用 --provider）")

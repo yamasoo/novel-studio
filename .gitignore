@@ -24,3 +24,5 @@ desktop.ini
 
 # 回歸測試的產出（要留基線就複製成 eval/baseline.json 再提交）
 eval/results/
+# 長篇 fixture 是本機路徑（含個人的書庫位置），範例檔有格式說明
+eval/fixtures.local.json

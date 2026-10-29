@@ -17,7 +17,7 @@ python tools/prompt_lang_audit.py  # 假 provider 跑 3 章，列出 en／ja 書
 | 檢查 | FAIL（擋 push） | WARN（只印出來） |
 |---|---|---|
 | `check_i18n` | 鍵或 `{變數}` 不一致、空值、路徑被翻譯 | — |
-| `check_parity` | 外掛檔案不對等、SKILL frontmatter／標題層級／引用不同、範本缺檔、README 連到不存在的路徑、介面字串沒翻 | README 標題分佈、表格列數、提示詞長度比例、失效舊鍵、翻譯新鮮度 |
+| `check_parity` | 外掛檔案不對等、SKILL frontmatter／標題層級／引用不同（繁中專屬檔已白名單）、範本缺檔、README 連到不存在的路徑、介面字串沒翻 | README 標題分佈、表格列數、提示詞長度比例、失效舊鍵、翻譯新鮮度、示範書 `_範本/` 檔案集不一致 |
 | `prompt_lang_audit` | 送出的訊息含中文句子 | — |
 
 WARN 燒完（`check_parity --strict` 無 WARN）之後，才把 CI 改成 `--strict` 並讓 WARN 也擋。

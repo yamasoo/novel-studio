@@ -14,8 +14,10 @@
   3. 範本：frontmatter 鍵、標題層級分佈（範本檔名固定中文，不比對檔名）。
   4. README：標題層級分佈與互連檔案是否存在。
   5. 介面翻譯：tools/i18n_keys.json 的鍵是否有 en／ja 翻譯、有沒有失效的舊鍵、空值。
+     三語本來就同形的字串（路徑、檔名、語言名稱）填 "=="，執行期直接顯示原文，不算漏翻。
   6. 提示詞包：鍵與 {變數} 是否一致、英文包有沒有中文句子、長度比例離群（可能漏翻或整段改寫）。
   7. 翻譯新鮮度：tools/i18n.lock.json 記下每個檔案上次同步時的雜湊；繁中改了但 en／ja 沒動 → WARN「待更新翻譯」。
+  8. 示範書範本：demo/ 三語示範書的 `_範本/` 檔案集是否一致（新手照範本做，缺檔就是坑）。
 
 為什麼要這支：check_i18n.py 驗的是「已存在的鍵彼此一致」，管不到「原始碼新增的字串根本沒進語言檔」，
 也管不到三份 Markdown 的章節結構走鐘。這支補那兩個洞。
@@ -40,10 +42,25 @@ ALLOW_ONLY = {
     "ja": set(),
 }
 ALLOW_DIFF_NAMES = {"plugin.json", "THIRD_PARTY_NOTICES.md"}
+# 同形標記：值填 "==" 表示三語相同（路徑、檔名、語言名稱）。執行期 static/i18n.js 會略過，
+# 直接顯示中文原文；所以它讓覆蓋率能真的到 100%，而不是用假翻譯充數。
+SAME = "=="
+# 看起來就不需要翻譯的鍵（路徑、檔名、語言選單）
+NEUTRAL_RX = re.compile(r"[/\\]|\.md\b|^Language |^繁體中文$|^日本語$")
+# 抽取器的已知雜訊：i18n_extract.py 把 JS 模板字串切壞了，真正的句子在原始碼裡（報告 §2.2 A1 註）。
+# 修好抽取器之前先列在這裡，免得覆蓋率永遠被這幾條卡住。
+LOCALE_IGNORE = {
+    ').join("、")}；其他步驟用上面選的執行者。（設定 → 整章自動流程）',
+    'title="這個動作目前只支援 Claude Code"',
+    'badge ${/空章|重複|倒退|簡體/.test(f) ?',
+    r"Panel.openForm('deslop',{chapter:${parseInt((f.path.match(/第0*(\d+)章/) || [])[1]) || 1},candidate:${f.path.startsWith(",
+}
 HAN = re.compile(r"[\u3400-\u9fff]")
 KANA = re.compile(r"[\u3040-\u30ff]")
 VAR = re.compile(r"\{[A-Za-z_0-9]*\}")
 LOCK = os.path.join(ROOT, "tools", "i18n.lock.json")
+DEMO_DIR = os.path.join(ROOT, "demo")
+TEMPLATE_DIR = os.path.join("skills", "novel-setup", "templates")
 
 results = []   # (level, area, message)
 
@@ -179,6 +196,8 @@ def check_skills():
             if base["fm"] != r["fm"]:
                 add("FAIL", "skill", "%s/%s frontmatter 鍵不同：%s≠%s" % (s, k, base["fm"], r["fm"]))
             miss = [x for x in base["refs"] if x not in r["refs"]]
+            # 繁中專屬檔案（例：novel-deslop 的台灣用語表）不算漏引用
+            miss = [x for x in miss if "skills/%s/%s" % (s, x) not in ALLOW_ONLY["zh"]]
             if miss:
                 add("FAIL", "skill", "%s/%s 少了引用：%s" % (s, k, "、".join(miss)))
             extra = [x for x in r["refs"] if x not in base["refs"]]
@@ -189,6 +208,14 @@ def check_skills():
                 add("WARN", "skill", "%s/%s 表格列數 %d≠%d（可能漏翻段落）" % (s, k, base["tables"], r["tables"]))
 
 
+def templates():
+    """範本檔名清單（繁中版為準；17 個 .md）。"""
+    d = os.path.join(ROOT, "plugin", TEMPLATE_DIR)
+    if not os.path.isdir(d):
+        return []
+    return sorted(fn for fn in os.listdir(d) if fn.endswith(".md"))
+
+
 # ---------------------------------------------------------------------------
 # 3. 範本骨架
 # ---------------------------------------------------------------------------
@@ -196,9 +223,7 @@ def check_templates():
     base_dir = os.path.join(ROOT, "plugin", "skills", "novel-setup", "templates")
     if not os.path.isdir(base_dir):
         return
-    for fn in sorted(os.listdir(base_dir)):
-        if not fn.endswith(".md"):
-            continue
+    for fn in templates():
         z = read(os.path.join(base_dir, fn))
         for k, ed in (("en", "plugin-en"), ("ja", "plugin-ja")):
             p = os.path.join(ROOT, ed, "skills", "novel-setup", "templates", fn)
@@ -259,6 +284,7 @@ def check_locales():
         add("WARN", "locale", "沒有 tools/i18n_keys.json，跳過覆蓋率檢查（先跑 tools/i18n_extract.py）")
         return
     inv = {k for k in json.loads(read(inv_path)) if not k.startswith("_")}
+    inv -= LOCALE_IGNORE                     # 抽取雜訊不列入覆蓋率
     for k, fn in (("en", "en.json"), ("ja", "ja.json")):
         p = os.path.join(ROOT, "static", "locales", fn)
         if not os.path.isfile(p):
@@ -274,11 +300,16 @@ def check_locales():
         if real:
             add("FAIL", "locale", "%s 有 %d 個介面字串沒翻（例：%s）" % (fn, len(real), "、".join(real[:3])))
         if pathlike:
-            add("WARN", "locale", "%s 有 %d 個路徑類字串沒翻（多半可以原文照放）" % (fn, len(pathlike)))
+            add("WARN", "locale", "%s 有 %d 個路徑類字串沒翻（多半可以填 \"==\"）" % (fn, len(pathlike)))
         if stale:
             add("WARN", "locale", "%s 有 %d 個失效的舊鍵（原始碼已沒有這段字）" % (fn, len(stale)))
         for x in empty:
             add("FAIL", "locale", "%s 值是空的：%s" % (fn, x[:40]))
+        # 同形標記只該用在「三語本來就一樣」的字串上；拿它蓋掉一句話是假覆蓋
+        for x in sorted(set(d)):
+            if d[x] != SAME or not HAN.search(x) or NEUTRAL_RX.search(x):
+                continue
+            add("WARN", "locale", "%s 用同形標記蓋掉含中文的句子（確認真的是路徑／專有名詞）：%s" % (fn, x[:40]))
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +349,36 @@ def check_prompts():
 # ---------------------------------------------------------------------------
 # 7. 翻譯新鮮度（lock 檔）
 # ---------------------------------------------------------------------------
+def demo_books():
+    """三語示範書：資料夾名 en_／ja_ 開頭的是譯本，其餘視為繁中示範書。"""
+    if not os.path.isdir(DEMO_DIR):
+        return {}
+    found = {}
+    for name in sorted(os.listdir(DEMO_DIR)):
+        p = os.path.join(DEMO_DIR, name)
+        if not os.path.isdir(p):
+            continue
+        if name.startswith("en_"):
+            found.setdefault("en", p)
+        elif name.startswith("ja_"):
+            found.setdefault("ja", p)
+        else:
+            found.setdefault("zh", p)
+    return found if len(found) == 3 else {}
+
+
+def demo_units():
+    """demo 三本示範書裡「相對路徑相同」的檔案才成組（正文檔名各語言不同，不成組）。"""
+    books = demo_books()
+    if not books:
+        return []
+    sets = {k: set(walk(v)) for k, v in books.items()}
+    out = []
+    for rel in sorted(set.intersection(*sets.values())):
+        out.append(tuple(os.path.join(books[k], rel.replace("/", os.sep)) for k in ("zh", "en", "ja")))
+    return out
+
+
 def units():
     """(繁中路徑, en 路徑, ja 路徑) 的清單：只收三邊都存在的檔案。"""
     out = []
@@ -336,6 +397,13 @@ def units():
                 jp = os.path.join(ROOT, "plugin-ja", rel)
                 if os.path.isfile(ep) and os.path.isfile(jp):
                     out.append((zp, ep, jp))
+    # 17 個範本：檔名固定中文，三邊同名同路徑，是最該被新鮮度鎖住的一群
+    for fn in templates():
+        rel = "skills/novel-setup/templates/%s" % fn
+        out.append((os.path.join(ROOT, "plugin", rel), os.path.join(ROOT, "plugin-en", rel),
+                    os.path.join(ROOT, "plugin-ja", rel)))
+    # 示範書：新手照著抄的檔案，走鐘了也要看得見
+    out.extend(demo_units())
     for fn in ("README.md",):
         out.append((os.path.join(ROOT, fn), os.path.join(ROOT, "README.en.md"), os.path.join(ROOT, "README.ja.md")))
     return out
@@ -381,8 +449,25 @@ def check_freshness():
 
 
 # ---------------------------------------------------------------------------
+# 8. 示範書的範本檔案集
+# ---------------------------------------------------------------------------
+def check_demo():
+    books = demo_books()
+    if not books:
+        add("WARN", "demo", "找不到 demo/ 的三語示範書（資料夾名 en_／ja_ 開頭），跳過範本檔案集比較")
+        return
+    sets = {k: {p for p in walk(v) if p.startswith("_範本/")} for k, v in books.items()}
+    base = sets["zh"]
+    for k in ("en", "ja"):
+        for p in sorted(base - sets[k]):
+            add("WARN", "demo", "繁中示範書有 %s，%s 示範書沒有（新手照範本做會缺檔）" % (p, k))
+        for p in sorted(sets[k] - base):
+            add("WARN", "demo", "%s 示範書有 %s，繁中示範書沒有" % (k, p))
+
+
+# ---------------------------------------------------------------------------
 def main():
-    global ROOT, LOCK
+    global ROOT, LOCK, DEMO_DIR
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", metavar="DIR", help="專案根目錄（預設：這支腳本的上一層）")
     ap.add_argument("--strict", action="store_true", help="WARN 也回傳 1")
@@ -392,11 +477,12 @@ def main():
     if args.root:
         ROOT = os.path.abspath(args.root)
         LOCK = os.path.join(ROOT, "tools", "i18n.lock.json")
+        DEMO_DIR = os.path.join(ROOT, "demo")
     if args.update_lock:
         update_lock()
         return 0
     for fn in (check_plugin_files, check_skills, check_templates, check_readme,
-               check_locales, check_prompts, check_freshness):
+               check_locales, check_prompts, check_freshness, check_demo):
         fn()
     order = {"FAIL": 0, "WARN": 1}
     results.sort(key=lambda r: (order.get(r[0], 2), r[1]))

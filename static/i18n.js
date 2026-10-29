@@ -7,6 +7,7 @@
    - 換語言：右下的語言選單，記在瀏覽器；預設中文（zh-TW）。 */
 (function () {
   const LANGS = [["zh-TW", "繁體中文"], ["en", "English"], ["ja", "日本語"]];
+  const SAME = "==";   // 語言檔的值填這個＝三語同形，執行時直接用中文原文（不顯示 ==）
   const CJK = /[぀-ヿ㐀-鿿]/;
   const SKIP_TAG = new Set(["SCRIPT", "STYLE", "TEXTAREA", "PRE", "INPUT", "svg", "SVG"]);   // CODE 不跳過：說明文字裡常有 <code> 夾著介面詞；真正的程式碼區塊是 PRE
   const ATTRS = ["title", "placeholder", "aria-label"];
@@ -28,6 +29,7 @@
       const d = JSON.parse(x.responseText);
       Object.keys(d).forEach((k) => {
         if (k.charAt(0) === "_") return;
+        if (d[k] === SAME) return;   // 同形標記：三語相同（路徑、檔名、語言名稱），直接顯示中文原文
         if (/\{\d+\}/.test(k)) {
           const re = new RegExp("^" + k.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{(\d+)\}/g, "(?<g$1>[\\s\\S]*?)") + "$");
           pats.push([re, d[k]]);

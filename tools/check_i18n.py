@@ -7,6 +7,7 @@
   3. 介面翻譯 static/locales/en.json、ja.json：{0} 變數與原文一致、en／ja 彼此一致；不能有空值
      （原文 4 字以內的片段，如「章」「張」，某語言不需要時允許留空）；英文值不能有假名。
   4. 介面翻譯的資料夾路徑與 .md 檔名：key（中文原文）裡出現的路徑，值裡必須原樣出現（實際資料夾是中文名，不能翻譯）。
+     值填 "==" 表示三語同形（路徑、檔名、語言名稱）：執行期直接顯示原文，不驗變數與路徑。
 有問題時列出鍵名並回傳 1，全過回傳 0。"""
 import json
 import os
@@ -20,6 +21,7 @@ sys.path.insert(0, ROOT)
 HAN = re.compile(r"[㐀-鿿豈-﫿]")
 KANA = re.compile("[" + chr(0x3040) + "-" + chr(0x30fa) + chr(0x30fc) + "-" + chr(0x30ff) + "]")   # 平假名＋片假名；中點「・」(U+30FB) 不算
 VAR = re.compile(r"\{[A-Za-z_0-9]*\}")
+SAME = "=="   # 同形標記：三語相同，執行期顯示原文（static/i18n.js 會略過這個值）
 
 # ---- 英文包允許出現的中文：先把這些樣式從字串拿掉，再看還有沒有漢字 ----
 _PATH_HEAD = r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|\.studio)"
@@ -102,7 +104,7 @@ def check_locales(errors):
                 errors.append("en.json 與 ja.json 的 {0} 變數不同：%s（en %s／ja %s）" % (k[:40], va, vb))
     for n, d in loc.items():
         for k, v in d.items():
-            if isinstance(v, str) and not k.startswith("_"):
+            if isinstance(v, str) and not k.startswith("_") and v != SAME:
                 ks = sorted(re.findall(r"\{\d+\}", k))
                 vs = sorted(re.findall(r"\{\d+\}", v))
                 if ks != vs:
@@ -125,7 +127,7 @@ def ui_paths(key):
 def check_paths(loc, errors):
     for n, d in loc.items():
         for k, v in d.items():
-            if k.startswith("_") or not isinstance(v, str):
+            if k.startswith("_") or not isinstance(v, str) or v == SAME:
                 continue
             for p in ui_paths(k):
                 if p not in v:

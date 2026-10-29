@@ -632,12 +632,24 @@ def main():
         print("\n   （假 provider 只驗流程與提示詞組裝；數字不代表品質，要比品質請用 --provider）")
 
     if base_path:
-        rows, regress = compare_with(flatten(json.loads(read(base_path)).get("results") or {}),
-                                     flatten(results))
+        with open(base_path, encoding="utf-8") as f:
+            base = json.load(f)
         print("\n== 與基線 %s 比對" % os.path.basename(base_path))
+        # 假 provider 的分數沒有品質意義，拿它跟真基線比只會看到一堆假退步
+        if (base.get("mode") or "") != mode:
+            print("   基線是 %s、這次是 %s → 不比（模式不同，數字沒有可比性）"
+                  % (base.get("mode") or "?", mode))
+            return 0
+        rows, regress = compare_with(flatten(base.get("results") or {}), flatten(results))
+        shown_marks = {"退步", "進步", "不同"}
+        counts = {}
         for k, b, n, mark in rows:
-            if mark:
+            counts[mark or "相同"] = counts.get(mark or "相同", 0) + 1
+            if mark in shown_marks:
                 print("   %-8s %-42s %s → %s" % (mark, k, b, n))
+        extra = ["%s %d" % (k, v) for k, v in sorted(counts.items()) if k not in shown_marks]
+        if extra:
+            print("   （這次沒比到的：%s）" % "、".join(extra))
         print("   " + ("有 %d 項退步" % len(regress) if regress else "沒有退步的指標"))
         return 1 if regress else 0
     return 0

@@ -18,6 +18,7 @@
   6. 提示詞包：鍵與 {變數} 是否一致、英文包有沒有中文句子、長度比例離群（可能漏翻或整段改寫）。
   7. 翻譯新鮮度：tools/i18n.lock.json 記下每個檔案上次同步時的雜湊；繁中改了但 en／ja 沒動 → WARN「待更新翻譯」。
   8. 示範書範本：demo/ 三語示範書的 `_範本/` 檔案集是否一致（新手照範本做，缺檔就是坑）。
+  9. 術語表 i18n/glossary.tsv：語言檔與 README 有沒有用到「禁用譯法」，以及介面譯法是否與表一致。
 
 為什麼要這支：check_i18n.py 驗的是「已存在的鍵彼此一致」，管不到「原始碼新增的字串根本沒進語言檔」，
 也管不到三份 Markdown 的章節結構走鐘。這支補那兩個洞。
@@ -466,6 +467,74 @@ def check_demo():
 
 
 # ---------------------------------------------------------------------------
+# 9. 術語表
+# ---------------------------------------------------------------------------
+def load_glossary():
+    """i18n/glossary.tsv → [(zh, en, ja, {"en": [禁用…], "ja": [...]})]。"""
+    p = os.path.join(ROOT, "i18n", "glossary.tsv")
+    if not os.path.isfile(p):
+        return []
+    rows = []
+    for line in read(p).splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        cells = line.split("\t")
+        if len(cells) < 3:
+            add("WARN", "glossary", "術語表有一行欄位不足（要 zh／en／ja 三欄）：%s" % line[:40])
+            continue
+        zh, en, ja = cells[0].strip(), cells[1].strip(), cells[2].strip()
+        if (zh, en) == ("zh", "en"):          # 表頭
+            continue
+        banned = {"en": [], "ja": []}
+        if len(cells) > 3 and cells[3].strip():
+            for part in cells[3].split(";"):
+                lang, _, terms = part.strip().partition(":")
+                lang = lang.strip()
+                if lang in banned:
+                    banned[lang] = [t.strip() for t in terms.split("|") if t.strip()]
+        rows.append((zh, en, ja, banned))
+    return rows
+
+
+def check_glossary():
+    rows = load_glossary()
+    if not rows:
+        add("WARN", "glossary", "沒有 i18n/glossary.tsv，跳過術語檢查")
+        return
+    loc = {}
+    for lang, fn in (("en", "en.json"), ("ja", "ja.json")):
+        p = os.path.join(ROOT, "static", "locales", fn)
+        if os.path.isfile(p):
+            loc[lang] = json.loads(read(p))
+    docs = {"en": "README.en.md", "ja": "README.ja.md"}
+    texts = {lang: read(os.path.join(ROOT, fn)) for lang, fn in docs.items()}
+    hits = []
+    for zh, en, ja, banned in rows:
+        canon = {"en": en, "ja": ja}
+        for lang in ("en", "ja"):
+            for term in banned[lang]:
+                where = []
+                keys = [k for k, v in loc.get(lang, {}).items() if isinstance(v, str) and term in v]
+                if keys:
+                    where.append("語言檔 %d 條（例：%s）" % (len(keys), keys[0][:24]))
+                if term in texts.get(lang, ""):
+                    where.append(docs[lang])
+                if where:
+                    hits.append((lang, term, zh, canon[lang], "、".join(where)))
+    for lang, term, zh, want, where in hits[:10]:
+        add("WARN", "glossary", "%s 用了禁用譯法「%s」，「%s」該用「%s」：%s" % (lang, term, zh, want, where))
+    if len(hits) > 10:
+        add("WARN", "glossary", "另有 %d 條禁用譯法命中（先修上面 10 條）" % (len(hits) - 10))
+    # 表與實作不能各說各話：介面有這個 key，值就該跟表一樣
+    for lang in ("en", "ja"):
+        for zh, _, ja, _banned in rows:
+            want = ja if lang == "ja" else _
+            have = loc.get(lang, {}).get(zh)
+            if isinstance(have, str) and have != want and have != SAME:
+                add("WARN", "glossary", "%s.json 的「%s」是「%s」，術語表定的是「%s」" % (lang, zh, have, want))
+
+
+# ---------------------------------------------------------------------------
 def main():
     global ROOT, LOCK, DEMO_DIR
     ap = argparse.ArgumentParser()
@@ -482,7 +551,7 @@ def main():
         update_lock()
         return 0
     for fn in (check_plugin_files, check_skills, check_templates, check_readme,
-               check_locales, check_prompts, check_freshness, check_demo):
+               check_locales, check_prompts, check_freshness, check_demo, check_glossary):
         fn()
     order = {"FAIL": 0, "WARN": 1}
     results.sort(key=lambda r: (order.get(r[0], 2), r[1]))

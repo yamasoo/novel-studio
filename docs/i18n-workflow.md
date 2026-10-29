@@ -17,7 +17,7 @@ python tools/prompt_lang_audit.py  # 假 provider 跑 3 章，列出 en／ja 書
 | 檢查 | FAIL（擋 push） | WARN（只印出來） |
 |---|---|---|
 | `check_i18n` | 鍵或 `{變數}` 不一致、空值、路徑被翻譯 | — |
-| `check_parity` | 外掛檔案不對等、SKILL frontmatter／標題層級／引用不同（繁中專屬檔已白名單）、範本缺檔、README 連到不存在的路徑、介面字串沒翻 | README 標題分佈、表格列數、提示詞長度比例、失效舊鍵、翻譯新鮮度、示範書 `_範本/` 檔案集不一致 |
+| `check_parity` | 外掛檔案不對等、SKILL frontmatter／標題層級／引用不同（繁中專屬檔已白名單）、範本缺檔、README 連到不存在的路徑、介面字串沒翻 | README 標題分佈、表格列數、提示詞長度比例、失效舊鍵、翻譯新鮮度、示範書 `_範本/` 檔案集不一致、術語表禁用譯法 |
 | `prompt_lang_audit` | 送出的訊息含中文句子 | — |
 
 WARN 燒完（`check_parity --strict` 無 WARN）之後，才把 CI 改成 `--strict` 並讓 WARN 也擋。
@@ -44,3 +44,14 @@ python tools/check_parity.py --update-lock   # 三語都補完、確認過，才
 - 新增使用者看得到的文字時，同時補 `static/locales/en.json` 與 `ja.json`，否則 `check_parity` 會 FAIL「沒翻」。
 - 路徑、檔名、語言名稱這類三語本來就相同的字串，等值填 `"=="`（同形標記），不要用假翻譯充數。
 - 譯文品質由人工核可；AI 只產出 patch，不直接改正式檔（見檢視報告 T4）。
+
+## 術語表（`i18n/glossary.tsv`）
+
+「同一個概念，三語各叫什麼」只有一個答案：`zh`、`en`、`ja`、`禁用譯法`、`備註` 五欄，Tab 分隔。
+`check_parity` 會做兩件事：
+
+1. 語言檔與 `README.en.md`／`README.ja.md` 出現「禁用譯法」→ WARN（有人用了別的說法）。
+2. 術語在介面語言檔裡有對應 key 時，值必須與表一致 → WARN（表與實作走鐘）。
+
+新增概念（例如 P1 的「續寫合約」）時，先加一列到表裡，再改介面與提示詞——這樣「伏筆」「章綱」「讀者認知」
+這類詞不會在 UI、提示詞、README 三處各長一個樣子。

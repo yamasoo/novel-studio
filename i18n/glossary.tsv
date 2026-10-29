@@ -1,0 +1,37 @@
+# Novel Studio 三語術語表（v1）
+#
+# 這份表是「同一個概念，三語各叫什麼」的唯一答案。繁中是來源，en／ja 是產物。
+# 格式：Tab 分隔，一行一個術語；# 開頭是註解。
+#   欄位 1  zh           繁中原文（也是介面字串的 key）
+#   欄位 2  en           英文正式譯法（介面與文件中都該用這個）
+#   欄位 3  ja           日文正式譯法
+#   欄位 4  禁用譯法      看到就該改掉；寫法 en:甲|乙; ja:丙（分號分隔語言，直線分隔詞）
+#   欄位 5  備註         為什麼這樣定、適用範圍
+#
+# tools/check_parity.py 會檢查兩件事：
+#   1. 語言檔與文件裡出現「禁用譯法」→ WARN（有人用了別的說法）
+#   2. 術語在介面語言檔裡有對應 key 時，值必須與這張表一致 → WARN（表與實作走鐘）
+zh	en	ja	禁用譯法	備註
+角色	Characters	キャラクター	en:personas	介面清單標題用複數；單數人物在句中用 character
+角色狀態	Character states	キャラ状態	en:character status	介面與提示詞沿用「キャラ状態」，不要寫成 キャラクターの状態
+章綱	Chapter cards	章カード	en:chapter outlines; ja:章のあらすじ	章節級大綱＝章カード；「章のあらすじ」是本專案給「章節摘要」的譯法，別混用
+卷綱	Volume outline	巻のあらすじ	en:volume summary; ja:巻アウトライン	卷級大綱
+全書大綱	Book outline	全体あらすじ	en:full outline; ja:全書アウトライン	整本書的大綱
+大綱	Outline	あらすじ	ja:アウトライン	泛指「大綱」這個資料夾
+伏筆	Threads	伏線	en:hooks; ja:伏線一覧	程式與介面一律用 Threads；說明文裡的 foreshadowing 是普通英文，不算術語
+章節摘要	Chapter summary	章のあらすじ	en:chapter synopsis	「追蹤/章節摘要/」
+讀者認知	Reader knowledge	読者の認知	en:reader awareness; ja:読者認識	P1 續寫合約會用到
+讀者認知帳本	Reader knowledge ledger	読者の認知台帳		reader_ledger.py 產出的表
+去 AI 味	De-AI polish	AI っぽさの除去	en:de-AI; en:humanize; ja:AI 除去	技能名稱與流程步驟都用這個
+文風	Style	文体	en:writing style; ja:文調	「設定/文風.md」與 13 項文字指標
+章節結構	Chapter structure	章の構成	ja:章構造	「設定/章節結構/」
+名詞表	Glossary	用語集	en:term list; ja:用語表	書內專有名詞表
+狀態卡	Status card	状態カード	en:state card	「追蹤/狀態卡.md」；句中可小寫
+時間線	Timeline	年表	ja:タイムライン	「追蹤/時間線.md」
+勢力	Factions	勢力		「設定/勢力/」
+故事核心	Story core	物語の核		「設定/故事核心.md」
+世界觀	World	世界観	en:worldbuilding	「設定/世界觀/」
+作者偏好	Author preferences	作者の好み		「設定/作者偏好.md」
+整章自動流程	Full-chapter automation	章の自動作成フロー	en:auto pipeline	側邊欄與流程頁的標題
+續寫合約	Continuation contract	続き書きの契約	en:continuation agreement	P1 新增：拆書／續寫後產生的「不可變事實＋聲線＋待收懸念」
+逆向拆書	Book reverse-engineering	逆分解	en:book splitting	reverse.py 的產品名稱

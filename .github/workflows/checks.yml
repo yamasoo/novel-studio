@@ -1,7 +1,7 @@
 name: checks
 
 # 目的：把「靠人記得跑」的檢查變成 push 就擋。
-# 這支 workflow 不呼叫任何模型、不花錢，跑完約 1 分鐘（prompt_lang_audit 用的是假 provider）。
+# 這支 workflow 不呼叫任何模型、不花錢，跑完約 1 分鐘（prompt_lang_audit 與 book_eval 用的是假 provider）。
 # check_parity 以 --strict 跑：WARN 也擋（2026-10-29 起 WARN 已歸零；那天之前只擋 FAIL）。
 
 on:
@@ -9,6 +9,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * *"     # 每天 02:00（Asia/Taipei）：夜間跑一次回歸測試
 
 env:
   PYTHONUTF8: "1"
@@ -39,6 +41,7 @@ jobs:
       - name: prompt_lang_audit
         run: python tools/prompt_lang_audit.py
 
-      # 4) 之後可以加的煙霧測試（目前 repo 沒有測試，先留位置）
-      # - name: smoke
-      #   run: python -m pytest -q
+      # 4) 回歸測試的冒煙版：三本示範書各跑續寫／去 AI 味／審查一次（假 provider）。
+      #    只驗流程與提示詞組裝沒有壞；要驗品質請在本機跑真 provider 並用 --baseline 比對。
+      - name: book_eval（假 provider）
+        run: python tools/book_eval.py

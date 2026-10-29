@@ -16,6 +16,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import webbrowser
 
 from fastapi import FastAPI, HTTPException, Request
@@ -78,9 +79,23 @@ def load_config():
 
 
 def save_config(cfg):
+    """寫設定檔：先寫 .tmp 再換掉，避免寫到一半斷電／被同步程式鎖住時留下半個 JSON。"""
     with _cfg_lock:
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        tmp = CONFIG_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, CONFIG_PATH)
+
+
+def save_config_or_400(cfg):
+    """存設定；失敗時回 400 加原因（而不是讓它變成 HTTP 500 的一頁 traceback）。"""
+    try:
+        save_config(cfg)
+    except OSError as e:
+        raise HTTPException(400, "設定存不起來（%s）：%s。請確認工作台資料夾可以寫入。"
+                            % (CONFIG_PATH, getattr(e, "strerror", None) or e))
 
 
 CONFIG = load_config()
@@ -196,6 +211,19 @@ async def http_err(request, exc):
     return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
 
+@app.exception_handler(Exception)
+async def unhandled(request, exc):
+    """沒預期的例外：後端視窗印完整堆疊，前端拿到一句人話（而不是只有「HTTP 500」）。"""
+    traceback.print_exc()
+    print("↑ 上面是 %s %s 的完整堆疊" % (request.method, request.url.path), flush=True)
+    # Python 3.11+ 會把同步端點的例外包成 ExceptionGroup，訊息要先剝到真正那一層才有用
+    root, hops = exc, 0
+    while hasattr(root, "exceptions") and getattr(root, "exceptions", None) and hops < 5:
+        root, hops = root.exceptions[0], hops + 1
+    return JSONResponse({"error": "工作台內部錯誤（%s：%s）。完整堆疊在後端視窗，請把它貼給開發者。"
+                                 % (type(root).__name__, str(root)[:200])}, status_code=500)
+
+
 # ---------------------------------------------------------------------------
 # 設定
 # ---------------------------------------------------------------------------
@@ -229,8 +257,15 @@ async def set_config(req: Request):
             raise HTTPException(400, "連接埠要在 1024～65535 之間")
         CONFIG["port"] = port
     if body.get("create_library") and CONFIG.get("library"):
-        os.makedirs(CONFIG["library"], exist_ok=True)
-    save_config(CONFIG)
+        lib = CONFIG["library"]
+        try:
+            os.makedirs(lib, exist_ok=True)
+        except OSError as e:
+            raise HTTPException(400, "書庫資料夾建不起來（%s）：%s。請確認這個路徑存在、而且是工作台有權寫入的位置。"
+                                % (lib, getattr(e, "strerror", None) or e))
+        if not os.path.isdir(lib):
+            raise HTTPException(400, "書庫路徑不是資料夾：%s" % lib)
+    save_config_or_400(CONFIG)
     return get_config()
 
 
@@ -278,8 +313,12 @@ async def set_providers(req: Request):
     CONFIG["providers"] = keep
     for pid, key in (body.get("keys") or {}).items():
         if key is not None:
-            providers.save_secret(HERE, pid, key.strip())
-    save_config(CONFIG)
+            try:
+                providers.save_secret(HERE, pid, key.strip())
+            except Exception as e:      # 金鑰庫不可用（憑證管理員被鎖、keyring 後端壞掉……）
+                raise HTTPException(400, "金鑰存不起來（%s）：%s。可以改用環境變數 %s，或寫進 secrets.json。"
+                                    % (pid, e, (providers.resolve(keep, pid) or {}).get("key_env") or "（見執行者設定）"))
+    save_config_or_400(CONFIG)
     return get_config()
 
 
@@ -909,7 +948,7 @@ async def illust_config_save(req: Request):
     if cur.get("backend") not in ("forge", "comfy"):
         cur["backend"] = "forge"
     CONFIG["illust"] = cur
-    save_config(CONFIG)
+    save_config_or_400(CONFIG)
     return illust_config()
 
 

@@ -62,12 +62,13 @@ HIGHER_BETTER = {
     "card_coverage": True, "llm_ok": True,
     "card_coverage_vs_human": True, "names_kept_vs_human": True,
     "llm_card": True, "llm_style": True, "llm_continuity": True, "llm_readable": True,
-    "style_obvious": False, "style_slight": False,
+    "style_obvious": False, "style_slight": False, "style_max_rel": False,
     "issues": False, "issues_must": False, "length_ratio_off": False,
 }
 # 容許浮動：在門檻內不算退步（避免每次跑都在跳噪音）
 TOLERANCE = {"names_kept": 0.05, "digits_kept": 0.02, "review_quote_hit": 0.1,
              "length_ratio_off": 0.05, "style_slight": 1, "style_obvious": 0.5,
+             "style_max_rel": 0.1,
              "card_coverage": 0.05, "card_coverage_vs_human": 0.1, "names_kept_vs_human": 0.1,
              # LLM 評分是 1–5 分、有噪音：差 0.5 分以內不算退步
              "llm_card": 0.5, "llm_style": 0.5, "llm_continuity": 0.5, "llm_readable": 0.5}
@@ -146,30 +147,21 @@ UNMEASURED = -1
 
 
 def style_metrics(book, text):
-    """文風偏差：目標優先取 設定/文風.md 的指標；沒填就用「作者自己的正文」當基準。
+    """文風偏差：直接借 style_loop（它會自己切到「這本書的語言」的分析器）。
 
-    示範書與不少實際的書都沒有填文風指標，這時退回「用全部正文算一組指標」——
-    仍然有意義（比的是「像不像作者已經寫過的東西」），而且不需要人工先填資料。
-    樣本太短（shared 要求 300 字以上）就標成無法量測，不要用 0 假裝「完全吻合」。
+    之前這裡自己呼叫 shared.analyze，但沒設語言——日文書會用中文分析器算，
+    人類原作被誤判成「4 項明顯」（正確是 0）。同一套程式只能有一份。
     """
-    target = shared.parse_metrics(read(os.path.join(book, "設定", "文風.md")))
-    if not target:
-        sample = shared.book_sample(book)
-        if not sample.strip():
-            return {"style_obvious": UNMEASURED, "style_slight": UNMEASURED, "style_basis": "none"}
-        try:
-            target = shared.analyze(sample, exclude=shared.book_names(book))
-        except shared.SharedError:
-            return {"style_obvious": UNMEASURED, "style_slight": UNMEASURED, "style_basis": "short"}
-    if not text.strip():
-        return {"style_obvious": UNMEASURED, "style_slight": UNMEASURED, "style_basis": "empty"}
-    try:
-        actual = shared.analyze(text, exclude=shared.book_names(book))
-    except shared.SharedError:
-        return {"style_obvious": UNMEASURED, "style_slight": UNMEASURED, "style_basis": "short"}
-    rows = shared.compare(target, actual)
-    return {"style_obvious": sum(1 for r in rows if r["偏離"] == "明顯"),
-            "style_slight": sum(1 for r in rows if r["偏離"] == "稍有")}
+    from studio import style_loop
+    ev = style_loop.evaluate(book, text)
+    if ev.get("verdict") in ("short", "empty", "skip") or not ev.get("rows"):
+        basis = {"skip": "none", "empty": "empty"}.get(ev.get("verdict"), "short")
+        return {"style_obvious": UNMEASURED, "style_slight": UNMEASURED, "style_basis": basis}
+    m = {"style_obvious": ev["obvious"], "style_slight": ev["slight"],
+         "style_basis": ev.get("basis") or "?"}
+    if ev.get("max_rel") is not None:
+        m["style_max_rel"] = ev["max_rel"]
+    return m
 
 
 def card_coverage(card, output):
@@ -457,9 +449,11 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
                         continue
                     ref = score_continue(book, lang, card, human) if human else {}
                     removed = mask_from(book, no)      # 遮住這一章以後的稿子
-                    run_action(book, lang, "write", {"from": no, "to": no}, prov)
+                    job = run_action(book, lang, "write", {"from": no, "to": no}, prov)
                     made = project._scan_dir(os.path.join(book, "候選")).get(no)
                     text = read(os.path.join(book, "候選", made)) if made else ""
+                    notes = [e.get("text", "") for e in job.events
+                             if e["kind"] == "log" and "文風" in (e.get("text") or "")]
                     m = score_continue(book, lang, card, text)
                     m["masked"] = removed
                     if ref:
@@ -472,9 +466,11 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
                     if judge_on:
                         m.update(judge(prov, lang, card, text))
                     if texts is not None:
-                        # 問題的行號要對得上，所以存「模型產出」與「檢查結果」
+                        # 問題的行號要對得上，所以存「模型產出」與「檢查結果」；
+                        # style_notes 可以看出這次有沒有觸發「文風重寫」、重寫後有沒有比較好
                         texts["continue"] = {"chapter": no, "text": text[:12000],
-                                             "card": card[:2000], "issues": issues_of(book, text)[:60]}
+                                             "card": card[:2000], "issues": issues_of(book, text)[:60],
+                                             "style_notes": notes}
             print("   %-6s %-9s %5.1f 秒" % (lang, task, time.time() - t0), flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

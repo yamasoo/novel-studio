@@ -295,3 +295,70 @@ def llm_pass(prov, book_dir, d, max_chars=6000):
         return data if isinstance(data, dict) else {}
     except Exception as e:
         return {"error": str(e)[:120]}
+
+
+# ---------------------------------------------------------------------------
+# 卷綱更新草稿：寫成檔案、附加回卷綱（都不覆蓋原本內容）
+def volume_rel(book_dir, no):
+    """這一章屬於哪一份卷綱（看章綱的「所屬卷」；找不到就用最後一卷）。"""
+    vol = (project.split_frontmatter(_card(book_dir, no))[0] or {}).get("所屬卷") or ""
+    d = os.path.join(book_dir, "大綱", "卷綱")
+    files = []
+    if os.path.isdir(d):
+        files = sorted(f for f in os.listdir(d) if f.endswith(".md"))
+    if files:
+        if vol:
+            for f in files:
+                if vol in f:
+                    return "大綱/卷綱/" + f
+        return "大綱/卷綱/" + files[-1]
+    return "大綱/卷綱_第一卷.md"
+
+
+def plan_md(res, a, b):
+    """把 LLM 的偏離結果寫成「卷綱更新」草稿（markdown）。"""
+    if res.get("error"):
+        return "（產生失敗：%s）" % res["error"]
+    L = ["# 卷綱更新草稿（第%d–%d 章體檢）" % (a, b), "",
+         "> 由卷末體檢產生。看過再決定要不要附加到卷綱；不喜歡就直接丟掉。", ""]
+    for key, label in (("missed", "卷綱有、實際沒寫到"), ("added", "實際有、卷綱沒安排"),
+                       ("vanished", "卷綱有、章節沒出現的角色")):
+        items = res.get(key) or []
+        if items:
+            L.append("## " + label)
+            L += ["- " + str(x) for x in items]
+            L.append("")
+    if res.get("plan"):
+        L.append("## 建議改卷綱")
+        L += ["- " + str(x) for x in res["plan"]]
+        L.append("")
+    if res.get("note"):
+        L += ["> " + str(res["note"]), ""]
+    return "\n".join(L)
+
+
+def save_plan(book_dir, a, b, text):
+    """把草稿寫到 候選/卷綱更新_第a-b章.md（不進大綱，避免模型直接改你的規劃）。"""
+    rel = "候選/卷綱更新_第%d-%d章.md" % (a, b)
+    p = project.safe_path(book_dir, rel)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text if text.endswith("\n") else text + "\n")
+    return rel
+
+
+def apply_plan(book_dir, no, text, a=None, b=None):
+    """把草稿「附加」到卷綱檔尾（原檔先備份），回傳 (卷綱相對路徑, 備份路徑)。"""
+    from . import tracking
+    rel = volume_rel(book_dir, no)
+    p = project.safe_path(book_dir, rel)
+    bak = tracking.backup(book_dir, p, "卷綱更新前")
+    old = project.read_text(p) if os.path.isfile(p) else ("---\n類型: 卷綱\n---\n\n# 卷綱\n")
+    head = "\n\n---\n\n## 卷綱更新（第%s–%s章體檢）\n\n" % (a or "?", b or "?")
+    body = text.strip()
+    # 草稿裡的第一個 # 標題會和卷綱標題打架，去掉它
+    if body.startswith("# "):
+        body = body.split("\n", 1)[1].lstrip()
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write(old.rstrip() + head + body + "\n")
+    return rel, bak

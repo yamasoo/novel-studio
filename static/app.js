@@ -446,6 +446,53 @@ async function spinoffGenerate(id, source, note) {
     toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
   } catch (e) { fail(e); }
 }
+/* ------------------------------------------------------------------ 卷末體檢（漂移報告） */
+async function driftDialog(from, to) {
+  modal(`<h2>卷末體檢</h2>
+    <p class="muted small">拿設定回頭對正文：哪幾章沒寫到章綱、哪些角色久未登場、哪些伏筆欠帳、哪些章文風偏了。本機計算，不花錢。</p>
+    <div class="row">
+      <label class="f" style="width:120px"><span>從第幾章</span><input type="number" id="dr-from" value="${from}"></label>
+      <label class="f" style="width:120px"><span>到第幾章</span><input type="number" id="dr-to" value="${to}"></label>
+      <span class="grow"></span>
+      <button class="primary" id="dr-go">開始檢查</button>
+    </div>
+    <div id="dr-out" style="margin-top:12px"></div>`,
+  () => {
+    $("#dr-go").onclick = async () => {
+      const a = parseInt($("#dr-from").value) || 1, b = parseInt($("#dr-to").value) || a;
+      const out = $("#dr-out");
+      out.innerHTML = `<p class="muted">檢查中…</p>`;
+      try {
+        const r = await api("GET", `${B("/drift")}?from=${a}&to=${b}`);
+        out.innerHTML = `<div class="md">${md(r.report)}</div>
+          <div class="row" style="margin-top:10px">
+            <span class="grow"></span>
+            <button id="dr-plan">產生卷綱更新草稿（用 ${esc(Panel.provName())}）</button>
+          </div>
+          <div id="dr-plan-out"></div>`;
+        $("#dr-plan").onclick = async () => {
+          const box = $("#dr-plan-out");
+          box.innerHTML = `<p class="muted">產生中…（約 1 次呼叫）</p>`;
+          try {
+            const p = await api("POST", B("/drift/plan"), { from: a, to: b, provider: Panel.prov() });
+            box.innerHTML = `<div class="md">${md(p.plan_md)}</div>
+              <div class="row"><span class="grow"></span><button id="dr-apply">附加到卷綱</button></div>
+              <p class="muted small">附加＝在 <code>${esc(p.volume_file)}</code> 末尾加一節，不會覆蓋原本的卷綱。</p>`;
+            $("#dr-apply").onclick = async () => {
+              try {
+                const res = await api("POST", B("/drift/apply"), { from: a, to: b, draft: p.draft });
+                toast("已附加到 " + res.volume_file);
+                box.innerHTML = `<p class="muted">已附加到 <code>${esc(res.volume_file)}</code>（原本的內容沒動）。</p>`;
+              } catch (e) { fail(e); }
+            };
+          } catch (e) { fail(e); }
+        };
+      } catch (e) { fail(e); }
+    };
+    $("#dr-go").click();
+  });
+}
+
 window.initFolder = async (id) => {
   go("#/b/" + enc(id));
   setTimeout(() => Panel.openForm("setup_new"), 300);
@@ -478,6 +525,7 @@ async function viewOverview(view) {
           : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}章起的章綱</button>`}
         <button onclick="pipeModal(${next.no})">⚡ 整章自動</button>
         <button onclick="Panel.openForm('review',{from:${Math.max(1, ov.latest - 4)},to:${Math.max(1, ov.latest)}})">審查最近章節</button>
+        <button onclick="driftDialog(${Math.max(1, ov.latest - 9)}, ${Math.max(1, ov.latest)})">卷末體檢</button>
       </div>
     </div>
     <div class="pipe-box"></div>

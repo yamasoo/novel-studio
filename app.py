@@ -19,7 +19,7 @@ import time
 import traceback
 import webbrowser
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from urllib.parse import quote, urlsplit
 from fastapi.staticfiles import StaticFiles
@@ -27,7 +27,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, wb_check  # noqa: E402
 
 VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -1615,6 +1615,51 @@ async def spinoff_generate(book_id: str, req: Request):
     return {"draft": rel, "preview": spinoff.show(data), "guard": data.get("護欄") or {}}
 
 
+@app.get("/api/books/{book_id}/drift")
+def drift_report(book_id: str, from_: int = Query(None, alias="from"), to: int = None):
+    """卷末體檢：本機計算的漂移報告（不呼叫模型）。"""
+    d = book_dir(book_id)
+    prompts.set_lang(lang_mod.book_lang(d))
+    info = drift.drift(d, from_, to)
+    return {"report": drift.report_md(d, info), "findings": drift.findings(info),
+            "range": info["range"], "count": len(drift.findings(info))}
+
+
+@app.post("/api/books/{book_id}/drift/plan")
+async def drift_plan(book_id: str, req: Request):
+    """用模型產生「卷綱更新」草稿（只送摘要與卷綱，約 1 次呼叫）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    a, b = int(body.get("from") or 1), int(body.get("to") or 1)
+    prov = get_provider(body.get("provider"))
+    if prov.get("type") == "claude_code":
+        raise HTTPException(400, "產生卷綱草稿要走 API 的執行者（Claude Code 不行）。")
+    prompts.set_lang(lang_mod.book_lang(d))
+    info = drift.drift(d, a, b)
+    res = drift.llm_pass(prov, d, info)
+    text = drift.plan_md(res, a, b)
+    rel = drift.save_plan(d, a, b, text)
+    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b),
+            "error": res.get("error") or ""}
+
+
+@app.post("/api/books/{book_id}/drift/apply")
+async def drift_apply(book_id: str, req: Request):
+    """把草稿附加到卷綱（原檔先備份；只附加、不覆蓋）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    a, b = int(body.get("from") or 1), int(body.get("to") or 1)
+    draft = (body.get("draft") or "").strip()
+    if not draft:
+        raise HTTPException(400, "沒有草稿可以附加")
+    p = wrap(lambda: project.safe_path(d, draft))
+    if not os.path.isfile(p) or not draft.startswith("候選/"):
+        raise HTTPException(400, "草稿路徑不對：%s" % draft)
+    rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b))
+    return {"volume_file": rel, "backup": os.path.basename(bak or "")}
+
+
+# ---------------------------------------------------------------------------
 # 各語言的示範書：語言 → (demo/ 底下的資料夾, 放進書庫後的名稱)
 DEMO_BOOKS = {
     "zh-TW": ("退婚之後", "退婚之後（示範）"),

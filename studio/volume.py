@@ -149,11 +149,28 @@ def _heading_volume(line):
     return _cn_int(m.group(1)) if m else None
 
 
-def _sync_book_outline(book_dir, no, fm):
-    """採用卷綱後，把這一卷補進 大綱/全書大綱.md 的「分卷」（只追加、不覆蓋），並回傳警告。
+def contract_bullets(text):
+    """從卷綱抓「卷契約」那一段的項目（- 本卷賣點：…），用來帶進全書大綱。"""
+    m = re.search(r"^##\s*卷契約\s*$(.*?)(?=^##\s|\Z)", text or "", re.S | re.M)
+    if not m:
+        return []
+    out = []
+    for line in m.group(1).splitlines():
+        s = line.strip()
+        if s.startswith("- ") and "：" in s:
+            out.append(s)
+    return out
 
-    全書大綱是作者寫的規劃；這裡只確保「已定案的卷」在裡面有一節，
-    卷的內容好不好、預計卷數對不對，仍然由作者判斷。
+
+def _bullet_key(line):
+    s = (line or "").strip().lstrip("-").strip()
+    return s.split("：", 1)[0].strip() if "：" in s else s
+
+
+def _sync_book_outline(book_dir, no, fm, bullets=None):
+    """把這一卷補進 大綱/全書大綱.md 的「分卷」：缺的一節就追加，缺的卷契約就補上。
+
+    只補不覆蓋：已有的句子不動，章節範圍對不上就只警告。
     """
     rel = "大綱/全書大綱.md"
     p = os.path.join(book_dir, *rel.split("/"))
@@ -166,27 +183,37 @@ def _sync_book_outline(book_dir, no, fm):
     if start is None:
         return ["全書大綱沒有「分卷」段，這次沒有同步（避免把內容塞錯地方）。"]
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-    same = None
     rng = str(fm.get("章節範圍") or "")
     nums = [int(x) for x in re.findall(r"\d+", rng)]
     lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
+    bullets = [b for b in (bullets or []) if b]
+    name = str(fm.get("卷名") or ("第%d卷" % no))
+
     for i in range(start, end):
         if _heading_volume(lines[i]) != no:
             continue
-        same = i
-        body = "\n".join(lines[i:i + 4])
-        other = [int(x) for x in re.findall(r"\d+", body)]
+        sec_end = next((j for j in range(i + 1, end) if lines[j].startswith(("### ", "## "))), end)
+        span_line = next((x for x in lines[i:sec_end] if x.strip().startswith("- 篇幅")), "")
+        other = [int(x) for x in re.findall(r"\d+", span_line)]
         if lo is not None and len(other) >= 2 and (other[0], other[1]) != (lo, hi):
-            return ["全書大綱的第 %d 卷寫的是第 %d–%d 章，這次採用的是第 %d–%d 章；已保留原本內容。"
+            return ["全書大綱的第 %d 卷寫的是第 %d–%d 章，這次是第 %d–%d 章；已保留原本內容。"
                     % (no, other[0], other[1], lo, hi)]
-        break
-    if same is not None:
-        return []
-    name = str(fm.get("卷名") or ("第%d卷" % no))
+        have = {_bullet_key(x) for x in lines[i:sec_end] if x.strip().startswith("- ")}
+        add = [b for b in bullets if _bullet_key(b) not in have]
+        if not add:
+            return []
+        # 插在「篇幅」那行後面（沒有就插在標題後面），卷綱連結留在最後
+        at = next((j for j in range(i + 1, sec_end) if lines[j].strip().startswith("- 篇幅")), i + 1)
+        new = lines[:at + 1] + add + lines[at + 1:]
+        return _write_outline(book_dir, p, new)
+
     block = ["### 第 %d 卷：%s" % (no, name), "",
-             "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0),
-             "- 卷綱：`大綱/卷綱_第%d卷.md`（已確認）" % no, ""]
-    new = lines[:end] + [""] + block + lines[end:]
+             "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0)] + bullets + \
+            ["- 卷綱：`大綱/卷綱_第%d卷.md`（已確認）" % no, ""]
+    return _write_outline(book_dir, p, lines[:end] + [""] + block + lines[end:])
+
+
+def _write_outline(book_dir, p, lines):
     try:
         from . import tracking
         tracking.backup(book_dir, p, "全書大綱同步前")
@@ -194,9 +221,21 @@ def _sync_book_outline(book_dir, no, fm):
         pass
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(new).rstrip() + "\n")
+        f.write("\n".join(lines).rstrip() + "\n")
     os.replace(tmp, p)
     return []
+
+
+def sync_outline(book_dir, no):
+    """把已採用的卷綱重新同步進全書大綱（補缺的卷契約；只補不覆蓋）。"""
+    no = int(no)
+    rel = "大綱/卷綱_第%d卷.md" % no
+    p = project.safe_path(book_dir, rel)
+    if not os.path.isfile(p):
+        raise project.ProjectError("找不到正式的 %s，先採用卷綱再同步。" % rel)
+    text = project.read_text(p)
+    fm, _body = project.split_frontmatter(text)
+    return _sync_book_outline(book_dir, no, fm or {}, contract_bullets(text))
 
 
 def adopt(book_dir, no):
@@ -230,7 +269,8 @@ def adopt(book_dir, no):
         os.remove(src)
     except OSError:
         pass
-    return {"rel": dst_rel, "warnings": _sync_book_outline(book_dir, no, fm)}
+    return {"rel": dst_rel,
+            "warnings": _sync_book_outline(book_dir, no, fm, contract_bullets(text))}
 
 
 def brief(missing, limit=3):

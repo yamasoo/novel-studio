@@ -1787,6 +1787,19 @@ async def book_volume_adopt(book_id: str, req: Request):
             "volumes": volume.list_volumes(d), "drafts": volume.drafts(d)}
 
 
+@app.post("/api/books/{book_id}/volumes/outline-sync")
+async def book_volume_outline_sync(book_id: str, req: Request):
+    """把已採用的卷綱重新同步進全書大綱（補卷契約；只補不覆蓋）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    try:
+        no = int(body.get("volume"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "缺少卷號")
+    warnings = wrap(lambda: volume.sync_outline(d, no))
+    return {"warnings": warnings, "volumes": volume.list_volumes(d)}
+
+
 @app.get("/api/books/{book_id}/tracking")
 def book_tracking(book_id: str):
     d = book_dir(book_id)

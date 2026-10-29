@@ -1082,6 +1082,7 @@ window.recoverView = async (id) => {
 /* ------------------------------------------------------------------ 大綱 */
 function volCard(v) {
   const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
+    ${x.kind === "卷" ? `<button class="sm" data-sync="${x.no}">${t("同步大綱")}</button>` : ""}
     <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
   const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
     <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
@@ -1102,6 +1103,17 @@ function bindVol(v) {
   if (nb) nb.onclick = () => Panel.openForm("volume_draft", { volume: v.next, from: v.from, to: v.from + 19 });
   el.querySelectorAll("[data-card]").forEach((b) => { b.onclick = () => { const [a, z] = b.dataset.card.split("-").map(Number); Panel.openForm("chapter_cards", { from: a, to: z }); }; });
   el.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => go('#/b/' + enc(S.book) + '/outline?f=' + enc(b.dataset.open)); });
+  el.querySelectorAll("[data-sync]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const r = await api("POST", B("/volumes/outline-sync"), { volume: Number(b.dataset.sync) });
+        const warn = (r && r.warnings) || [];
+        if (warn.length) toast(warn.join("；"), true);
+        else toast(t("已同步全書大綱"));
+        go(location.hash);
+      } catch (e) { fail(e); }
+    };
+  });
   el.querySelectorAll("[data-adopt]").forEach((b) => {
     b.onclick = async () => {
       try {

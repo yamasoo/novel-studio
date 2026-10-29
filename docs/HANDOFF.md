@@ -69,15 +69,24 @@
   `context.lang_plugin／skill_ref`（依 `prompts.cur_lang()`）；探針實測 en 書讀 plugin-en、ja 讀 plugin-ja。
   現在每次跑都會驗「該版在、別版不在」。
 
-## 下一步（第 3 週）
+### 第 3 週清單對照
+
+| # | 項目 | commit | 驗證 |
+|---|---|---|---|
+| 1 | P4：`tools/book_eval.py` 回歸測試 | `86dbe7e` | 三書×三任務跑完；指標對照已知答案；基線退步 → exit 1 |
+
+## 下一步（第 3 週還沒做的）
 
 1. **P3 文風保真閉環**：把 `shared.compare` 的 13 指標接進寫稿／去 AI 味之後，偏離就帶數字重寫一次。
-2. **T6 完整版**（選配）：把安裝／後端設定搬到 `docs/<lang>/`，README 只留導覽；現在只做了結構對齊。
-3. **續寫合約的兩件收尾**：
+   有了 P4 的指標，P3 的門檻可以先在示範書上校準，再進流程。
+2. **P4 的第二階段**（等有 API 金鑰時）：
+   - 用真 provider 跑一次，把 `eval/results/*-real.json` 複製成 `eval/baseline.json` 提交，之後每次改提示詞都比它
+   - 之後才考慮加「LLM 評分（固定 rubric）」，而且要跟確定性指標分開看
+   - 長篇 fixture（20 章以上）才能驗「第 30 章之後」的行為
+3. **T6 完整版**（選配）：把安裝／後端設定搬到 `docs/<lang>/`，README 只留導覽；現在只做了結構對齊。
+4. **續寫合約的兩件收尾**：
    - Claude Code 模式還沒吃到合約（`plugin*/skills/novel-setup/references/claude-md-template.md` 要加一行，三份）
-   - 「連續 10 章零衝突」還沒量：要真的跑十章，配合 P4 的回歸工具才有數字
-4. **P4 回歸工具**（`tools/book_eval.py`）：固定 fixture 的遮章續寫／去 AI 味／審查三種任務，
-   存 `eval/results/` 可與基線比；這是「改提示詞不再憑感覺」的前提。
+   - 「連續 10 章零衝突」還沒量：要真的跑十章＋長篇 fixture，P4 才量得出來
 
 > Claude Code 模式的提示詞已經全部改走語言包（`b9ee6f8`）：review、revise、deslop、goal、
 > illust、card 六個任務都不再寫死中文；`docs/i18n-workflow.md` 有新增字串時該做的三件事。

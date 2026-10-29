@@ -94,7 +94,7 @@ def _guard(data, source_dir):
     return similarity.names_in(text, forbidden(source_dir))
 
 
-def _ask(prov, rule, user, max_tokens=2000):
+def _ask(prov, rule, user, max_tokens=4000):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     text, _ = providers.chat(root, prov, [{"role": "system", "content": rule},
                                           {"role": "user", "content": user}],
@@ -129,7 +129,7 @@ def generate(prov, source_dir, note="", lang=None, rounds=0):
                        data.get("一句話前提", ""),
                        "、".join(c.get("名字", "") for c in (data.get("主角") or [])),
                        (dna.get("章節") or {}).get("平均") or 3000),
-                   max_tokens=1200)
+                   max_tokens=3000)   # 推理模型：思考也算在 max_tokens，別給太小
     data["卷綱"] = volumes.get("卷綱") or []
     data["骨架來源"] = os.path.basename(source_dir)
     data["護欄"] = {"撞到名字": _guard(data, source_dir), "禁用名單數": len(ban)}

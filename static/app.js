@@ -475,6 +475,11 @@ async function driftDialog(from, to) {
           box.innerHTML = `<p class="muted">產生中…（約 1 次呼叫）</p>`;
           try {
             const p = await api("POST", B("/drift/plan"), { from: a, to: b, provider: Panel.prov() });
+            if (p.error) {
+              box.innerHTML = `<p class="muted small" style="color:#b45309">產生失敗：${esc(p.error)}</p>
+                <p class="muted small">沒有存任何草稿，卷綱也沒動。可以再試一次，或換一個執行者。</p>`;
+              return;
+            }
             box.innerHTML = `<div class="md">${md(p.plan_md)}</div>
               <div class="row"><span class="grow"></span><button id="dr-apply">附加到卷綱</button></div>
               <p class="muted small">附加＝在 <code>${esc(p.volume_file)}</code> 末尾加一節，不會覆蓋原本的卷綱。</p>`;

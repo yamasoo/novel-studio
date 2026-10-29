@@ -1637,10 +1637,12 @@ async def drift_plan(book_id: str, req: Request):
     prompts.set_lang(lang_mod.book_lang(d))
     info = drift.drift(d, a, b)
     res = drift.llm_pass(prov, d, info)
+    if res.get("error"):        # 失敗不存草稿：不然「附加」會把失敗訊息寫進卷綱
+        return {"plan_md": "", "draft": "", "volume_file": drift.volume_rel(d, b),
+                "error": res["error"]}
     text = drift.plan_md(res, a, b)
     rel = drift.save_plan(d, a, b, text)
-    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b),
-            "error": res.get("error") or ""}
+    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b), "error": ""}
 
 
 @app.post("/api/books/{book_id}/drift/apply")

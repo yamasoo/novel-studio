@@ -275,8 +275,13 @@ DRIFT_RULE = """你是這本小說的責編。下面給你「卷綱」「這些�
 plan 是「卷綱該怎麼改」的具體條目（最多 5 條），沒有就給空陣列。不要寫程式碼圍欄。"""
 
 
-def llm_pass(prov, book_dir, d, max_chars=6000):
-    """把卷綱與章節摘要送給模型找偏離；回傳 dict（可能只有 note）。"""
+def llm_pass(prov, book_dir, d, max_chars=4000):
+    """把卷綱與章節摘要送給模型找偏離；回傳 dict（失敗時只帶 error）。
+
+    推理模型的「思考」也算在 max_tokens 裡：上限給太小，正文會是空的（實測 deepseek-flash
+    給 1200 就可能全被思考吃掉，回來只有空白）。所以這裡給 4000，失敗再重試一次（輸入更短、
+    要求更嚴），並把回覆片段放進錯誤訊息，方便判斷是「空回覆」還是「回傳了散文」。
+    """
     from . import providers
     a, b = d["range"]
     volume = contract.volume_outline(book_dir, a) or ""
@@ -286,15 +291,32 @@ def llm_pass(prov, book_dir, d, max_chars=6000):
         if p:
             sums.append("第%d章：%s" % (no, project.split_frontmatter(
                 project.read_text(os.path.join(book_dir, "追蹤", "章節摘要", p)))[1].strip()[:400]))
-    user = ("【卷綱】\n%s\n\n【章節摘要】\n%s" % (volume[:2000], "\n".join(sums)))[:max_chars]
-    try:
-        text, _ = providers.chat(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), prov,
-                                 [{"role": "system", "content": DRIFT_RULE},
-                                  {"role": "user", "content": user}], json_mode=True, max_tokens=1200)
-        data = providers.parse_json(text)
-        return data if isinstance(data, dict) else {}
-    except Exception as e:
-        return {"error": str(e)[:120]}
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    last = ""
+    for attempt, (limit, tail) in enumerate(((4000, ""), (4000, "\n\n只輸出一個 JSON 物件，不要任何說明文字。"))):
+        user = ("【卷綱】\n%s\n\n【章節摘要】\n%s%s"
+                % (volume[:2000], "\n".join(sums), tail))[:max_chars if attempt == 0 else max(1500, max_chars // 2)]
+        try:
+            text, usage = providers.chat(root, prov,
+                                         [{"role": "system", "content": DRIFT_RULE},
+                                          {"role": "user", "content": user}],
+                                         json_mode=True, max_tokens=limit)
+        except Exception as e:
+            last = "呼叫失敗：%s" % str(e)[:100]
+            continue
+        if not (text or "").strip():
+            last = "回覆是空的（%s）" % ("finish_reason=length，思考可能吃掉了額度"
+                                       if (usage or {}).get("finish_reason") == "length" else "模型沒有輸出內容")
+            continue
+        try:
+            data = providers.parse_json(text)
+        except Exception:
+            last = "模型回覆不是 JSON（前 60 字：%s）" % text.strip()[:60]
+            continue
+        if isinstance(data, dict):
+            return data
+        last = "模型回傳的不是物件（%s）" % type(data).__name__
+    return {"error": last or "未知錯誤"}
 
 
 # ---------------------------------------------------------------------------

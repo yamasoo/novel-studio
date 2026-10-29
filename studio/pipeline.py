@@ -160,6 +160,7 @@ class Pipeline:
             self.h["cancel"](self.job.id)
 
     def _run(self):
+        from . import autopilot
         prompts.set_lang(lang_mod.book_lang(self.d))   # 這條執行緒組的提示詞都用這本書的語言
         try:
             while True:
@@ -169,13 +170,15 @@ class Pipeline:
                 # 自動駕駛的檢查點：每 K 章停下來驗一次必須修與文風，不及格就不往下寫
                 every = int(self.h.get("autopilot_every") or 0)
                 if every and self.s["mode"] != "stop" and len(self.s["done_chapters"]) % every == 0:
-                    from . import autopilot
                     res = autopilot.checkpoint(self.d, no, every, checker=self.h.get("checker"))
                     self.s.setdefault("checkpoints", []).append(
-                        {"upto": no, "ok": res["ok"], "stats": res["stats"], "reasons": res["reasons"]})
+                        {"upto": no, "ok": res["ok"], "stats": res["stats"], "reasons": res["reasons"],
+                         "usage": dict(self.s.get("usage") or {})})
+                    cost = autopilot.cost_line(self.s.get("usage"))
                     if not res["ok"]:
                         self.s["status"] = "paused"
                         self.s["message"] = (autopilot.summary(res)
+                                             + ("\n" + cost if cost else "")
                                              + "\n\n（已寫到第%d章；處理完再按「繼續」就會接著寫。）" % no)
                         self.s["chapter"] = no + 1
                         self.s["steps"] = new_steps()
@@ -183,7 +186,10 @@ class Pipeline:
                         break
                 if no >= self.s["to"]:
                     self.s["status"] = "done"
-                    self.s["message"] = "第%d章已定稿。" % no + ("全部章節都完成了。" if self.s["from"] != no else "")
+                    cost = autopilot.cost_line(self.s.get("usage"))
+                    self.s["message"] = ("第%d章已定稿。" % no
+                                         + ("全部章節都完成了。" if self.s["from"] != no else "")
+                                         + (cost if cost else ""))
                     break
                 if self.s["mode"] == "stop":
                     self.s["status"] = "paused"
@@ -262,7 +268,23 @@ class Pipeline:
         if job.status != "done":
             errs = [e.get("text") for e in job.events if e.get("kind") == "error" and e.get("text")]
             raise StepFailed(errs[-1] if errs else "任務沒有完成（%s）" % job.status)
+        self._add_usage(job)
         return job
+
+    def _add_usage(self, job):
+        """把這一輪任務的 token 與費用累加到流程狀態（檢查點與 UI 都用得到）。"""
+        with self.lock:
+            u = self.s.setdefault("usage", {"prompt_tokens": 0, "completion_tokens": 0,
+                                            "cost": 0.0, "jobs": 0})
+            u["jobs"] = int(u.get("jobs") or 0) + 1
+            for e in reversed(job.events or []):
+                if e.get("kind") == "result":
+                    usage = e.get("usage") or {}
+                    u["prompt_tokens"] = int(u.get("prompt_tokens") or 0) + int(usage.get("prompt_tokens") or 0)
+                    u["completion_tokens"] = (int(u.get("completion_tokens") or 0)
+                                              + int(usage.get("completion_tokens") or 0))
+                    u["cost"] = round(float(u.get("cost") or 0) + float(e.get("cost") or 0), 4)
+                    break
 
     # ------------------------------------------------------------------ 各步驟
     def _cand(self, no):

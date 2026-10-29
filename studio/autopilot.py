@@ -87,3 +87,20 @@ def summary(res):
             s += "\n留意：" + res["stats"]["drift_note"]
         return s
     return "檢查點沒過，先停在這裡：\n" + "\n".join("- " + r for r in res["reasons"])
+
+
+def cost_line(usage):
+    """把流程累計的用量寫成一句話（給檢查點訊息用）。沒有資料就回空字串。"""
+    if not usage:
+        return ""
+    p = int(usage.get("prompt_tokens") or 0)
+    c = int(usage.get("completion_tokens") or 0)
+    cost = float(usage.get("cost") or 0)
+    if not (p or c or cost):
+        return ""
+    parts = ["這次流程累計 %d 次模型呼叫" % int(usage.get("jobs") or 0)]
+    if p or c:
+        parts.append("輸入 %s、輸出 %s tokens" % ("{:,}".format(p), "{:,}".format(c)))
+    if cost:
+        parts.append("約 $%.4f" % cost)
+    return "、".join(parts)

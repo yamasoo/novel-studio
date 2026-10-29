@@ -1522,6 +1522,13 @@ async function viewSettings(view) {
         <label><input type="radio" name="c-pmode" value="continue" ${c.pipeline_mode === "continue" ? "checked" : ""}><span>連續寫到最後一章</span></label>
       </div>
       <div class="muted small" style="margin-top:6px">章綱核對發現沒寫到的情節點，會一併交給修訂。開始時也可以臨時改這兩項。</div>
+      <div class="f" style="margin-top:12px"><span>自動駕駛：每幾章停下來檢查一次（0＝不檢查）</span></div>
+      <div class="grid g3">
+        <label class="f"><span>每幾章檢查</span><input type="number" id="c-ape" min="0" value="${esc(c.autopilot_every ?? 0)}"></label>
+        <label class="f"><span>必須修幾項就停</span><input type="number" id="c-apsm" min="1" value="${esc(c.autopilot_stop_must ?? 1)}"></label>
+        <label class="f"><span>文風偏離幾倍就停</span><input type="number" step="0.1" id="c-apss" min="1" value="${esc(c.autopilot_stop_style ?? 2.4)}"></label>
+      </div>
+      <div class="muted small">連續寫才有效。檢查點會看這幾章有沒有「必須修」與文風偏離，不及格就停在那一章等人（漂移線索只記錄、不停）。成本：每次檢查都是本機計算，不花錢。</div>
       <div class="f" style="margin-top:12px"><span>各步驟的執行者（面板上對應的按鈕也預設用這裡的分配）</span></div>
       <div class="grid g4" id="c-pprov">${AI_STEP_LABELS.map(([k, l]) => `<label class="f"><span>${esc(l)}</span><select data-step="${k}">
         <option value="">跟流程的執行者</option>${provOpts((c.pipeline_providers || {})[k])}</select></label>`).join("")}</div>
@@ -1694,6 +1701,9 @@ async function viewSettings(view) {
         reconcile_before_write: $("#c-recon").checked, goal_check_after_write: $("#c-goal").checked,
         pipeline_severities: [...document.querySelectorAll("#c-psev input:checked")].map((x) => x.value),
         pipeline_mode: document.querySelector('input[name="c-pmode"]:checked').value,
+        autopilot_every: parseInt($("#c-ape").value) || 0,
+        autopilot_stop_must: parseInt($("#c-apsm").value) || 1,
+        autopilot_stop_style: parseFloat($("#c-apss").value) || 2.4,
         pipeline_providers: Object.fromEntries([...document.querySelectorAll("#c-pprov select")].map((x) => [x.dataset.step, x.value])),
         stale_foreshadow: parseInt($("#c-sf").value) || 10, stale_character: parseInt($("#c-sc").value) || 15, create_library: true,
         port: parseInt($("#c-port").value) || r.port,

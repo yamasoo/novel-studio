@@ -1084,6 +1084,7 @@ function volCard(v) {
   const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
     <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
   const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
+    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
     <button class="sm primary" data-adopt="${x.no}">${t("採用")}</button></div>`).join("");
   return `<div class="card" id="vol-card">
     <div class="row"><b>${t("卷況")}</b><span class="grow"></span><button class="primary" id="vol-new">${t("開新卷")}</button></div>
@@ -1098,6 +1099,7 @@ function bindVol(v) {
   const nb = $("#vol-new", el);
   if (nb) nb.onclick = () => Panel.openForm("volume_draft", { volume: v.next, from: v.from, to: v.from + 19 });
   el.querySelectorAll("[data-card]").forEach((b) => { b.onclick = () => { const [a, z] = b.dataset.card.split("-").map(Number); Panel.openForm("chapter_cards", { from: a, to: z }); }; });
+  el.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => go('#/b/' + enc(S.book) + '/outline?f=' + enc(b.dataset.open)); });
   el.querySelectorAll("[data-adopt]").forEach((b) => {
     b.onclick = async () => {
       try {
@@ -1111,14 +1113,17 @@ function bindVol(v) {
 async function viewOutline(view, file) {
   const files = await api("GET", B("/outline"));
   const vol = await api("GET", B("/volumes")).catch(() => null);
-  if (!file && files.length) file = files[0].file;
+  // 卷綱草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
+  const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + t("草稿") + "）", file: x.rel }));
+  const all = files.concat(drafts);
+  if (!file && all.length) file = all[0].file;
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
       <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
       <button onclick="Panel.openForm('volume_outline')">卷綱</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
     ${vol ? volCard(vol) : ""}
     <div class="split">
-      <div class="list">${files.length ? files.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
+      <div class="list">${all.length ? all.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
         : '<div class="muted">還沒有大綱。</div>'}
         <div class="item" onclick="go('#/b/${enc(S.book)}/bible?t=核心&f=${enc("設定/故事核心.md")}')"><div class="nm">故事核心</div><div class="ds">設定/故事核心.md</div></div>
       </div>

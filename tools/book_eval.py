@@ -278,21 +278,31 @@ def score_review(chapter_text, rec):
 # 假的 provider：只驗「流程與提示詞組裝」，數字不代表品質
 # ---------------------------------------------------------------------------
 class FakeChat:
+    """看 label 決定回什麼：寫稿／改稿回正文，其他（結構化輸出）回合法 JSON。
+
+    之前用「提示詞裡有沒有 novel-review」判斷，日文寫稿的提示詞剛好提到這個字串，
+    於是把 JSON 當成正文交回來——那是假 provider 的判斷太粗糙，不是流程有問題。
+    """
+
     def __init__(self, lang="zh-TW"):
         self.lang = lang
         self.calls = 0
 
+    def _prose(self, n=1):
+        if self.lang == "en":
+            return "# Chapter %d Fake\n\nThe fake provider wrote this paragraph." % n
+        if self.lang == "ja":
+            return "# 第%d章 偽\n\n偽のプロバイダが書いた段落です。" % n
+        return "# 第%d章 假標題\n\n這是假 provider 寫的段落。" % n
+
     def chat(self, home, prov, messages, **kw):
         self.calls += 1
-        text = "\n".join(str(m.get("content") or "") for m in messages)
-        if kw.get("json_mode") or "novel-review" in text:
+        label = str(kw.get("label") or "")
+        prose = any(k in label for k in ("寫第", "去 AI 味", "修訂", "續寫"))
+        if kw.get("json_mode") and not prose:
             body = json.dumps({"summary": "（假 provider）", "items": []}, ensure_ascii=False)
-        elif self.lang == "en":
-            body = "# Chapter 1 Fake\n\nThe fake provider wrote this paragraph."
-        elif self.lang == "ja":
-            body = "# 第1章 偽\n\n偽のプロバイダが書いた段落です。"
         else:
-            body = "# 第1章 假標題\n\n這是假 provider 寫的段落。"
+            body = self._prose()
         return body, {"prompt_tokens": 0, "completion_tokens": 0, "finish_reason": "stop"}
 
 

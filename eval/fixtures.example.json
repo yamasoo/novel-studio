@@ -1,9 +1,21 @@
 [
  {
-  "_comment": "長篇 fixture 範例（複製成 eval/fixtures.local.json 再改路徑；.local 不進版控）",
+  "_comment": "長篇 fixture 範例：複製成 eval/fixtures.local.json（不進版控）再把 path 改成自己的書",
   "key": "a-200",
-  "path": "E:/dev/novel1/A 書",
+  "path": "D:/novels/某本長篇",
   "lang": "zh-TW",
   "chapter": 200
+ },
+ {
+  "key": "b-40",
+  "path": "D:/novels/AnotherNovel",
+  "lang": "zh-TW",
+  "chapter": 40
+ },
+ {
+  "key": "c-100",
+  "path": "D:/novels/日本語の本",
+  "lang": "ja",
+  "chapter": 100
  }
 ]

@@ -194,6 +194,15 @@ def wrap(fn):
         return fn()
     except project.ProjectError as e:
         raise HTTPException(400, str(e))
+    except PermissionError as e:
+        # 最常見的原因：用「放在工作區裡的 .venv」啟動，那個 python 寫不進書庫外的資料夾。
+        # 直接給能動的解法，不要把 traceback 丟給作者。
+        raise HTTPException(400, "沒有權限寫入這個檔案：%s\n\n"
+                                 "如果是「用專案裡的 .venv 啟動、書庫在專案外」的情況，這個 python 會被限制在專案資料夾裡。"
+                                 "請改用外部虛擬環境啟動：\n"
+                                 "  set NS_VENV=C:\\Users\\你\\venvs\\novel-studio\n"
+                                 "  start.bat\n"
+                                 "（目前用的 python：%s）" % (getattr(e, "filename", "?"), sys.executable))
 
 
 # 審查與修訂只處理書裡的這幾種稿子（報告 S1：不要把用戶端送來的路徑直接拼成檔案路徑）
@@ -2260,6 +2269,7 @@ def serve():
     url = "http://%s:%d" % ("127.0.0.1" if host in ("0.0.0.0", "") else host, port)
     if "--open-browser" in sys.argv:
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+    preflight()
     print("小說工作台 %s 已啟動：%s（按 Ctrl+C 結束）" % (VERSION, url), flush=True)
     SERVER = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning",
                                            timeout_graceful_shutdown=3))
@@ -2271,6 +2281,30 @@ def serve():
     if _restart["requested"]:
         print("重新啟動中……", flush=True)
         sys.exit(RESTART_CODE)
+
+
+def preflight():
+    """啟動時的自我檢查：書庫寫不寫得進去。寫不進去時給能動的解法，而不是等按下快照才炸。"""
+    lib = CONFIG.get("library") or ""
+    try:
+        os.makedirs(lib, exist_ok=True)
+        probe = os.path.join(lib, ".ns-write-test-%d" % os.getpid())
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(probe)
+        return True
+    except OSError as e:
+        print("\n" + "=" * 70)
+        print("警告：這個 python 寫不進書庫，寫稿／存設定會失敗。")
+        print("  書庫：%s" % lib)
+        print("  原因：%s" % e)
+        print("  目前用的 python：%s" % sys.executable)
+        print("  最常見的原因：用「專案資料夾裡的 .venv」啟動，而書庫在專案外。")
+        print("  解法：改用外部虛擬環境啟動——")
+        print("    set NS_VENV=C:\\Users\\你\\venvs\\novel-studio")
+        print("    start.bat")
+        print("=" * 70 + "\n")
+        return False
 
 
 def main():

@@ -252,9 +252,16 @@ def ensure(book_dir, force=False):
         if (fm.get("更新至") or "").strip() == "第%03d章" % no:
             return None                     # 章數沒變：作者可能改過，不動它
     content = build(book_dir, keep_of(existing))
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
-    os.replace(tmp, p)
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        # 暫存檔名帶 pid：上一次中斷留下的 .tmp 不會擋住這次（也避免兩個流程互踩）
+        tmp = "%s.%d.tmp" % (p, os.getpid())
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(content)
+        os.replace(tmp, p)
+    except OSError as e:
+        raise project.ProjectError(
+            "續寫合約存不起來（%s）：%s\n"
+            "如果工作台是用「專案裡的 .venv」啟動、而書庫在專案資料夾外，那個 python 會被限制寫入，"
+            "請改用外部虛擬環境：set NS_VENV=... 後再 start.bat。" % (getattr(e, "filename", REL), e))
     return REL

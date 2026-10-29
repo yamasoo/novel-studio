@@ -1,12 +1,20 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-title 小說工作台
-rem 本檔存成 UTF-8（無 BOM）＋ CRLF；改成 LF 會被 cmd 斷錯行（實測）。
+title Novel Studio
+set PYTHONIOENCODING=utf-8
+set PYTHONUTF8=1
 
-rem 預設用專案裡的 .venv。若專案放在「會被限制寫入」的位置（例如被某個沙箱工具接管的工作區），
-rem 可以把虛擬環境放外面，用環境變數 NS_VENV 指過去：
-rem   set NS_VENV=C:\Users\你\venvs\novel-studio
+rem NOTE: keep this file UTF-8 (no BOM) with CRLF line endings.
+rem ASCII-only comments: non-ASCII remarks get split by cmd in some code pages.
+rem
+rem Which virtualenv:
+rem   default  = .venv inside this folder
+rem   override = set NS_VENV to a venv outside the project folder, e.g.
+rem              set NS_VENV=C:\Users\you\venvs\novel-studio
+rem   Use the outside one when the project folder is managed by a sandbox tool:
+rem   a python that lives inside the workspace may not be allowed to write the
+rem   library folder, and saving chapters then fails with PermissionError.
 if defined NS_VENV (
   set "VENV=%NS_VENV%"
 ) else (
@@ -14,29 +22,30 @@ if defined NS_VENV (
 )
 
 if not exist "%VENV%\Scripts\python.exe" (
-  echo 第一次啟動：建立 Python 虛擬環境（%VENV%）……
+  echo [setup] creating virtualenv: %VENV%
   where py >nul 2>nul && (py -3 -m venv "%VENV%") || (python -m venv "%VENV%")
   if not exist "%VENV%\Scripts\python.exe" (
-    echo 找不到 Python。請先安裝 Python 3.9 以上：https://www.python.org/downloads/
+    echo Python not found. Install Python 3.9+ first: https://www.python.org/downloads/
     pause
     exit /b 1
   )
   "%VENV%\Scripts\python.exe" -m pip install --upgrade pip >nul
 )
 
-rem requirements.txt 有變動（例如更新了工作台）就重新安裝套件
+rem Reinstall packages when requirements.txt changed.
 set "STAMP=%VENV%\requirements.installed"
 fc /b requirements.txt "%STAMP%" >nul 2>nul
 if errorlevel 1 (
-  echo 安裝／更新套件……
+  echo [setup] installing requirements...
   "%VENV%\Scripts\python.exe" -m pip install -r requirements.txt
   if errorlevel 1 (
-    echo 套件安裝失敗，請檢查網路後再試一次。
+    echo Package install failed. Check your network and try again.
     pause
     exit /b 1
   )
   copy /y requirements.txt "%STAMP%" >nul
 )
 
+echo [run] venv: %VENV%
 "%VENV%\Scripts\python.exe" app.py
 pause

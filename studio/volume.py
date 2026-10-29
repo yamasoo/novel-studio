@@ -11,6 +11,7 @@ import re
 from . import project
 
 DIRS = ("大綱", "大綱/卷綱")
+DRAFT_DIR = "大綱/草稿"      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的 卷綱*.md
 CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 
 
@@ -94,6 +95,71 @@ def next_no(book_dir):
     """下一個卷號：檔名／卷名裡最大的卷號 + 1；都沒有就 1（只數「卷」，不數「幕」）。"""
     nums = [v["no"] for v in list_volumes(book_dir) if v["no"] and v["kind"] == "卷"]
     return (max(nums) + 1) if nums else 1
+
+
+def next_start(book_dir):
+    """下一卷建議從第幾章開始：現有卷綱的最大結束章 + 1。"""
+    his = [v["hi"] for v in list_volumes(book_dir) if v["hi"]]
+    return (max(his) + 1) if his else 1
+
+
+def draft_rel(no):
+    return "%s/卷綱_第%d卷.md" % (DRAFT_DIR, int(no))
+
+
+def drafts(book_dir):
+    """`大綱/草稿/` 裡的卷綱草稿。每筆：rel/name/status/lo/hi/no。"""
+    d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
+    out = []
+    if not os.path.isdir(d):
+        return out
+    for f in sorted(os.listdir(d)):
+        if not (f.endswith(".md") and f.startswith("卷綱")):
+            continue
+        try:
+            fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
+        except OSError:
+            continue
+        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+        lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
+                    "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+    out.sort(key=lambda v: (v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
+    return out
+
+
+def adopt(book_dir, no):
+    """把 `大綱/草稿/卷綱_第N卷.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
+
+    採用前只檢查最基本的東西（有 frontmatter、有章節範圍、正式檔不存在）：
+    章節範圍要不要和前一卷接得起來、內容好不好，是作者看過才算的事，不在這裡自動判斷。
+    """
+    no = int(no)
+    src_rel = draft_rel(no)
+    src = project.safe_path(book_dir, src_rel)
+    if not os.path.isfile(src):
+        raise project.ProjectError("找不到第 %d 卷的卷綱草稿（%s）。" % (no, src_rel))
+    text = project.read_text(src)
+    fm, _body = project.split_frontmatter(text)
+    if not fm:
+        raise project.ProjectError("草稿沒有 frontmatter（類型、卷名、章節範圍），不能採用。")
+    if not str(fm.get("章節範圍") or "").strip():
+        raise project.ProjectError("草稿沒有「章節範圍」，不能採用；先補上第幾章到第幾章。")
+    dst_rel = "大綱/卷綱_第%d卷.md" % no
+    dst = project.safe_path(book_dir, dst_rel)
+    if os.path.isfile(dst):
+        raise project.ProjectError("正式的 %s 已經存在，先確認是不是已經採用過。" % dst_rel)
+    new_text = project.set_frontmatter_field(text, "狀態", "已確認")
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    tmp = dst + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(new_text if new_text.endswith("\n") else new_text + "\n")
+    os.replace(tmp, dst)
+    try:
+        os.remove(src)
+    except OSError:
+        pass
+    return dst_rel
 
 
 def brief(missing, limit=3):

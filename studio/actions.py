@@ -42,6 +42,13 @@ ACTIONS = {
         "fields": [{"key": "volume", "label": "第幾卷", "type": "text", "default": "一"},
                    {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
     },
+    "volume_draft": {
+        "group": "規劃", "label": "卷綱草稿",
+        "fields": [{"key": "volume", "label": "第幾卷", "type": "number"},
+                   {"key": "from", "label": "這一卷從第幾章", "type": "number"},
+                   {"key": "to", "label": "這一卷到第幾章", "type": "number"},
+                   {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
+    },
     "chapter_cards": {
         "group": "規劃", "label": "排章綱",
         "fields": [{"key": "from", "label": "從第幾章", "type": "number"},
@@ -153,6 +160,10 @@ def build(action, p, book_name, lang="zh-TW"):
     if action == "volume_outline":
         v = (p.get("volume") or "一").strip()
         return ("第%s卷卷綱" % v, tpl("volume_outline", v=v, extra=extra))
+    if action == "volume_draft":
+        v = str(p.get("volume") or "一").strip()
+        a, b = _r(p.get("from") or 1, p.get("to"))
+        return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, extra=extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
         if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入

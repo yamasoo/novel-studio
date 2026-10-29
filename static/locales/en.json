@@ -1534,5 +1534,20 @@
  "設定/文風.md": "==",
  "設定/章節結構/": "==",
  "追蹤/狀態卡.md": "==",
- "追蹤/章節摘要/": "=="
+ "追蹤/章節摘要/": "==",
+ "卷況": "Volumes",
+ "開新卷": "Start a new volume",
+ "排這一卷的章綱": "Lay out this volume's chapter cards",
+ "第 {0}–{1} 章": "Chapters {0}–{1}",
+ "已採用第 {0} 卷卷綱": "Adopted the outline for volume {0}",
+ "卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。": "The volume outline defines this volume's boundaries; the whole-chapter pipeline refuses any chapter outside every volume.",
+ "採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。": "Adopting writes it into the official outline (status becomes 已確認) and removes the draft.",
+ "還沒有卷綱。": "No volume outline yet.",
+ "{0}不在任何卷綱的章節範圍內；先補對應的 大綱/卷綱_第N卷.md 再開流程（見 docs/卷先行.md）。": "{0} is not within any volume outline's chapter range; add the matching 大綱/卷綱_第N卷.md before starting the pipeline (see docs/卷先行.md).",
+ "找不到第 {0} 卷的卷綱草稿（{1}）。": "No volume-outline draft found for volume {0} ({1}).",
+ "正式的 {0} 已經存在，先確認是不是已經採用過。": "The official {0} already exists; check whether it was already adopted.",
+ "草稿沒有 frontmatter（類型、卷名、章節範圍），不能採用。": "The draft has no frontmatter (type, volume title, chapter range), so it cannot be adopted.",
+ "草稿沒有「章節範圍」，不能採用；先補上第幾章到第幾章。": "The draft has no \"chapter range\", so it cannot be adopted; add the start and end chapters first.",
+ "第 {0} 章不在任何卷綱的章節範圍內，不知道要附加到哪一份卷綱；先補卷綱再試。": "Chapter {0} is not inside any volume outline, so there is no outline to append to; add the volume outline first.",
+ "缺少卷號": "Missing volume number"
 }

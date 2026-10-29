@@ -28,7 +28,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, volume, wb_check  # noqa: E402
 
 VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -1761,6 +1761,27 @@ def book_bible(book_id: str):
 @app.get("/api/books/{book_id}/outline")
 def book_outline(book_id: str):
     return project.outline_files(book_dir(book_id))
+
+
+@app.get("/api/books/{book_id}/volumes")
+def book_volumes(book_id: str):
+    """卷先行的狀態：正式卷綱、草稿、下一個卷號與建議起始章。"""
+    d = book_dir(book_id)
+    return {"volumes": volume.list_volumes(d), "drafts": volume.drafts(d),
+            "next": volume.next_no(d), "from": volume.next_start(d)}
+
+
+@app.post("/api/books/{book_id}/volumes/adopt")
+async def book_volume_adopt(book_id: str, req: Request):
+    """採用卷綱草稿：搬到正式卷綱、狀態改「已確認」。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    try:
+        no = int(body.get("volume"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "缺少卷號")
+    rel = wrap(lambda: volume.adopt(d, no))
+    return {"rel": rel, "volumes": volume.list_volumes(d), "drafts": volume.drafts(d)}
 
 
 @app.get("/api/books/{book_id}/tracking")

@@ -1080,13 +1080,43 @@ window.recoverView = async (id) => {
   } catch (e) { fail(e); }
 };
 /* ------------------------------------------------------------------ 大綱 */
+function volCard(v) {
+  const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
+    <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
+  const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
+    <button class="sm primary" data-adopt="${x.no}">${t("採用")}</button></div>`).join("");
+  return `<div class="card" id="vol-card">
+    <div class="row"><b>${t("卷況")}</b><span class="grow"></span><button class="primary" id="vol-new">${t("開新卷")}</button></div>
+    <div class="muted small">${t("卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。")}</div>
+    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}</div>
+    ${drafts ? `<div class="muted small">${t("採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。")}</div>` : ""}
+  </div>`;
+}
+function bindVol(v) {
+  const el = $("#vol-card");
+  if (!el) return;
+  const nb = $("#vol-new", el);
+  if (nb) nb.onclick = () => Panel.openForm("volume_draft", { volume: v.next, from: v.from, to: v.from + 19 });
+  el.querySelectorAll("[data-card]").forEach((b) => { b.onclick = () => { const [a, z] = b.dataset.card.split("-").map(Number); Panel.openForm("chapter_cards", { from: a, to: z }); }; });
+  el.querySelectorAll("[data-adopt]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        await api("POST", B("/volumes/adopt"), { volume: Number(b.dataset.adopt) });
+        toast(t("已採用第 {0} 卷卷綱", b.dataset.adopt));
+        go(location.hash);
+      } catch (e) { fail(e); }
+    };
+  });
+}
 async function viewOutline(view, file) {
   const files = await api("GET", B("/outline"));
+  const vol = await api("GET", B("/volumes")).catch(() => null);
   if (!file && files.length) file = files[0].file;
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
       <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
       <button onclick="Panel.openForm('volume_outline')">卷綱</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
+    ${vol ? volCard(vol) : ""}
     <div class="split">
       <div class="list">${files.length ? files.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
         : '<div class="muted">還沒有大綱。</div>'}
@@ -1094,6 +1124,7 @@ async function viewOutline(view, file) {
       </div>
       <div id="doc">${file ? "" : '<div class="card empty"><div class="big">⌘</div>還沒有大綱。可以先做「故事核心診斷」，再規劃全書大綱。</div>'}</div>
     </div>`;
+  if (vol) bindVol(vol);
   if (file) await docView($("#doc"), file);
 }
 

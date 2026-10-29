@@ -384,6 +384,25 @@ def spec_chapter_cards(c, p):
     return "排章綱 %d～%d" % (a, b), task, pk, True
 
 
+def spec_volume_draft(c, p):
+    """卷先行：把新一卷的卷綱寫成草稿（大綱/草稿/），作者看過再採用。"""
+    v = str(p.get("volume") or "1").strip()
+    a = int(p.get("from") or 1)
+    b = int(p.get("to") or a)
+    a, b = min(a, b), max(a, b)
+    pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
+    pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(1, "卷綱範本", tpl(c, "卷綱.md"))
+    pk.add(1, "其他卷綱", outline_files_text(c))
+    pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
+    add_book_core(pk, c)
+    note = (p.get("note") or "").strip()
+    task = prompts.cur()["task_volume_draft"].format(
+        v=v, a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
+    return "第%s卷卷綱草稿" % v, task, pk, False
+
+
 def spec_character(c, p):
     name = (p.get("name") or "").strip()
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
@@ -458,6 +477,7 @@ def spec_promote(c, p):
 
 SPECS = {"setup_new": spec_setup_new, "style": spec_style, "preference": spec_preference, "concept": spec_concept,
          "master_outline": spec_master_outline, "volume_outline": spec_volume_outline,
+         "volume_draft": spec_volume_draft,
          "chapter_cards": spec_chapter_cards, "character": spec_character, "gen_drafts": spec_gen_drafts,
          "intake": spec_intake, "promote_drafts": spec_promote}
 
@@ -474,11 +494,12 @@ def run_spec(c, p, spec, system, draft_only=False):
     files, dels, report = parse_blocks(out)
     appends = parse_appends(out)
     blocked = []
-    if draft_only:   # 草稿模式：只允許寫進 設定/草稿/，正式設定與名詞表一律不動
-        blocked = ["%s（設計結果先放草稿，不直接進正式設定）" % r for r, _ in files if not r.startswith(DRAFT_PREFIX)]
-        blocked += ["%s（設計結果不直接追加名詞表）" % r for r, _ in appends]
-        blocked += ["刪除 %s（設計模式不刪檔）" % r for r in dels]
-        files = [(r, b) for r, b in files if r.startswith(DRAFT_PREFIX)]
+    if draft_only:   # 草稿模式：只允許寫進指定資料夾（預設 設定/草稿/），正式檔案一律不動
+        prefix = draft_only if isinstance(draft_only, str) else DRAFT_PREFIX
+        blocked = ["%s（草稿模式：只能寫進 %s）" % (r, prefix) for r, _ in files if not r.startswith(prefix)]
+        blocked += ["%s（草稿模式不追加、不刪檔）" % r for r, _ in appends]
+        blocked += ["刪除 %s（草稿模式不刪檔）" % r for r in dels]
+        files = [(r, b) for r, b in files if r.startswith(prefix)]
         appends, dels = [], []
     if c.truncated:
         report += "\n\n⚠ 這次輸出被截斷，最後一個檔案可能沒寫完（沒寫完的檔案不會寫入）。請調高「最大輸出」後再執行一次。"

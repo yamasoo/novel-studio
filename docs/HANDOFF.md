@@ -115,6 +115,9 @@
 
   `start.bat`／`start.sh` 都支援 `NS_VENV`，沒設就用專案內的 `.venv`。
   一般 Windows 環境（直接雙擊 `start.bat`，不經過這個工作階段）用專案內 `.venv` 是正常的。
+- **`start.bat` 必須是 UTF-8（無 BOM）＋ CRLF**（2026-10-29 實測）。改成 LF 行尾時，cmd 會把
+  多行 `if ( … )` 區塊接錯行，跑起來是一堆「不是內部或外部命令」的亂碼錯誤；存成 CP950 或 UTF-16 也會壞。
+  改這個檔案請用會保留 CRLF 的編輯器（VS Code 右下角確認「CRLF」）。
 - 舊的 clone 在 `<舊的 clone>`（OneDrive 底下，`.git` 同步容易衝突）；以 `<專案資料夾>` 為準。
 - 不要直接把 AI 初翻 merge 進語言檔：先出 patch、人工核可（見報告 T4）。
 

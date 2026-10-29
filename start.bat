@@ -2,8 +2,9 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 title 小說工作台
+rem 本檔存成 UTF-8（無 BOM）＋ CRLF；改成 LF 會被 cmd 斷錯行（實測）。
 
-rem 預設用專案裡的 .venv。若這個專案放在會被限制寫入的位置（例如被某個沙箱工具接管的工作區），
+rem 預設用專案裡的 .venv。若專案放在「會被限制寫入」的位置（例如被某個沙箱工具接管的工作區），
 rem 可以把虛擬環境放外面，用環境變數 NS_VENV 指過去：
 rem   set NS_VENV=C:\Users\你\venvs\novel-studio
 if defined NS_VENV (

@@ -1,0 +1,37 @@
+name: checks
+
+# 目的：把「靠人記得跑」的檢查變成 push 就擋。
+# 這支 workflow 不呼叫任何模型，跑完約 1 分鐘；prompt_lang_audit 用的是假 provider。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  i18n:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      # 1) 既有檢查：提示詞包的鍵／變數、語言檔的變數與空值、路徑不被翻譯
+      - name: check_i18n
+        run: python tools/check_i18n.py
+
+      # 2) 新的結構對等檢查：外掛三份的檔案／章節骨架、範本、README、翻譯覆蓋率、翻譯新鮮度
+      #    先只擋 FAIL；WARN 用 --strict 才會擋，等清完再打開（見 docs/i18n-workflow.md）
+      - name: check_parity
+        run: python tools/check_parity.py
+
+      # 3) 提示詞語言稽核：用假 provider 跑一本 3 章的測試書，列出 en／ja 書送出的中文
+      - name: prompt_lang_audit
+        run: python tools/prompt_lang_audit.py
+
+      # 4) 之後可以加的煙霧測試（目前 repo 沒有測試，先留位置）
+      # - name: smoke
+      #   run: python -m pytest -q

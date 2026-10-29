@@ -1,0 +1,156 @@
+{
+ "generated": "2026-10-29T10:42:22",
+ "units": {
+  "README.md": {
+   "en": "82fec076d46bafd1a57d823893444564084f7d626014cf2ce8649ceeea89734c",
+   "ja": "ab05f2a21b56e76612c437610f6d35d2146be81ca8571187445bf31dbb0ef32d",
+   "zh": "623935e746019186ff7626676daebd53d8f2a65263852bcbf6b57bb62a0c78a6"
+  },
+  "plugin/skills/novel-bible/SKILL.md": {
+   "en": "4533eb5d5d036240dcc08adb996cb5ff6b47a063c39bd7124ad0aba23d3a97a0",
+   "ja": "50c7cfe386ec48e33ebef384a60df045c494a071274002aac853fdac01609f8c",
+   "zh": "f44402bb8c8c613a4c6e0d75684016566acc35b2684a95b92d0b0b06d23330b3"
+  },
+  "plugin/skills/novel-bible/references/character-design.md": {
+   "en": "ec9e0a80d52c51b24f82fa3a09408c3a38f8b44647bb2c19fe4cb0ffd50d8863",
+   "ja": "8c1de909f63129e64978b51545c12dce7710471f52d21460f94067106bfc600e",
+   "zh": "dd3fa61177cf189aabbe21ebe90da39baca5993218e4711b8110c192fe5b04dd"
+  },
+  "plugin/skills/novel-bible/references/intake-rules.md": {
+   "en": "17b00e94bf05cfd005c312eb8ea02c4cfafa158156d269f6b117b29758bb9a7e",
+   "ja": "f3f348fc714402bddfa0becd291f64eb70d306e4393c9cf9b5a16e137b72454f",
+   "zh": "2eb889a3dacf8bf84d3240ec7d28a6bb687820cda8c87b26ca68737ae11fc171"
+  },
+  "plugin/skills/novel-bible/references/worldbuilding.md": {
+   "en": "093f8307dabd49e8dc6f5bebfcb1972bde0e891c85939f1e06170b4d6cb923e7",
+   "ja": "0d0ca65ae1524d2b2a7ce443145f718ee79834f7fdfa4fabaf169cfb205922d8",
+   "zh": "1928311ce5edc0b8077efea387be9572b4135a92112d628272e83eaa9ecdeb8e"
+  },
+  "plugin/skills/novel-deslop/SKILL.md": {
+   "en": "d647455dc66886ff2d430c42f57adedb689c70f533f39837f265e2112a73109f",
+   "ja": "9fdde5094cab36d963cf843e53fd33645b8271b986308a83ff43110320bc41ea",
+   "zh": "f0042697e63f6aa2caef57088a75adeb69876cdb307134cb7238958d88fd910d"
+  },
+  "plugin/skills/novel-deslop/references/ai-signals.md": {
+   "en": "4a8b76d4faca159b80f4ef75f872d0cacd293d113332dca7411089a5c6cd22c2",
+   "ja": "607121bdf964dc723ce004a75ba8f6afc43599e061604d7b97c93200ce1dea0b",
+   "zh": "b63c48e744e0cedad5f07363570e0db6bd4a8d257532fbb60b4970ffcc0cbe57"
+  },
+  "plugin/skills/novel-deslop/references/rewrite-examples.md": {
+   "en": "8081626f42354257aac4edbe7a4c54ddb1540efcec138009fe2b44b57cb53f24",
+   "ja": "82e6736c166d23dace29cba51ca88a9f1521c2bca70b712f2f901282198a306d",
+   "zh": "5fde7070f887fa6ccea9f9c8d30ce5da5f420a94fcecdea9484964c65b17e34f"
+  },
+  "plugin/skills/novel-deslop/scripts/check_text.py": {
+   "en": "c1f193b1e7de66cb05292fa8e571a82dbf568955c50233791e3c654fc6b2b48e",
+   "ja": "fe433357e11e559dfdd87711c0563164aea5ad10f9227f51e3a79f913fc85865",
+   "zh": "343438524596294530dc3143f8a6909b362eee4b81f907d221874608fcb3dfbc"
+  },
+  "plugin/skills/novel-outline/SKILL.md": {
+   "en": "75371d29a83ce22ad07805fedf1b7ecd7ecf5f4d8d2667096afecd0a23945faa",
+   "ja": "620c5c2dcd1d633bacb567040250b0c443e89dfa2ff7a6b703b952afd22756d1",
+   "zh": "816a414c1357304dbf87ce295185a07163adfd9a248ae995d0c789100688dc3b"
+  },
+  "plugin/skills/novel-outline/references/chapter-card.md": {
+   "en": "09a95f097ff6c1c328eaf516282cb65fb06ceb88e47b4c92056b9eaab2e82d06",
+   "ja": "b8200a8a273e25e5586d5243912b4d440be35a417e2f9bf735c73e4d52666436",
+   "zh": "0bb63fe1bf0a17a19831d5360261c4b99b868ebe6b22cd648be659630a07020c"
+  },
+  "plugin/skills/novel-outline/references/concept.md": {
+   "en": "7bbb0c48acf8bc540d7f63979ed4719768264804304ca19628d36a0654a743c1",
+   "ja": "070e06951f28faebc912241a0ad4c8f0d8cb34fb87013dcc8a3ffb8adf978909",
+   "zh": "568a898fc7f43ea8a4064d7ac699d041855e5ae241025bb83dfa465ca47121bb"
+  },
+  "plugin/skills/novel-outline/references/opening.md": {
+   "en": "ab2dafe3c5a1421a5e3ee884b77527f6f68c586586093083bf5e032672c22083",
+   "ja": "ae20577626fe17cd75f68d96b4f71d6df725f3d375e1813915d3ac168beb0ab5",
+   "zh": "028c3da04ace5b3dc67c0c0fa054a168f499f5a197ce7a9782946bdfa1321901"
+  },
+  "plugin/skills/novel-outline/references/structure.md": {
+   "en": "0fa71aab15b0b1475014e15b1a2b24a1c3a43cf9123093e51405b84c59bba2d3",
+   "ja": "f4bee455b5a058de2947e0ec8dea01cc2a124c6ee05fece22d36b03475a11fa4",
+   "zh": "b8c82108d22c7568038a063d4c81d24c3436561e6877d467a4c99a710f4ee874"
+  },
+  "plugin/skills/novel-review/SKILL.md": {
+   "en": "c7e0335e63d8fb4bb137cc12b9ae896a32c7649c1f46bfbb731df41433bf57ca",
+   "ja": "b811dd7734a71e58a2f6e1a8dbd2afc95d187fb4cc7419103fa4f3a7fe9af5d9",
+   "zh": "53e7fde8d1f5a21a089ec3ab71c81b5165499f21974c79a18a858beddfb0f36f"
+  },
+  "plugin/skills/novel-review/references/checklist.md": {
+   "en": "62a2a46dd4dce4707673851e7c92a058f24aedc1e950f4e075629b70a11e2269",
+   "ja": "eaad54947283dc3822724ed16cc6b0e00b4bfb35b3675dc73d7d1d6373ade33d",
+   "zh": "ecbf851c11dfeb43cc2c1fe95f2393c85f4c61e3b6590154685e6760088401f9"
+  },
+  "plugin/skills/novel-review/references/fix-routing.md": {
+   "en": "cb19dcc7a87c5ffc250f7c99734bd3b009e750d0c68e2cdc4ebd0795620a0062",
+   "ja": "30b25705648b5e2346c20ce371f79aa1fece571cfb58ac1eee808a76811eaf68",
+   "zh": "c53d06e374fdff447cd615671c2dbaab56b31e2c51d71129550179a179974466"
+  },
+  "plugin/skills/novel-setup/SKILL.md": {
+   "en": "48dd44b03a334587567ed5f7ea532e26730fd9b6f0a76dc30efbd5e38e0a381b",
+   "ja": "d53db1669208f96518833bb60f2a98a3813cbac78668835566ba40c32b9a77ab",
+   "zh": "1faf88df35547d6f300c5df3e6ba7893c7dc9f52359e51a643549294377ecb25"
+  },
+  "plugin/skills/novel-setup/references/claude-md-template.md": {
+   "en": "3a4d19f360091045e870e3e9ef9a77fbe80ba060b16d6c4aade2ce9793eb1228",
+   "ja": "4a9e29888b9c9d81fe610e442d409a25283b4c4f6764a5fce2b13d0626be8c93",
+   "zh": "ee805f0bdf676e96ef13648e5188e2ab7c2ae696885994a303c5cf4e4d56129b"
+  },
+  "plugin/skills/novel-setup/references/interview.md": {
+   "en": "60c5fe24054ca9b9c45e5ebd92be518083aac48a456522ea54d35e7a142b9d99",
+   "ja": "59a2b9e212494960ebfff1a24bd33242e103a278ab7ff119ce100f138b04d973",
+   "zh": "ada1b3791267103dbca2d457b7d30f4bfec914d38f781ef2ba787282bfd486ea"
+  },
+  "plugin/skills/novel-setup/references/project-layout.md": {
+   "en": "7f54fb4130d830a1a4204ecb0dd78ade2c27a0cb7971388af5adfb414323b46b",
+   "ja": "31eb46819c8d29c5308338917753b4608aee24b1b20f6ff499bab9d114f57420",
+   "zh": "b58600b24dd35aed2ad431183ba8d98542766a2efc21b97e291219a313c4d5b7"
+  },
+  "plugin/skills/novel-style/SKILL.md": {
+   "en": "92923acfb12ce92f73b6465365767c1d4556f7e61b308b341dcb033270f4b084",
+   "ja": "4b2f57d684535f396cc14dd3c0362a32f5d92a14545c8916cbd4caeca62bcb26",
+   "zh": "622eb776db59d9936caf2d6b7e6521ab8273481c660ad9515c7535d40b460d7c"
+  },
+  "plugin/skills/novel-style/references/genre-cues.md": {
+   "en": "e144cb21e91be8d13357eb83242292f8269bb5d837b29badb065785097f3ac62",
+   "ja": "d770f1a6b1b0125aed48656b746a593db44cfec87f70b1f38521e54ce0932ff5",
+   "zh": "f6d9a29f564a7b493ee739de3f6357820c0bb1fd89ff5bbb3c3cf6e3791d389f"
+  },
+  "plugin/skills/novel-style/references/style-dimensions.md": {
+   "en": "d4ffab800a664f93c0fc11ff8c1fd06d4f649e35fd0f2db437761d8b9ad6e987",
+   "ja": "55c0983cc2cd0a0e161697662d4666b25e3c8fbbeff3fbc7e1418a5620b2e9ec",
+   "zh": "53e281f18c8836b7a3bfa17a542fc7f0bf9360b722e843eac7309aa8013440c3"
+  },
+  "plugin/skills/novel-style/scripts/style_metrics.py": {
+   "en": "a9444d93bd27f3b8be1cedb6afd8e044ed1241a555bcf9f8000662d627f58f96",
+   "ja": "ebd8c96ae3da4a90f70eee1ea41c2cdc1fc6156a59bd8428589a5ee6ee057532",
+   "zh": "58c204b5dfe8f347f1de73331445ca316b52476a13d1a0094d242ff48e57bee8"
+  },
+  "plugin/skills/novel-write/SKILL.md": {
+   "en": "55ca2588b35126db6b99ff00b05cc6397200e685a4429e66d868d379e002b776",
+   "ja": "59a074753d3e13b7d8d6384a27a6b6190181fbbc26880e848105c0340cfd5388",
+   "zh": "20b75d8c045b81fa65423c4e591367ddeabe47bcbdb8242323c354b86450af21"
+  },
+  "plugin/skills/novel-write/references/examples.md": {
+   "en": "59621de0fd2dfa245d2f8faf49f6e54fc356cc53ed2d4cd9b6e5a624565bbfd9",
+   "ja": "87edf2135d69ecceeea4d7a70d9664ea35eb104625fe23804b4dcfac68b981fb",
+   "zh": "67fc36024deb08b8e93454ca65bd4b6fd29b356bda40064a546ee7d782763f22"
+  },
+  "plugin/skills/novel-write/references/report-template.md": {
+   "en": "ee5e769dec2e441682fb9e650a85cfe5fe32b82137f3d2e84e15e1cbb8e2e09f",
+   "ja": "44ef9f686851cf6c84fece87c7806a1e50e825508e5382e96a7f9fb7aea09989",
+   "zh": "f5726d11810689eacefad7613da58ad8f5ba2d9de4b43fa0421c6ba21ba32ef4"
+  },
+  "plugin/skills/novel-write/references/tracking-update.md": {
+   "en": "1282e5b23bffa982402c6c856bd438ff9da61a0ced26256a5c18877112b9f0d6",
+   "ja": "548ae4d91e6833c7dd088fbcdab88c615387f411efa7fe76add582f5563009e0",
+   "zh": "ccb0a6ad99c02f7893af3c298013d9c631f6b19c35b6f48b8fafd2e5ad0ed6e2"
+  },
+  "plugin/skills/novel-write/references/writing-craft.md": {
+   "en": "d26fa47cd9c2bd472f2c21007fd704e7d0b7f36d06c45ce1dd95a6c193fea596",
+   "ja": "53be27824e505cd9b4be27e839d8ab5a742df948b1ab761e099cb07805785aa3",
+   "zh": "8311ace4a086bc6776ebbf015a3788e64497ebd1c7b74215d6eee2e05f6ec5c8"
+  }
+ },
+ "version": 1
+}

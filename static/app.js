@@ -1086,10 +1086,12 @@ function volCard(v) {
   const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
     <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
     <button class="sm primary" data-adopt="${x.no}">${t("採用")}</button></div>`).join("");
+  const plans = (v.plans || []).map((x) => `<div class="row"><span>${t("卷綱更新草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
+    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button></div>`).join("");
   return `<div class="card" id="vol-card">
     <div class="row"><b>${t("卷況")}</b><span class="grow"></span><button class="primary" id="vol-new">${t("開新卷")}</button></div>
     <div class="muted small">${t("卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。")}</div>
-    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}</div>
+    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}${plans}</div>
     ${drafts ? `<div class="muted small">${t("採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。")}</div>` : ""}
   </div>`;
 }
@@ -1115,7 +1117,8 @@ async function viewOutline(view, file) {
   const vol = await api("GET", B("/volumes")).catch(() => null);
   // 卷綱草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
   const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + t("草稿") + "）", file: x.rel }));
-  const all = files.concat(drafts);
+  const plans = ((vol && vol.plans) || []).map((x) => ({ name: x.name, file: x.rel }));
+  const all = files.concat(drafts).concat(plans);
   if (!file && all.length) file = all[0].file;
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>

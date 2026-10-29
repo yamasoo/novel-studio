@@ -108,13 +108,13 @@ def draft_rel(no):
 
 
 def drafts(book_dir):
-    """`大綱/草稿/` 裡的卷綱草稿。每筆：rel/name/status/lo/hi/no。"""
+    """`大綱/草稿/` 裡的**新卷**卷綱草稿（卷綱更新草稿不算）。每筆：rel/name/status/lo/hi/no。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith("卷綱")):
+        if not (f.endswith(".md") and f.startswith("卷綱") and not f.startswith("卷綱更新")):
             continue
         try:
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
@@ -125,6 +125,21 @@ def drafts(book_dir):
         out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
                     "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
+    return out
+
+
+def plan_drafts(book_dir):
+    """`大綱/草稿/` 裡的卷綱**更新**草稿（卷末體檢產生，不是新卷）。每筆：rel/name/lo/hi。"""
+    d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
+    out = []
+    if not os.path.isdir(d):
+        return out
+    for f in sorted(os.listdir(d)):
+        if not (f.endswith(".md") and f.startswith("卷綱更新")):
+            continue
+        nums = [int(x) for x in re.findall(r"\d+", f)]
+        lo, hi = (nums[0], nums[1]) if len(nums) >= 2 else (None, None)
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": os.path.splitext(f)[0], "lo": lo, "hi": hi})
     return out
 
 

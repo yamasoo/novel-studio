@@ -354,8 +354,8 @@ def plan_md(res, a, b):
 
 
 def save_plan(book_dir, a, b, text):
-    """把草稿寫到 候選/卷綱更新_第a-b章.md（不進大綱，避免模型直接改你的規劃）。"""
-    rel = "候選/卷綱更新_第%d-%d章.md" % (a, b)
+    """把草稿寫到 大綱/草稿/卷綱更新_第a-b章.md（跟新卷草稿同一個資料夾，但不會被當成新卷）。"""
+    rel = "大綱/草稿/卷綱更新_第%d-%d章.md" % (a, b)
     p = project.safe_path(book_dir, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8", newline="\n") as f:

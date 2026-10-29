@@ -1551,5 +1551,6 @@
  "第 {0} 章不在任何卷綱的章節範圍內，不知道要附加到哪一份卷綱；先補卷綱再試。": "Chapter {0} is not inside any volume outline, so there is no outline to append to; add the volume outline first.",
  "缺少卷號": "Missing volume number",
  "卷綱草稿已產生：到大綱頁的「卷況」按「採用」才會變成正式卷綱。": "Volume-outline draft created. Open the Outline page and press Adopt in the Volumes card to make it official.",
- "{0}還沒有章綱；先到大綱頁按「排這一卷的章綱」把整卷排好，再開整章自動流程。": "{0} still has no chapter cards; lay out the whole volume with “Lay out this volume's chapter cards” on the Outline page before starting the whole-chapter pipeline."
+ "{0}還沒有章綱；先到大綱頁按「排這一卷的章綱」把整卷排好，再開整章自動流程。": "{0} still has no chapter cards; lay out the whole volume with “Lay out this volume's chapter cards” on the Outline page before starting the whole-chapter pipeline.",
+ "卷綱更新草稿": "Volume-outline update draft"
 }

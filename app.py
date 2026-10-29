@@ -1656,7 +1656,7 @@ async def drift_apply(book_id: str, req: Request):
     if not draft:
         raise HTTPException(400, "沒有草稿可以附加")
     p = wrap(lambda: project.safe_path(d, draft))
-    if not os.path.isfile(p) or not draft.startswith("候選/"):
+    if not os.path.isfile(p) or not draft.startswith(("候選/", "大綱/草稿/")):
         raise HTTPException(400, "草稿路徑不對：%s" % draft)
     rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b))
     return {"volume_file": rel, "backup": os.path.basename(bak or "")}
@@ -1768,7 +1768,7 @@ def book_volumes(book_id: str):
     """卷先行的狀態：正式卷綱、草稿、下一個卷號與建議起始章。"""
     d = book_dir(book_id)
     data = {"volumes": volume.list_volumes(d), "drafts": volume.drafts(d),
-            "next": volume.next_no(d), "from": volume.next_start(d)}
+            "plans": volume.plan_drafts(d), "next": volume.next_no(d), "from": volume.next_start(d)}
     # 草稿一產生就要看得到：不要讓瀏覽器拿舊的卷況
     return JSONResponse(data, headers={"Cache-Control": "no-store"})
 

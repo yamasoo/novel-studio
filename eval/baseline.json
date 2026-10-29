@@ -1,0 +1,104 @@
+{
+ "date": "2026-10-29T12:28:30",
+ "mode": "real",
+ "provider": "deepseek",
+ "tasks": [
+  "continue",
+  "deslop",
+  "review"
+ ],
+ "books": [
+  "zh-TW",
+  "en",
+  "ja"
+ ],
+ "seconds": 587.4,
+ "results": {
+  "zh-TW": {
+   "continue": {
+    "issues": 4,
+    "issues_must": 2,
+    "names_kept": 1.0,
+    "lang_ok": 1,
+    "style_obvious": 1,
+    "style_slight": 5
+   },
+   "deslop": {
+    "issues": 0,
+    "issues_must": 0,
+    "digits_kept": 1.0,
+    "names_kept": 1.0,
+    "length_ratio_off": 0.0016339869281045694,
+    "lang_ok": 1,
+    "style_obvious": 0,
+    "style_slight": 0
+   },
+   "review": {
+    "review_json_ok": 1,
+    "review_items": 8,
+    "review_quote_hit": 1.0,
+    "review_must": 1,
+    "review_suggest": 4,
+    "review_note": 3
+   }
+  },
+  "en": {
+   "continue": {
+    "issues": 2,
+    "issues_must": 0,
+    "names_kept": 0.75,
+    "lang_ok": 1,
+    "style_obvious": 1,
+    "style_slight": 3
+   },
+   "deslop": {
+    "issues": 0,
+    "issues_must": 0,
+    "digits_kept": 1.0,
+    "names_kept": 1.0,
+    "length_ratio_off": 0.004345936549326357,
+    "lang_ok": 1,
+    "style_obvious": 0,
+    "style_slight": 0
+   },
+   "review": {
+    "review_json_ok": 1,
+    "review_items": 8,
+    "review_quote_hit": 1.0,
+    "review_must": 0,
+    "review_suggest": 2,
+    "review_note": 6
+   }
+  },
+  "ja": {
+   "continue": {
+    "issues": 3,
+    "issues_must": 0,
+    "names_kept": 1.0,
+    "lang_ok": 1,
+    "style_obvious": -1,
+    "style_slight": -1,
+    "style_basis": "short"
+   },
+   "deslop": {
+    "issues": 2,
+    "issues_must": 0,
+    "digits_kept": 1.0,
+    "names_kept": 1.0,
+    "length_ratio_off": 0.004838709677419395,
+    "lang_ok": 1,
+    "style_obvious": -1,
+    "style_slight": -1,
+    "style_basis": "short"
+   },
+   "review": {
+    "review_json_ok": 1,
+    "review_items": 6,
+    "review_quote_hit": 1.0,
+    "review_must": 0,
+    "review_suggest": 3,
+    "review_note": 3
+   }
+  }
+ }
+}

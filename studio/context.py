@@ -6,7 +6,7 @@ import contextvars
 import os
 import re
 
-from . import contract, project, prompts, shared
+from . import contract, project, prompts, recall, shared
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -456,7 +456,8 @@ def book_rules(book_dir):
 
 
 # ---------------------------------------------------------------------------
-def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_candidate=False):
+def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_candidate=False,
+                recall_on=True, recall_k=6):
     """寫第 no 章需要的上下文。"""
     pk = Pack(budget)
     card_path, card = card_text(book_dir, no)
@@ -490,6 +491,14 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
         body(read(book_dir, e["file"])) for e in mentioned_entities(book_dir, scope))
     pk.add(3, READER_TITLE, reader_for(book_dir, card + "\n" + fs, no, pk=pk))
     pk.add(3, RELATION_TITLE, relations_for(book_dir, scope + "\n" + near, pk=pk))
+    # 相似情境（P2 檢索式記憶）：從作者自己寫過的段落裡找最像的幾段。
+    # 查詢＝本章章綱＋上一章結尾＋這章會出場的角色名字。priority 3：預算不夠時可以被丟。
+    if recall_on:
+        who = "、".join(e["name"] for e in mentioned_entities(book_dir, scope)[:8])
+        query = card + "\n" + (body(prev)[-600:] if prev else "") + "\n" + who
+        block = recall.context_block(book_dir, no, query, k=recall_k)
+        if block:
+            pk.add(3, "相似情境（作者自己寫過的段落；參考處境與寫法，不要照抄）", block)
     pk.add(4, "時間線（「讀者目前知道」是資訊邊界，不能提前說破）", timeline_for(book_dir, near, no, pk=pk))
     pk.add(4, "名詞表", glossary_for(book_dir, wide, pk=pk))
     pk.add(5, "前幾章摘要", recent_summaries(book_dir, no))

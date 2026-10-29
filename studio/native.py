@@ -278,7 +278,9 @@ def act_write(c, p):
         target = _target_chars(c.book, n)
         out_tok = _out_tokens(c, target)
         ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, n, c.budget(out_tok),
-                                                      prev_from_candidate=(n > a))
+                                                      prev_from_candidate=(n > a),
+                                                      recall_on=bool(c.opts.get("recall", True)),
+                                                      recall_k=int(c.opts.get("recall_paragraphs") or 6))
         if dropped:
             c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
         c.job.emit("log", text="第%d章：上下文約 %d tokens，目標 %d %s"
@@ -339,7 +341,9 @@ def _rewrite(c, no, src_text, instruction, label):
     target = max(project.count_chars(src_text), 500)
     out_tok = _out_tokens(c, target)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(src_text)),
-                                                  include_craft=False)
+                                                  include_craft=False,
+                                                  recall_on=bool(c.opts.get("recall", True)),
+                                                  recall_k=int(c.opts.get("recall_paragraphs") or 6))
     user = ctx_text + _P()["ctx_draft"] + context.body(src_text) + _P()["task_rewrite"].format(instr=instruction, fmt=fmt_rule(no))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label=label, stage="draft", recover={"chapter": no, "kind": "chapter"})
@@ -726,7 +730,9 @@ def act_revise_notes(c, p):
         raise NativeError("第%d章沒有可以修訂的稿子" % no)
     out_tok = _out_tokens(c)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(text)),
-                                                  include_craft=False)
+                                                  include_craft=False,
+                                                  recall_on=bool(c.opts.get("recall", True)),
+                                                  recall_k=int(c.opts.get("recall_paragraphs") or 6))
     user = (ctx_text + _P()["ctx_draft_rel"].format(rel=rel) + context.body(text) +
             _P()["ctx_notes"] + notes +
             _P()["task_revise_notes"].format(fmt=fmt_rule(no)))
@@ -748,7 +754,9 @@ def act_recover_continue(c, p):
     partial = rec["text"]
     out_tok = _out_tokens(c)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(partial)),
-                                                  include_craft=False, prev_from_candidate=True)
+                                                  include_craft=False, prev_from_candidate=True,
+                                                  recall_on=bool(c.opts.get("recall", True)),
+                                                  recall_k=int(c.opts.get("recall_paragraphs") or 6))
     target = _target_chars(c.book, no)
     user = (ctx_text + _P()["ctx_partial"] + partial +
             _P()["task_recover"].format(n=no, target=target, chars=rec.get("chars", 0), delim=DELIM))

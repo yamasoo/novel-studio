@@ -49,6 +49,8 @@ DEFAULT_CONFIG = {
     "pipeline_mode": "stop",            # 整章自動流程：stop＝每章定稿後停下來；continue＝連續寫到最後一章
     "pipeline_style_check": True,       # 整章自動流程：跑不跑「文風檢查」（本機計算，不花錢）
     "style_retry": True,                # 寫稿／去 AI 味後，文風偏離太多就帶數字重寫一次
+    "recall": True,                     # 檢索式記憶：把作者寫過的相似段落注入寫稿上下文
+    "recall_paragraphs": 6,             # 檢索注入幾個段落
     "pipeline_providers": {},           # 整章自動流程：各步驟的執行者（空白＝跟流程的執行者）；面板按鈕也預設帶入
     "stale_foreshadow": 10,
     "stale_character": 15,
@@ -246,7 +248,7 @@ async def set_config(req: Request):
     for k in ("library", "claude_cmd", "model", "permission_mode", "allowed_tools", "add_dirs",
               "stale_foreshadow", "stale_character", "default_provider",
               "reconcile_before_write", "goal_check_after_write", "pipeline_severities", "pipeline_mode",
-              "pipeline_style_check", "style_retry"):
+              "pipeline_style_check", "style_retry", "recall", "recall_paragraphs"):
         if k in body:
             CONFIG[k] = body[k]
     if "pipeline_providers" in body:

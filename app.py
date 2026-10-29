@@ -1539,13 +1539,23 @@ async def add_demo(req: Request):
     lib = CONFIG.get("library")
     if not lib:
         raise HTTPException(400, "請先設定書庫資料夾")
-    os.makedirs(lib, exist_ok=True)
+    try:
+        os.makedirs(lib, exist_ok=True)
+    except OSError as e:
+        raise HTTPException(400, "書庫資料夾建不起來（%s）：%s。請確認這個路徑存在、而且工作台有寫入權限。"
+                            % (lib, e.strerror or e))
     src_name, dst_name = DEMO_BOOKS[lang]
     src = os.path.join(HERE, "demo", src_name)
     dst = os.path.join(lib, dst_name)
     if os.path.exists(dst):
         raise HTTPException(400, "示範書已經在書架上了")
-    shutil.copytree(src, dst)
+    try:
+        shutil.copytree(src, dst)
+    except OSError as e:
+        # 複製到一半失敗就清掉，避免書架上留下半本書
+        shutil.rmtree(dst, ignore_errors=True)
+        raise HTTPException(400, "示範書複製失敗（%s → %s）：%s。常見原因是書庫資料夾的寫入權限。"
+                            % (src, dst, e.strerror or e))
     return {"id": os.path.basename(dst)}
 
 

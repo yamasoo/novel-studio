@@ -302,33 +302,36 @@ def eval_book(lang, name, tasks, prov):
     out = {}
     try:
         book = copy_book(name, tmp)
-        if "review" in tasks:
-            ch = project._scan_dir(os.path.join(book, "正文"))
-            no = max(ch) if ch else 0
-            if no:
-                run_action(book, lang, "review_notes", {"chapter": no}, prov)
-                out["review"] = score_review(read(os.path.join(book, "正文", ch[no])),
-                                             revision.load_review(book, no) or {})
-        if "deslop" in tasks:
-            ch = project._scan_dir(os.path.join(book, "正文"))
-            no = max(ch) if ch else 0
-            if no:
-                src = read(os.path.join(book, "正文", ch[no]))
-                run_action(book, lang, "deslop", {"chapter": no}, prov)
-                rec = revision.load_revision(book, no) or {}
-                # 去 AI 味的結果：還躺在修訂紀錄裡就取 new_text，已經套用就讀回正文
-                now_files = project._scan_dir(os.path.join(book, "正文"))
-                polished = rec.get("new_text") or (read(os.path.join(book, "正文", now_files[no]))
-                                                  if no in now_files else "")
-                out["deslop"] = score_deslop(book, lang, src, polished or "")
-        if "continue" in tasks:
-            no = hide_last_chapter(book)
-            if no:
-                _, card = context.card_text(book, no)
-                run_action(book, lang, "write", {"from": no, "to": no}, prov)
-                made = project._scan_dir(os.path.join(book, "候選")).get(no)
-                out["continue"] = score_continue(book, lang, card,
-                                                 read(os.path.join(book, "候選", made)) if made else "")
+        for task in tasks:
+            t0 = time.time()
+            if task == "review":
+                ch = project._scan_dir(os.path.join(book, "正文"))
+                no = max(ch) if ch else 0
+                if no:
+                    run_action(book, lang, "review_notes", {"chapter": no}, prov)
+                    out["review"] = score_review(read(os.path.join(book, "正文", ch[no])),
+                                                 revision.load_review(book, no) or {})
+            elif task == "deslop":
+                ch = project._scan_dir(os.path.join(book, "正文"))
+                no = max(ch) if ch else 0
+                if no:
+                    src = read(os.path.join(book, "正文", ch[no]))
+                    run_action(book, lang, "deslop", {"chapter": no}, prov)
+                    rec = revision.load_revision(book, no) or {}
+                    # 去 AI 味的結果：還躺在修訂紀錄裡就取 new_text，已經套用就讀回正文
+                    now_files = project._scan_dir(os.path.join(book, "正文"))
+                    polished = rec.get("new_text") or (read(os.path.join(book, "正文", now_files[no]))
+                                                       if no in now_files else "")
+                    out["deslop"] = score_deslop(book, lang, src, polished or "")
+            elif task == "continue":
+                no = hide_last_chapter(book)
+                if no:
+                    _, card = context.card_text(book, no)
+                    run_action(book, lang, "write", {"from": no, "to": no}, prov)
+                    made = project._scan_dir(os.path.join(book, "候選")).get(no)
+                    out["continue"] = score_continue(book, lang, card,
+                                                     read(os.path.join(book, "候選", made)) if made else "")
+            print("   %-6s %-9s %5.1f 秒" % (lang, task, time.time() - t0), flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return out
@@ -393,6 +396,39 @@ def shown(path):
         return path
 
 
+def probe(pid):
+    """一則極短請求，確認金鑰、模型、endpoint 都通（成本幾乎是 0）。"""
+    prov = real_provider(pid)
+    t0 = time.time()
+    try:
+        text, usage = providers.chat(ROOT, prov, [{"role": "user", "content": "回覆兩個字：可以"}], max_tokens=8)
+    except Exception as e:
+        raise SystemExit("連線失敗：%s" % e)
+    print("連線成功：%s（%s／%s），%.1f 秒，回覆 %r"
+          % (prov.get("id"), prov.get("name"), prov.get("model"), time.time() - t0, (text or "").strip()[:30]))
+    if usage:
+        print("   usage：%s" % json.dumps(usage, ensure_ascii=False))
+    print("   下一步：python tools/book_eval.py --provider %s" % (pid or prov.get("id")))
+    return 0
+
+
+def resolve_baseline(path):
+    """先確認基線存在再開跑——不然跑完整套（真 provider 會花錢、要好幾分鐘）才發現檔名打錯。"""
+    if os.path.isdir(path):
+        cands = sorted(f for f in os.listdir(path) if f.endswith(".json"))
+        if not cands:
+            raise SystemExit("基線資料夾裡沒有 .json：%s" % path)
+        path = os.path.join(path, cands[-1])
+    if not os.path.isfile(path):
+        raise SystemExit(
+            "找不到基線檔：%s\n"
+            "第一次要先跑一次真 provider，把結果存成基線：\n"
+            "  python tools/book_eval.py --provider <執行者>                 # 跑一次\n"
+            "  Copy-Item (Get-ChildItem eval\\results\\*-real.json | Sort-Object LastWriteTime | Select-Object -Last 1) eval\\baseline.json\n"
+            "之後才用 --baseline eval\\baseline.json 比對。" % path)
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--books", default="zh-TW,en,ja", help="zh-TW、en、ja，可用逗號分隔")
@@ -400,7 +436,12 @@ def main():
     ap.add_argument("--provider", help="真 provider 的執行者 id；不給就用假 provider")
     ap.add_argument("--out", default=RESULTS, help="結果資料夾（預設 eval/results）")
     ap.add_argument("--baseline", help="跟這份比對（.json，或給資料夾取最新一份）")
+    ap.add_argument("--probe", action="store_true", help="只測金鑰與模型通不通：送一則極短請求就結束")
     a = ap.parse_args()
+
+    base_path = resolve_baseline(a.baseline) if a.baseline else None
+    if a.probe:
+        return probe(a.provider)
 
     langs = [x.strip() for x in a.books.split(",") if x.strip() in dict(FIXTURES)]
     tasks = [x.strip() for x in a.tasks.split(",") if x.strip() in TASKS]
@@ -428,13 +469,7 @@ def main():
     if calls is not None:
         print("\n   （假 provider 只驗流程與提示詞組裝；數字不代表品質，要比品質請用 --provider）")
 
-    if a.baseline:
-        base_path = a.baseline
-        if os.path.isdir(base_path):
-            cands = sorted(f for f in os.listdir(base_path) if f.endswith(".json"))
-            if not cands:
-                raise SystemExit("基線資料夾裡沒有 .json：%s" % base_path)
-            base_path = os.path.join(base_path, cands[-1])
+    if base_path:
         rows, regress = compare_with(flatten(json.loads(read(base_path)).get("results") or {}),
                                      flatten(results))
         print("\n== 與基線 %s 比對" % os.path.basename(base_path))

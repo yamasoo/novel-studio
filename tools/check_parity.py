@@ -91,10 +91,14 @@ def sha(p):
 
 
 def walk(base):
+    """列出檔案；跳過 .git 與 Python 位元碼快取（執行 .py 時 Python 會自己產生，
+    那不是三語內容，不該讓三份檔案對等檢查失敗）。"""
     out = []
     for dp, dns, fns in os.walk(base):
-        dns[:] = [d for d in dns if d != ".git"]
+        dns[:] = [d for d in dns if d not in (".git", "__pycache__")]
         for fn in fns:
+            if fn.endswith((".pyc", ".pyo")):
+                continue
             out.append(os.path.relpath(os.path.join(dp, fn), base).replace("\\", "/"))
     return sorted(out)
 

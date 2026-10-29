@@ -412,7 +412,8 @@ def run_action(book, lang, action, params, prov):
     return job
 
 
-def eval_book(entry, tasks, prov, judge_on=False, chapter=None):
+def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
+    """texts：有給就順便把每個任務的產出文字存進去（寫在另一個檔，基線不會變大）。"""
     lang = entry["lang"]
     target = chapter or entry.get("chapter")
     tmp = tempfile.mkdtemp(prefix="ns_eval_")
@@ -427,7 +428,11 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None):
                 if no:
                     run_action(book, lang, "review_notes", {"chapter": no}, prov)
                     rec = revision.load_review(book, no) or {}
-                    out["review"] = score_review(read(os.path.join(book, "正文", ch[no])) if no in ch else "", rec)
+                    body = read(os.path.join(book, "正文", ch[no])) if no in ch else ""
+                    out["review"] = score_review(body, rec)
+                    if texts is not None:
+                        texts["review"] = {"chapter": no, "text": body[:12000],
+                                           "items": (rec.get("items") or [])[:40]}
             elif task == "deslop":
                 no = target or (max(ch) if ch else 0)
                 if no:
@@ -439,6 +444,8 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None):
                     polished = rec.get("new_text") or (read(os.path.join(book, "正文", now_files[no]))
                                                        if no in now_files else "")
                     out["deslop"] = score_deslop(book, lang, src, polished or "")
+                    if texts is not None:
+                        texts["deslop"] = {"chapter": no, "before": src[:6000], "after": (polished or "")[:12000]}
             elif task == "continue":
                 no = target or (max(ch) if ch else 0)
                 if no:
@@ -464,23 +471,29 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None):
                     out["continue"] = m
                     if judge_on:
                         m.update(judge(prov, lang, card, text))
+                    if texts is not None:
+                        # 問題的行號要對得上，所以存「模型產出」與「檢查結果」
+                        texts["continue"] = {"chapter": no, "text": text[:12000],
+                                             "card": card[:2000], "issues": issues_of(book, text)[:60]}
             print("   %-6s %-9s %5.1f 秒" % (lang, task, time.time() - t0), flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return out
 
 
-def evaluate(entries, tasks, pid, judge_on=False):
-    """回傳 ({key: {task: 指標}}, 假 provider 呼叫次數or None)。"""
+def evaluate(entries, tasks, pid, judge_on=False, texts=None):
+    """回傳 ({key: {task: 指標}}, 假 provider 呼叫次數or None)。texts：收集產出文字。"""
     if pid:
         prov = real_provider(pid)
-        return {e["key"]: eval_book(e, tasks, prov, judge_on) for e in entries}, None
+        return {e["key"]: eval_book(e, tasks, prov, judge_on, texts=(texts.setdefault(e["key"], {}) if texts is not None else None))
+                for e in entries}, None
     prov = {"id": "eval-fake", "type": "openai", "name": "fake", "model": "fake",
             "context_tokens": 65536, "max_output": 4096}
     res = {}
     for e in entries:
         fake = FakeChat(e["lang"])
-        res[e["key"]] = with_fake(fake, lambda e=e: eval_book(e, tasks, prov, judge_on))
+        t = texts.setdefault(e["key"], {}) if texts is not None else None
+        res[e["key"]] = with_fake(fake, lambda e=e, t=t: eval_book(e, tasks, prov, judge_on, texts=t))
         res[e["key"]]["_calls"] = fake.calls
     return res, sum(v.pop("_calls", 0) for v in res.values())
 
@@ -591,7 +604,8 @@ def main():
     if a.judge and not a.provider:
         raise SystemExit("--judge 要搭配 --provider（假 provider 的評分沒有意義）")
     t0 = time.time()
-    results, calls = evaluate(entries, tasks, a.provider, a.judge)
+    texts = {}
+    results, calls = evaluate(entries, tasks, a.provider, a.judge, texts)
 
     stamp = time.strftime("%Y-%m-%d-%H%M")
     payload = {"date": time.strftime("%Y-%m-%dT%H:%M:%S"), "mode": mode,
@@ -612,6 +626,12 @@ def main():
         for task, m in tasks_res.items():
             print("   %-14s %-9s %s" % (key, task, json.dumps(m, ensure_ascii=False)))
     print("   結果：%s" % shown(path))
+    texts = {k: v for k, v in (texts or {}).items() if v}
+    if texts:
+        tpath = path.replace(".json", "-texts.json")
+        with open(tpath, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(texts, f, ensure_ascii=False, indent=1)
+        print("   產出（含檢查結果，方便追問題）：%s" % shown(tpath))
     if calls is not None:
         print("\n   （假 provider 只驗流程與提示詞組裝；數字不代表品質，要比品質請用 --provider）")
 

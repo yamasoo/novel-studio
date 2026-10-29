@@ -472,13 +472,18 @@ def check_demo():
     if not books:
         add("WARN", "demo", "找不到 demo/ 的三語示範書（資料夾名 en_／ja_ 開頭），跳過範本檔案集比較")
         return
-    sets = {k: {p for p in walk(v) if p.startswith("_範本/")} for k, v in books.items()}
-    base = sets["zh"]
-    for k in ("en", "ja"):
-        for p in sorted(base - sets[k]):
-            add("WARN", "demo", "繁中示範書有 %s，%s 示範書沒有（新手照範本做會缺檔）" % (p, k))
-        for p in sorted(sets[k] - base):
-            add("WARN", "demo", "%s 示範書有 %s，繁中示範書沒有" % (k, p))
+    # 一本新書的 _範本/ ＝ 17 個範本＋專案規範.md（novel-setup 會把 references/project-layout.md
+    # 複製成「專案規範.md」）。示範書就是要示範這件事，所以三本都該有這 18 個檔。
+    want = set(templates()) | {"專案規範.md"}
+    if not want - {"專案規範.md"}:
+        add("WARN", "demo", "找不到 plugin/skills/novel-setup/templates/，跳過示範書範本比較")
+        return
+    for k in ("zh", "en", "ja"):
+        have = {p[len("_範本/"):] for p in walk(books[k]) if p.startswith("_範本/")}
+        for p in sorted(want - have):
+            add("WARN", "demo", "%s 示範書的 _範本/ 少了 %s（新手照範本做會缺檔）" % (k, p))
+        for p in sorted(have - want):
+            add("WARN", "demo", "%s 示範書的 _範本/ 多了 %s（不是 novel-setup 會建的檔，確認是不是舊版留下來的）" % (k, p))
 
 
 # ---------------------------------------------------------------------------

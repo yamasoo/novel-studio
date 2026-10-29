@@ -321,19 +321,48 @@ def llm_pass(prov, book_dir, d, max_chars=4000):
 
 # ---------------------------------------------------------------------------
 # 卷綱更新草稿：寫成檔案、附加回卷綱（都不覆蓋原本內容）
+def _volumes(book_dir):
+    """列出所有卷綱檔 → [(相對路徑, 起始章, 結束章, 卷名)]。
+
+    卷綱可能放在 大綱/ 或 大綱/卷綱/；章節範圍寫在 frontmatter 的「章節範圍: 第031章～第050章」。
+    """
+    out = []
+    for sub in ("大綱", "大綱/卷綱"):
+        d = os.path.join(book_dir, *sub.split("/"))
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not (f.endswith(".md") and f.startswith("卷綱")):
+                continue
+            p = os.path.join(d, f)
+            try:
+                fm = project.split_frontmatter(project.read_text(p))[0] or {}
+            except OSError:
+                continue
+            rng = str(fm.get("章節範圍") or "")
+            nums = [int(x) for x in re.findall(r"\d+", rng)]
+            lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
+            out.append(("%s/%s" % (sub, f), lo, hi, str(fm.get("卷名") or f)))
+    return out
+
+
 def volume_rel(book_dir, no):
-    """這一章屬於哪一份卷綱（看章綱的「所屬卷」；找不到就用最後一卷）。"""
+    """這一章屬於哪一份卷綱：先看卷綱自己寫的「章節範圍」，再看章綱的「所屬卷」，最後退第一卷。
+
+    原本只看 大綱/卷綱/ 資料夾，找不到就回第一卷——B 書的卷綱放在 大綱/ 底下，
+    於是第 31–50 章的更新被寫到第一卷（錯的）。
+    """
+    vols = _volumes(book_dir)
+    for rel, lo, hi, _name in vols:
+        if lo is not None and hi is not None and lo <= int(no) <= hi:
+            return rel
     vol = (project.split_frontmatter(_card(book_dir, no))[0] or {}).get("所屬卷") or ""
-    d = os.path.join(book_dir, "大綱", "卷綱")
-    files = []
-    if os.path.isdir(d):
-        files = sorted(f for f in os.listdir(d) if f.endswith(".md"))
-    if files:
-        if vol:
-            for f in files:
-                if vol in f:
-                    return "大綱/卷綱/" + f
-        return "大綱/卷綱/" + files[-1]
+    if vol:
+        for rel, _lo, _hi, name in vols:
+            if vol in rel or vol in name:
+                return rel
+    if vols:
+        return vols[-1][0]
     return "大綱/卷綱_第一卷.md"
 
 

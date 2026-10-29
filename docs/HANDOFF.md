@@ -76,8 +76,11 @@
 3. **續寫合約的兩件收尾**：
    - Claude Code 模式還沒吃到合約（`plugin*/skills/novel-setup/references/claude-md-template.md` 要加一行，三份）
    - 「連續 10 章零衝突」還沒量：要真的跑十章，配合 P4 的回歸工具才有數字
-4. **`claude_review_job`／`claude_revise_job` 的提示詞還是硬寫繁中**（S5 只補了 contextvar），
-   en／ja 書會收到中文指令——這是 A1 家族最後一個明顯的洞。
+4. **P4 回歸工具**（`tools/book_eval.py`）：固定 fixture 的遮章續寫／去 AI 味／審查三種任務，
+   存 `eval/results/` 可與基線比；這是「改提示詞不再憑感覺」的前提。
+
+> Claude Code 模式的提示詞已經全部改走語言包（`b9ee6f8`）：review、revise、deslop、goal、
+> illust、card 六個任務都不再寫死中文；`docs/i18n-workflow.md` 有新增字串時該做的三件事。
 
 ## 注意（本次新增）
 

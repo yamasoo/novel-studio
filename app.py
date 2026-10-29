@@ -331,14 +331,16 @@ def goal_result(book_id: str, no: int):
 
 def claude_goal_job(book_id, d, prov, params):
     """用 Claude Code 核對章綱：Claude 只讀檔並回傳 JSON，驗證與存檔由工作台做。"""
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
     no = int(params.get("chapter"))
     _, card = context.card_text(d, no)
     gl = goals.freeze_goals(card)
     rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not gl or not rel:
         raise HTTPException(400, "第%d章沒有章綱情節點或沒有正文，無法核對。" % no)
-    prompt = (goals.build_prompt(no, gl, "（請用 Read 讀取 %s，不要修改任何檔案）" % rel) +
-              "\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。")
+    prompt = (goals.build_prompt(no, gl, prompts.t(lang, "claude_read_only", rel=rel)) +
+              "\n" + prompts.t(lang, "json_last_only"))
     job = runner_mod.Job(book_id, d, "核對第%d章章綱" % no, prompt, provider=prov,
                          meta={"action": "goal_check", "params": params})
 
@@ -434,10 +436,11 @@ def claude_review_job(book_id, d, prov, params):
         rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以審查的稿子" % no)
-    prompt = ("請使用 novel-review skill 審查第%d章，稿子在 %s（用 Read 讀取，也讀相關的章綱、狀態卡、角色狀態、時間線）。"
-              "不要修改任何檔案。\n%s%s\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (
-                  no, rel, ("作者這次的要求：" + params["note"].strip() + "\n") if (params.get("note") or "").strip() else "",
-                  revision.REVIEW_SCHEMA))
+    lang = lang_mod.book_lang(d)
+    note = (params.get("note") or "").strip()
+    prompt = prompts.t(lang, "claude_review_at", n=no, rel=rel,
+                       note=(prompts.pack(lang)["author_req"] + note) if note else "")
+    prompt += "\n" + revision.review_schema() + "\n" + prompts.t(lang, "json_last_only")
     job = runner_mod.Job(book_id, d, "審查第%d章" % no, prompt, provider=prov, meta={"action": "review_notes", "params": params})
 
     def after(j):
@@ -466,10 +469,7 @@ def claude_revise_job(book_id, d, prov, params):
     if not rel:
         raise HTTPException(400, "第%d章沒有可以修訂的稿子" % no)
     draft = ".studio/修訂/第%03d章.draft.md" % no
-    prompt = ("請依下面的修改意見修訂第%d章（原稿在 %s，用 Read 讀取）。\n【要處理的修改意見】\n%s\n\n"
-              "規則：只修改這些意見涉及的地方，其他段落一字不改，維持原本的空行分段（作者會逐段比對新舊版本）。"
-              "**不要修改原稿**；把修訂後的完整章節（含「# 第%d章 章名」標題）寫到 %s。最後用白話逐條說明每個意見怎麼處理。"
-              % (no, rel, notes, no, draft))
+    prompt = prompts.t(lang_mod.book_lang(d), "claude_revise_at", n=no, rel=rel, notes=notes, draft=draft)
     job = runner_mod.Job(book_id, d, "修訂第%d章" % no, prompt, provider=prov, meta={"action": "revise_notes", "params": params})
     base_text = project.read_text(os.path.join(d, rel))
 
@@ -1293,12 +1293,14 @@ async def illust_zh(req: Request):
 
 
 def claude_illust_job(book_id, d, prov, params):
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
     try:
         kind, passage, chars, places = native.illust_inputs(d, params)
     except (native.NativeError, project.ProjectError) as e:
         raise HTTPException(400, str(e))
     system, user = illust.ai_scene_prompt(d, params.get("target"), passage, chars, places, kind)
-    prompt = system + "\n\n" + user + "\n\n不需要讀寫任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。"
+    prompt = system + "\n\n" + user + "\n\n" + prompts.t(lang, "json_no_files_tail")
     job = runner_mod.Job(book_id, d, "產生插圖提示詞", prompt, provider=prov, meta={"action": "illust_prompt", "params": params})
 
     def after(j):
@@ -1313,12 +1315,14 @@ def claude_illust_job(book_id, d, prov, params):
 
 
 def claude_card_job(book_id, d, prov, params):
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
     f = params.get("file") or ""
     text = context.read(d, f)
     if not text:
         raise HTTPException(400, "找不到 %s" % f)
     system, user = illust.ai_card_prompt(text, os.path.splitext(os.path.basename(f))[0], f.split("/")[1])
-    prompt = system + "\n\n" + user + "\n\n不需要讀寫任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。"
+    prompt = system + "\n\n" + user + "\n\n" + prompts.t(lang, "json_no_files_tail")
     job = runner_mod.Job(book_id, d, "產生視覺卡", prompt, provider=prov, meta={"action": "visual_card", "params": params})
 
     def after(j):
@@ -1379,9 +1383,11 @@ def claude_deslop_job(book_id, d, prov, params):
         raise HTTPException(409, "第%d章還有一份待確認的修訂。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % no)
     draft = ".studio/修訂/第%03d章.draft.md" % no
     note = (params.get("note") or "").strip()
-    prompt = ("請使用 novel-deslop skill 處理第%d章（原稿在 %s，用 Read 讀取）：先跑檢查腳本，修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。%s\n"
-              "**不要修改原稿**；把改好的完整章節（含「# 第%d章 章名」標題）寫到 %s。沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對）。\n"
-              "最後一則回覆是給作者的匯報。%s" % (no, rel, ("作者這次的要求：" + note) if note else "", no, draft, revision.CHANGE_TABLE_RULE))
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
+    prompt = prompts.t(lang, "claude_deslop_at", n=no, rel=rel, draft=draft,
+                       note=(prompts.pack(lang)["author_req"] + note) if note else "",
+                       table=prompts.t(lang, "change_table_rule"))
     job = runner_mod.Job(book_id, d, "去AI味 第%d章" % no, prompt, provider=prov, meta={"action": "deslop", "params": params})
 
     def after(j):

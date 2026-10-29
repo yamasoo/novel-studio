@@ -70,6 +70,18 @@ lock 記下每一組「繁中檔／en 檔／ja 檔」的 sha256。改了繁中�
 python tools/check_parity.py --update-lock   # 三語都補完、確認過，才更新基準
 ```
 
+## Claude Code 模式的提示詞
+
+Claude Code 的任務（審查／修訂／去 AI 味／章綱核對／視覺卡／插圖提示詞）以前是把中文寫死在 `app.py` 裡，
+現在一律走語言包：`claude_review_at`、`claude_revise_at`、`claude_deslop_at`、`claude_read_only`、
+`json_last_only`、`json_no_files_tail`，再加既有的 `change_table_rule`、`author_req`、`review_schema`。
+
+新增或改動這類提示詞時：
+
+1. 三個語言包一起加鍵（`check_i18n` 會擋缺鍵與 `{變數}` 不一致）。
+2. 建任務的函式開頭要 `prompts.set_lang(book_lang(d))`，否則拿到的是預設繁中。
+3. 表格欄名、資料夾路徑、JSON 鍵名照舊保留中文——那是資料格式，不是漏翻。
+
 ## 不要直接改中文文案
 
 `static/i18n.js` 用**中文原文當 key**，改一個字等於換一把鎖，英日翻譯會靜默失效（目前累積的失效鍵就是這樣來的）。

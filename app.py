@@ -426,6 +426,7 @@ def recovery_to_candidate(book_id: str, rid: str):
 
 
 def claude_review_job(book_id, d, prov, params):
+    prompts.set_lang(lang_mod.book_lang(d))     # 請求執行緒：後面組提示詞與檢查都要用這本書的語言
     no = int(params.get("chapter"))
     if params.get("path"):
         rel = book_path(d, params.get("path"))          # 用戶端指定稿子：一律驗證在 正文／候選／設定 底下
@@ -454,6 +455,7 @@ def claude_review_job(book_id, d, prov, params):
 
 
 def claude_revise_job(book_id, d, prov, params):
+    prompts.set_lang(lang_mod.book_lang(d))     # 同上：修訂稿的提示詞與檢查都依這本書的語言
     no = int(params.get("chapter"))
     rv = revision.load_review(d, no)
     notes = revision.notes_text(rv, params.get("ids") or [], params.get("extra") or "")

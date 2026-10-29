@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 
-from . import context, goals, project, revision, tracking
+from . import context, goals, lang as lang_mod, project, prompts, revision, tracking
 
 STEPS = [
     ("card", "章綱"),
@@ -145,6 +145,7 @@ class Pipeline:
             self.h["cancel"](self.job.id)
 
     def _run(self):
+        prompts.set_lang(lang_mod.book_lang(self.d))   # 這條執行緒組的提示詞都用這本書的語言
         try:
             while True:
                 no = self.s["chapter"]

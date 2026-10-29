@@ -249,9 +249,19 @@ def real_provider(pid):
     prov = providers.resolve(cfg.get("providers") or providers.DEFAULT_PROVIDERS,
                              pid or cfg.get("default_provider") or "claude_code")
     if not prov:
-        raise SystemExit("找不到執行者：%s" % pid)
+        raise SystemExit("找不到執行者：%s（可用的有 %s）"
+                         % (pid, "、".join(c["id"] for c in providers.choices(cfg.get("providers") or []))))
     if prov.get("type") == "claude_code":
         raise SystemExit("Claude Code 不能跑回歸測試（要走 /chat/completions），請用 --provider 指定 API 執行者。")
+    if not str(prov.get("model") or "").strip():
+        raise SystemExit("執行者「%s」還沒選模型。先到工作台「設定 → AI 執行者」按「測試連線／抓模型清單」選一個，\n"
+                         "或用 --provider %s/<模型 id> 指定。" % (prov.get("id"), prov.get("id")))
+    if not providers.key_status(ROOT, prov):
+        raise SystemExit("執行者「%s」還沒有 API 金鑰。三種放法（擇一）：\n"
+                         "  1. 工作台「設定 → AI 執行者」貼上金鑰（存進系統金鑰庫，推薦）\n"
+                         "  2. 設環境變數 %s（在跑這支指令的同一個 shell 裡）\n"
+                         "  3. 工作台資料夾的 secrets.json（明文，不進 git）"
+                         % (prov.get("id"), prov.get("key_env") or "API 金鑰"))
     return prov
 
 

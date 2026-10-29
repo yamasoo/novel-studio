@@ -10,7 +10,7 @@ import shutil
 import time
 import urllib.parse
 
-from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, tracking, wb_check
+from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, style_loop, tracking, wb_check
 
 DELIM = "<<<匯報>>>"
 
@@ -254,6 +254,13 @@ def _author_req(note):
 
 
 # ---------------------------------------------------------------------------
+def _better_style(old_ev, new_ev):
+    """重寫版要不要採用：能量測、而且偏差不比原本多，才採用（文學本來就會波動，不強求更好）。"""
+    if not new_ev.get("rows"):
+        return False
+    return (new_ev["obvious"], new_ev["slight"]) <= (old_ev["obvious"], old_ev["slight"])
+
+
 def act_write(c, p):
     a = int(p.get("from") or 0)
     b = int(p.get("to") or a)
@@ -285,6 +292,31 @@ def act_write(c, p):
         out = c.call(msgs, max_tokens=out_tok, label="寫第%d章" % n, stage="draft",
                      recover={"chapter": n, "kind": "chapter"})
         title, text, report = _split_output(out, n, _card_title(c.book, n))
+        # 文風閉環：偏離本書文風超過門檻就帶「數字目標＋作者原句」重寫一次（最多一次）
+        ev, style_notes = style_loop.evaluate(c.book, text), []
+        if ev["verdict"] == "off" and c.opts.get("style_retry", True):
+            c.job.emit("log", text="%s；帶數字與作者原句重寫一次" % style_loop.summary(ev))
+            try:
+                out2 = c.call(msgs + [{"role": "user", "content": style_loop.feedback(c.book, ev, n=n)}],
+                              max_tokens=out_tok, label="寫第%d章（文風重寫）" % n, stage="draft")
+                t2, x2, r2 = _split_output(out2, n, _card_title(c.book, n))
+                ev2 = style_loop.evaluate(c.book, x2)
+                if _better_style(ev, ev2):
+                    title, text = t2, x2
+                    report = (report + "\n" + r2).strip()
+                    style_notes.append("重寫後：%s" % style_loop.summary(ev2))
+                    ev = ev2
+                elif ev2.get("rows"):
+                    style_notes.append("重寫後更偏離（%s），保留原稿" % style_loop.summary(ev2))
+                else:
+                    style_notes.append("重寫那版量不出文風（%s），保留原稿" % ev2.get("verdict"))
+            except Exception as e:
+                style_notes.append("文風重寫失敗（%s），保留原稿" % e)
+        if ev.get("rows"):
+            style_notes.append(style_loop.summary(ev))
+            if ev["verdict"] == "off":
+                style_notes.append("仍偏離門檻；下面是 13 指標的目標／實際，可決定要不要手改。")
+            c.job.emit("log", text=style_loop.summary(ev))
         rel, fixed = _save_candidate(c, n, title, text)
         _, chk = _check_summary(c, rel)
         msgs.append({"role": "assistant", "content": out})
@@ -297,6 +329,8 @@ def act_write(c, p):
             if g:
                 parts.append(g)
         parts.append(chk + ("（已自動修正標點 %d 處）" % fixed if fixed else ""))
+        if style_notes:
+            parts.append("**文風**\n" + "\n".join(style_notes) + ("\n\n" + style_loop.table_md(ev) if ev.get("rows") else ""))
         reports.append("\n\n".join(parts))
     c.job.result = "\n\n---\n\n".join(reports) + "\n\n候選稿請在章節頁審閱，採用後會回寫追蹤資料。"
 
@@ -366,12 +400,37 @@ def act_deslop(c, p):
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="去 AI 味：第%d章" % no, stage="draft")
     title, text, report = _split_output(out, no, _card_title(c.book, no))
+    # 文風閉環：去 AI 味之後也可能把語感洗掉，偏離太多就重寫一次
+    ev, style_notes = style_loop.evaluate(c.book, text), []
+    if ev["verdict"] == "off" and c.opts.get("style_retry", True):
+        c.job.emit("log", text="%s；帶數字與作者原句重寫一次" % style_loop.summary(ev))
+        try:
+            out2 = c.call(msgs + [{"role": "user", "content": style_loop.feedback(c.book, ev, n=no)}],
+                          max_tokens=out_tok, label="去 AI 味：第%d章（文風重寫）" % no, stage="draft")
+            _t2, x2, r2 = _split_output(out2, no, _card_title(c.book, no))
+            ev2 = style_loop.evaluate(c.book, x2)
+            if _better_style(ev, ev2):
+                text = x2
+                report = (report + "\n" + r2).strip()
+                style_notes.append("重寫後：%s" % style_loop.summary(ev2))
+                ev = ev2
+            elif ev2.get("rows"):
+                style_notes.append("重寫後更偏離（%s），保留原本的去 AI 味結果" % style_loop.summary(ev2))
+            else:
+                style_notes.append("重寫那版量不出文風（%s），保留原本的去 AI 味結果" % ev2.get("verdict"))
+        except Exception as e:
+            style_notes.append("文風重寫失敗（%s），保留原本結果" % e)
+    if ev.get("rows"):
+        style_notes.append(style_loop.summary(ev))
+        c.job.emit("log", text=style_loop.summary(ev))
     fixed, _ = c.checker.fix_punct(text)
     if pending:
         revision.discard_revision(c.book, no)
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "deslop", "chapter": no, "path": path})
     c.job.result = deslop_result(c.book, c.job.book_id, no, path, src, title, fixed, report, c.prov.get("id"),
                                  auto_apply=bool(p.get("auto_apply")), checker=c.checker)
+    if style_notes:
+        c.job.result += "\n\n**文風**\n" + "\n".join(style_notes) + ("\n\n" + style_loop.table_md(ev) if ev.get("rows") else "")
 
 
 def deslop_result(book, book_id, no, path, src, title, text, report, provider, auto_apply=False, checker=None):

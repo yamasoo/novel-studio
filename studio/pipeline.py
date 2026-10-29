@@ -13,13 +13,14 @@ import threading
 import time
 import uuid
 
-from . import context, goals, lang as lang_mod, project, prompts, revision, tracking
+from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking
 
 STEPS = [
     ("card", "章綱"),
     ("write", "寫章節（候選稿）"),
     ("goal", "章綱核對"),
     ("deslop", "去 AI 味"),
+    ("style", "文風檢查"),
     ("review", "審查意見"),
     ("tick", "自動勾選意見"),
     ("revise", "依勾選意見修訂"),
@@ -80,6 +81,20 @@ def load_state(book_dir):
 def new_steps():
     return [{"key": k, "label": v, "status": "pending", "note": "", "job": None, "started": None, "ended": None}
             for k, v in STEPS]
+
+
+def ensure_steps(state):
+    """舊的流程狀態可能沒有新加的步驟（例如後來的「文風檢查」）：補上去，不要讓它壞掉。"""
+    steps = state.setdefault("steps", [])
+    have = {s.get("key") for s in steps}
+    order = [k for k, _ in STEPS]
+    for k, label in STEPS:
+        if k in have:
+            continue
+        steps.append({"key": k, "label": label, "status": "pending", "note": "", "job": None,
+                      "started": None, "ended": None})
+    steps.sort(key=lambda s: order.index(s["key"]) if s.get("key") in order else len(order))
+    return state
 
 
 class Pipeline:
@@ -380,6 +395,22 @@ class Pipeline:
             raise StepFailed("去 AI 味之後找不到候選稿")
         return "已處理"
 
+    def _s_style(self, no):
+        """文風檢查（本機計算，不呼叫模型；可在設定關掉）。寫稿／去 AI 味那一步已經做過一次
+        「偏離就重寫」，這裡是把最終候選稿的 13 指標記錄下來，讓作者看得到數字。"""
+        if not self.h.get("style_check", lambda: True)():
+            return ("skip", "文風檢查已關閉")
+        rel, text = context.chapter_text(self.d, no, ("候選", "正文"))
+        if not text:
+            return ("skip", "還沒有稿子")
+        ev = style_loop.evaluate(self.d, text)
+        if not ev.get("rows"):
+            return ("skip", style_loop.summary(ev))
+        line = style_loop.summary(ev)
+        if ev["verdict"] == "off":
+            line += "（超過門檻：可在章節頁看 13 指標的目標／實際）"
+        return line
+
     def _s_review(self, no):
         self._wait("review_notes", {"chapter": no, "candidate": True, "note": self._rerun_note("review")})
         rv = revision.load_review(self.d, no)
@@ -488,6 +519,6 @@ class Manager:
             for x in st["steps"]:
                 if x["status"] == "running":
                     x["status"] = "pending"
-        p = Pipeline(book_id, book_dir, st, hooks)
+        p = Pipeline(book_id, book_dir, ensure_steps(st), hooks)
         self.pipes[book_id] = p
         return p

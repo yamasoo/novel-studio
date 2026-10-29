@@ -74,17 +74,19 @@
 | # | 項目 | commit | 驗證 |
 |---|---|---|---|
 | 1 | P4：`tools/book_eval.py` 回歸測試 | `86dbe7e` | 三書×三任務跑完；指標對照已知答案；基線退步 → exit 1 |
+| 2 | P3：文風保真閉環（`studio/style_loop.py`） | 本 commit | 校準 0 明顯／走鐘 7 明顯；假模型先回走鐘稿 → 2 次呼叫、採用重寫版、匯報有 13 指標表 |
 
-## 下一步（第 3 週還沒做的）
+## 下一步（第 3 週之後）
 
-1. **P3 文風保真閉環**：把 `shared.compare` 的 13 指標接進寫稿／去 AI 味之後，偏離就帶數字重寫一次。
-   有了 P4 的指標，P3 的門檻可以先在示範書上校準，再進流程。
+1. **重建真 provider 基線**：P3 之後流程多一步、寫稿多了重寫選項，`style_*`／`issues` 的定義變了，
+   舊的 `eval/baseline.json` 不能直接比。有金鑰時先跑一次 `python tools/book_eval.py --provider deepseek`，
+   把新的 `*-real.json` 換成基線。
 2. **P4 的第二階段**（等有 API 金鑰時）：
-   - 用真 provider 跑一次，把 `eval/results/*-real.json` 複製成 `eval/baseline.json` 提交，之後每次改提示詞都比它
    - 之後才考慮加「LLM 評分（固定 rubric）」，而且要跟確定性指標分開看
    - 長篇 fixture（20 章以上）才能驗「第 30 章之後」的行為
-3. **T6 完整版**（選配）：把安裝／後端設定搬到 `docs/<lang>/`，README 只留導覽；現在只做了結構對齊。
-4. **續寫合約的兩件收尾**：
+3. **P2 檢索式記憶**（報告第 4 週）：長篇真正的缺口，但先要有乾淨的基線才驗得出有沒有幫助。
+4. **T6 完整版**（選配）：把安裝／後端設定搬到 `docs/<lang>/`，README 只留導覽；現在只做了結構對齊。
+5. **續寫合約的兩件收尾**：
    - Claude Code 模式還沒吃到合約（`plugin*/skills/novel-setup/references/claude-md-template.md` 要加一行，三份）
    - 「連續 10 章零衝突」還沒量：要真的跑十章＋長篇 fixture，P4 才量得出來
 

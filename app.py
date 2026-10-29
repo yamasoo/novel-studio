@@ -1782,8 +1782,9 @@ async def book_volume_adopt(book_id: str, req: Request):
         no = int(body.get("volume"))
     except (TypeError, ValueError):
         raise HTTPException(400, "缺少卷號")
-    rel = wrap(lambda: volume.adopt(d, no))
-    return {"rel": rel, "volumes": volume.list_volumes(d), "drafts": volume.drafts(d)}
+    res = wrap(lambda: volume.adopt(d, no))
+    return {"rel": res["rel"], "warnings": res["warnings"],
+            "volumes": volume.list_volumes(d), "drafts": volume.drafts(d)}
 
 
 @app.get("/api/books/{book_id}/tracking")

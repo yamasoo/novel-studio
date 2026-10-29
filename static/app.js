@@ -1105,8 +1105,10 @@ function bindVol(v) {
   el.querySelectorAll("[data-adopt]").forEach((b) => {
     b.onclick = async () => {
       try {
-        await api("POST", B("/volumes/adopt"), { volume: Number(b.dataset.adopt) });
-        toast(t("已採用第 {0} 卷卷綱", b.dataset.adopt));
+        const r = await api("POST", B("/volumes/adopt"), { volume: Number(b.dataset.adopt) });
+        const warn = (r && r.warnings) || [];
+        if (warn.length) toast(warn.join("；"), true);
+        else toast(t("已採用第 {0} 卷卷綱", b.dataset.adopt));
         go(location.hash);
       } catch (e) { fail(e); }
     };

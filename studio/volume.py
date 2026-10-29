@@ -143,6 +143,62 @@ def plan_drafts(book_dir):
     return out
 
 
+def _heading_volume(line):
+    """讀 `### 第N卷：…` 這種標題的卷號；讀不到回 None。"""
+    m = re.match(r"^###\s*第\s*([0-9〇零一二兩三四五六七八九十百]+)\s*卷", (line or "").strip())
+    return _cn_int(m.group(1)) if m else None
+
+
+def _sync_book_outline(book_dir, no, fm):
+    """採用卷綱後，把這一卷補進 大綱/全書大綱.md 的「分卷」（只追加、不覆蓋），並回傳警告。
+
+    全書大綱是作者寫的規劃；這裡只確保「已定案的卷」在裡面有一節，
+    卷的內容好不好、預計卷數對不對，仍然由作者判斷。
+    """
+    rel = "大綱/全書大綱.md"
+    p = os.path.join(book_dir, *rel.split("/"))
+    if not os.path.isfile(p):
+        return ["沒有 大綱/全書大綱.md，這次沒有同步全書大綱。"]
+    text = project.read_text(p)
+    lines = text.splitlines()
+    head = "## 分卷"
+    start = next((i for i, x in enumerate(lines) if x.strip() == head), None)
+    if start is None:
+        return ["全書大綱沒有「分卷」段，這次沒有同步（避免把內容塞錯地方）。"]
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    same = None
+    rng = str(fm.get("章節範圍") or "")
+    nums = [int(x) for x in re.findall(r"\d+", rng)]
+    lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
+    for i in range(start, end):
+        if _heading_volume(lines[i]) != no:
+            continue
+        same = i
+        body = "\n".join(lines[i:i + 4])
+        other = [int(x) for x in re.findall(r"\d+", body)]
+        if lo is not None and len(other) >= 2 and (other[0], other[1]) != (lo, hi):
+            return ["全書大綱的第 %d 卷寫的是第 %d–%d 章，這次採用的是第 %d–%d 章；已保留原本內容。"
+                    % (no, other[0], other[1], lo, hi)]
+        break
+    if same is not None:
+        return []
+    name = str(fm.get("卷名") or ("第%d卷" % no))
+    block = ["### 第 %d 卷：%s" % (no, name), "",
+             "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0),
+             "- 卷綱：`大綱/卷綱_第%d卷.md`（已確認）" % no, ""]
+    new = lines[:end] + [""] + block + lines[end:]
+    try:
+        from . import tracking
+        tracking.backup(book_dir, p, "全書大綱同步前")
+    except Exception:
+        pass
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(new).rstrip() + "\n")
+    os.replace(tmp, p)
+    return []
+
+
 def adopt(book_dir, no):
     """把 `大綱/草稿/卷綱_第N卷.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
 
@@ -174,7 +230,7 @@ def adopt(book_dir, no):
         os.remove(src)
     except OSError:
         pass
-    return dst_rel
+    return {"rel": dst_rel, "warnings": _sync_book_outline(book_dir, no, fm)}
 
 
 def brief(missing, limit=3):

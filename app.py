@@ -30,7 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
 
-VERSION = "1.17.0"
+VERSION = "1.18.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {

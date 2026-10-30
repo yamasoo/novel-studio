@@ -102,6 +102,7 @@ async function route() {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
     if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
     if (parts[0] === "import") { S.routeName = "import"; return await viewImport(view); }
+    if (parts[0] === "guide") { S.routeName = "guide"; await setBook(null, true); return await viewGuide(view); }
     if (parts[0] === "about") { S.routeName = "about"; return await viewAbout(view); }
     if (parts[0] === "b" && parts[1]) {
       await setBook(parts[1]);
@@ -359,6 +360,7 @@ async function viewShelf(view) {
   view.innerHTML = `
     <div class="page-head">
       <div><h1>書架</h1><div class="sub">${books.length} 本書　·　書庫：<code>${esc(data.library)}</code></div></div>
+      <div class="row"><button onclick="go('#/guide')">使用說明</button></div>
     </div>
     ${S.claudeFound ? "" : `<div class="alert warn" style="margin-bottom:14px"><span class="k">找不到 Claude Code</span><span class="t">按鈕會無法執行。請安裝 Claude Code，或到設定填入 claude 的路徑。</span><button class="sm" onclick="go('#/settings')">設定</button></div>`}
     <div class="shelf">
@@ -3123,6 +3125,24 @@ const ABOUT_LINKS = [
     ["EPUBCheck", "https://github.com/w3c/epubcheck", "", "匯出的 EPUB 用它驗證過"],
   ]],
 ];
+
+async function viewGuide(view) {
+  const lang = (window.I18N && I18N.lang) || "zh-TW";
+  let text = null;
+  for (const u of [`/static/guide/${lang}.md`, "/static/guide/zh-TW.md"]) {
+    try {
+      const r = await fetch(u, { cache: "no-cache" });
+      if (r.ok) { text = await r.text(); break; }
+    } catch (e) { /* 換下一個 */ }
+  }
+  if (!text) {
+    view.innerHTML = `<div class="card empty"><div class="big">?</div>${esc(t("找不到說明文件。"))}</div>`;
+    return;
+  }
+  view.innerHTML = `<div class="page-head"><div><h1>${esc(t("使用說明"))}</h1>
+      <div class="sub">${esc(t("第一次用先看「兩個流程」；名詞看不懂再查名詞表。"))}</div></div></div>
+    <div class="card"><div class="md"${LA()}>${md(text)}</div></div>`;
+}
 
 async function viewAbout(view) {
   let ver = "";

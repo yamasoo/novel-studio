@@ -55,7 +55,8 @@ The Outline page has a "卷況" (Volume status) card:
 3. When happy, press "**採用**" (Adopt): it moves to the official volume outline with status "已確認" (confirmed), and appends the volume to `大綱/全書大綱.md`
 4. The volume outline contains a "volume contract" (what this volume promises and where it must end); continuation prompts inject it first
 
-> The Outline page also has an older "卷綱" (Volume outline) button that **writes the official file directly**, with no draft or confirmation step. For new books, always use "開新卷" on the volume-status card.
+> To change a confirmed volume: volume-status card → "修訂" (Revise) on that volume → a draft is written to `大綱/草稿/卷綱修訂_第N卷.md` → "看差異" (View diff) → "套用修訂" (Apply revision).
+> The official outline is only ever written by "採用" (Adopt) or "套用修訂" (Apply revision); both back up first.
 
 ### Step 3: chapter cards for the whole volume + health check
 
@@ -227,5 +228,6 @@ Every write is backed up first (`.studio/備份/`), and there are recovery draft
 
 ## Duplicate entry points
 
-Some actions currently have several entrances (for example five "排章綱" buttons, four ways to generate settings, and an old and a new path for volume outlines).
-The full list and cleanup suggestions are in the project's `docs/入口檢查.md`; **for now it is only documented, the flows have not been changed**.
+Some actions still have several entrances (for example five "排章綱" buttons and four ways to generate settings).
+Volume outlines are already unified: new volumes go "開新卷 → 採用", existing volumes go "修訂 → 看差異 → 套用修訂".
+The full list and cleanup suggestions are in the project's `docs/入口檢查.md`; **for now the other flows are only documented, not changed**.

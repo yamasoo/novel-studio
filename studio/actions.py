@@ -65,6 +65,14 @@ ACTIONS = {
         "group": "設定", "label": "生成設定草稿",
         "fields": [{"key": "text", "label": "要生成什麼？例如：3 個第一卷的反派候選", "type": "textarea"}],
     },
+    "bible_from_outline": {
+        "group": "設定", "label": "從大綱長設定",
+        "fields": [{"key": "roles", "label": "角色", "type": "checkbox", "default": True},
+                   {"key": "factions", "label": "勢力", "type": "checkbox", "default": True},
+                   {"key": "world", "label": "世界觀（地理、科技、戰術…）", "type": "checkbox", "default": True},
+                   {"key": "refs", "label": "參考方向（選填）：例如「空中艦作戰參考二戰潛艇」", "type": "textarea"},
+                   {"key": "urls", "label": "參考網址（選填，每行一個，會抓內文）", "type": "textarea"}],
+    },
     "intake": {
         "group": "設定", "label": "整理內容入庫",
         "fields": [{"key": "text", "label": "貼上和其他 AI 或自己的討論內容", "type": "textarea"}],
@@ -176,6 +184,17 @@ def build(action, p, book_name, lang="zh-TW"):
         return ("角色：%s" % name, tpl("character", name=name, extra=extra))
     if action == "gen_drafts":
         return ("生成設定草稿", tpl("gen_drafts", text=p.get("text", "")))
+    if action == "bible_from_outline":
+        parts = []
+        if p.get("roles", True):
+            parts.append("角色")
+        if p.get("factions", True):
+            parts.append("勢力")
+        if p.get("world", True):
+            parts.append("世界觀")
+        return ("從大綱長設定", tpl("bible_from_outline", scope="、".join(parts) or "角色",
+                                   refs=(p.get("refs") or "").strip(),
+                                   urls=(p.get("urls") or "").strip()))
     if action == "intake":
         return ("整理入庫", tpl("intake", text=p.get("text", "")))
     if action == "promote_drafts":

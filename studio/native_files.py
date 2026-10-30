@@ -8,10 +8,12 @@
     <<<結束>>>
     <<<刪除 設定/草稿/周叔.md>>>
 """
+import html as html_mod
 import os
 import re
 import shutil
 import time
+import urllib.request
 
 from . import contract, context, project, prompts, shared, tracking, volume
 
@@ -459,6 +461,65 @@ def spec_gen_drafts(c, p):
     return "生成設定草稿", task, pk, False
 
 
+def fetch_urls(raw, limit=3, max_chars=6000):
+    """抓作者給的參考網址（只收 http/https，最多 3 個、每個 6,000 字）。失敗不擋流程。"""
+    urls = [u.strip() for u in (raw or "").splitlines()
+            if u.strip().lower().startswith(("http://", "https://"))][:limit]
+    out = []
+    for u in urls:
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "novel-studio/1.17"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = resp.read(300 * 1024).decode("utf-8", "replace")
+            data = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", data, flags=re.S | re.I)
+            txt = re.sub(r"<[^>]+>", " ", data)
+            txt = html_mod.unescape(re.sub(r"\s+", " ", txt)).strip()[:max_chars]
+            out.append("〈%s〉\n%s" % (u, txt))
+        except Exception as e:      # 抓不到就寫原因，不要讓整個設定生成失敗
+            out.append("〈%s〉（抓取失敗：%s）" % (u, e))
+    return "\n\n".join(out)
+
+
+def cards_brief(c, limit=60):
+    """章綱清單（章號、章名、一句話），給「從大綱長設定」對齊人物出場。"""
+    cards = project._scan_dir(os.path.join(c.book, "大綱", "章綱"))
+    lines = []
+    for no in sorted(cards)[:limit]:
+        _rel, text = context.card_text(c.book, no)
+        if not text:
+            continue
+        fm, body = project.split_frontmatter(text)
+        one = ""
+        m = re.search(r"##\s*一句話\s*\n(.*?)(?=\n##|\Z)", body, re.S)
+        if m:
+            one = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip().split("\n")[0]
+        title = ("《%s》" % fm.get("章名")) if fm.get("章名") else ""
+        lines.append("第%d章%s：%s" % (no, title, one))
+    more = "（只列前 %d 章）" % limit if len(cards) > limit else ""
+    return "\n".join(lines) + more
+
+
+def spec_bible_from_outline(c, p):
+    """從大綱／卷綱／章綱長出設定草稿（角色、勢力、世界觀），可附參考方向與網址。"""
+    pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
+    pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
+    pk.add(1, "角色設計方法", ref(c, "novel-bible/references/character-design.md"))
+    pk.add(2, "世界觀設計方法", ref(c, "novel-bible/references/worldbuilding.md"))
+    pk.add(1, "角色範本", tpl(c, "角色.md"))
+    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
+    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(0, "卷綱", outline_files_text(c))
+    pk.add(1, "章綱清單", cards_brief(c))
+    pk.add(0, "既有設定索引（避免撞名）", entity_index(c.book))
+    add_book_core(pk, c)
+    scope = "、".join([x for x, on in (("角色", p.get("roles", True)), ("勢力", p.get("factions", True)),
+                                      ("世界觀", p.get("world", True))) if on]) or "角色"
+    task = prompts.cur()["task_bible_from_outline"].format(
+        scope=scope, refs=(p.get("refs") or "").strip(), urls=fetch_urls(p.get("urls")), note="")
+    return "從大綱長設定", task, pk, False
+
+
 def spec_intake(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
@@ -508,6 +569,7 @@ SPECS = {"setup_new": spec_setup_new, "style": spec_style, "preference": spec_pr
          "master_outline": spec_master_outline, "volume_outline": spec_volume_outline,
          "volume_draft": spec_volume_draft,
          "chapter_cards": spec_chapter_cards, "character": spec_character, "gen_drafts": spec_gen_drafts,
+         "bible_from_outline": spec_bible_from_outline,
          "intake": spec_intake, "promote_drafts": spec_promote}
 
 

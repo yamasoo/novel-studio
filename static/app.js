@@ -1443,7 +1443,7 @@ async function viewBible(view, t, file) {
   const idxBtn = isEnt ? `<button onclick="rebuildBibleIndex()" title="重新產生 設定/_索引.md，給 novel-bible 先讀">重建索引</button>` : "";
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
-      <div class="row">${btns[t] || ""}${idxBtn}<button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
+      <div class="row">${btns[t] || ""}${idxBtn}<button onclick="Panel.openForm('bible_from_outline')">從大綱長設定</button><button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
       <div class="list">${dupHtml}${listHtml}</div>

@@ -417,12 +417,15 @@ function newBookDialog() {
     try { const ul = localStorage.getItem("ns_lang"); if (ul) $("#nb-lang", el).value = ul; } catch (e) {}
     $("#nb-name", el).focus();
     $("#nb-go", el).onclick = async () => {
+      // 先讀完表單再跳「建立中…」：那個視窗會把表單換掉，之後再讀就會拿到 null
+      const name = $("#nb-name", el).value;
+      const lang = $("#nb-lang", el).value;
       const ref = $("#nb-ref", el).value;
       const gen = $("#nb-gen", el).checked;
       const idea = $("#nb-idea", el).value;
       if (ref) modal(`<h2>建立中…</h2><p class="muted small">正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後會開始開書訪談。</p>`);
       try {
-        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea, lang: $("#nb-lang", el).value, provider: Panel.prov(), ref });
+        const r = await api("POST", "/api/books", { name, idea, lang, provider: Panel.prov(), ref });
         closeModal();
         S.books = (await api("GET", "/api/books")).books;
         go("#/b/" + enc(r.id));

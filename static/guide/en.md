@@ -155,6 +155,8 @@ Outline page → "**參考書骨架**" (Skeleton from a reference book) → pick
 
 The settings bible holds static settings (characters, factions, worldview, glossary). Where a character is *right now*, their injuries, and what they know live under "Foreshadowing & timeline".
 
+Press **"生成設定" (Generate settings)** at the top right of the settings bible: it first asks what you already have — an outline/volume outlines, just a sentence or keywords, a block of text from a discussion, or only one missing character/faction/worldview.
+
 | Method | When to use | Output |
 |---|---|---|
 | **從大綱長設定** (Grow settings from the outline) | You have an outline but the settings are empty | Character, faction, worldview drafts (choose scope; add reference direction and URLs) |

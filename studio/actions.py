@@ -57,12 +57,12 @@ ACTIONS = {
     },
     # ---------------- 設定 ----------------
     "character": {
-        "group": "設定", "label": "建立／補完角色",
+        "group": "設定", "label": "新增／補完角色",
         "fields": [{"key": "name", "label": "角色名", "type": "text"},
                    {"key": "note", "label": "已知資訊（選填）", "type": "textarea"}],
     },
     "gen_drafts": {
-        "group": "設定", "label": "生成設定草稿",
+        "group": "設定", "label": "生成設定草稿（自由描述）",
         "fields": [{"key": "text", "label": "要生成什麼？例如：3 個第一卷的反派候選", "type": "textarea"}],
     },
     "bible_from_outline": {
@@ -74,7 +74,7 @@ ACTIONS = {
                    {"key": "urls", "label": "參考網址（選填，每行一個，會抓內文）", "type": "textarea"}],
     },
     "intake": {
-        "group": "設定", "label": "整理內容入庫",
+        "group": "設定", "label": "整理內容入庫（貼文字）",
         "fields": [{"key": "text", "label": "貼上和其他 AI 或自己的討論內容", "type": "textarea"}],
     },
     "promote_drafts": {

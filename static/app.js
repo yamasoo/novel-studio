@@ -1450,6 +1450,42 @@ async function rebuildBibleIndex() {
 }
 
 let pickKey = "";
+function bibleGenDialog() {
+  const opt = (id, title, desc) => `<div class="row" style="align-items:flex-start;gap:12px;margin:12px 0">
+      <div><b>${esc(t(title))}</b><div class="muted small">${esc(t(desc))}</div></div>
+      <span class="grow"></span><button class="primary" data-pick="${id}">${esc(t("選這個"))}</button></div>`;
+  modal(`<h2>${esc(t("生成設定"))}</h2>
+    <p class="muted small">${esc(t("先看你手上已經有什麼；選錯也可以再回來。"))}</p>
+    ${opt("outline", "我已經有大綱或卷綱", "依大綱長角色、勢力、世界觀（可填參考方向與網址）")}
+    ${opt("free", "我只有一句話或關鍵字", "自由描述要生成什麼，適合補配角或單一設定")}
+    ${opt("intake", "我剛討論完，有一段文字", "貼對話或筆記；已定案進正式、討論中進草稿")}
+    ${opt("one", "我只缺一個角色／勢力／世界觀", "單項補完")}
+    <div class="row"><span class="grow"></span><button onclick="closeModal()">${esc(t("取消"))}</button></div>`,
+  (el) => el.querySelectorAll("[data-pick]").forEach((b) => { b.onclick = () => bibleGenPick(b.dataset.pick); }));
+}
+
+function bibleGenPick(k) {
+  closeModal();
+  if (k === "outline") Panel.openForm("bible_from_outline");
+  else if (k === "free") Panel.openForm("gen_drafts");
+  else if (k === "intake") Panel.openForm("intake");
+  else bibleOneDialog();
+}
+
+function bibleOneDialog() {
+  modal(`<h2>${esc(t("補一個設定"))}</h2>
+    <p class="muted small">${esc(t("只補一個項目時用；完成後會進草稿或正式，視內容而定。"))}</p>
+    <div class="row"><button class="primary" data-one="role">${esc(t("角色"))}</button>
+      <button data-one="faction">${esc(t("勢力"))}</button><button data-one="world">${esc(t("世界觀"))}</button>
+      <span class="grow"></span><button onclick="closeModal()">${esc(t("取消"))}</button></div>`,
+  (el) => el.querySelectorAll("[data-one]").forEach((b) => { b.onclick = () => {
+    closeModal();
+    if (b.dataset.one === "role") Panel.openForm("character");
+    else if (b.dataset.one === "faction") Panel.openForm("free", { text: "請使用 novel-bible skill 建立一個新勢力：" });
+    else Panel.openForm("free", { text: "請使用 novel-bible skill 設計世界觀：" });
+  }; }));
+}
+
 async function viewBible(view, t, file) {
   if (pickKey !== `${S.book}|${t}`) { pickSet = new Set(); pickKey = `${S.book}|${t}`; }
   const b = await api("GET", B("/bible"));
@@ -1458,11 +1494,11 @@ async function viewBible(view, t, file) {
   const list = b[t] || [];
   if (!file && list.length) file = list[0].file;
   const btns = {
-    "角色": `<button class="primary" onclick="Panel.openForm('character')">新增／補完角色</button>`,
-    "勢力": `<button onclick="Panel.openForm('free',{text:'請使用 novel-bible skill 建立一個新勢力：'})">新增勢力</button>`,
-    "世界觀": `<button onclick="Panel.openForm('free',{text:'請使用 novel-bible skill 設計世界觀：'})">設計世界觀</button>`,
+    "角色": "",
+    "勢力": "",
+    "世界觀": "",
     "核心": `<button onclick="Panel.openForm('style')">分析／調整文風</button><button onclick="Panel.openForm('preference')">記錄偏好</button>`,
-    "草稿": `<button onclick="Panel.openForm('gen_drafts')">生成草稿</button><button class="primary" onclick="Panel.openForm('promote_drafts')">草稿轉正式</button>`,
+    "草稿": `<button class="primary" onclick="Panel.openForm('promote_drafts')">草稿轉正式</button>`,
     "章節結構": `<button onclick="go('#/shared?t=${enc("章節結構")}')">到共用庫選結構</button>`,
   };
   if (t === "核心") btns["核心"] = `<button onclick="go('#/shared?t=${enc("文風")}')">共用文風庫</button>` + btns["核心"];
@@ -1480,7 +1516,7 @@ async function viewBible(view, t, file) {
   const idxBtn = isEnt ? `<button onclick="rebuildBibleIndex()" title="重新產生 設定/_索引.md，給 novel-bible 先讀">重建索引</button>` : "";
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
-      <div class="row">${btns[t] || ""}${idxBtn}<button onclick="Panel.openForm('bible_from_outline')">從大綱長設定</button><button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
+      <div class="row">${btns[t] || ""}${idxBtn}<button class="primary" onclick="bibleGenDialog()">生成設定</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
       <div class="list">${dupHtml}${listHtml}</div>

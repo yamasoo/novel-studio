@@ -1623,5 +1623,15 @@
  "骨架草稿已產生": "Skeleton draft created",
  "（不參考）": "(none)",
  "（原本的內容沒動）。": " (the original content is untouched).",
- "（數字），不會帶入任何名字或情節。勾選下面的選項才會請模型另外生故事骨架（約 3 次呼叫）。": " (numbers only); no names or plot points are carried over. Tick the options below to have the model also generate a story skeleton (about 3 calls)."
+ "（數字），不會帶入任何名字或情節。勾選下面的選項才會請模型另外生故事骨架（約 3 次呼叫）。": " (numbers only); no names or plot points are carried over. Tick the options below to have the model also generate a story skeleton (about 3 calls).",
+ "例如：換成校園背景、主角改成女性": "e.g. move it to a school setting, make the protagonist female",
+ "參考書": "Reference book",
+ "參考書骨架": "Skeleton from a reference book",
+ "只沿用參考書的抽象特徵（文風、結構、視角、章節節奏），不會帶入名字或情節。請只用你自有或公有領域的作品。": "Only the reference book's abstract traits (style, structure, point of view, chapter rhythm) are reused; no names or plot points are carried over. Use only your own works or public-domain ones.",
+ "可參考另一本書": "Can reference another book",
+ "書庫裡沒有其他書可以參考": "There is no other book in the library to reference",
+ "產生骨架": "Generate skeleton",
+ "用參考書產生故事骨架": "Generate a story skeleton from a reference book",
+ "用右側目前的執行者生（約 3 次呼叫、1–2 分鐘）。Claude Code 不行，要先切成 API 執行者。": "Generated with the current runner on the right (about 3 calls, 1–2 min). Claude Code cannot do it; switch to an API runner first.",
+ "補充要求（選填）": "Extra requirements (optional)"
 }

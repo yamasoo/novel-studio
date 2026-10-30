@@ -370,7 +370,7 @@ async function viewShelf(view) {
           ${b.pending_candidates ? `<span class="badge b-accent">${b.pending_candidates} 份候選稿</span>` : ""}</div>
           <div class="meta">更新於 ${fmtTime(b.updated) || "—"}</div>
         </div>`).join("")}
-      <div class="card book new" id="new-book"><div class="plus">＋</div><div>開新書</div></div>
+      <div class="card book new" id="new-book"><div class="plus">＋</div><div>開新書</div><div class="muted small">可參考另一本書</div></div>
       <div class="card book new" onclick="go('#/import')"><div class="plus">⇪</div><div>匯入舊稿</div></div>
     </div>
     ${books.length ? "" : `<div class="card" style="margin-top:16px" id="demo-card"></div>`}
@@ -434,8 +434,27 @@ function newBookDialog() {
   });
 }
 
-async function spinoffGenerate(id, source, note) {
-  toast("正在用參考書產生故事骨架…");
+function spinoffDialog() {
+  if (!S.book) return;
+  const others = (S.books || []).filter((b) => b.name !== S.book);
+  if (!others.length) { toast("書庫裡沒有其他書可以參考", true); return; }
+  const opts = others.map((b) => `<option value="${esc(b.name)}">${esc(b.title || b.name)}</option>`).join("");
+  modal(`<h2>用參考書產生故事骨架</h2>
+    <p class="muted small">只沿用參考書的抽象特徵（文風、結構、視角、章節節奏），不會帶入名字或情節。請只用你自有或公有領域的作品。</p>
+    <label class="f"><span>參考書</span><select id="sp-ref">${opts}</select></label>
+    <label class="f"><span>補充要求（選填）</span><textarea id="sp-note" rows="2" placeholder="例如：換成校園背景、主角改成女性"></textarea></label>
+    <p class="muted small">用右側目前的執行者生（約 3 次呼叫、1–2 分鐘）。Claude Code 不行，要先切成 API 執行者。</p>
+    <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="sp-go">產生骨架</button></div>`,
+  (el) => {
+    $("#sp-go", el).onclick = () => {
+      const ref = $("#sp-ref", el).value, note = $("#sp-note", el).value;
+      closeModal();
+      spinoffGenerate(S.book, ref, note);
+    };
+  });
+}
+
+async function spinoffGenerate(id, source, note) {  toast("正在用參考書產生故事骨架…");
   try {
     const r = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
     const bad = (r.guard && r.guard["撞到名字"]) || [];
@@ -1153,7 +1172,7 @@ async function viewOutline(view, file) {
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
       <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
-      <button onclick="Panel.openForm('volume_outline')">卷綱</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
+      <button onclick="Panel.openForm('volume_outline')">卷綱</button><button onclick="spinoffDialog()">參考書骨架</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
     ${vol ? volCard(vol) : ""}
     <div class="split">
       <div class="list">${all.length ? all.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")

@@ -28,6 +28,7 @@
 - `dev` 已於 2026-10-30 以 **squash merge** 合併回 `main`（PR `#1`，84 個 commit），發版 `v1.17.0`（`7274675`）。
   之後 `dev` 是整合分支：功能 commit 進 `dev`，發版再 squash 回 `main`；**合併後要把 `dev` 對齊 `main`**
   （`git reset --hard main` ＋ `push --force-with-lease`），規則寫在 `docs/新對話交接.md`「分支與發版」。
+- 合併後 `dev` 又累積了未發版的 commit（說明頁、設定集生成、卷綱修訂、章節入口預填…）；發版時再 squash。
 - `check_i18n` 全過；`check_parity --strict` **FAIL 0、WARN 0**；`prompt_lang_audit` 也過；
   GitHub Actions 在 PR 與 `main` push 都綠（`checks.yml`）。
 - 介面字串：`tools/i18n_keys.json` 1,628 鍵；en／ja 各 1,622 條（其餘是 `==` 同形標記）。

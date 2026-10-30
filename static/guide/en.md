@@ -164,14 +164,14 @@ Press **"生成設定" (Generate settings)** at the top right of the settings bi
 | **從大綱長設定** (Grow settings from the outline) | You have an outline but the settings are empty | Character, faction, worldview drafts (choose scope; add reference direction and URLs) |
 | **生成設定草稿** (Generate setting drafts) | You know exactly what you want, described in one sentence | Drafts |
 | **整理內容入庫** (File content into the project) | You finished a discussion with the AI and have a long transcript | Settled items go official; open items stay drafts |
-| **新增／補完角色**, new faction, design worldview | Only one item is missing | A single item |
+| **生成設定 → only one item missing** (character / faction / worldview) | Only one item is missing | A single item |
 | **從正文建立設定** (Build settings from the text) | You have a manuscript and want to reverse-engineer | Drafts, adopted group by group |
 
 All drafts live in `設定/草稿/`. Review them, then use "**草稿轉正式**" (Promote drafts) to file them; the glossary is updated at that step.
 
 ### Grow settings from the outline (new)
 
-Settings → "從大綱長設定":
+Settings → "生成設定" (Generate settings) → "我已經有大綱或卷綱":
 
 - Tick the categories to grow (characters / factions / worldview)
 - Optional "參考方向" (reference direction), e.g. "airship warfare modeled on WWII submarine tactics"

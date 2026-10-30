@@ -35,6 +35,8 @@
 - 三份 README 標題分佈 1／8／17；三本示範書 `_範本/` 都是 18 個檔。
 - `tools/i18n_fill.py`：翻譯缺口 → 初翻 patch → 人工核可 → `--apply`。
 - `studio/contract.py`：`設定/續寫合約.md`，priority 0 注入每章上下文（見 `docs/續寫合約.md`）。
+- 書架統計有快取：`<專案>/.cache/books.json`（用「檔案數／大小／最新 mtime」的 stat 指紋失效，不讀內容）；
+  冷啟動約 1 秒、熱讀約 0.1 秒。刪掉會自動重建，`.cache/` 在 `.gitignore`。
 - 卷先行（`studio/volume.py`、`docs/卷先行.md`）：卷綱草稿→採用→整卷章綱→章綱體檢，工作台可操作。
 
 ### 第 1 週清單對照（一個項目一個 commit）

@@ -434,6 +434,34 @@ def spec_volume_draft(c, p):
     return "第%s卷卷綱草稿" % v, task + "\n\n" + prompts.cur()["contract_rule"], pk, False
 
 
+def spec_volume_revise(c, p):
+    """修訂既有卷綱：讀正式卷綱與已寫正文的痕跡，輸出「修訂草稿」，由作者看 diff 再套用。"""
+    raw = str(p.get("volume") or "").strip()
+    try:
+        no = int(raw) if raw.isdigit() else (volume._num_from_name(raw) or volume._cn_int(raw))
+    except Exception:
+        no = 0
+    v = volume.official(c.book, no) if no else None
+    if not v:
+        raise project.ProjectError("找不到第 %s 卷的正式卷綱；新卷請用「開新卷 → 草稿 → 採用」。" % (raw or "?"))
+    a, b = v["lo"], v["hi"]
+    pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
+    pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(0, "現有正式卷綱（%s）" % v["rel"], context.body(context.read(c.book, v["rel"])))
+    pk.add(1, "章綱清單（保留已寫正文對得上的部分）", cards_brief(c))
+    ct = contract_text(c)
+    if ct:
+        pk.add(0, "續寫合約（已定稿的事實與未回收伏筆）", ct)
+    pk.add(1, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
+    pk.add(2, "狀態卡", context.body(context.read(c.book, "追蹤/狀態卡.md")))
+    add_book_core(pk, c)
+    note = (p.get("note") or "").strip()
+    task = prompts.cur()["task_volume_revise"].format(
+        v=no, a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
+    return "修訂第%d卷卷綱" % no, task, pk, True
+
+
 def spec_character(c, p):
     name = (p.get("name") or "").strip()
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
@@ -566,10 +594,10 @@ def spec_promote(c, p):
 
 
 SPECS = {"setup_new": spec_setup_new, "style": spec_style, "preference": spec_preference, "concept": spec_concept,
-         "master_outline": spec_master_outline, "volume_outline": spec_volume_outline,
+         "master_outline": spec_master_outline,
          "volume_draft": spec_volume_draft,
          "chapter_cards": spec_chapter_cards, "character": spec_character, "gen_drafts": spec_gen_drafts,
-         "bible_from_outline": spec_bible_from_outline,
+         "bible_from_outline": spec_bible_from_outline, "volume_revise": spec_volume_revise,
          "intake": spec_intake, "promote_drafts": spec_promote}
 
 

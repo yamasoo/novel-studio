@@ -1811,7 +1811,8 @@ def book_volumes(book_id: str):
     """卷先行的狀態：正式卷綱、草稿、下一個卷號與建議起始章。"""
     d = book_dir(book_id)
     data = {"volumes": volume.list_volumes(d), "drafts": volume.drafts(d),
-            "plans": volume.plan_drafts(d), "next": volume.next_no(d), "from": volume.next_start(d)}
+            "plans": volume.plan_drafts(d), "revisions": volume.revisions(d),
+            "next": volume.next_no(d), "from": volume.next_start(d)}
     # 草稿一產生就要看得到：不要讓瀏覽器拿舊的卷況
     return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
@@ -1828,6 +1829,30 @@ async def book_volume_adopt(book_id: str, req: Request):
     res = wrap(lambda: volume.adopt(d, no))
     return {"rel": res["rel"], "warnings": res["warnings"],
             "volumes": volume.list_volumes(d), "drafts": volume.drafts(d)}
+
+
+@app.get("/api/books/{book_id}/volumes/revision/{no}")
+def book_volume_revision(book_id: str, no: int):
+    """修訂草稿與正式卷綱的 diff（給作者看過再套用）。"""
+    d = book_dir(book_id)
+    info = wrap(lambda: volume.revision_info(d, no))
+    if not info:
+        raise HTTPException(404, "找不到這一卷的修訂草稿")
+    return info
+
+
+@app.post("/api/books/{book_id}/volumes/revision/apply")
+async def book_volume_revision_apply(book_id: str, req: Request):
+    """套用修訂草稿：備份正式卷綱、狀態改「已確認」、同步全書大綱，刪掉草稿。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    try:
+        no = int(body.get("volume"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "缺少卷號")
+    res = wrap(lambda: volume.apply_revision(d, no))
+    return {"rel": res["rel"], "warnings": res["warnings"],
+            "volumes": volume.list_volumes(d), "revisions": volume.revisions(d)}
 
 
 @app.post("/api/books/{book_id}/volumes/outline-sync")

@@ -37,17 +37,17 @@ ACTIONS = {
         "group": "規劃", "label": "全書大綱",
         "fields": [{"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
     },
-    "volume_outline": {
-        "group": "規劃", "label": "卷綱",
-        "fields": [{"key": "volume", "label": "第幾卷", "type": "text", "default": "一"},
-                   {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
-    },
     "volume_draft": {
         "group": "規劃", "label": "卷綱草稿",
         "fields": [{"key": "volume", "label": "第幾卷", "type": "number"},
                    {"key": "from", "label": "這一卷從第幾章", "type": "number"},
                    {"key": "to", "label": "這一卷到第幾章", "type": "number"},
                    {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
+    },
+    "volume_revise": {
+        "group": "規劃", "label": "修訂卷綱",
+        "fields": [{"key": "volume", "label": "要修訂第幾卷（例如 2）", "type": "text"},
+                   {"key": "note", "label": "想改什麼（選填）", "type": "textarea"}],
     },
     "chapter_cards": {
         "group": "規劃", "label": "排章綱",
@@ -165,13 +165,13 @@ def build(action, p, book_name, lang="zh-TW"):
         return ("故事核心診斷", tpl("concept") + extra)
     if action == "master_outline":
         return ("全書大綱", tpl("master_outline") + extra)
-    if action == "volume_outline":
-        v = (p.get("volume") or "一").strip()
-        return ("第%s卷卷綱" % v, tpl("volume_outline", v=v, extra=extra))
     if action == "volume_draft":
         v = str(p.get("volume") or "一").strip()
         a, b = _r(p.get("from") or 1, p.get("to"))
         return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, extra=extra))
+    if action == "volume_revise":
+        v = str(p.get("volume") or "").strip()
+        return ("修訂第%s卷卷綱" % v, tpl("volume_revise", v=v, extra=extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
         if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入

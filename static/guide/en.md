@@ -67,6 +67,8 @@ The Outline page has a "卷況" (Volume status) card:
    - **Too long absent**: a character disappears for too many chapters
 4. Fix the cards before writing
 
+> Whichever entry you press (Overview, Chapters, Outline or the volume-status card), the form comes with the range prefilled; an empty range is rejected and never falls back to chapter 1.
+
 ### Step 4: writing
 
 | Method | Good for |

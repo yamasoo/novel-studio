@@ -2221,6 +2221,8 @@ async def start_job(book_id: str, req: Request):
     if resume and body.get("resume_provider") and body["resume_provider"] != prov["id"]:
         prov = get_provider(body["resume_provider"])   # 接續對話一定用原本的執行者
     params = body.get("params") or {}
+    if action in ("write", "chapter_cards") and not str(params.get("from") or "").strip():
+        raise HTTPException(400, "請先填「從第幾章」；不要用空白送出，免得寫到第 1 章。")
     return launch_job(book_id, d, action, params, prov, resume=resume, text=params.get("text", "")).to_dict()
 
 

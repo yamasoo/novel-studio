@@ -588,7 +588,7 @@ async function viewOverview(view) {
       <div class="row">
         ${next.has_card
           ? `<button class="primary" onclick="Panel.openForm('write',{from:${next.no},to:${next.no}})">寫第${next.no}章${next.title ? "《" + esc(next.title) + "》" : ""}</button>`
-          : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}章起的章綱</button>`}
+          : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}–${next.no + 9}章的章綱</button>`}
         <button onclick="pipeModal(${next.no})">⚡ 整章自動</button>
         <button onclick="Panel.openForm('review',{from:${Math.max(1, ov.latest - 4)},to:${Math.max(1, ov.latest)}})">審查最近章節</button>
         <button onclick="go('#/b/' + enc(S.book) + '/drift')">卷末體檢</button>
@@ -647,10 +647,11 @@ function alertHtml(a) {
 async function viewChapters(view) {
   const chs = await api("GET", B("/chapters"));
   const wu = unitOfBook();
+  const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
   setTimeout(() => renderPipe(), 0);
   view.innerHTML = `
     <div class="page-head"><div><h1>章節</h1><div class="sub">共 ${chs.length} 章　·　點一列開啟</div></div>
-      <div class="row"><button onclick="Panel.openForm('chapter_cards')">排章綱</button><button onclick="pipeModal()">⚡ 整章自動</button><button class="primary" onclick="Panel.openForm('write')">寫章節</button></div></div>
+      <div class="row"><button onclick="Panel.openForm('chapter_cards',{from:${nextNo},to:${nextNo + 9}})">排接下來 10 章</button><button onclick="pipeModal()">⚡ 整章自動</button><button class="primary" onclick="Panel.openForm('write',{from:${nextNo},to:${nextNo}})">寫第${nextNo}章</button></div></div>
     <div class="pipe-box"></div>
     <div class="card">
       ${chs.length ? `<div class="table-wrap"><table>
@@ -695,7 +696,7 @@ async function viewChapter(view, no, tab) {
     </div>
     <div class="row" style="margin-bottom:12px">
       ${!c.text_file && !c.candidate_file && c.card_file ? `<button class="primary" onclick="Panel.openForm('write',{from:${no},to:${no}})">寫這章</button>` : ""}
-      ${!c.card_file ? `<button onclick="Panel.openForm('chapter_cards',{from:${no},to:${no}})">補章綱</button>` : ""}
+      ${!c.card_file ? `<button onclick="Panel.openForm('chapter_cards',{from:${no},to:${no}})">補這一章的章綱</button>` : ""}
       ${!c.text_file || c.candidate_file ? `<button onclick="pipeModal(${no})">⚡ 整章自動${c.candidate_file ? "（從核對開始）" : ""}</button>` : ""}
       ${c.text_file ? `<button onclick="Panel.openForm('revise',{chapter:${no}})">改稿</button>
         <button onclick="Panel.run('review_notes',{chapter:${no}})">審查</button>
@@ -1230,6 +1231,8 @@ function bindVol(v) {
 async function viewOutline(view, file) {
   const files = await api("GET", B("/outline"));
   const vol = await api("GET", B("/volumes")).catch(() => null);
+  const chs = await api("GET", B("/chapters")).catch(() => []);
+  const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
   // 卷綱草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
   const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + t("草稿") + "）", file: x.rel }));
   const plans = ((vol && vol.plans) || []).map((x) => ({ name: x.name, file: x.rel }));
@@ -1238,7 +1241,7 @@ async function viewOutline(view, file) {
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
       <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
-      <button onclick="spinoffDialog()">參考書骨架</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
+      <button onclick="spinoffDialog()">參考書骨架</button><button class="primary" onclick="Panel.openForm('chapter_cards',{from:${nextNo},to:${nextNo + 9}})">排接下來 10 章</button></div></div>
     ${vol ? volCard(vol) : ""}
     <div class="split">
       <div class="list">${all.length ? all.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
@@ -3444,6 +3447,9 @@ const Panel = {
     } catch (e) { box.textContent = "讀取草稿失敗"; }
   },
   async run(action, params, provider) {
+    if ((action === "write" || action === "chapter_cards") && !(Number(params && params.from) > 0)) {
+      toast(t("請先填「從第幾章」。")); return;
+    }
     try {
       const pid = provider || stepProv(action);
       if (pid !== this.prov()) toast(`用「${provName(pid)}」執行（設定 → 整章自動流程的步驟分配）`);

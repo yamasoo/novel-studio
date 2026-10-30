@@ -50,7 +50,7 @@ ACTIONS = {
                    {"key": "note", "label": "想改什麼（選填）", "type": "textarea"}],
     },
     "chapter_cards": {
-        "group": "規劃", "label": "排章綱",
+        "group": "規劃", "label": "排章綱（自訂範圍）",
         "fields": [{"key": "from", "label": "從第幾章", "type": "number"},
                    {"key": "to", "label": "到第幾章", "type": "number"},
                    {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
@@ -83,7 +83,7 @@ ACTIONS = {
     },
     # ---------------- 寫作 ----------------
     "write": {
-        "group": "寫作", "label": "寫章節（候選稿）",
+        "group": "寫作", "label": "寫章節（自訂範圍、候選稿）",
         "fields": [{"key": "from", "label": "從第幾章", "type": "number"},
                    {"key": "to", "label": "到第幾章（最多三章）", "type": "number"},
                    {"key": "note", "label": "這次的特別要求（選填）", "type": "textarea"}],

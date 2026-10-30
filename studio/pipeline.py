@@ -13,13 +13,14 @@ import threading
 import time
 import uuid
 
-from . import context, goals, project, revision, tracking
+from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking, upcheck, volume
 
 STEPS = [
     ("card", "章綱"),
     ("write", "寫章節（候選稿）"),
     ("goal", "章綱核對"),
     ("deslop", "去 AI 味"),
+    ("style", "文風檢查"),
     ("review", "審查意見"),
     ("tick", "自動勾選意見"),
     ("revise", "依勾選意見修訂"),
@@ -82,6 +83,20 @@ def new_steps():
             for k, v in STEPS]
 
 
+def ensure_steps(state):
+    """舊的流程狀態可能沒有新加的步驟（例如後來的「文風檢查」）：補上去，不要讓它壞掉。"""
+    steps = state.setdefault("steps", [])
+    have = {s.get("key") for s in steps}
+    order = [k for k, _ in STEPS]
+    for k, label in STEPS:
+        if k in have:
+            continue
+        steps.append({"key": k, "label": label, "status": "pending", "note": "", "job": None,
+                      "started": None, "ended": None})
+    steps.sort(key=lambda s: order.index(s["key"]) if s.get("key") in order else len(order))
+    return state
+
+
 class Pipeline:
     """一個流程 = 一本書、一段章節範圍。hooks 由 app 提供：
     launch(action, params) -> 已啟動的 Job；cancel(job_id)；checker（check_text 模組）。"""
@@ -96,6 +111,25 @@ class Pipeline:
     # ------------------------------------------------------------------ 狀態
     @classmethod
     def create(cls, book_id, book_dir, hooks, start, end, mode, severities, provider, note="", step_providers=None):
+        # 卷先行：有卷綱的書，只准寫在正式卷綱的章節範圍內。
+        # 沒有卷綱的舊書不擋（不然整批書突然不能寫）；缺的是「使用者還沒建立卷綱」的情況。
+        if volume.has_volumes(book_dir):
+            missing = volume.cover(book_dir, start, end)
+            if missing:
+                raise PipelineError(
+                    "%s不在任何卷綱的章節範圍內；先補對應的 大綱/卷綱_第N卷.md 再開流程"
+                    "（見 docs/卷先行.md）。" % volume.brief(missing))
+            # 卷先行（第二段）：章綱要先排好，不然還是一章一章臨場接
+            no_card = [n for n in range(int(start), int(end) + 1) if not context.card_text(book_dir, n)[1]]
+            if no_card:
+                raise PipelineError(
+                    "%s還沒有章綱；先到大綱頁按「排這一卷的章綱」把整卷排好，再開整章自動流程。"
+                    % volume.brief(no_card))
+            # 章綱體檢：正文還沒寫就先抓劇透（提前登場）
+            hit = [c for c in upcheck.findings(book_dir, int(start), int(end), cards=True) if c["kind"] == "提前登場"]
+            if hit:
+                raise PipelineError("章綱有劇透風險：%s；先修章綱再開流程（見 docs/卷先行.md）。"
+                                    % upcheck.summary(hit))
         state = {"id": uuid.uuid4().hex[:10], "book": book_id, "from": int(start), "to": int(end),
                  "mode": mode if mode in ("stop", "continue") else "stop",
                  "severities": [s for s in (severities or DEFAULT_SEVERITIES) if s in revision.SEVERITIES],
@@ -145,14 +179,36 @@ class Pipeline:
             self.h["cancel"](self.job.id)
 
     def _run(self):
+        from . import autopilot
+        prompts.set_lang(lang_mod.book_lang(self.d))   # 這條執行緒組的提示詞都用這本書的語言
         try:
             while True:
                 no = self.s["chapter"]
                 self._run_chapter(no)
                 self.s["done_chapters"].append(no)
+                # 自動駕駛的檢查點：每 K 章停下來驗一次必須修與文風，不及格就不往下寫
+                every = int(self.h.get("autopilot_every") or 0)
+                if every and self.s["mode"] != "stop" and len(self.s["done_chapters"]) % every == 0:
+                    res = autopilot.checkpoint(self.d, no, every, checker=self.h.get("checker"))
+                    self.s.setdefault("checkpoints", []).append(
+                        {"upto": no, "ok": res["ok"], "stats": res["stats"], "reasons": res["reasons"],
+                         "usage": dict(self.s.get("usage") or {})})
+                    cost = autopilot.cost_line(self.s.get("usage"))
+                    if not res["ok"]:
+                        self.s["status"] = "paused"
+                        self.s["message"] = (autopilot.summary(res)
+                                             + ("\n" + cost if cost else "")
+                                             + "\n\n（已寫到第%d章；處理完再按「繼續」就會接著寫。）" % no)
+                        self.s["chapter"] = no + 1
+                        self.s["steps"] = new_steps()
+                        self.s.pop("accepted_path", None)
+                        break
                 if no >= self.s["to"]:
                     self.s["status"] = "done"
-                    self.s["message"] = "第%d章已定稿。" % no + ("全部章節都完成了。" if self.s["from"] != no else "")
+                    cost = autopilot.cost_line(self.s.get("usage"))
+                    self.s["message"] = ("第%d章已定稿。" % no
+                                         + ("全部章節都完成了。" if self.s["from"] != no else "")
+                                         + (cost if cost else ""))
                     break
                 if self.s["mode"] == "stop":
                     self.s["status"] = "paused"
@@ -231,7 +287,23 @@ class Pipeline:
         if job.status != "done":
             errs = [e.get("text") for e in job.events if e.get("kind") == "error" and e.get("text")]
             raise StepFailed(errs[-1] if errs else "任務沒有完成（%s）" % job.status)
+        self._add_usage(job)
         return job
+
+    def _add_usage(self, job):
+        """把這一輪任務的 token 與費用累加到流程狀態（檢查點與 UI 都用得到）。"""
+        with self.lock:
+            u = self.s.setdefault("usage", {"prompt_tokens": 0, "completion_tokens": 0,
+                                            "cost": 0.0, "jobs": 0})
+            u["jobs"] = int(u.get("jobs") or 0) + 1
+            for e in reversed(job.events or []):
+                if e.get("kind") == "result":
+                    usage = e.get("usage") or {}
+                    u["prompt_tokens"] = int(u.get("prompt_tokens") or 0) + int(usage.get("prompt_tokens") or 0)
+                    u["completion_tokens"] = (int(u.get("completion_tokens") or 0)
+                                              + int(usage.get("completion_tokens") or 0))
+                    u["cost"] = round(float(u.get("cost") or 0) + float(e.get("cost") or 0), 4)
+                    break
 
     # ------------------------------------------------------------------ 各步驟
     def _cand(self, no):
@@ -379,6 +451,22 @@ class Pipeline:
             raise StepFailed("去 AI 味之後找不到候選稿")
         return "已處理"
 
+    def _s_style(self, no):
+        """文風檢查（本機計算，不呼叫模型；可在設定關掉）。寫稿／去 AI 味那一步已經做過一次
+        「偏離就重寫」，這裡是把最終候選稿的 13 指標記錄下來，讓作者看得到數字。"""
+        if not self.h.get("style_check", lambda: True)():
+            return ("skip", "文風檢查已關閉")
+        rel, text = context.chapter_text(self.d, no, ("候選", "正文"))
+        if not text:
+            return ("skip", "還沒有稿子")
+        ev = style_loop.evaluate(self.d, text)
+        if not ev.get("rows"):
+            return ("skip", style_loop.summary(ev))
+        line = style_loop.summary(ev)
+        if ev["verdict"] == "off":
+            line += "（超過門檻：可在章節頁看 13 指標的目標／實際）"
+        return line
+
     def _s_review(self, no):
         self._wait("review_notes", {"chapter": no, "candidate": True, "note": self._rerun_note("review")})
         rv = revision.load_review(self.d, no)
@@ -487,6 +575,6 @@ class Manager:
             for x in st["steps"]:
                 if x["status"] == "running":
                     x["status"] = "pending"
-        p = Pipeline(book_id, book_dir, st, hooks)
+        p = Pipeline(book_id, book_dir, ensure_steps(st), hooks)
         self.pipes[book_id] = p
         return p

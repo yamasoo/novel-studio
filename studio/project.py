@@ -360,14 +360,44 @@ def _single(book_dir, rel, name):
     return {"file": rel, "name": name, "mtime": os.path.getmtime(p)}
 
 
+CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+
+
+def _vol_order(name):
+    """卷綱的排序鍵：抽「第X卷」的數字（中文或阿拉伯都可以）。"""
+    m = re.search(r"第([0-9]+|[一二三四五六七八九十]+)卷", name)
+    if not m:
+        return 99
+    tok = m.group(1)
+    if tok.isdigit():
+        return int(tok)
+    if "十" in tok:
+        left, _, right = tok.partition("十")
+        return (CN_NUM.get(left, 1) if left else 1) * 10 + (CN_NUM.get(right, 0) if right else 0)
+    return CN_NUM.get(tok, 99)
+
+
 def outline_files(book_dir):
+    """大綱檔清單：全書大綱最前，卷綱依「第一卷、第二卷、第三卷」排序。
+
+    以前直接用檔名排序，中文字會排成「一、三、二」（碼位順序），看起來像亂的。
+    """
     d = os.path.join(book_dir, "大綱")
-    out = []
+    rows = []
     if os.path.isdir(d):
-        for f in sorted(os.listdir(d)):
-            if f.endswith(".md"):
-                out.append({"file": "大綱/" + f, "name": os.path.splitext(f)[0]})
-    return out
+        for f in os.listdir(d):
+            if not f.endswith(".md"):
+                continue
+            name = os.path.splitext(f)[0]
+            if name == "全書大綱":
+                key = (0, 0)
+            elif name.startswith("卷綱"):
+                key = (1, _vol_order(name))
+            else:
+                key = (2, 0)
+            rows.append((key, {"file": "大綱/" + f, "name": name}))
+    rows.sort(key=lambda x: (x[0], x[1]["name"]))
+    return [r[1] for r in rows]
 
 
 # ---------------------------------------------------------------------------

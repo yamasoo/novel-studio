@@ -11,21 +11,24 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
 import time
+import traceback
 import webbrowser
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, export, fidelity, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, search, shared, style_design, textguard, tracking, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
 
 VERSION = "1.16.2"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -45,6 +48,13 @@ DEFAULT_CONFIG = {
     "goal_check_after_write": True,     # 非 Claude 模型寫完候選稿後自動核對章綱
     "pipeline_severities": ["必須修", "建議修"],   # 整章自動流程：自動勾選哪些等級的審查意見
     "pipeline_mode": "stop",            # 整章自動流程：stop＝每章定稿後停下來；continue＝連續寫到最後一章
+    "pipeline_style_check": True,       # 整章自動流程：跑不跑「文風檢查」（本機計算，不花錢）
+    "style_retry": True,                # 寫稿／去 AI 味後，文風偏離太多就帶數字重寫一次
+    "recall": True,                     # 檢索式記憶：把作者寫過的相似段落注入寫稿上下文
+    "recall_paragraphs": 6,             # 檢索注入幾個段落
+    "autopilot_every": 0,               # 自動駕駛：每幾章停下來檢查一次（0＝不檢查）
+    "autopilot_stop_must": 1,           # 檢查點：累計幾個「必須修」就停
+    "autopilot_stop_style": 2.4,        # 檢查點：文風偏離幾倍就停（閘門 1.2 的兩倍）
     "pipeline_providers": {},           # 整章自動流程：各步驟的執行者（空白＝跟流程的執行者）；面板按鈕也預設帶入
     "stale_foreshadow": 10,
     "stale_character": 15,
@@ -77,9 +87,23 @@ def load_config():
 
 
 def save_config(cfg):
+    """寫設定檔：先寫 .tmp 再換掉，避免寫到一半斷電／被同步程式鎖住時留下半個 JSON。"""
     with _cfg_lock:
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        tmp = CONFIG_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, CONFIG_PATH)
+
+
+def save_config_or_400(cfg):
+    """存設定；失敗時回 400 加原因（而不是讓它變成 HTTP 500 的一頁 traceback）。"""
+    try:
+        save_config(cfg)
+    except OSError as e:
+        raise HTTPException(400, "設定存不起來（%s）：%s。請確認工作台資料夾可以寫入。"
+                            % (CONFIG_PATH, getattr(e, "strerror", None) or e))
 
 
 CONFIG = load_config()
@@ -112,6 +136,46 @@ def provider_ids():
 
 app = FastAPI(title="小說工作台")
 
+# ---------------------------------------------------------------------------
+# 變更端點的守門（報告 S2）
+# 只綁 127.0.0.1 擋不住瀏覽器的 CSRF 與 DNS rebinding，所以：
+#   1. 變更方法（POST／PUT／DELETE…）只接受「同來源」請求：Origin 的 host 要等於這次的 Host，
+#      Sec-Fetch-Site 要是 same-origin／none。
+#   2. 變更方法還要帶一次性權杖 X-NS-Token：每次啟動產生，由 index() 注入頁面，
+#      前端在 index.html 載入時包一層 fetch 自動加上（見 TOKEN_JS）。
+# 這兩道都不影響 GET／SSE；直接用 curl 打 API 的腳本要自己帶權杖（重新啟動就失效）。
+# ---------------------------------------------------------------------------
+MUTATE_TOKEN = secrets.token_urlsafe(32)
+TOKEN_HEADER = "x-ns-token"
+SAFE_METHODS = frozenset(["GET", "HEAD", "OPTIONS"])
+TOKEN_JS = (
+    "window.__NS_TOKEN__=%s;(function(){var f=window.fetch;window.fetch=function(u,o){"
+    "o=o||{};var h=new Headers(o.headers||{});h.set('X-NS-Token',window.__NS_TOKEN__);"
+    "o.headers=h;return f(u,o)};})();" % json.dumps(MUTATE_TOKEN)
+)
+
+
+def same_origin(request):
+    """請求是不是同一個來源（擋跨站表單與 DNS rebinding）。"""
+    site = (request.headers.get("sec-fetch-site") or "").strip().lower()
+    if site and site not in ("same-origin", "none"):
+        return False
+    origin = request.headers.get("origin")
+    if not origin:
+        return True          # 老瀏覽器不送 Origin：還是要靠下面的權杖
+    return urlsplit(origin).netloc.lower() == (request.headers.get("host") or "").lower()
+
+
+@app.middleware("http")
+async def guard_mutations(request: Request, call_next):
+    if request.method not in SAFE_METHODS:
+        if not same_origin(request):
+            return JSONResponse({"error": "拒絕跨來源的變更請求（請從工作台頁面操作）"}, status_code=403)
+        if not secrets.compare_digest(request.headers.get(TOKEN_HEADER, "") or "", MUTATE_TOKEN):
+            return JSONResponse({"error": "請求權杖不正確，請重新整理頁面再試一次"}, status_code=403)
+    return await call_next(request)
+
+
 
 # ---------------------------------------------------------------------------
 # 共用
@@ -131,11 +195,50 @@ def wrap(fn):
         return fn()
     except project.ProjectError as e:
         raise HTTPException(400, str(e))
+    except PermissionError as e:
+        # 最常見的原因：用「放在工作區裡的 .venv」啟動，那個 python 寫不進書庫外的資料夾。
+        # 直接給能動的解法，不要把 traceback 丟給作者。
+        raise HTTPException(400, "沒有權限寫入這個檔案：%s\n\n"
+                                 "如果是「用專案裡的 .venv 啟動、書庫在專案外」的情況，這個 python 會被限制在專案資料夾裡。"
+                                 "請改用外部虛擬環境啟動：\n"
+                                 "  set NS_VENV=C:\\Users\\你\\venvs\\novel-studio\n"
+                                 "  start.bat\n"
+                                 "（目前用的 python：%s）" % (getattr(e, "filename", "?"), sys.executable))
+
+
+# 審查與修訂只處理書裡的這幾種稿子（報告 S1：不要把用戶端送來的路徑直接拼成檔案路徑）
+REVIEWABLE_DIRS = ("正文", "候選", "設定")
+
+
+def book_path(d, rel, must_exist=True):
+    """用戶端送來的相對路徑 → 驗證過的書內相對路徑（限 正文／候選／設定）。"""
+    if not isinstance(rel, str) or not rel.strip():
+        raise HTTPException(400, "缺少要處理的檔案路徑")
+    full = wrap(lambda: project.safe_path(d, rel.strip()))
+    rel_norm = project.rel_of(d, full)
+    if rel_norm.split("/")[0] not in REVIEWABLE_DIRS:
+        raise HTTPException(400, "只能指定 %s 底下的檔案：%s" % ("、".join(x + "/" for x in REVIEWABLE_DIRS), rel))
+    if must_exist and not os.path.isfile(full):
+        raise HTTPException(404, "找不到檔案：%s" % rel)
+    return rel_norm
 
 
 @app.exception_handler(HTTPException)
 async def http_err(request, exc):
     return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+
+@app.exception_handler(Exception)
+async def unhandled(request, exc):
+    """沒預期的例外：後端視窗印完整堆疊，前端拿到一句人話（而不是只有「HTTP 500」）。"""
+    traceback.print_exc()
+    print("↑ 上面是 %s %s 的完整堆疊" % (request.method, request.url.path), flush=True)
+    # Python 3.11+ 會把同步端點的例外包成 ExceptionGroup，訊息要先剝到真正那一層才有用
+    root, hops = exc, 0
+    while hasattr(root, "exceptions") and getattr(root, "exceptions", None) and hops < 5:
+        root, hops = root.exceptions[0], hops + 1
+    return JSONResponse({"error": "工作台內部錯誤（%s：%s）。完整堆疊在後端視窗，請把它貼給開發者。"
+                                 % (type(root).__name__, str(root)[:200])}, status_code=500)
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +260,9 @@ async def set_config(req: Request):
     body = await req.json()
     for k in ("library", "claude_cmd", "model", "permission_mode", "allowed_tools", "add_dirs",
               "stale_foreshadow", "stale_character", "default_provider",
-              "reconcile_before_write", "goal_check_after_write", "pipeline_severities", "pipeline_mode"):
+              "reconcile_before_write", "goal_check_after_write", "pipeline_severities", "pipeline_mode",
+              "pipeline_style_check", "style_retry", "recall", "recall_paragraphs",
+              "autopilot_every", "autopilot_stop_must", "autopilot_stop_style"):
         if k in body:
             CONFIG[k] = body[k]
     if "pipeline_providers" in body:
@@ -171,8 +276,15 @@ async def set_config(req: Request):
             raise HTTPException(400, "連接埠要在 1024～65535 之間")
         CONFIG["port"] = port
     if body.get("create_library") and CONFIG.get("library"):
-        os.makedirs(CONFIG["library"], exist_ok=True)
-    save_config(CONFIG)
+        lib = CONFIG["library"]
+        try:
+            os.makedirs(lib, exist_ok=True)
+        except OSError as e:
+            raise HTTPException(400, "書庫資料夾建不起來（%s）：%s。請確認這個路徑存在、而且是工作台有權寫入的位置。"
+                                % (lib, getattr(e, "strerror", None) or e))
+        if not os.path.isdir(lib):
+            raise HTTPException(400, "書庫路徑不是資料夾：%s" % lib)
+    save_config_or_400(CONFIG)
     return get_config()
 
 
@@ -220,8 +332,12 @@ async def set_providers(req: Request):
     CONFIG["providers"] = keep
     for pid, key in (body.get("keys") or {}).items():
         if key is not None:
-            providers.save_secret(HERE, pid, key.strip())
-    save_config(CONFIG)
+            try:
+                providers.save_secret(HERE, pid, key.strip())
+            except Exception as e:      # 金鑰庫不可用（憑證管理員被鎖、keyring 後端壞掉……）
+                raise HTTPException(400, "金鑰存不起來（%s）：%s。可以改用環境變數 %s，或寫進 secrets.json。"
+                                    % (pid, e, (providers.resolve(keep, pid) or {}).get("key_env") or "（見執行者設定）"))
+    save_config_or_400(CONFIG)
     return get_config()
 
 
@@ -273,14 +389,16 @@ def goal_result(book_id: str, no: int):
 
 def claude_goal_job(book_id, d, prov, params):
     """用 Claude Code 核對章綱：Claude 只讀檔並回傳 JSON，驗證與存檔由工作台做。"""
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
     no = int(params.get("chapter"))
     _, card = context.card_text(d, no)
     gl = goals.freeze_goals(card)
     rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not gl or not rel:
         raise HTTPException(400, "第%d章沒有章綱情節點或沒有正文，無法核對。" % no)
-    prompt = (goals.build_prompt(no, gl, "（請用 Read 讀取 %s，不要修改任何檔案）" % rel) +
-              "\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。")
+    prompt = (goals.build_prompt(no, gl, prompts.t(lang, "claude_read_only", rel=rel)) +
+              "\n" + prompts.t(lang, "json_last_only"))
     job = runner_mod.Job(book_id, d, "核對第%d章章綱" % no, prompt, provider=prov,
                          meta={"action": "goal_check", "params": params})
 
@@ -368,14 +486,19 @@ def recovery_to_candidate(book_id: str, rid: str):
 
 
 def claude_review_job(book_id, d, prov, params):
+    prompts.set_lang(lang_mod.book_lang(d))     # 請求執行緒：後面組提示詞與檢查都要用這本書的語言
     no = int(params.get("chapter"))
-    rel = params.get("path") or (context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0])
+    if params.get("path"):
+        rel = book_path(d, params.get("path"))          # 用戶端指定稿子：一律驗證在 正文／候選／設定 底下
+    else:
+        rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以審查的稿子" % no)
-    prompt = ("請使用 novel-review skill 審查第%d章，稿子在 %s（用 Read 讀取，也讀相關的章綱、狀態卡、角色狀態、時間線）。"
-              "不要修改任何檔案。\n%s%s\n最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。" % (
-                  no, rel, ("作者這次的要求：" + params["note"].strip() + "\n") if (params.get("note") or "").strip() else "",
-                  revision.REVIEW_SCHEMA))
+    lang = lang_mod.book_lang(d)
+    note = (params.get("note") or "").strip()
+    prompt = prompts.t(lang, "claude_review_at", n=no, rel=rel,
+                       note=(prompts.pack(lang)["author_req"] + note) if note else "")
+    prompt += "\n" + revision.review_schema() + "\n" + prompts.t(lang, "json_last_only")
     job = runner_mod.Job(book_id, d, "審查第%d章" % no, prompt, provider=prov, meta={"action": "review_notes", "params": params})
 
     def after(j):
@@ -393,19 +516,18 @@ def claude_review_job(book_id, d, prov, params):
 
 
 def claude_revise_job(book_id, d, prov, params):
+    prompts.set_lang(lang_mod.book_lang(d))     # 同上：修訂稿的提示詞與檢查都依這本書的語言
     no = int(params.get("chapter"))
     rv = revision.load_review(d, no)
     notes = revision.notes_text(rv, params.get("ids") or [], params.get("extra") or "")
     if not notes:
         raise HTTPException(400, "請至少勾選一條審查意見，或寫下你自己的修改意見。")
-    rel = (rv or {}).get("path") or goals.target(d, no, True)[0]
+    rel = (rv or {}).get("path")
+    rel = book_path(d, rel) if rel else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以修訂的稿子" % no)
     draft = ".studio/修訂/第%03d章.draft.md" % no
-    prompt = ("請依下面的修改意見修訂第%d章（原稿在 %s，用 Read 讀取）。\n【要處理的修改意見】\n%s\n\n"
-              "規則：只修改這些意見涉及的地方，其他段落一字不改，維持原本的空行分段（作者會逐段比對新舊版本）。"
-              "**不要修改原稿**；把修訂後的完整章節（含「# 第%d章 章名」標題）寫到 %s。最後用白話逐條說明每個意見怎麼處理。"
-              % (no, rel, notes, no, draft))
+    prompt = prompts.t(lang_mod.book_lang(d), "claude_revise_at", n=no, rel=rel, notes=notes, draft=draft)
     job = runner_mod.Job(book_id, d, "修訂第%d章" % no, prompt, provider=prov, meta={"action": "revise_notes", "params": params})
     base_text = project.read_text(os.path.join(d, rel))
 
@@ -845,7 +967,7 @@ async def illust_config_save(req: Request):
     if cur.get("backend") not in ("forge", "comfy"):
         cur["backend"] = "forge"
     CONFIG["illust"] = cur
-    save_config(CONFIG)
+    save_config_or_400(CONFIG)
     return illust_config()
 
 
@@ -1229,12 +1351,14 @@ async def illust_zh(req: Request):
 
 
 def claude_illust_job(book_id, d, prov, params):
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
     try:
         kind, passage, chars, places = native.illust_inputs(d, params)
     except (native.NativeError, project.ProjectError) as e:
         raise HTTPException(400, str(e))
     system, user = illust.ai_scene_prompt(d, params.get("target"), passage, chars, places, kind)
-    prompt = system + "\n\n" + user + "\n\n不需要讀寫任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。"
+    prompt = system + "\n\n" + user + "\n\n" + prompts.t(lang, "json_no_files_tail")
     job = runner_mod.Job(book_id, d, "產生插圖提示詞", prompt, provider=prov, meta={"action": "illust_prompt", "params": params})
 
     def after(j):
@@ -1249,12 +1373,14 @@ def claude_illust_job(book_id, d, prov, params):
 
 
 def claude_card_job(book_id, d, prov, params):
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
     f = params.get("file") or ""
     text = context.read(d, f)
     if not text:
         raise HTTPException(400, "找不到 %s" % f)
     system, user = illust.ai_card_prompt(text, os.path.splitext(os.path.basename(f))[0], f.split("/")[1])
-    prompt = system + "\n\n" + user + "\n\n不需要讀寫任何檔案。最後一則回覆只輸出 JSON，不要加說明或程式碼圍欄。"
+    prompt = system + "\n\n" + user + "\n\n" + prompts.t(lang, "json_no_files_tail")
     job = runner_mod.Job(book_id, d, "產生視覺卡", prompt, provider=prov, meta={"action": "visual_card", "params": params})
 
     def after(j):
@@ -1315,9 +1441,11 @@ def claude_deslop_job(book_id, d, prov, params):
         raise HTTPException(409, "第%d章還有一份待確認的修訂。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % no)
     draft = ".studio/修訂/第%03d章.draft.md" % no
     note = (params.get("note") or "").strip()
-    prompt = ("請使用 novel-deslop skill 處理第%d章（原稿在 %s，用 Read 讀取）：先跑檢查腳本，修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。%s\n"
-              "**不要修改原稿**；把改好的完整章節（含「# 第%d章 章名」標題）寫到 %s。沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對）。\n"
-              "最後一則回覆是給作者的匯報。%s" % (no, rel, ("作者這次的要求：" + note) if note else "", no, draft, revision.CHANGE_TABLE_RULE))
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
+    prompt = prompts.t(lang, "claude_deslop_at", n=no, rel=rel, draft=draft,
+                       note=(prompts.pack(lang)["author_req"] + note) if note else "",
+                       table=prompts.t(lang, "change_table_rule"))
     job = runner_mod.Job(book_id, d, "去AI味 第%d章" % no, prompt, provider=prov, meta={"action": "deslop", "params": params})
 
     def after(j):
@@ -1441,15 +1569,100 @@ async def new_book(req: Request):
     d = wrap(lambda: project.create_book(lib, body.get("name", "")))
     name = os.path.basename(d)
     lang_mod.set_book_lang(d, body.get("lang"))   # 先記下這本書的語言，開書訪談的指令與之後的所有提示詞才會用對的語言
+    seeded = []
+    ref = (body.get("ref") or "").strip()
+    if ref:                          # 參考書（P6）：把它的風格指標與章節結構補進新書，全程不呼叫模型
+        try:
+            ref_dir = book_dir(ref)
+            prompts.set_lang(lang_mod.book_lang(ref_dir))
+            seeded = spawn.seed(d, name, fingerprint.build(ref_dir), sdna.build(ref_dir), source=ref)
+        except Exception as e:       # 參考書讀不到不該讓「開新書」失敗
+            print("（參考書 seed 失敗：%s）" % e, flush=True)
+        finally:
+            prompts.set_lang(lang_mod.book_lang(d))
     job = None
     if body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
         title, prompt = actions.build("setup_new", params, name, lang=lang_mod.book_lang(d))
         job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
                                           provider=get_provider(body.get("provider"))))
-    return {"id": name, "job": job.to_dict() if job else None}
+    return {"id": name, "job": job.to_dict() if job else None, "seeded": seeded}
 
 
+@app.post("/api/books/{book_id}/spinoff")
+async def spinoff_generate(book_id: str, req: Request):
+    """用參考書的指紋與 DNA 產生故事骨架草稿（會呼叫模型，約 3 次）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    source = (body.get("source") or "").strip()
+    if not source:
+        raise HTTPException(400, "請先選一本參考書")
+    src = book_dir(source)
+    if os.path.normpath(src) == os.path.normpath(d):
+        raise HTTPException(400, "參考書不能是同一本")
+    prov = get_provider(body.get("provider"))
+    if prov.get("type") == "claude_code":
+        raise HTTPException(400, "產生骨架要走 API 的執行者（Claude Code 不行），請在右側面板上方切換。")
+    try:
+        prompts.set_lang(lang_mod.book_lang(src))
+        data = spinoff.generate(prov, src, (body.get("note") or "").strip())
+        rel = spinoff.save(d, data)
+    except SystemExit as e:
+        raise HTTPException(400, str(e))
+    except providers.ProviderError as e:
+        raise HTTPException(400, "模型回覆有問題：%s" % e)
+    finally:
+        prompts.set_lang(lang_mod.book_lang(d))
+    return {"draft": rel, "preview": spinoff.show(data), "guard": data.get("護欄") or {}}
+
+
+@app.get("/api/books/{book_id}/drift")
+def drift_report(book_id: str, from_: int = Query(None, alias="from"), to: int = None):
+    """卷末體檢：本機計算的漂移報告（不呼叫模型）。"""
+    d = book_dir(book_id)
+    prompts.set_lang(lang_mod.book_lang(d))
+    info = drift.drift(d, from_, to)
+    return {"report": drift.report_md(d, info), "findings": drift.findings(info),
+            "range": info["range"], "count": len(drift.findings(info))}
+
+
+@app.post("/api/books/{book_id}/drift/plan")
+async def drift_plan(book_id: str, req: Request):
+    """用模型產生「卷綱更新」草稿（只送摘要與卷綱，約 1 次呼叫）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    a, b = int(body.get("from") or 1), int(body.get("to") or 1)
+    prov = get_provider(body.get("provider"))
+    if prov.get("type") == "claude_code":
+        raise HTTPException(400, "產生卷綱草稿要走 API 的執行者（Claude Code 不行）。")
+    prompts.set_lang(lang_mod.book_lang(d))
+    info = await run_in_threadpool(drift.drift, d, a, b)
+    res = await run_in_threadpool(drift.llm_pass, prov, d, info)
+    if res.get("error"):        # 失敗不存草稿：不然「附加」會把失敗訊息寫進卷綱
+        return {"plan_md": "", "draft": "", "volume_file": drift.volume_rel(d, b),
+                "error": res["error"]}
+    text = drift.plan_md(res, a, b)
+    rel = drift.save_plan(d, a, b, text)
+    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b), "error": ""}
+
+
+@app.post("/api/books/{book_id}/drift/apply")
+async def drift_apply(book_id: str, req: Request):
+    """把草稿附加到卷綱（原檔先備份；只附加、不覆蓋）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    a, b = int(body.get("from") or 1), int(body.get("to") or 1)
+    draft = (body.get("draft") or "").strip()
+    if not draft:
+        raise HTTPException(400, "沒有草稿可以附加")
+    p = wrap(lambda: project.safe_path(d, draft))
+    if not os.path.isfile(p) or not draft.startswith(("候選/", "大綱/草稿/")):
+        raise HTTPException(400, "草稿路徑不對：%s" % draft)
+    rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b))
+    return {"volume_file": rel, "backup": os.path.basename(bak or "")}
+
+
+# ---------------------------------------------------------------------------
 # 各語言的示範書：語言 → (demo/ 底下的資料夾, 放進書庫後的名稱)
 DEMO_BOOKS = {
     "zh-TW": ("退婚之後", "退婚之後（示範）"),
@@ -1469,13 +1682,23 @@ async def add_demo(req: Request):
     lib = CONFIG.get("library")
     if not lib:
         raise HTTPException(400, "請先設定書庫資料夾")
-    os.makedirs(lib, exist_ok=True)
+    try:
+        os.makedirs(lib, exist_ok=True)
+    except OSError as e:
+        raise HTTPException(400, "書庫資料夾建不起來（%s）：%s。請確認這個路徑存在、而且工作台有寫入權限。"
+                            % (lib, e.strerror or e))
     src_name, dst_name = DEMO_BOOKS[lang]
     src = os.path.join(HERE, "demo", src_name)
     dst = os.path.join(lib, dst_name)
     if os.path.exists(dst):
         raise HTTPException(400, "示範書已經在書架上了")
-    shutil.copytree(src, dst)
+    try:
+        shutil.copytree(src, dst)
+    except OSError as e:
+        # 複製到一半失敗就清掉，避免書架上留下半本書
+        shutil.rmtree(dst, ignore_errors=True)
+        raise HTTPException(400, "示範書複製失敗（%s → %s）：%s。常見原因是書庫資料夾的寫入權限。"
+                            % (src, dst, e.strerror or e))
     return {"id": os.path.basename(dst)}
 
 
@@ -1540,6 +1763,53 @@ def book_outline(book_id: str):
     return project.outline_files(book_dir(book_id))
 
 
+@app.get("/api/books/{book_id}/volumes")
+def book_volumes(book_id: str):
+    """卷先行的狀態：正式卷綱、草稿、下一個卷號與建議起始章。"""
+    d = book_dir(book_id)
+    data = {"volumes": volume.list_volumes(d), "drafts": volume.drafts(d),
+            "plans": volume.plan_drafts(d), "next": volume.next_no(d), "from": volume.next_start(d)}
+    # 草稿一產生就要看得到：不要讓瀏覽器拿舊的卷況
+    return JSONResponse(data, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/books/{book_id}/volumes/adopt")
+async def book_volume_adopt(book_id: str, req: Request):
+    """採用卷綱草稿：搬到正式卷綱、狀態改「已確認」。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    try:
+        no = int(body.get("volume"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "缺少卷號")
+    res = wrap(lambda: volume.adopt(d, no))
+    return {"rel": res["rel"], "warnings": res["warnings"],
+            "volumes": volume.list_volumes(d), "drafts": volume.drafts(d)}
+
+
+@app.post("/api/books/{book_id}/volumes/outline-sync")
+async def book_volume_outline_sync(book_id: str, req: Request):
+    """把已採用的卷綱重新同步進全書大綱（補卷契約；只補不覆蓋）。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    try:
+        no = int(body.get("volume"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "缺少卷號")
+    warnings = wrap(lambda: volume.sync_outline(d, no))
+    return {"warnings": warnings, "volumes": volume.list_volumes(d)}
+
+
+@app.get("/api/books/{book_id}/card-check")
+def book_card_check(book_id: str, from_: int = Query(None, alias="from"), to: int = None):
+    """章綱體檢：拿角色設定回頭對章綱（正文還沒寫就先抓劇透）。"""
+    d = book_dir(book_id)
+    a, b = int(from_ or 1), int(to or from_ or 1)
+    a, b = min(a, b), max(a, b)
+    rows = wrap(lambda: upcheck.findings(d, a, b, cards=True))
+    return {"range": [a, b], "findings": rows, "count": len(rows)}
+
+
 @app.get("/api/books/{book_id}/tracking")
 def book_tracking(book_id: str):
     d = book_dir(book_id)
@@ -1582,13 +1852,33 @@ async def reverse_op(book_id: str, op: str, req: Request):
     if RUNNER.running_for(book_id):
         raise HTTPException(409, "還有任務在執行，請等它結束。")
     if op == "adopt":
-        return wrap(lambda: reverse.adopt(d, body.get("group")))
+        r = wrap(lambda: reverse.adopt(d, body.get("group")))
+        wrap(lambda: contract.ensure(d))      # 拆書採用之後就有資料可以立續寫合約了（已存在且章數沒變就不動）
+        return r
     if op == "discard":
         return wrap(lambda: reverse.discard(d, body.get("group")))
     if op == "reset":
         reverse.reset(d)
         return {"ok": True}
     raise HTTPException(404, "不支援的操作")
+
+
+@app.get("/api/books/{book_id}/contract")
+def contract_get(book_id: str):
+    """續寫合約：這本書不能違背的事實（唯讀；要重產生用 POST）。"""
+    d = book_dir(book_id)
+    return {"path": contract.REL, "exists": os.path.isfile(contract.path(d)), "text": contract.text(d)}
+
+
+@app.post("/api/books/{book_id}/contract")
+async def contract_build(book_id: str, req: Request):
+    d = book_dir(book_id)
+    try:
+        body = await req.json() if (req.headers.get("content-type") or "").startswith("application/json") else {}
+    except ValueError:
+        body = {}
+    rel = wrap(lambda: contract.ensure(d, force=bool((body or {}).get("force"))))
+    return {"path": contract.REL, "changed": bool(rel), "text": contract.text(d)}
 
 
 @app.get("/api/books/{book_id}/search")
@@ -1873,7 +2163,10 @@ def _pipe_hooks(book_id, d, prov_id):
     def launch(action, params, pid=None):
         return launch_job(book_id, d, action, params, get_provider(pid or prov_id))
     return {"launch": launch, "cancel": RUNNER.cancel, "checker": check_text,
-            "busy": lambda: RUNNER.running_for(book_id) is not None}
+            "busy": lambda: RUNNER.running_for(book_id) is not None,
+            "style_check": lambda: bool(CONFIG.get("pipeline_style_check", True)),
+            # 自動駕駛：每 K 章停下來驗「必須修」與「文風」（K=0 表示不檢查）
+            "autopilot_every": int(CONFIG.get("autopilot_every") or 0)}
 
 
 def _pipe_view(book_id, d):
@@ -1919,6 +2212,7 @@ async def pipeline_start(book_id: str, req: Request):
     prov = get_provider(body.get("provider"))
     mode = body.get("mode") or CONFIG.get("pipeline_mode") or "stop"
     sev = body.get("severities")
+    wrap(lambda: contract.ensure(d))     # 開始整章自動流程前，先把續寫合約補到最新章數
     if sev is None:
         sev = CONFIG.get("pipeline_severities") or pipeline.DEFAULT_SEVERITIES
     ids = provider_ids()
@@ -1928,9 +2222,9 @@ async def pipeline_start(book_id: str, req: Request):
     missing = [v for v in (sp or {}).values() if v and v not in ids]
     if missing:
         raise HTTPException(400, "步驟指定的執行者不存在：%s，請到設定修改。" % "、".join(missing))
-    p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"),
-                                 pipeline.clean_step_providers(sp, ids))
     try:
+        p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"),
+                                     pipeline.clean_step_providers(sp, ids))
         PIPES.put(p)
     except pipeline.PipelineError as e:
         raise HTTPException(409, str(e))
@@ -2095,6 +2389,8 @@ def index():
         except OSError:
             continue
         html = html.replace('/static/%s"' % name, '/static/%s?v=%d"' % (name, v))
+    # 一次性權杖：只注入給這個頁面，變更端點會驗它（前端 fetch 由 TOKEN_JS 自動帶上）
+    html = html.replace("</head>", "<script>%s</script>\n</head>" % TOKEN_JS, 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
@@ -2106,6 +2402,7 @@ def serve():
     url = "http://%s:%d" % ("127.0.0.1" if host in ("0.0.0.0", "") else host, port)
     if "--open-browser" in sys.argv:
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+    preflight()
     print("小說工作台 %s 已啟動：%s（按 Ctrl+C 結束）" % (VERSION, url), flush=True)
     SERVER = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning",
                                            timeout_graceful_shutdown=3))
@@ -2117,6 +2414,30 @@ def serve():
     if _restart["requested"]:
         print("重新啟動中……", flush=True)
         sys.exit(RESTART_CODE)
+
+
+def preflight():
+    """啟動時的自我檢查：書庫寫不寫得進去。寫不進去時給能動的解法，而不是等按下快照才炸。"""
+    lib = CONFIG.get("library") or ""
+    try:
+        os.makedirs(lib, exist_ok=True)
+        probe = os.path.join(lib, ".ns-write-test-%d" % os.getpid())
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(probe)
+        return True
+    except OSError as e:
+        print("\n" + "=" * 70)
+        print("警告：這個 python 寫不進書庫，寫稿／存設定會失敗。")
+        print("  書庫：%s" % lib)
+        print("  原因：%s" % e)
+        print("  目前用的 python：%s" % sys.executable)
+        print("  最常見的原因：用「專案資料夾裡的 .venv」啟動，而書庫在專案外。")
+        print("  解法：改用外部虛擬環境啟動——")
+        print("    set NS_VENV=C:\\Users\\你\\venvs\\novel-studio")
+        print("    start.bat")
+        print("=" * 70 + "\n")
+        return False
 
 
 def main():

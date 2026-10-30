@@ -10,7 +10,7 @@ import shutil
 import time
 import urllib.parse
 
-from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, tracking, wb_check
+from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, style_loop, tracking, wb_check
 
 DELIM = "<<<匯報>>>"
 
@@ -225,11 +225,66 @@ def _save_candidate(c, no, title, text):
     return "候選/" + name, n
 
 
-def _check_summary(c, rel):
-    res = c.checker.check_file(os.path.join(c.book, rel), c.checker.load_whitelist(c.book))
+def _fix_simplified(c, rel, res):
+    """把候選稿裡「被檢查器標成簡體字」的字逐一換成繁體，只換那幾個字、整篇不動。
+
+    為什麼只換標記到的字：一簡對多繁（干／乾／幹）整篇轉會改錯意思；逐字對照
+    （OpenCC s2t）在「已經被判定是簡體字」的範圍內是安全的，而且每一處都列進匯報。
+    回傳 (新的檢查結果, 說明文字)。
+    """
+    chars = sorted({ch for f in res.get("問題") or [] if f.get("類型") == "簡體字"
+                    for ch in (f.get("片段") or "")})
+    if not chars:
+        return res, ""
+    from . import importer
+    if not importer.has_opencc():
+        return res, ""
+    try:
+        from opencc import OpenCC
+        cc = OpenCC("s2t")
+    except Exception:
+        return res, ""
+    mapping = {}
+    for ch in chars:
+        t = cc.convert(ch)
+        if len(t) == 1 and t != ch:
+            mapping[ch] = t
+    if not mapping:
+        return res, ""
+    p = os.path.join(c.book, *rel.split("/"))
+    text = project.read_text(p)
+    hits = sum(text.count(k) for k in mapping)
+    if not hits:
+        return res, ""
+    for k, v in mapping.items():
+        text = text.replace(k, v)
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    pairs = "、".join("%s→%s" % kv for kv in list(mapping.items())[:6])
+    return c.checker.check_file(p, c.checker.load_whitelist(c.book)), "簡體字自動轉繁 %d 處（%s）" % (hits, pairs)
+
+
+def _summary_of(res):
+    """把檢查結果寫成一句給作者看的話：數量 ＋ 必須修／用語／錯字的具體建議（最多 5 條）。"""
     must = [f for f in res["問題"] if f["等級"] == "必須修"]
     sug = [f for f in res["問題"] if f["等級"] == "建議修"]
-    return res, "中文字數約 %d；用語檢查：必須修 %d 項、建議修 %d 項。" % (res["中文字數"], len(must), len(sug))
+    tips = []
+    for f in res["問題"]:
+        if f["等級"] != "必須修" and f.get("類型") not in ("大陸用語", "錯字", "疑似誤字"):
+            continue
+        fix = (f.get("建議") or "").split("：")[-1].strip()
+        fix = fix.split("（")[0].strip()
+        tip = "%s→%s" % (f.get("片段") or "", fix) if fix and fix != f.get("片段") else (f.get("片段") or "")
+        if tip and tip not in tips:
+            tips.append(tip)
+    more = ("（%s%s）" % ("、".join(tips[:5]), "…" if len(tips) > 5 else "")) if tips else ""
+    return "中文字數約 %d；用語檢查：必須修 %d 項、建議修 %d 項。%s" % (
+        res["中文字數"], len(must), len(sug), more)
+
+
+def _check_summary(c, rel):
+    res = c.checker.check_file(os.path.join(c.book, rel), c.checker.load_whitelist(c.book))
+    return res, _summary_of(res)
 
 
 def _out_tokens(c, chars=None):
@@ -254,6 +309,13 @@ def _author_req(note):
 
 
 # ---------------------------------------------------------------------------
+def _better_style(old_ev, new_ev):
+    """重寫版要不要採用：能量測、而且偏差不比原本多，才採用（文學本來就會波動，不強求更好）。"""
+    if not new_ev.get("rows"):
+        return False
+    return (new_ev["obvious"], new_ev["slight"]) <= (old_ev["obvious"], old_ev["slight"])
+
+
 def act_write(c, p):
     a = int(p.get("from") or 0)
     b = int(p.get("to") or a)
@@ -271,7 +333,9 @@ def act_write(c, p):
         target = _target_chars(c.book, n)
         out_tok = _out_tokens(c, target)
         ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, n, c.budget(out_tok),
-                                                      prev_from_candidate=(n > a))
+                                                      prev_from_candidate=(n > a),
+                                                      recall_on=bool(c.opts.get("recall", True)),
+                                                      recall_k=int(c.opts.get("recall_paragraphs") or 6))
         if dropped:
             c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
         c.job.emit("log", text="第%d章：上下文約 %d tokens，目標 %d %s"
@@ -285,8 +349,37 @@ def act_write(c, p):
         out = c.call(msgs, max_tokens=out_tok, label="寫第%d章" % n, stage="draft",
                      recover={"chapter": n, "kind": "chapter"})
         title, text, report = _split_output(out, n, _card_title(c.book, n))
+        # 文風閉環：偏離本書文風超過門檻就帶「數字目標＋作者原句」重寫一次（最多一次）
+        ev, style_notes = style_loop.evaluate(c.book, text), []
+        if ev["verdict"] == "off" and c.opts.get("style_retry", True):
+            c.job.emit("log", text="%s；帶數字與作者原句重寫一次" % style_loop.summary(ev))
+            try:
+                out2 = c.call(msgs + [{"role": "user", "content": style_loop.feedback(c.book, ev, n=n)}],
+                              max_tokens=out_tok, label="寫第%d章（文風重寫）" % n, stage="draft")
+                t2, x2, r2 = _split_output(out2, n, _card_title(c.book, n))
+                ev2 = style_loop.evaluate(c.book, x2)
+                if _better_style(ev, ev2):
+                    title, text = t2, x2
+                    report = (report + "\n" + r2).strip()
+                    style_notes.append("重寫後：%s" % style_loop.summary(ev2))
+                    ev = ev2
+                elif ev2.get("rows"):
+                    style_notes.append("重寫後更偏離（%s），保留原稿" % style_loop.summary(ev2))
+                else:
+                    style_notes.append("重寫那版量不出文風（%s），保留原稿" % ev2.get("verdict"))
+            except Exception as e:
+                style_notes.append("文風重寫失敗（%s），保留原稿" % e)
+        if ev.get("rows"):
+            style_notes.append(style_loop.summary(ev))
+            if ev["verdict"] == "off":
+                style_notes.append("仍偏離門檻；下面是 13 指標的目標／實際，可決定要不要手改。")
+            c.job.emit("log", text=style_loop.summary(ev))
         rel, fixed = _save_candidate(c, n, title, text)
-        _, chk = _check_summary(c, rel)
+        res, chk = _check_summary(c, rel)
+        # 簡體字是「必須修」等級的錯，而且 OpenCC 逐字對照是安全的 → 直接改掉並列出來
+        res, fixnote = _fix_simplified(c, rel, res)
+        if fixnote:
+            chk = _summary_of(res)
         msgs.append({"role": "assistant", "content": out})
         c.save_messages(msgs, {"kind": "chapter", "chapter": n})
         parts = ["**第%d章《%s》候選稿已存到 %s**" % (n, title, rel), report or "（模型沒有附匯報）"]
@@ -296,7 +389,10 @@ def act_write(c, p):
             g = _goal_check(c, n, rel)
             if g:
                 parts.append(g)
-        parts.append(chk + ("（已自動修正標點 %d 處）" % fixed if fixed else ""))
+        parts.append(chk + ("（已自動修正標點 %d 處）" % fixed if fixed else "")
+                     + ("（%s）" % fixnote if fixnote else ""))
+        if style_notes:
+            parts.append("**文風**\n" + "\n".join(style_notes) + ("\n\n" + style_loop.table_md(ev) if ev.get("rows") else ""))
         reports.append("\n\n".join(parts))
     c.job.result = "\n\n---\n\n".join(reports) + "\n\n候選稿請在章節頁審閱，採用後會回寫追蹤資料。"
 
@@ -305,7 +401,9 @@ def _rewrite(c, no, src_text, instruction, label):
     target = max(project.count_chars(src_text), 500)
     out_tok = _out_tokens(c, target)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(src_text)),
-                                                  include_craft=False)
+                                                  include_craft=False,
+                                                  recall_on=bool(c.opts.get("recall", True)),
+                                                  recall_k=int(c.opts.get("recall_paragraphs") or 6))
     user = ctx_text + _P()["ctx_draft"] + context.body(src_text) + _P()["task_rewrite"].format(instr=instruction, fmt=fmt_rule(no))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label=label, stage="draft", recover={"chapter": no, "kind": "chapter"})
@@ -366,12 +464,37 @@ def act_deslop(c, p):
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="去 AI 味：第%d章" % no, stage="draft")
     title, text, report = _split_output(out, no, _card_title(c.book, no))
+    # 文風閉環：去 AI 味之後也可能把語感洗掉，偏離太多就重寫一次
+    ev, style_notes = style_loop.evaluate(c.book, text), []
+    if ev["verdict"] == "off" and c.opts.get("style_retry", True):
+        c.job.emit("log", text="%s；帶數字與作者原句重寫一次" % style_loop.summary(ev))
+        try:
+            out2 = c.call(msgs + [{"role": "user", "content": style_loop.feedback(c.book, ev, n=no)}],
+                          max_tokens=out_tok, label="去 AI 味：第%d章（文風重寫）" % no, stage="draft")
+            _t2, x2, r2 = _split_output(out2, no, _card_title(c.book, no))
+            ev2 = style_loop.evaluate(c.book, x2)
+            if _better_style(ev, ev2):
+                text = x2
+                report = (report + "\n" + r2).strip()
+                style_notes.append("重寫後：%s" % style_loop.summary(ev2))
+                ev = ev2
+            elif ev2.get("rows"):
+                style_notes.append("重寫後更偏離（%s），保留原本的去 AI 味結果" % style_loop.summary(ev2))
+            else:
+                style_notes.append("重寫那版量不出文風（%s），保留原本的去 AI 味結果" % ev2.get("verdict"))
+        except Exception as e:
+            style_notes.append("文風重寫失敗（%s），保留原本結果" % e)
+    if ev.get("rows"):
+        style_notes.append(style_loop.summary(ev))
+        c.job.emit("log", text=style_loop.summary(ev))
     fixed, _ = c.checker.fix_punct(text)
     if pending:
         revision.discard_revision(c.book, no)
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "deslop", "chapter": no, "path": path})
     c.job.result = deslop_result(c.book, c.job.book_id, no, path, src, title, fixed, report, c.prov.get("id"),
                                  auto_apply=bool(p.get("auto_apply")), checker=c.checker)
+    if style_notes:
+        c.job.result += "\n\n**文風**\n" + "\n".join(style_notes) + ("\n\n" + style_loop.table_md(ev) if ev.get("rows") else "")
 
 
 def deslop_result(book, book_id, no, path, src, title, text, report, provider, auto_apply=False, checker=None):
@@ -667,7 +790,9 @@ def act_revise_notes(c, p):
         raise NativeError("第%d章沒有可以修訂的稿子" % no)
     out_tok = _out_tokens(c)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(text)),
-                                                  include_craft=False)
+                                                  include_craft=False,
+                                                  recall_on=bool(c.opts.get("recall", True)),
+                                                  recall_k=int(c.opts.get("recall_paragraphs") or 6))
     user = (ctx_text + _P()["ctx_draft_rel"].format(rel=rel) + context.body(text) +
             _P()["ctx_notes"] + notes +
             _P()["task_revise_notes"].format(fmt=fmt_rule(no)))
@@ -689,7 +814,9 @@ def act_recover_continue(c, p):
     partial = rec["text"]
     out_tok = _out_tokens(c)
     ctx_text, used, dropped = context.for_chapter(c.book, c.plugin_dir, no, c.budget(out_tok + context.est_tokens(partial)),
-                                                  include_craft=False, prev_from_candidate=True)
+                                                  include_craft=False, prev_from_candidate=True,
+                                                  recall_on=bool(c.opts.get("recall", True)),
+                                                  recall_k=int(c.opts.get("recall_paragraphs") or 6))
     target = _target_chars(c.book, no)
     user = (ctx_text + _P()["ctx_partial"] + partial +
             _P()["task_recover"].format(n=no, target=target, chars=rec.get("chars", 0), delim=DELIM))

@@ -6,7 +6,7 @@ import contextvars
 import os
 import re
 
-from . import project, prompts, shared
+from . import contract, lang as lang_mod, project, prompts, recall, shared
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -455,14 +455,51 @@ def book_rules(book_dir):
     return body(read(book_dir, "CLAUDE.md"))
 
 
+# 只挑「寫的時候真的能控制」的幾項，太多數字反而變成噪音
+STYLE_KEYS = ("對白比例", "平均句長", "短句比例", "平均段長", "單句成段", "每千字刪節號")
+
+
+def style_targets(book_dir):
+    """本書文風的可量測目標：`設定/文風.md` 有填就用填的，沒填就量作者自己的正文。"""
+    m = shared.parse_metrics(read(book_dir, "設定/文風.md"))
+    if not m:
+        sample = shared.book_sample(book_dir)
+        if not sample.strip():
+            return ""
+        prev = prompts.cur_lang()
+        try:
+            prompts.set_lang(lang_mod.book_lang(book_dir))
+            m = shared.analyze(sample, exclude=shared.book_names(book_dir))
+        except shared.SharedError:
+            return ""
+        finally:
+            prompts.set_lang(prev)
+    vals = []
+    for k in STYLE_KEYS:
+        v = m.get(k)
+        if v not in (None, "", 0):
+            vals.append("%s %s" % (prompts.label(k), v))
+    if not vals:
+        return ""
+    return "｜".join(vals) + "\n" + prompts.t(lang_mod.book_lang(book_dir), "style_target_note")
+
+
 # ---------------------------------------------------------------------------
-def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_candidate=False):
+def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_candidate=False,
+                recall_on=True, recall_k=6):
     """寫第 no 章需要的上下文。"""
     pk = Pack(budget)
     card_path, card = card_text(book_dir, no)
     pk.add(0, "本書規則", book_rules(book_dir))
+    # 續寫合約：這本書不能違背的事實（章數、角色、已揭示／未揭曉的秘密、未回收伏筆、卷末承諾、禁區）。
+    # priority 0：預算不夠時最後才被砍，因為它比任何單一資料表都可靠。沒有合約就自動略過。
+    pk.add(0, "續寫合約（不可變事實，不能違背）", body(contract.text(book_dir)))
     pk.add(0, "第%d章章綱（唯一劇情藍圖）" % no, body(card))
     pk.add(1, "本書文風（優先於一般寫作技法）", body(read(book_dir, "設定/文風.md")))
+    # 文風目標的「數字」：作者填了就用填的，沒填就量他自己的正文。
+    # 光看文風檔的描述不夠——模型會寫成「對白 44%、刪節號幾乎不用」那種樣子，
+    # 把實測數字放在 priority 1，寫稿時就有明確的量可以對。
+    pk.add(1, "文風目標（可量測；寫的時候讓數字落在目標附近）", style_targets(book_dir))
     pk.add(1, "作者偏好", body(read(book_dir, "設定/作者偏好.md")))
     pk.add(1, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     sname, stext, sfrom = shared.structure_for(book_dir, no)
@@ -487,6 +524,14 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
         body(read(book_dir, e["file"])) for e in mentioned_entities(book_dir, scope))
     pk.add(3, READER_TITLE, reader_for(book_dir, card + "\n" + fs, no, pk=pk))
     pk.add(3, RELATION_TITLE, relations_for(book_dir, scope + "\n" + near, pk=pk))
+    # 相似情境（P2 檢索式記憶）：從作者自己寫過的段落裡找最像的幾段。
+    # 查詢＝本章章綱＋上一章結尾＋這章會出場的角色名字。priority 3：預算不夠時可以被丟。
+    if recall_on:
+        who = "、".join(e["name"] for e in mentioned_entities(book_dir, scope)[:8])
+        query = card + "\n" + (body(prev)[-600:] if prev else "") + "\n" + who
+        block = recall.context_block(book_dir, no, query, k=recall_k)
+        if block:
+            pk.add(3, "相似情境（作者自己寫過的段落；參考處境與寫法，不要照抄）", block)
     pk.add(4, "時間線（「讀者目前知道」是資訊邊界，不能提前說破）", timeline_for(book_dir, near, no, pk=pk))
     pk.add(4, "名詞表", glossary_for(book_dir, wide, pk=pk))
     pk.add(5, "前幾章摘要", recent_summaries(book_dir, no))

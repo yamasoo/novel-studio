@@ -13,7 +13,7 @@ import re
 import shutil
 import time
 
-from . import context, project, prompts, shared, tracking
+from . import contract, context, project, prompts, shared, tracking, volume
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -245,6 +245,23 @@ def entity_index(book_dir):
     return "\n".join(lines) or prompts.cur()["none_entities"]
 
 
+def contract_text(c, drop_volume_promise=False):
+    """續寫合約（設定/續寫合約.md）。卷綱草稿要把「卷末承諾」拿掉：那時新卷還不存在。
+
+    合約不存在或章數變了就先補一份（純本機計算，和整章自動流程開跑時做的事一樣）。
+    """
+    try:
+        contract.ensure(c.book)
+    except Exception:
+        pass
+    t = context.body(context.read(c.book, "設定/續寫合約.md"))
+    if not (t or "").strip():
+        return ""
+    if drop_volume_promise:
+        t = re.sub(r"##\s*4\.\s*卷末承諾.*?(?=##\s*5\.)", "", t, flags=re.S)
+    return t
+
+
 def add_book_core(pk, c, light=False):
     rd = lambda r: context.body(context.read(c.book, r))
     pk.add(0, "本書規則（CLAUDE.md）", context.book_rules(c.book))
@@ -362,11 +379,14 @@ def spec_chapter_cards(c, p):
     b = int(p.get("to") or a)
     a, b = min(a, b), max(a, b)
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
-    pk.add(0, "章綱寫法", ref(c, "novel-outline/references/chapter-card.md"))
+    pk.add(0, "卷綱寫法", ref(c, "novel-outline/references/chapter-card.md"))
     if a <= 3:
         pk.add(1, "開篇與黃金三章", ref(c, "novel-outline/references/opening.md"))
     pk.add(0, "章綱範本（大綱/章綱/第NNN章.md）", tpl(c, "章綱.md"))
     pk.add(0, "卷綱", outline_files_text(c))
+    ct = contract_text(c)
+    if ct:
+        pk.add(0, "續寫合約（不可變事實、已揭曉／未揭曉的秘密、卷末承諾）", ct)
     pk.add(2, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
     for n in range(a, b + 1):
         _, card = context.card_text(c.book, n)
@@ -377,11 +397,39 @@ def spec_chapter_cards(c, p):
     pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
+    rule = prompts.cur()["contract_rule"]
     if p.get("auto"):   # 整章自動流程：直接寫入，不先確認
         task = prompts.cur()["task_cards_auto"].format(a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
-        return "寫章綱 %d～%d" % (a, b), task, pk, False
+        return "寫章綱 %d～%d" % (a, b), task + "\n\n" + rule, pk, False
     task = prompts.cur()["task_cards"].format(a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
-    return "排章綱 %d～%d" % (a, b), task, pk, True
+    return "排章綱 %d～%d" % (a, b), task + "\n\n" + rule, pk, True
+
+
+def spec_volume_draft(c, p):
+    """卷先行：把新一卷的卷綱寫成草稿（大綱/草稿/），作者看過再採用。"""
+    v = str(p.get("volume") or "1").strip()
+    a = int(p.get("from") or 1)
+    b = int(p.get("to") or a)
+    a, b = min(a, b), max(a, b)
+    pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
+    pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    ct = contract_text(c, drop_volume_promise=True)
+    if ct:
+        pk.add(0, "續寫合約（已定稿的事實與未回收伏筆；新卷還沒有卷末承諾）", ct)
+    pk.add(1, "卷綱範本", tpl(c, "卷綱.md"))
+    pk.add(1, "其他卷綱", outline_files_text(c))
+    plans = volume.plan_drafts(c.book)
+    if plans:
+        latest = plans[-1]
+        pk.add(1, "上一卷的卷末體檢草稿（%s）" % latest["name"],
+               context.body(context.read(c.book, latest["rel"])))
+    pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
+    add_book_core(pk, c)
+    note = (p.get("note") or "").strip()
+    task = prompts.cur()["task_volume_draft"].format(
+        v=v, a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
+    return "第%s卷卷綱草稿" % v, task + "\n\n" + prompts.cur()["contract_rule"], pk, False
 
 
 def spec_character(c, p):
@@ -458,6 +506,7 @@ def spec_promote(c, p):
 
 SPECS = {"setup_new": spec_setup_new, "style": spec_style, "preference": spec_preference, "concept": spec_concept,
          "master_outline": spec_master_outline, "volume_outline": spec_volume_outline,
+         "volume_draft": spec_volume_draft,
          "chapter_cards": spec_chapter_cards, "character": spec_character, "gen_drafts": spec_gen_drafts,
          "intake": spec_intake, "promote_drafts": spec_promote}
 
@@ -474,11 +523,12 @@ def run_spec(c, p, spec, system, draft_only=False):
     files, dels, report = parse_blocks(out)
     appends = parse_appends(out)
     blocked = []
-    if draft_only:   # 草稿模式：只允許寫進 設定/草稿/，正式設定與名詞表一律不動
-        blocked = ["%s（設計結果先放草稿，不直接進正式設定）" % r for r, _ in files if not r.startswith(DRAFT_PREFIX)]
-        blocked += ["%s（設計結果不直接追加名詞表）" % r for r, _ in appends]
-        blocked += ["刪除 %s（設計模式不刪檔）" % r for r in dels]
-        files = [(r, b) for r, b in files if r.startswith(DRAFT_PREFIX)]
+    if draft_only:   # 草稿模式：只允許寫進指定資料夾（預設 設定/草稿/），正式檔案一律不動
+        prefix = draft_only if isinstance(draft_only, str) else DRAFT_PREFIX
+        blocked = ["%s（草稿模式：只能寫進 %s）" % (r, prefix) for r, _ in files if not r.startswith(prefix)]
+        blocked += ["%s（草稿模式不追加、不刪檔）" % r for r, _ in appends]
+        blocked += ["刪除 %s（草稿模式不刪檔）" % r for r in dels]
+        files = [(r, b) for r, b in files if r.startswith(prefix)]
         appends, dels = [], []
     if c.truncated:
         report += "\n\n⚠ 這次輸出被截斷，最後一個檔案可能沒寫完（沒寫完的檔案不會寫入）。請調高「最大輸出」後再執行一次。"

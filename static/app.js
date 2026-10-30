@@ -119,6 +119,7 @@ async function route() {
       if (sub === "illust") return await viewIllust(view, q.t);
       if (sub === "search") return await viewSearch(view, q.q || "", q.s);
       if (sub === "reverse") return await viewReverse(view, q.upto);
+      if (sub === "drift") return await viewDrift(view, q.from, q.to);
     }
     S.routeName = "shelf";
     await setBook(null, true);
@@ -400,6 +401,7 @@ function renderDemoCard(lang) {
 }
 
 function newBookDialog() {
+  const others = (S.books || []).map((b) => `<option value="${esc(b.name)}">${esc(b.title || b.name)}</option>`).join("");
   modal(`
     <h2>開新書</h2>
     <p class="muted small">會在書庫建立資料夾，然後請 ${esc(Panel.provName())} 跟你做開書訪談（可以在右側面板上方切換執行者）。訪談問題會出現在右側面板，直接在下方回覆即可。</p>
@@ -407,21 +409,106 @@ function newBookDialog() {
     <label class="f"><span>寫作語言</span><select id="nb-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
     <p class="muted small">決定這本書的提示詞和模型輸出的語言。介面語言是另外的設定（右下角）。</p>
     <label class="f"><span>初步構想（選填）</span><textarea id="nb-idea" rows="4" placeholder="一句話、一段簡介，或幾個關鍵字"></textarea></label>
+    <label class="f"><span>參考書（選填）</span><select id="nb-ref"><option value="">（不參考）</option>${others}</select></label>
+    <p class="muted small">只沿用它的<b>文風指標</b>與<b>章節結構</b>（數字），不會帶入任何名字或情節。勾選下面的選項才會請模型另外生故事骨架（約 3 次呼叫）。</p>
+    <label class="f"><span><input type="checkbox" id="nb-gen"> 順便產生故事骨架（用上面的參考書，1–2 分鐘）</span></label>
     <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="nb-go">建立並開始訪談</button></div>`,
   (el) => {
     try { const ul = localStorage.getItem("ns_lang"); if (ul) $("#nb-lang", el).value = ul; } catch (e) {}
     $("#nb-name", el).focus();
     $("#nb-go", el).onclick = async () => {
+      const ref = $("#nb-ref", el).value;
+      const gen = $("#nb-gen", el).checked;
+      const idea = $("#nb-idea", el).value;
       try {
-        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea: $("#nb-idea", el).value, lang: $("#nb-lang", el).value, provider: Panel.prov() });
+        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea, lang: $("#nb-lang", el).value, provider: Panel.prov(), ref });
         closeModal();
         S.books = (await api("GET", "/api/books")).books;
         go("#/b/" + enc(r.id));
         if (r.job) Panel.attach(r.job);
+        if (r.seeded && r.seeded.length) toast("已沿用參考書的文風指標與章節結構");
+        if (gen && ref) spinoffGenerate(r.id, ref, idea);
+        else if (gen && !ref) toast("要先選一本參考書", true);
       } catch (e) { fail(e); }
     };
   });
 }
+
+async function spinoffGenerate(id, source, note) {
+  toast("正在用參考書產生故事骨架…");
+  try {
+    const r = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    const bad = (r.guard && r.guard["撞到名字"]) || [];
+    modal(`<h2>故事骨架草稿</h2>
+      <p class="muted small">已寫到 <code>${esc(r.draft)}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
+      ${bad.length ? `<p class="muted small" style="color:#b45309">護欄：有名字和參考書重複（${esc(bad.join("、"))}），請手動改掉。</p>` : ""}
+      <div class="md">${md(r.preview)}</div>
+      <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
+    toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
+  } catch (e) { fail(e); }
+}
+/* ------------------------------------------------------------------ 卷末體檢（漂移報告） */
+async function viewDrift(view, fromQ, toQ) {
+  const ov = await api("GET", B("/overview")).catch(() => ({}));
+  const latest = ov.latest || 1;
+  const from = parseInt(fromQ || Math.max(1, latest - 9));
+  const to = parseInt(toQ || latest);
+  view.innerHTML = `
+    <div class="page-head"><div><h1>卷末體檢</h1>
+      <div class="sub">拿設定回頭對正文：哪幾章沒寫到章綱、哪些角色久未登場、哪些伏筆欠帳、哪些章文風偏了。本機計算，不花錢。</div></div></div>
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <label class="f" style="width:120px"><span>從第幾章</span><input type="number" id="dr-from" value="${from}"></label>
+        <label class="f" style="width:120px"><span>到第幾章</span><input type="number" id="dr-to" value="${to}"></label>
+        <span class="grow muted small">第一次掃一本長書約 2–10 秒（之後會快取）；掃描期間這個頁面可以切走。</span>
+        <button class="primary" id="dr-go">開始檢查</button>
+      </div>
+    </div>
+    <div id="dr-out"></div>`;
+  $("#dr-go").onclick = async () => {
+    const a = parseInt($("#dr-from").value) || 1, b = parseInt($("#dr-to").value) || a;
+    const out = $("#dr-out");
+    const t0 = Date.now();
+    out.innerHTML = `<div class="card"><p class="muted">檢查第 ${a}–${b} 章…（<span id="dr-sec">0</span> 秒）</p></div>`;
+    const tick = setInterval(() => { const el = $("#dr-sec"); if (el) el.textContent = ((Date.now() - t0) / 1000).toFixed(0); }, 500);
+    try {
+      const r = await api("GET", `${B("/drift")}?from=${a}&to=${b}`);
+      clearInterval(tick);
+      out.innerHTML = `<div class="card"><div class="md">${md(r.report)}</div>
+        <div class="row" style="margin-top:10px">
+          <span class="grow"></span>
+          <button id="dr-plan">產生卷綱更新草稿（用 ${esc(Panel.provName())}）</button>
+        </div>
+        <div id="dr-plan-out"></div></div>`;
+      $("#dr-plan").onclick = async () => {
+        const box = $("#dr-plan-out");
+        const t1 = Date.now();
+        box.innerHTML = `<p class="muted">產生中…（通常 30–90 秒，推理模型會久一點；<span id="dr-sec2">0</span> 秒）</p>`;
+        const tick2 = setInterval(() => { const el = $("#dr-sec2"); if (el) el.textContent = ((Date.now() - t1) / 1000).toFixed(0); }, 500);
+        try {
+          const p = await api("POST", B("/drift/plan"), { from: a, to: b, provider: Panel.prov() });
+          clearInterval(tick2);
+          if (p.error) {
+            box.innerHTML = `<p class="muted small" style="color:#b45309">產生失敗：${esc(p.error)}</p>
+              <p class="muted small">沒有存任何草稿，卷綱也沒動。可以再試一次，或換一個執行者。</p>`;
+            return;
+          }
+          box.innerHTML = `<div class="md">${md(p.plan_md)}</div>
+            <div class="row"><span class="grow"></span><button id="dr-apply">附加到卷綱</button></div>
+            <p class="muted small">附加＝在 <code>${esc(p.volume_file)}</code> 末尾加一節，不會覆蓋原本的卷綱。</p>`;
+          $("#dr-apply").onclick = async () => {
+            try {
+              const res = await api("POST", B("/drift/apply"), { from: a, to: b, draft: p.draft });
+              toast("已附加到 " + res.volume_file);
+              box.innerHTML = `<p class="muted">已附加到 <code>${esc(res.volume_file)}</code>（原本的內容沒動）。</p>`;
+            } catch (e) { fail(e); }
+          };
+        } catch (e) { clearInterval(tick2); fail(e); }
+      };
+    } catch (e) { clearInterval(tick); fail(e); }
+  };
+}
+
 window.initFolder = async (id) => {
   go("#/b/" + enc(id));
   setTimeout(() => Panel.openForm("setup_new"), 300);
@@ -454,6 +541,7 @@ async function viewOverview(view) {
           : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}章起的章綱</button>`}
         <button onclick="pipeModal(${next.no})">⚡ 整章自動</button>
         <button onclick="Panel.openForm('review',{from:${Math.max(1, ov.latest - 4)},to:${Math.max(1, ov.latest)}})">審查最近章節</button>
+        <button onclick="go('#/b/' + enc(S.book) + '/drift')">卷末體檢</button>
       </div>
     </div>
     <div class="pipe-box"></div>
@@ -992,20 +1080,89 @@ window.recoverView = async (id) => {
   } catch (e) { fail(e); }
 };
 /* ------------------------------------------------------------------ 大綱 */
+function volCard(v) {
+  const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
+    ${x.kind === "卷" ? `<button class="sm" data-sync="${x.no}">${t("同步大綱")}</button>` : ""}
+    <button class="sm" data-check="${x.lo}-${x.hi}">${t("章綱體檢")}</button>
+    <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
+  const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
+    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
+    <button class="sm primary" data-adopt="${x.no}">${t("採用")}</button></div>`).join("");
+  const plans = (v.plans || []).map((x) => `<div class="row"><span>${t("卷綱更新草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
+    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button></div>`).join("");
+  return `<div class="card" id="vol-card">
+    <div class="row"><b>${t("卷況")}</b><span class="grow"></span><button class="primary" id="vol-new">${t("開新卷")}</button></div>
+    <div class="muted small">${t("卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。")}</div>
+    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}${plans}</div>
+    ${drafts ? `<div class="muted small">${t("採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。")}</div>` : ""}
+  </div>`;
+}
+function bindVol(v) {
+  const el = $("#vol-card");
+  if (!el) return;
+  const nb = $("#vol-new", el);
+  if (nb) nb.onclick = () => Panel.openForm("volume_draft", { volume: v.next, from: v.from, to: v.from + 19 });
+  el.querySelectorAll("[data-card]").forEach((b) => { b.onclick = () => { const [a, z] = b.dataset.card.split("-").map(Number); Panel.openForm("chapter_cards", { from: a, to: z }); }; });
+  el.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => go('#/b/' + enc(S.book) + '/outline?f=' + enc(b.dataset.open)); });
+  el.querySelectorAll("[data-sync]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const r = await api("POST", B("/volumes/outline-sync"), { volume: Number(b.dataset.sync) });
+        const warn = (r && r.warnings) || [];
+        if (warn.length) toast(warn.join("；"), true);
+        else toast(t("已同步全書大綱"));
+        go(location.hash);
+      } catch (e) { fail(e); }
+    };
+  });
+  el.querySelectorAll("[data-check]").forEach((b) => {
+    b.onclick = async () => {
+      const [a, z] = b.dataset.check.split("-").map(Number);
+      try {
+        const r = await api("GET", B(`/card-check?from=${a}&to=${z}`));
+        const rows = r.findings || [];
+        modal(`<h2>${t("章綱體檢")}（第 ${a}–${z} 章）</h2>
+          ${rows.length ? `<div class="card"><div class="small muted">${t("把設定和章綱對照：提前登場（劇透風險）與久別重逢（設定說已退場）。")}</div>
+            ${rows.map((f) => `<div class="row" style="align-items:flex-start"><span class="badge">${esc(f.kind)}</span>
+              <span>${t("第 {0} 章", f.chapter)}「${esc(f.name)}」：${esc(f.detail)}</span></div>`).join("")}</div>`
+            : `<div class="card"><p>${t("章綱沒有發現衝突。")}</p></div>`}
+          <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">${t("知道了")}</button></div>`);
+      } catch (e) { fail(e); }
+    };
+  });
+  el.querySelectorAll("[data-adopt]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const r = await api("POST", B("/volumes/adopt"), { volume: Number(b.dataset.adopt) });
+        const warn = (r && r.warnings) || [];
+        if (warn.length) toast(warn.join("；"), true);
+        else toast(t("已採用第 {0} 卷卷綱", b.dataset.adopt));
+        go(location.hash);
+      } catch (e) { fail(e); }
+    };
+  });
+}
 async function viewOutline(view, file) {
   const files = await api("GET", B("/outline"));
-  if (!file && files.length) file = files[0].file;
+  const vol = await api("GET", B("/volumes")).catch(() => null);
+  // 卷綱草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
+  const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + t("草稿") + "）", file: x.rel }));
+  const plans = ((vol && vol.plans) || []).map((x) => ({ name: x.name, file: x.rel }));
+  const all = files.concat(drafts).concat(plans);
+  if (!file && all.length) file = all[0].file;
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
       <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
       <button onclick="Panel.openForm('volume_outline')">卷綱</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
+    ${vol ? volCard(vol) : ""}
     <div class="split">
-      <div class="list">${files.length ? files.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
+      <div class="list">${all.length ? all.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
         : '<div class="muted">還沒有大綱。</div>'}
         <div class="item" onclick="go('#/b/${enc(S.book)}/bible?t=核心&f=${enc("設定/故事核心.md")}')"><div class="nm">故事核心</div><div class="ds">設定/故事核心.md</div></div>
       </div>
       <div id="doc">${file ? "" : '<div class="card empty"><div class="big">⌘</div>還沒有大綱。可以先做「故事核心診斷」，再規劃全書大綱。</div>'}</div>
     </div>`;
+  if (vol) bindVol(vol);
   if (file) await docView($("#doc"), file);
 }
 
@@ -1498,6 +1655,13 @@ async function viewSettings(view) {
         <label><input type="radio" name="c-pmode" value="continue" ${c.pipeline_mode === "continue" ? "checked" : ""}><span>連續寫到最後一章</span></label>
       </div>
       <div class="muted small" style="margin-top:6px">章綱核對發現沒寫到的情節點，會一併交給修訂。開始時也可以臨時改這兩項。</div>
+      <div class="f" style="margin-top:12px"><span>自動駕駛：每幾章停下來檢查一次（0＝不檢查）</span></div>
+      <div class="grid g3">
+        <label class="f"><span>每幾章檢查</span><input type="number" id="c-ape" min="0" value="${esc(c.autopilot_every ?? 0)}"></label>
+        <label class="f"><span>必須修幾項就停</span><input type="number" id="c-apsm" min="1" value="${esc(c.autopilot_stop_must ?? 1)}"></label>
+        <label class="f"><span>文風偏離幾倍就停</span><input type="number" step="0.1" id="c-apss" min="1" value="${esc(c.autopilot_stop_style ?? 2.4)}"></label>
+      </div>
+      <div class="muted small">連續寫才有效。檢查點會看這幾章有沒有「必須修」與文風偏離，不及格就停在那一章等人（漂移線索只記錄、不停）。成本：每次檢查都是本機計算，不花錢。</div>
       <div class="f" style="margin-top:12px"><span>各步驟的執行者（面板上對應的按鈕也預設用這裡的分配）</span></div>
       <div class="grid g4" id="c-pprov">${AI_STEP_LABELS.map(([k, l]) => `<label class="f"><span>${esc(l)}</span><select data-step="${k}">
         <option value="">跟流程的執行者</option>${provOpts((c.pipeline_providers || {})[k])}</select></label>`).join("")}</div>
@@ -1670,6 +1834,9 @@ async function viewSettings(view) {
         reconcile_before_write: $("#c-recon").checked, goal_check_after_write: $("#c-goal").checked,
         pipeline_severities: [...document.querySelectorAll("#c-psev input:checked")].map((x) => x.value),
         pipeline_mode: document.querySelector('input[name="c-pmode"]:checked').value,
+        autopilot_every: parseInt($("#c-ape").value) || 0,
+        autopilot_stop_must: parseInt($("#c-apsm").value) || 1,
+        autopilot_stop_style: parseFloat($("#c-apss").value) || 2.4,
         pipeline_providers: Object.fromEntries([...document.querySelectorAll("#c-pprov select")].map((x) => [x.dataset.step, x.value])),
         stale_foreshadow: parseInt($("#c-sf").value) || 10, stale_character: parseInt($("#c-sc").value) || 15, create_library: true,
         port: parseInt($("#c-port").value) || r.port,
@@ -3251,6 +3418,9 @@ const Panel = {
     if (document.querySelector("textarea.editor")) toast("任務完成。你正在編輯，所以頁面沒有自動重新整理。");
     else if (S.job && S.job.book === "_共用") { if (typeof S.onSharedJob === "function") S.onSharedJob(S.job); }
     else if (S.book) refresh();
+    if (S.job && S.job.meta && S.job.meta.action === "volume_draft" && S.job.status === "done") {
+      toast("卷綱草稿已產生：到大綱頁的「卷況」按「採用」才會變成正式卷綱。");
+    }
     $("#reply-text").focus();
   },
   setRunning(on) {

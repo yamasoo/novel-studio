@@ -19,6 +19,12 @@ A local workbench for writing long-form serial novels with AI. All story data (s
 
 Each has two chapters of text, one candidate draft, five chapter cards, settings and tracking data. The tutorial slides (`demo/小說工作台_新手教學.pptx`) exist only in Traditional Chinese; there is no English or Japanese version.
 
+## Installation and settings
+
+Setup steps, backends (DeepSeek / llama.cpp), where API keys are stored, and the settings reference moved to **[install.md](docs/en/install.md)**.
+
+Other docs: [i18n workflow](docs/i18n-workflow.md), [continuation contract](docs/續寫合約.md), [regression eval](docs/回歸測試.md), [style loop](docs/文風閉環.md), [retrieval memory](docs/檢索式記憶.md), [drift report](docs/漂移偵測.md), [autopilot](docs/自動駕駛.md).
+
 ## Writing languages
 
 Each book has its own writing language: Traditional Chinese (`zh-TW`), English (`en`) or Japanese (`ja`). Choose it when you create a book or import a manuscript. It is stored as `語言:` in `設定/故事核心.md`, and you can change it later with the "Writing language" selector on the Overview page. The interface language is a separate setting (bottom right).
@@ -231,65 +237,6 @@ For each provider the settings page offers a "How it is controlled" choice and a
 - llama.cpp / Qwen3-style: sends `chat_template_kwargs: {"enable_thinking": true/false}`.
 - Values you put in "Extra parameters" override these settings.
 
-## Requirements
-
-- Windows 10/11 (macOS and Linux also work)
-- Python 3.9 or later
-- For Claude Code mode: Claude Code, installed and signed in. The skills are included; no separate installation is needed.
-
-## Installation
-
-1. Download the project or `git clone` it, into any folder.
-2. On Windows, double-click `start.bat`. On macOS or Linux, run `./start.sh`. The first run creates a virtual environment and installs the packages (fastapi, uvicorn, pyyaml, opencc). Later runs start directly, and missing packages are installed automatically if `requirements.txt` changed after an update.
-3. Your browser opens http://127.0.0.1:8765.
-4. On first launch, the Bookshelf asks you to choose a folder for your books (for example a `novel` folder under Documents; use "Choose…" to pick it). You can change it later in Settings. The workbench does not use any existing folder automatically.
-5. To look around first, click "Add the sample book".
-
-## Setting up a backend
-
-### DeepSeek
-
-1. Create an API key on the DeepSeek platform.
-2. In Settings → AI runners → DeepSeek, paste the key, or set the environment variable `DEEPSEEK_API_KEY` and enter its name.
-3. Click "Test connection / fetch model list" and choose a model.
-4. Enter the context length and prices from the official documentation (optional, for cost estimates).
-5. To use several models from one provider (for example a fast, cheap one and a slow, strong one), press "Test connection" under "Available models" and click to add them, or press "Add a model" and fill one in by hand. Each model can have its own context length, max output, prices and tokens per character; blanks follow the settings above, and the key is shared. Afterwards every place that picks a runner (the side panel, forms, each step of the full-chapter automation) can choose "DeepSeek · a model".
-
-Claude Code comes with four choices: Default, Sonnet, Opus and Haiku. Default sends no `--model` and follows Claude Code's own setting; the other three send `--model`. llama.cpp (local) keeps one model per runner.
-
-### llama.cpp (local)
-
-1. Start the model with llama-server, for example:
-   ```
-   llama-server -m your-model.gguf -c 32768 -ngl 99 --port 8080
-   ```
-   The `-c` value must match the context length set in the workbench. With about 16 GB of video memory, start with a quantized model of 14B or less and a 16K to 32K context.
-2. Keep the URL `http://127.0.0.1:8080/v1` and press "Test connection". Then press "Calibrate" next to the tokens-per-character setting, which measures the real ratio of this model with the server's `/tokenize` endpoint (it only tokenizes, it does not generate), so the context estimate gets more accurate.
-3. Local model quality varies a lot. Try short chapters before deciding which tasks to use it for.
-
-LM Studio and Ollama are OpenAI-compatible too. Add them with "Add an OpenAI-compatible service". Default URLs: LM Studio `http://127.0.0.1:1234/v1`, Ollama `http://127.0.0.1:11434/v1`.
-
-### Where API keys are stored
-
-By default keys are kept in the operating system's credential store (Windows Credential Manager, macOS Keychain), encrypted by the system and tied to your sign-in, so no key file is left in the project folder. If none is available, they go to `secrets.json` in the workbench folder, which is listed in `.gitignore`. If an older version left a secrets.json, the settings page offers a one-click move into the credential store and deletes the file afterwards. You can also use environment variables. The lookup order is: credential store → `secrets.json` → environment variables.
-
-## Settings
-
-Settings are stored in `config.json`, which is not committed to git.
-
-| Item | Description |
-|---|---|
-| Library folder | Each book is a subfolder |
-| AI runners | Claude Code, DeepSeek, llama.cpp, or your own OpenAI-compatible service |
-| Claude executable path | Leave empty to detect it automatically; if it is not found, enter the full path, for example `C:\Users\you\.local\bin\claude.exe` |
-| Model | For Claude Code, leave empty for the default, or enter `opus` or `sonnet` |
-| Permission mode | Default `acceptEdits`, which lets Claude read and write files in the book folder |
-| Pre-write reconciliation, automatic chapter-card check | Can be turned off separately |
-| Alert thresholds | How many chapters before a thread or a character is flagged as dormant (characters whose names contain "unnamed" or "one-off" are not flagged; dormant characters are merged into one expandable line) |
-| Service | Port, and a "Restart the service" button |
-
-After you change the port, update the program files or when the service misbehaves, press "Restart the service" on the settings page; the page reconnects by itself (and jumps to the new address after a port change). It cannot restart while a task is running.
-
 ## How it works
 
 **Claude Code.** The workbench runs, inside the book folder:
@@ -416,6 +363,7 @@ Run these from the project folder; they are for people who want to help translat
 | Tool | What it does |
 |---|---|
 | `python tools/check_i18n.py` | Run before pushing. Checks that the three prompt packs have the same keys and variables, that English values contain no Chinese sentences or kana, that the interface translations in `static/locales/` keep their `{0}` variables and folder paths exactly, and that no value is empty |
+| `python tools/check_parity.py` | Checks that the three plugin editions have the same files and heading skeleton, that templates and the sample books' `_範本/` hold the same file set, that the three READMEs share one heading structure, that every UI string is translated, that no banned wording from the glossary is used, and whether a Traditional Chinese edit still waits for its translation (`--strict` fails on warnings too, `--update-lock` re-records the baseline) |
 | `python tools/prompt_lang_audit.py` | Runs a short chapter flow against a mock model and checks that the prompts sent for English and Japanese books contain no Chinese sentences (it should return 0) |
 | `python tools/i18n_extract.py [--merge static/locales/en.json]` | Extracts every Chinese UI string from the front end and the back end (messages and errors); with `--merge` it lists the ones a language file has not translated yet |
 | `python tools/fix_filenames.py <book folder> [--apply]` | Repairs file names in older books that lost their spaces (for example `JimHawkins.md`); it only lists the changes unless you add `--apply` |

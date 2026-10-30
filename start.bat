@@ -1,31 +1,51 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-title 小說工作台
+title Novel Studio
+set PYTHONIOENCODING=utf-8
+set PYTHONUTF8=1
 
-if not exist ".venv\Scripts\python.exe" (
-  echo 第一次啟動：建立 Python 虛擬環境……
-  where py >nul 2>nul && (py -3 -m venv .venv) || (python -m venv .venv)
-  if not exist ".venv\Scripts\python.exe" (
-    echo 找不到 Python。請先安裝 Python 3.9 以上：https://www.python.org/downloads/
+rem NOTE: keep this file UTF-8 (no BOM) with CRLF line endings.
+rem ASCII-only comments: non-ASCII remarks get split by cmd in some code pages.
+rem
+rem Which virtualenv:
+rem   default  = .venv inside this folder
+rem   override = set NS_VENV to a venv outside the project folder, e.g.
+rem              set NS_VENV=C:\Users\you\venvs\novel-studio
+rem   Use the outside one when the project folder is managed by a sandbox tool:
+rem   a python that lives inside the workspace may not be allowed to write the
+rem   library folder, and saving chapters then fails with PermissionError.
+if defined NS_VENV (
+  set "VENV=%NS_VENV%"
+) else (
+  set "VENV=%~dp0.venv"
+)
+
+if not exist "%VENV%\Scripts\python.exe" (
+  echo [setup] creating virtualenv: %VENV%
+  where py >nul 2>nul && (py -3 -m venv "%VENV%") || (python -m venv "%VENV%")
+  if not exist "%VENV%\Scripts\python.exe" (
+    echo Python not found. Install Python 3.9+ first: https://www.python.org/downloads/
     pause
     exit /b 1
   )
-  ".venv\Scripts\python.exe" -m pip install --upgrade pip >nul
+  "%VENV%\Scripts\python.exe" -m pip install --upgrade pip >nul
 )
 
-rem requirements.txt 有變動（例如更新了工作台）就重新安裝套件
-fc /b requirements.txt ".venv\requirements.installed" >nul 2>nul
+rem Reinstall packages when requirements.txt changed.
+set "STAMP=%VENV%\requirements.installed"
+fc /b requirements.txt "%STAMP%" >nul 2>nul
 if errorlevel 1 (
-  echo 安裝／更新套件……
-  ".venv\Scripts\python.exe" -m pip install -r requirements.txt
+  echo [setup] installing requirements...
+  "%VENV%\Scripts\python.exe" -m pip install -r requirements.txt
   if errorlevel 1 (
-    echo 套件安裝失敗，請檢查網路後再試一次。
+    echo Package install failed. Check your network and try again.
     pause
     exit /b 1
   )
-  copy /y requirements.txt ".venv\requirements.installed" >nul
+  copy /y requirements.txt "%STAMP%" >nul
 )
 
-".venv\Scripts\python.exe" app.py
+echo [run] venv: %VENV%
+"%VENV%\Scripts\python.exe" app.py
 pause

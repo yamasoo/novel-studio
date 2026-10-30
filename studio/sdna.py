@@ -67,7 +67,8 @@ def shape(lens, buckets=10):
     return out[:buckets]
 
 
-def build(book_dir):
+def build(book_dir, fp=None):
+    """fp：已經算好的風格指紋（可選）。給了就不重算——指紋本身很貴（大書 10 秒以上）。"""
     lang = lang_mod.book_lang(book_dir)
     texts = _body(book_dir)
     lens = [project.count_chars(t) for t in texts if t.strip()]
@@ -90,8 +91,9 @@ def build(book_dir):
     prev = prompts.cur_lang()
     try:
         prompts.set_lang(lang)
-        from . import fingerprint
-        fp = fingerprint.build(book_dir)
+        if fp is None:
+            from . import fingerprint
+            fp = fingerprint.build(book_dir)
     finally:
         prompts.set_lang(prev)
 

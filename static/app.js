@@ -420,6 +420,7 @@ function newBookDialog() {
       const ref = $("#nb-ref", el).value;
       const gen = $("#nb-gen", el).checked;
       const idea = $("#nb-idea", el).value;
+      if (ref) modal(`<h2>建立中…</h2><p class="muted small">正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後會開始開書訪談。</p>`);
       try {
         const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea, lang: $("#nb-lang", el).value, provider: Panel.prov(), ref });
         closeModal();
@@ -429,7 +430,7 @@ function newBookDialog() {
         if (r.seeded && r.seeded.length) toast("已沿用參考書的文風指標與章節結構");
         if (gen && ref) spinoffGenerate(r.id, ref, idea);
         else if (gen && !ref) toast("要先選一本參考書", true);
-      } catch (e) { fail(e); }
+      } catch (e) { closeModal(); fail(e); }
     };
   });
 }
@@ -454,17 +455,42 @@ function spinoffDialog() {
   });
 }
 
-async function spinoffGenerate(id, source, note) {  toast("正在用參考書產生故事骨架…");
+async function spinoffGenerate(id, source, note) {
+  const t0 = Date.now();
+  modal(`<h2>正在產生故事骨架</h2>
+    <p class="muted small">用《${esc(source)}》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。</p>
+    <p><b id="sp-stage">排隊中…</b> <span class="muted small" id="sp-elapsed">${t("已 {0} 秒", 0)}</span></p>
+    <p class="muted small">這個視窗可以留著看進度；草稿會寫到 <code>候選/新書草稿/</code>，不會自動套用。</p>`);
+  const setStage = (s) => { const el = $("#sp-stage"); if (el) el.textContent = s; };
+  const tick = setInterval(() => {
+    const el = $("#sp-elapsed");
+    if (el) el.textContent = t("已 {0} 秒", Math.floor((Date.now() - t0) / 1000));
+  }, 500);
   try {
-    const r = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    const start = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    setStage(start.stage || "執行中…");
+    let st = { status: "running" };
+    while (st.status === "running") {
+      await new Promise((r) => setTimeout(r, 1200));
+      st = await api("GET", `/api/books/${enc(id)}/spinoff/${enc(start.task)}`);
+      setStage(st.stage || "執行中…");
+    }
+    clearInterval(tick);
+    if (st.status === "error") {
+      modal(`<h2>產生失敗</h2><p style="color:#b45309">${esc(st.error || "未知錯誤")}</p>
+        <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
+      toast("骨架沒有產生", true);
+      return;
+    }
+    const r = st.result || {};
     const bad = (r.guard && r.guard["撞到名字"]) || [];
     modal(`<h2>故事骨架草稿</h2>
-      <p class="muted small">已寫到 <code>${esc(r.draft)}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
+      <p class="muted small">已寫到 <code>${esc(r.draft || "")}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
       ${bad.length ? `<p class="muted small" style="color:#b45309">護欄：有名字和參考書重複（${esc(bad.join("、"))}），請手動改掉。</p>` : ""}
-      <div class="md">${md(r.preview)}</div>
+      <div class="md">${md(r.preview || "")}</div>
       <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
     toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
-  } catch (e) { fail(e); }
+  } catch (e) { clearInterval(tick); fail(e); }
 }
 /* ------------------------------------------------------------------ 卷末體檢（漂移報告） */
 async function viewDrift(view, fromQ, toQ) {

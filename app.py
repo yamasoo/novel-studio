@@ -1575,7 +1575,8 @@ async def new_book(req: Request):
         try:
             ref_dir = book_dir(ref)
             prompts.set_lang(lang_mod.book_lang(ref_dir))
-            seeded = spawn.seed(d, name, fingerprint.build(ref_dir), sdna.build(ref_dir), source=ref)
+            fp = fingerprint.build(ref_dir)          # 指紋很貴（大書 10 秒以上）：只算一次，DNA 直接重用
+            seeded = spawn.seed(d, name, fp, sdna.build(ref_dir, fp), source=ref)
         except Exception as e:       # 參考書讀不到不該讓「開新書」失敗
             print("（參考書 seed 失敗：%s）" % e, flush=True)
         finally:
@@ -1589,9 +1590,27 @@ async def new_book(req: Request):
     return {"id": name, "job": job.to_dict() if job else None, "seeded": seeded}
 
 
+SPINOFF_TASKS = {}
+SPINOFF_LOCK = threading.Lock()
+SPINOFF_KEEP = 20
+
+
+def _spinoff_put(tid, state):
+    with SPINOFF_LOCK:
+        SPINOFF_TASKS[tid] = state
+        while len(SPINOFF_TASKS) > SPINOFF_KEEP:
+            SPINOFF_TASKS.pop(next(iter(SPINOFF_TASKS)))
+
+
+def _spinoff_get(tid):
+    with SPINOFF_LOCK:
+        st = SPINOFF_TASKS.get(tid)
+        return dict(st) if st else None
+
+
 @app.post("/api/books/{book_id}/spinoff")
-async def spinoff_generate(book_id: str, req: Request):
-    """用參考書的指紋與 DNA 產生故事骨架草稿（會呼叫模型，約 3 次）。"""
+async def spinoff_start(book_id: str, req: Request):
+    """開始用參考書產生故事骨架（背景執行；用 GET …/spinoff/{task} 看進度）。"""
     d = book_dir(book_id)
     body = await req.json()
     source = (body.get("source") or "").strip()
@@ -1603,17 +1622,41 @@ async def spinoff_generate(book_id: str, req: Request):
     prov = get_provider(body.get("provider"))
     if prov.get("type") == "claude_code":
         raise HTTPException(400, "產生骨架要走 API 的執行者（Claude Code 不行），請在右側面板上方切換。")
-    try:
-        prompts.set_lang(lang_mod.book_lang(src))
-        data = spinoff.generate(prov, src, (body.get("note") or "").strip())
-        rel = spinoff.save(d, data)
-    except SystemExit as e:
-        raise HTTPException(400, str(e))
-    except providers.ProviderError as e:
-        raise HTTPException(400, "模型回覆有問題：%s" % e)
-    finally:
-        prompts.set_lang(lang_mod.book_lang(d))
-    return {"draft": rel, "preview": spinoff.show(data), "guard": data.get("護欄") or {}}
+    note = (body.get("note") or "").strip()
+    tid = secrets.token_hex(8)
+    state = {"id": tid, "book": book_id, "status": "running", "stage": "排隊中…",
+             "error": "", "result": None, "started": time.time()}
+    _spinoff_put(tid, state)
+
+    def run():
+        try:
+            prompts.set_lang(lang_mod.book_lang(src))
+            data = spinoff.generate(prov, src, note, progress=lambda msg: state.update(stage=msg))
+            rel = spinoff.save(d, data)
+            state.update(status="done", stage="完成",
+                         result={"draft": rel, "preview": spinoff.show(data),
+                                 "guard": data.get("護欄") or {}})
+        except SystemExit as e:
+            state.update(status="error", error=str(e))
+        except providers.ProviderError as e:
+            state.update(status="error", error="模型回覆有問題：%s" % e)
+        except Exception as e:      # 背景執行緒：不要讓例外默默消失
+            state.update(status="error", error="產生失敗：%s" % e)
+        finally:
+            prompts.set_lang(lang_mod.book_lang(d))
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"task": tid, "stage": state["stage"]}
+
+
+@app.get("/api/books/{book_id}/spinoff/{task_id}")
+def spinoff_status(book_id: str, task_id: str):
+    st = _spinoff_get(task_id)
+    if not st or st.get("book") != book_id:
+        raise HTTPException(404, "找不到這個骨架任務")
+    st["elapsed"] = round(time.time() - float(st.get("started") or time.time()), 1)
+    st.pop("started", None)
+    return st
 
 
 @app.get("/api/books/{book_id}/drift")

@@ -5,6 +5,7 @@
 兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`大綱/`、`大綱/卷綱/` 的 `卷綱*.md`）；
 草稿放在 `大綱/草稿/`，不會被當成正式卷綱（見 `docs/卷先行.md`）。
 """
+import difflib
 import os
 import re
 
@@ -271,6 +272,91 @@ def adopt(book_dir, no):
         pass
     return {"rel": dst_rel,
             "warnings": _sync_book_outline(book_dir, no, fm, contract_bullets(text))}
+
+
+REVISION_PREFIX = "卷綱修訂"
+
+
+def revision_rel(no):
+    return "%s/%s_第%d卷.md" % (DRAFT_DIR, REVISION_PREFIX, int(no))
+
+
+def revisions(book_dir):
+    """`大綱/草稿/` 裡的「既有卷修訂」草稿。每筆：rel/name/status/lo/hi/no。"""
+    d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
+    out = []
+    if not os.path.isdir(d):
+        return out
+    for f in sorted(os.listdir(d)):
+        if not (f.endswith(".md") and f.startswith(REVISION_PREFIX)):
+            continue
+        try:
+            fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
+        except OSError:
+            continue
+        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+        lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
+                    "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+    out.sort(key=lambda v: (v["no"] or 0, v["rel"]))
+    return out
+
+
+def official(book_dir, no):
+    """第 N 卷的正式卷綱（只認 DIRS 底下的檔案，草稿不算）。"""
+    try:
+        no = int(no)
+    except (TypeError, ValueError):
+        return None
+    return next((v for v in list_volumes(book_dir) if v["no"] == no and v["kind"] == "卷"), None)
+
+
+def revision_info(book_dir, no):
+    """修訂草稿與正式卷綱的差異；沒有草稿回 None。"""
+    rev = revision_rel(no)
+    p = project.safe_path(book_dir, rev)
+    if not os.path.isfile(p):
+        return None
+    text = project.read_text(p)
+    v = official(book_dir, no)
+    rel = v["rel"] if v else ""
+    old = project.read_text(project.safe_path(book_dir, rel)) if rel else ""
+    diff = "\n".join(difflib.unified_diff(
+        old.splitlines(), text.splitlines(),
+        fromfile=rel or "（沒有正式卷綱）", tofile=rev, lineterm="", n=3))
+    return {"rel": rev, "official": rel, "diff": diff, "text": text}
+
+
+def apply_revision(book_dir, no):
+    """把修訂草稿套回正式卷綱：備份正式檔、狀態改「已確認」、同步全書大綱，刪掉草稿。"""
+    v = official(book_dir, no)
+    if not v:
+        raise project.ProjectError("找不到第 %s 卷的正式卷綱；新卷請用「開新卷 → 採用」。" % no)
+    rel = revision_rel(no)
+    src = project.safe_path(book_dir, rel)
+    if not os.path.isfile(src):
+        raise project.ProjectError("找不到第 %s 卷的修訂草稿（%s）。" % (no, rel))
+    text = project.read_text(src)
+    fm, _body = project.split_frontmatter(text)
+    if not str(fm.get("章節範圍") or "").strip():
+        raise project.ProjectError("修訂草稿沒有「章節範圍」，先補上第幾章到第幾章再套用。")
+    dst = project.safe_path(book_dir, v["rel"])
+    try:
+        from . import tracking
+        tracking.backup(book_dir, dst, "卷綱修訂前")
+    except Exception:
+        pass
+    new_text = project.set_frontmatter_field(text, "狀態", "已確認")
+    tmp = dst + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(new_text if new_text.endswith("\n") else new_text + "\n")
+    os.replace(tmp, dst)
+    try:
+        os.remove(src)
+    except OSError:
+        pass
+    return {"rel": v["rel"],
+            "warnings": _sync_book_outline(book_dir, int(no), fm, contract_bullets(text))}
 
 
 def brief(missing, limit=3):

@@ -102,6 +102,7 @@ async function route() {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
     if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
     if (parts[0] === "import") { S.routeName = "import"; return await viewImport(view); }
+    if (parts[0] === "guide") { S.routeName = "guide"; await setBook(null, true); return await viewGuide(view); }
     if (parts[0] === "about") { S.routeName = "about"; return await viewAbout(view); }
     if (parts[0] === "b" && parts[1]) {
       await setBook(parts[1]);
@@ -359,6 +360,7 @@ async function viewShelf(view) {
   view.innerHTML = `
     <div class="page-head">
       <div><h1>書架</h1><div class="sub">${books.length} 本書　·　書庫：<code>${esc(data.library)}</code></div></div>
+      <div class="row"><button onclick="go('#/guide')">使用說明</button></div>
     </div>
     ${S.claudeFound ? "" : `<div class="alert warn" style="margin-bottom:14px"><span class="k">找不到 Claude Code</span><span class="t">按鈕會無法執行。請安裝 Claude Code，或到設定填入 claude 的路徑。</span><button class="sm" onclick="go('#/settings')">設定</button></div>`}
     <div class="shelf">
@@ -370,7 +372,7 @@ async function viewShelf(view) {
           ${b.pending_candidates ? `<span class="badge b-accent">${b.pending_candidates} 份候選稿</span>` : ""}</div>
           <div class="meta">更新於 ${fmtTime(b.updated) || "—"}</div>
         </div>`).join("")}
-      <div class="card book new" id="new-book"><div class="plus">＋</div><div>開新書</div></div>
+      <div class="card book new" id="new-book"><div class="plus">＋</div><div>開新書</div><div class="muted small">可參考另一本書</div></div>
       <div class="card book new" onclick="go('#/import')"><div class="plus">⇪</div><div>匯入舊稿</div></div>
     </div>
     ${books.length ? "" : `<div class="card" style="margin-top:16px" id="demo-card"></div>`}
@@ -417,11 +419,15 @@ function newBookDialog() {
     try { const ul = localStorage.getItem("ns_lang"); if (ul) $("#nb-lang", el).value = ul; } catch (e) {}
     $("#nb-name", el).focus();
     $("#nb-go", el).onclick = async () => {
+      // 先讀完表單再跳「建立中…」：那個視窗會把表單換掉，之後再讀就會拿到 null
+      const name = $("#nb-name", el).value;
+      const lang = $("#nb-lang", el).value;
       const ref = $("#nb-ref", el).value;
       const gen = $("#nb-gen", el).checked;
       const idea = $("#nb-idea", el).value;
+      if (ref) modal(`<h2>建立中…</h2><p class="muted small">正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後會開始開書訪談。</p>`);
       try {
-        const r = await api("POST", "/api/books", { name: $("#nb-name", el).value, idea, lang: $("#nb-lang", el).value, provider: Panel.prov(), ref });
+        const r = await api("POST", "/api/books", { name, idea, lang, provider: Panel.prov(), ref });
         closeModal();
         S.books = (await api("GET", "/api/books")).books;
         go("#/b/" + enc(r.id));
@@ -429,23 +435,67 @@ function newBookDialog() {
         if (r.seeded && r.seeded.length) toast("已沿用參考書的文風指標與章節結構");
         if (gen && ref) spinoffGenerate(r.id, ref, idea);
         else if (gen && !ref) toast("要先選一本參考書", true);
-      } catch (e) { fail(e); }
+      } catch (e) { closeModal(); fail(e); }
+    };
+  });
+}
+
+function spinoffDialog() {
+  if (!S.book) return;
+  const others = (S.books || []).filter((b) => b.name !== S.book);
+  if (!others.length) { toast("書庫裡沒有其他書可以參考", true); return; }
+  const opts = others.map((b) => `<option value="${esc(b.name)}">${esc(b.title || b.name)}</option>`).join("");
+  modal(`<h2>用參考書產生故事骨架</h2>
+    <p class="muted small">只沿用參考書的抽象特徵（文風、結構、視角、章節節奏），不會帶入名字或情節。請只用你自有或公有領域的作品。</p>
+    <label class="f"><span>參考書</span><select id="sp-ref">${opts}</select></label>
+    <label class="f"><span>補充要求（選填）</span><textarea id="sp-note" rows="2" placeholder="例如：換成校園背景、主角改成女性"></textarea></label>
+    <p class="muted small">用右側目前的執行者生（約 3 次呼叫、1–2 分鐘）。Claude Code 不行，要先切成 API 執行者。</p>
+    <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="sp-go">產生骨架</button></div>`,
+  (el) => {
+    $("#sp-go", el).onclick = () => {
+      const ref = $("#sp-ref", el).value, note = $("#sp-note", el).value;
+      closeModal();
+      spinoffGenerate(S.book, ref, note);
     };
   });
 }
 
 async function spinoffGenerate(id, source, note) {
-  toast("正在用參考書產生故事骨架…");
+  const t0 = Date.now();
+  modal(`<h2>正在產生故事骨架</h2>
+    <p class="muted small">用《${esc(source)}》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。</p>
+    <p><b id="sp-stage">排隊中…</b> <span class="muted small" id="sp-elapsed">${t("已 {0} 秒", 0)}</span></p>
+    <p class="muted small">這個視窗可以留著看進度；草稿會寫到 <code>候選/新書草稿/</code>，不會自動套用。</p>`);
+  const setStage = (s) => { const el = $("#sp-stage"); if (el) el.textContent = s; };
+  const tick = setInterval(() => {
+    const el = $("#sp-elapsed");
+    if (el) el.textContent = t("已 {0} 秒", Math.floor((Date.now() - t0) / 1000));
+  }, 500);
   try {
-    const r = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    const start = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    setStage(start.stage || "執行中…");
+    let st = { status: "running" };
+    while (st.status === "running") {
+      await new Promise((r) => setTimeout(r, 1200));
+      st = await api("GET", `/api/books/${enc(id)}/spinoff/${enc(start.task)}`);
+      setStage(st.stage || "執行中…");
+    }
+    clearInterval(tick);
+    if (st.status === "error") {
+      modal(`<h2>產生失敗</h2><p style="color:#b45309">${esc(st.error || "未知錯誤")}</p>
+        <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
+      toast("骨架沒有產生", true);
+      return;
+    }
+    const r = st.result || {};
     const bad = (r.guard && r.guard["撞到名字"]) || [];
     modal(`<h2>故事骨架草稿</h2>
-      <p class="muted small">已寫到 <code>${esc(r.draft)}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
+      <p class="muted small">已寫到 <code>${esc(r.draft || "")}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
       ${bad.length ? `<p class="muted small" style="color:#b45309">護欄：有名字和參考書重複（${esc(bad.join("、"))}），請手動改掉。</p>` : ""}
-      <div class="md">${md(r.preview)}</div>
+      <div class="md">${md(r.preview || "")}</div>
       <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
     toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
-  } catch (e) { fail(e); }
+  } catch (e) { clearInterval(tick); fail(e); }
 }
 /* ------------------------------------------------------------------ 卷末體檢（漂移報告） */
 async function viewDrift(view, fromQ, toQ) {
@@ -538,7 +588,7 @@ async function viewOverview(view) {
       <div class="row">
         ${next.has_card
           ? `<button class="primary" onclick="Panel.openForm('write',{from:${next.no},to:${next.no}})">寫第${next.no}章${next.title ? "《" + esc(next.title) + "》" : ""}</button>`
-          : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}章起的章綱</button>`}
+          : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}–${next.no + 9}章的章綱</button>`}
         <button onclick="pipeModal(${next.no})">⚡ 整章自動</button>
         <button onclick="Panel.openForm('review',{from:${Math.max(1, ov.latest - 4)},to:${Math.max(1, ov.latest)}})">審查最近章節</button>
         <button onclick="go('#/b/' + enc(S.book) + '/drift')">卷末體檢</button>
@@ -597,10 +647,11 @@ function alertHtml(a) {
 async function viewChapters(view) {
   const chs = await api("GET", B("/chapters"));
   const wu = unitOfBook();
+  const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
   setTimeout(() => renderPipe(), 0);
   view.innerHTML = `
     <div class="page-head"><div><h1>章節</h1><div class="sub">共 ${chs.length} 章　·　點一列開啟</div></div>
-      <div class="row"><button onclick="Panel.openForm('chapter_cards')">排章綱</button><button onclick="pipeModal()">⚡ 整章自動</button><button class="primary" onclick="Panel.openForm('write')">寫章節</button></div></div>
+      <div class="row"><button onclick="Panel.openForm('chapter_cards',{from:${nextNo},to:${nextNo + 9}})">排接下來 10 章</button><button onclick="pipeModal()">⚡ 整章自動</button><button class="primary" onclick="Panel.openForm('write',{from:${nextNo},to:${nextNo}})">寫第${nextNo}章</button></div></div>
     <div class="pipe-box"></div>
     <div class="card">
       ${chs.length ? `<div class="table-wrap"><table>
@@ -645,7 +696,7 @@ async function viewChapter(view, no, tab) {
     </div>
     <div class="row" style="margin-bottom:12px">
       ${!c.text_file && !c.candidate_file && c.card_file ? `<button class="primary" onclick="Panel.openForm('write',{from:${no},to:${no}})">寫這章</button>` : ""}
-      ${!c.card_file ? `<button onclick="Panel.openForm('chapter_cards',{from:${no},to:${no}})">補章綱</button>` : ""}
+      ${!c.card_file ? `<button onclick="Panel.openForm('chapter_cards',{from:${no},to:${no}})">補這一章的章綱</button>` : ""}
       ${!c.text_file || c.candidate_file ? `<button onclick="pipeModal(${no})">⚡ 整章自動${c.candidate_file ? "（從核對開始）" : ""}</button>` : ""}
       ${c.text_file ? `<button onclick="Panel.openForm('revise',{chapter:${no}})">改稿</button>
         <button onclick="Panel.run('review_notes',{chapter:${no}})">審查</button>
@@ -1082,21 +1133,53 @@ window.recoverView = async (id) => {
 /* ------------------------------------------------------------------ 大綱 */
 function volCard(v) {
   const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
-    ${x.kind === "卷" ? `<button class="sm" data-sync="${x.no}">${t("同步大綱")}</button>` : ""}
+    ${x.kind === "卷" ? `<button class="sm" data-revise="${x.no}">${t("修訂")}</button><button class="sm" data-sync="${x.no}">${t("同步大綱")}</button>` : ""}
     <button class="sm" data-check="${x.lo}-${x.hi}">${t("章綱體檢")}</button>
     <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
   const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
     <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
     <button class="sm primary" data-adopt="${x.no}">${t("採用")}</button></div>`).join("");
+  const revs = (v.revisions || []).map((x) => `<div class="row"><span>${t("卷綱修訂草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
+    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
+    <button class="sm" data-diff="${x.no}">${t("看差異")}</button>
+    <button class="sm primary" data-revapply="${x.no}">${t("套用修訂")}</button></div>`).join("");
   const plans = (v.plans || []).map((x) => `<div class="row"><span>${t("卷綱更新草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
     <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button></div>`).join("");
   return `<div class="card" id="vol-card">
     <div class="row"><b>${t("卷況")}</b><span class="grow"></span><button class="primary" id="vol-new">${t("開新卷")}</button></div>
     <div class="muted small">${t("卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。")}</div>
-    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}${plans}</div>
+    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}${revs}${plans}</div>
     ${drafts ? `<div class="muted small">${t("採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。")}</div>` : ""}
+    ${revs ? `<div class="muted small">${t("修訂會先產生草稿；看過差異按「套用修訂」才覆蓋正式卷綱（會先備份）。")}</div>` : ""}
   </div>`;
 }
+async function showRevision(no) {
+  try {
+    const r = await api("GET", B(`/volumes/revision/${no}`));
+    const body = (r.diff || "").split("\n").map((line) => {
+      const plus = line.startsWith("+") && !line.startsWith("+++");
+      const minus = line.startsWith("-") && !line.startsWith("---");
+      const color = plus ? "#1a7f37" : minus ? "#b42318" : "#666";
+      return `<div style="color:${color};white-space:pre-wrap">${esc(line)}</div>`;
+    }).join("");
+    modal(`<h2>${t("卷綱修訂差異")}（第 ${no} 卷）</h2>
+      <p class="muted small">${t("紅色是正式卷綱被拿掉的行，綠色是修訂後新增或改寫的行。按「套用修訂」才會覆蓋正式檔（會先備份）。")}</p>
+      <div style="max-height:55vh;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;background:#faf8f4;padding:8px;border-radius:6px">${body || t("沒有差異。")}</div>
+      <div class="row"><span class="grow"></span><button onclick="closeModal()">${t("取消")}</button><button class="primary" onclick="applyRevision(${no})">${t("套用修訂")}</button></div>`);
+  } catch (e) { fail(e); }
+}
+
+async function applyRevision(no) {
+  if (!confirm(t("套用後會覆蓋正式卷綱（會先備份），確定嗎？"))) return;
+  try {
+    const r = await api("POST", B("/volumes/revision/apply"), { volume: no });
+    const warn = (r && r.warnings) || [];
+    closeModal();
+    toast(warn.length ? warn.join("；") : t("已套用卷綱修訂"), warn.length > 0);
+    go(location.hash);
+  } catch (e) { fail(e); }
+}
+
 function bindVol(v) {
   const el = $("#vol-card");
   if (!el) return;
@@ -1104,6 +1187,9 @@ function bindVol(v) {
   if (nb) nb.onclick = () => Panel.openForm("volume_draft", { volume: v.next, from: v.from, to: v.from + 19 });
   el.querySelectorAll("[data-card]").forEach((b) => { b.onclick = () => { const [a, z] = b.dataset.card.split("-").map(Number); Panel.openForm("chapter_cards", { from: a, to: z }); }; });
   el.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => go('#/b/' + enc(S.book) + '/outline?f=' + enc(b.dataset.open)); });
+  el.querySelectorAll("[data-revise]").forEach((b) => { b.onclick = () => Panel.openForm("volume_revise", { volume: b.dataset.revise }); });
+  el.querySelectorAll("[data-diff]").forEach((b) => { b.onclick = () => showRevision(Number(b.dataset.diff)); });
+  el.querySelectorAll("[data-revapply]").forEach((b) => { b.onclick = () => applyRevision(Number(b.dataset.revapply)); });
   el.querySelectorAll("[data-sync]").forEach((b) => {
     b.onclick = async () => {
       try {
@@ -1145,6 +1231,8 @@ function bindVol(v) {
 async function viewOutline(view, file) {
   const files = await api("GET", B("/outline"));
   const vol = await api("GET", B("/volumes")).catch(() => null);
+  const chs = await api("GET", B("/chapters")).catch(() => []);
+  const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
   // 卷綱草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
   const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + t("草稿") + "）", file: x.rel }));
   const plans = ((vol && vol.plans) || []).map((x) => ({ name: x.name, file: x.rel }));
@@ -1153,7 +1241,7 @@ async function viewOutline(view, file) {
   view.innerHTML = `
     <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
       <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
-      <button onclick="Panel.openForm('volume_outline')">卷綱</button><button class="primary" onclick="Panel.openForm('chapter_cards')">排章綱</button></div></div>
+      <button onclick="spinoffDialog()">參考書骨架</button><button class="primary" onclick="Panel.openForm('chapter_cards',{from:${nextNo},to:${nextNo + 9}})">排接下來 10 章</button></div></div>
     ${vol ? volCard(vol) : ""}
     <div class="split">
       <div class="list">${all.length ? all.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
@@ -1365,6 +1453,42 @@ async function rebuildBibleIndex() {
 }
 
 let pickKey = "";
+function bibleGenDialog() {
+  const opt = (id, title, desc) => `<div class="row" style="align-items:flex-start;gap:12px;margin:12px 0">
+      <div><b>${esc(t(title))}</b><div class="muted small">${esc(t(desc))}</div></div>
+      <span class="grow"></span><button class="primary" data-pick="${id}">${esc(t("選這個"))}</button></div>`;
+  modal(`<h2>${esc(t("生成設定"))}</h2>
+    <p class="muted small">${esc(t("先看你手上已經有什麼；選錯也可以再回來。"))}</p>
+    ${opt("outline", "我已經有大綱或卷綱", "依大綱長角色、勢力、世界觀（可填參考方向與網址）")}
+    ${opt("free", "我只有一句話或關鍵字", "自由描述要生成什麼，適合補配角或單一設定")}
+    ${opt("intake", "我剛討論完，有一段文字", "貼對話或筆記；已定案進正式、討論中進草稿")}
+    ${opt("one", "我只缺一個角色／勢力／世界觀", "單項補完")}
+    <div class="row"><span class="grow"></span><button onclick="closeModal()">${esc(t("取消"))}</button></div>`,
+  (el) => el.querySelectorAll("[data-pick]").forEach((b) => { b.onclick = () => bibleGenPick(b.dataset.pick); }));
+}
+
+function bibleGenPick(k) {
+  closeModal();
+  if (k === "outline") Panel.openForm("bible_from_outline");
+  else if (k === "free") Panel.openForm("gen_drafts");
+  else if (k === "intake") Panel.openForm("intake");
+  else bibleOneDialog();
+}
+
+function bibleOneDialog() {
+  modal(`<h2>${esc(t("補一個設定"))}</h2>
+    <p class="muted small">${esc(t("只補一個項目時用；完成後會進草稿或正式，視內容而定。"))}</p>
+    <div class="row"><button class="primary" data-one="role">${esc(t("角色"))}</button>
+      <button data-one="faction">${esc(t("勢力"))}</button><button data-one="world">${esc(t("世界觀"))}</button>
+      <span class="grow"></span><button onclick="closeModal()">${esc(t("取消"))}</button></div>`,
+  (el) => el.querySelectorAll("[data-one]").forEach((b) => { b.onclick = () => {
+    closeModal();
+    if (b.dataset.one === "role") Panel.openForm("character");
+    else if (b.dataset.one === "faction") Panel.openForm("free", { text: "請使用 novel-bible skill 建立一個新勢力：" });
+    else Panel.openForm("free", { text: "請使用 novel-bible skill 設計世界觀：" });
+  }; }));
+}
+
 async function viewBible(view, t, file) {
   if (pickKey !== `${S.book}|${t}`) { pickSet = new Set(); pickKey = `${S.book}|${t}`; }
   const b = await api("GET", B("/bible"));
@@ -1373,11 +1497,11 @@ async function viewBible(view, t, file) {
   const list = b[t] || [];
   if (!file && list.length) file = list[0].file;
   const btns = {
-    "角色": `<button class="primary" onclick="Panel.openForm('character')">新增／補完角色</button>`,
-    "勢力": `<button onclick="Panel.openForm('free',{text:'請使用 novel-bible skill 建立一個新勢力：'})">新增勢力</button>`,
-    "世界觀": `<button onclick="Panel.openForm('free',{text:'請使用 novel-bible skill 設計世界觀：'})">設計世界觀</button>`,
+    "角色": "",
+    "勢力": "",
+    "世界觀": "",
     "核心": `<button onclick="Panel.openForm('style')">分析／調整文風</button><button onclick="Panel.openForm('preference')">記錄偏好</button>`,
-    "草稿": `<button onclick="Panel.openForm('gen_drafts')">生成草稿</button><button class="primary" onclick="Panel.openForm('promote_drafts')">草稿轉正式</button>`,
+    "草稿": `<button class="primary" onclick="Panel.openForm('promote_drafts')">草稿轉正式</button>`,
     "章節結構": `<button onclick="go('#/shared?t=${enc("章節結構")}')">到共用庫選結構</button>`,
   };
   if (t === "核心") btns["核心"] = `<button onclick="go('#/shared?t=${enc("文風")}')">共用文風庫</button>` + btns["核心"];
@@ -1395,7 +1519,7 @@ async function viewBible(view, t, file) {
   const idxBtn = isEnt ? `<button onclick="rebuildBibleIndex()" title="重新產生 設定/_索引.md，給 novel-bible 先讀">重建索引</button>` : "";
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
-      <div class="row">${btns[t] || ""}${idxBtn}<button onclick="Panel.openForm('intake')">整理內容入庫</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
+      <div class="row">${btns[t] || ""}${idxBtn}<button class="primary" onclick="bibleGenDialog()">生成設定</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
       <div class="list">${dupHtml}${listHtml}</div>
@@ -3076,6 +3200,24 @@ const ABOUT_LINKS = [
   ]],
 ];
 
+async function viewGuide(view) {
+  const lang = (window.I18N && I18N.lang) || "zh-TW";
+  let text = null;
+  for (const u of [`/static/guide/${lang}.md`, "/static/guide/zh-TW.md"]) {
+    try {
+      const r = await fetch(u, { cache: "no-cache" });
+      if (r.ok) { text = await r.text(); break; }
+    } catch (e) { /* 換下一個 */ }
+  }
+  if (!text) {
+    view.innerHTML = `<div class="card empty"><div class="big">?</div>${esc(t("找不到說明文件。"))}</div>`;
+    return;
+  }
+  view.innerHTML = `<div class="page-head"><div><h1>${esc(t("使用說明"))}</h1>
+      <div class="sub">${esc(t("第一次用先看「兩個流程」；名詞看不懂再查名詞表。"))}</div></div></div>
+    <div class="card"><div class="md"${LA()}>${md(text)}</div></div>`;
+}
+
 async function viewAbout(view) {
   let ver = "";
   try { ver = (await api("GET", "/api/config")).version; } catch (e) { /* ignore */ }
@@ -3305,6 +3447,9 @@ const Panel = {
     } catch (e) { box.textContent = "讀取草稿失敗"; }
   },
   async run(action, params, provider) {
+    if ((action === "write" || action === "chapter_cards") && !(Number(params && params.from) > 0)) {
+      toast(t("請先填「從第幾章」。")); return;
+    }
     try {
       const pid = provider || stepProv(action);
       if (pid !== this.prov()) toast(`用「${provName(pid)}」執行（設定 → 整章自動流程的步驟分配）`);

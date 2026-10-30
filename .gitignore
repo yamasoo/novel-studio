@@ -26,3 +26,6 @@ desktop.ini
 eval/results/
 # 長篇 fixture 是本機路徑（含個人的書庫位置），範例檔有格式說明
 eval/fixtures.local.json
+
+# 書架統計快取（純本機，刪掉會自動重建）
+.cache/

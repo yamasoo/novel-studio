@@ -105,25 +105,35 @@ def _ask(prov, rule, user, max_tokens=4000):
     return data
 
 
-def generate(prov, source_dir, note="", lang=None, rounds=0):
-    """跑兩次呼叫：premise／主角／世界觀，再一次卷綱。撞名就重試一次。"""
+def generate(prov, source_dir, note="", lang=None, rounds=0, progress=None):
+    """跑兩次呼叫：premise／主角／世界觀，再一次卷綱。撞名就重試一次。
+
+    progress(msg)：給工作台顯示「現在在做什麼」；不給就安靜跑。
+    """
+    say = progress or (lambda _msg: None)
+    say("量參考書的文風指紋…")
     fp = fingerprint.build(source_dir)
-    dna = sdna.build(source_dir)
+    say("量結構 DNA…")
+    dna = sdna.build(source_dir, fp)
     lang = lang or fp.get("語言") or "zh-TW"
+    say("整理禁用名單…")
     ban = forbidden(source_dir)
     style = _style_brief(fp, dna)
     rule = (RULE % style) + "\n\n禁用名單：" + ("、".join(ban) if ban else "（無）")
     user = "請開一本 %s 的新書。%s\n\n只輸出這個結構的 JSON：\n%s" % (
         lang, ("作者補充：" + note) if note else "", SCHEMA)
 
+    say("產生骨架（第 1 次模型呼叫）…")
     data = _ask(prov, rule, user)
     hit = _guard(data, source_dir)
     if hit:
+        say("有名字撞到來源，帶著名單重寫一次…")
         fix = ("你用了禁用名單裡的名字：%s。請全部換成原創的名字，其他內容可以保留。\n\n"
                "原本的 JSON：\n%s" % ("、".join(hit), json.dumps(data, ensure_ascii=False)))
         data = _ask(prov, rule, fix)
         hit = _guard(data, source_dir)
 
+    say("產生卷綱（第 2 次模型呼叫）…")
     volumes = _ask(prov, rule + "\n\n" + VOL_RULE,
                    "前提：%s\n主角：%s\n骨架平均章數：約 %s 章\n只輸出 JSON。" % (
                        data.get("一句話前提", ""),

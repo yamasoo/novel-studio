@@ -37,11 +37,6 @@ ACTIONS = {
         "group": "規劃", "label": "全書大綱",
         "fields": [{"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
     },
-    "volume_outline": {
-        "group": "規劃", "label": "卷綱",
-        "fields": [{"key": "volume", "label": "第幾卷", "type": "text", "default": "一"},
-                   {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
-    },
     "volume_draft": {
         "group": "規劃", "label": "卷綱草稿",
         "fields": [{"key": "volume", "label": "第幾卷", "type": "number"},
@@ -49,24 +44,37 @@ ACTIONS = {
                    {"key": "to", "label": "這一卷到第幾章", "type": "number"},
                    {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
     },
+    "volume_revise": {
+        "group": "規劃", "label": "修訂卷綱",
+        "fields": [{"key": "volume", "label": "要修訂第幾卷（例如 2）", "type": "text"},
+                   {"key": "note", "label": "想改什麼（選填）", "type": "textarea"}],
+    },
     "chapter_cards": {
-        "group": "規劃", "label": "排章綱",
+        "group": "規劃", "label": "排章綱（自訂範圍）",
         "fields": [{"key": "from", "label": "從第幾章", "type": "number"},
                    {"key": "to", "label": "到第幾章", "type": "number"},
                    {"key": "note", "label": "補充要求（選填）", "type": "textarea"}],
     },
     # ---------------- 設定 ----------------
     "character": {
-        "group": "設定", "label": "建立／補完角色",
+        "group": "設定", "label": "新增／補完角色",
         "fields": [{"key": "name", "label": "角色名", "type": "text"},
                    {"key": "note", "label": "已知資訊（選填）", "type": "textarea"}],
     },
     "gen_drafts": {
-        "group": "設定", "label": "生成設定草稿",
+        "group": "設定", "label": "生成設定草稿（自由描述）",
         "fields": [{"key": "text", "label": "要生成什麼？例如：3 個第一卷的反派候選", "type": "textarea"}],
     },
+    "bible_from_outline": {
+        "group": "設定", "label": "從大綱長設定",
+        "fields": [{"key": "roles", "label": "角色", "type": "checkbox", "default": True},
+                   {"key": "factions", "label": "勢力", "type": "checkbox", "default": True},
+                   {"key": "world", "label": "世界觀（地理、科技、戰術…）", "type": "checkbox", "default": True},
+                   {"key": "refs", "label": "參考方向（選填）：例如「空中艦作戰參考二戰潛艇」", "type": "textarea"},
+                   {"key": "urls", "label": "參考網址（選填，每行一個，會抓內文）", "type": "textarea"}],
+    },
     "intake": {
-        "group": "設定", "label": "整理內容入庫",
+        "group": "設定", "label": "整理內容入庫（貼文字）",
         "fields": [{"key": "text", "label": "貼上和其他 AI 或自己的討論內容", "type": "textarea"}],
     },
     "promote_drafts": {
@@ -75,7 +83,7 @@ ACTIONS = {
     },
     # ---------------- 寫作 ----------------
     "write": {
-        "group": "寫作", "label": "寫章節（候選稿）",
+        "group": "寫作", "label": "寫章節（自訂範圍、候選稿）",
         "fields": [{"key": "from", "label": "從第幾章", "type": "number"},
                    {"key": "to", "label": "到第幾章（最多三章）", "type": "number"},
                    {"key": "note", "label": "這次的特別要求（選填）", "type": "textarea"}],
@@ -157,13 +165,13 @@ def build(action, p, book_name, lang="zh-TW"):
         return ("故事核心診斷", tpl("concept") + extra)
     if action == "master_outline":
         return ("全書大綱", tpl("master_outline") + extra)
-    if action == "volume_outline":
-        v = (p.get("volume") or "一").strip()
-        return ("第%s卷卷綱" % v, tpl("volume_outline", v=v, extra=extra))
     if action == "volume_draft":
         v = str(p.get("volume") or "一").strip()
         a, b = _r(p.get("from") or 1, p.get("to"))
         return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, extra=extra))
+    if action == "volume_revise":
+        v = str(p.get("volume") or "").strip()
+        return ("修訂第%s卷卷綱" % v, tpl("volume_revise", v=v, extra=extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
         if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入
@@ -176,6 +184,17 @@ def build(action, p, book_name, lang="zh-TW"):
         return ("角色：%s" % name, tpl("character", name=name, extra=extra))
     if action == "gen_drafts":
         return ("生成設定草稿", tpl("gen_drafts", text=p.get("text", "")))
+    if action == "bible_from_outline":
+        parts = []
+        if p.get("roles", True):
+            parts.append("角色")
+        if p.get("factions", True):
+            parts.append("勢力")
+        if p.get("world", True):
+            parts.append("世界觀")
+        return ("從大綱長設定", tpl("bible_from_outline", scope="、".join(parts) or "角色",
+                                   refs=(p.get("refs") or "").strip(),
+                                   urls=(p.get("urls") or "").strip()))
     if action == "intake":
         return ("整理入庫", tpl("intake", text=p.get("text", "")))
     if action == "promote_drafts":

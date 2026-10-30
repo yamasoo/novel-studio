@@ -5,9 +5,9 @@
 ## 專案
 
 - 路徑：`<專案資料夾>`
-- 來源：<https://github.com/yamasoo/novel-studio>（`main`，commit `4e20b45`，v1.16.2）
+- 來源：<https://github.com/yamasoo/novel-studio>（`main`，`7274675`，v1.17.0；`dev` 與 `main` 同點）
 - 執行：`.\start.bat`（第一次會建 `.venv` 並安裝 5 個套件，需網路）→ <http://127.0.0.1:8765>
-- 檢查：`python tools/check_i18n.py`、`python tools/check_parity.py`、`python tools/prompt_lang_audit.py`（都不需要模型、不花錢）
+- 檢查：`python tools/check_i18n.py`、`python tools/check_parity.py --strict`、`python tools/prompt_lang_audit.py`（都不需要模型、不花錢）
 
 ## 報告
 
@@ -23,16 +23,26 @@
 3. 續寫先做「合約、檢索、文風閉環、回歸測試」（P1–P4），再做「A 書→B 書」（P6）。
 4. 沒有 CI 這件事已經改掉：push／PR 都會被 `.github/workflows/checks.yml` 擋。
 
-## 目前狀態（2026-10-29，第 1 週完成）
+## 目前狀態（2026-10-30，v1.17.0 已發版）
 
-- 分支 `chore/i18n-guardrails`，**18 個 commit**，尚未 merge 回 `main`。
-- `check_i18n` 全過；`check_parity` **FAIL 0、WARN 0**（`--strict` 也過），CI 從第 2 週起就是 `--strict`。
-- 介面字串：en／ja 都收斂到 1535 鍵，missing 0、stale 0、empty 0；16 條路徑／檔名類填 `==`（同形標記）。
-- `i18n/glossary.tsv`：23 條術語，`check_parity` 會抓「禁用譯法」與「表跟介面不一致」。
-- 翻譯基準 `tools/i18n.lock.json`：30 → 83 組（+17 範本、+36 個示範書檔案）。
-- 三份 README 標題樹一致（1／11／20）；三本示範書 `_範本/` 都是 18 個檔。
+- `dev` 已於 2026-10-30 以 **squash merge** 合併回 `main`（PR `#1`，84 個 commit），發版 `v1.17.0`（`7274675`）。
+  之後 `dev` 是整合分支：功能 commit 進 `dev`，發版再 squash 回 `main`；**合併後要把 `dev` 對齊 `main`**
+  （`git reset --hard main` ＋ `push --force-with-lease`），規則寫在 `docs/新對話交接.md`「分支與發版」。
+- 合併後 `dev` 又累積了未發版的 commit（說明頁、設定集生成、卷綱修訂、章節入口預填…）；發版時再 squash。
+- `check_i18n` 全過；`check_parity --strict` **FAIL 0、WARN 0**；`prompt_lang_audit` 也過；
+  GitHub Actions 在 PR 與 `main` push 都綠（`checks.yml`）。
+- 介面字串：`tools/i18n_keys.json` 1,628 鍵；en／ja 各 1,622 條（其餘是 `==` 同形標記）。
+- `i18n/glossary.tsv`：36 條術語，`check_parity` 會抓「禁用譯法」與「表跟介面不一致」。
+- 三份 README 標題分佈 1／8／17；三本示範書 `_範本/` 都是 18 個檔。
 - `tools/i18n_fill.py`：翻譯缺口 → 初翻 patch → 人工核可 → `--apply`。
 - `studio/contract.py`：`設定/續寫合約.md`，priority 0 注入每章上下文（見 `docs/續寫合約.md`）。
+- 書架統計有快取：`<專案>/.cache/books.json`（用「檔案數／大小／最新 mtime」的 stat 指紋失效，不讀內容）；
+  冷啟動約 1 秒、熱讀約 0.1 秒。刪掉會自動重建，`.cache/` 在 `.gitignore`。
+- 使用說明頁：左側「說明」→ `#/guide`，內容是 `static/guide/zh-TW.md`（靜態 Markdown，含兩個流程與名詞表；
+  另有 `en.md`、`ja.md`，依介面語言自動選，找不到會 fallback 回中文）。
+- 卷先行（`studio/volume.py`、`docs/卷先行.md`）：卷綱草稿→採用→整卷章綱→章綱體檢，工作台可操作。
+  既有卷修訂：卷況「修訂」→ `大綱/草稿/卷綱修訂_第N卷.md` → 看 diff → 套用（備份、狀態已確認、同步大綱）；
+  舊的「卷綱」直寫入口已移除。
 
 ### 第 1 週清單對照（一個項目一個 commit）
 
@@ -101,39 +111,23 @@
 | 3 | 新書骨架（`studio/spinoff.py`、`tools/spinoff.py`） | `4b1f2e0` | 假模型：禁用名單 48 個、第一次故意撞名 → 護欄擋下並重寫 → 共 3 次呼叫、最終撞名 0、草稿寫進 候選/新書草稿/ |
 | 6 | 接進工作台（開新書對話框＋`/api/books/{id}/spinoff`） | 本 commit | 端點存在、前端含 nb-ref／nb-gen／spinoffGenerate、node --check 通過；spawn.seed 在 app 建的新書寫出 4 檔、指標 6 項 |
 
-## 下一步
+## 下一步（2026-10-30 健康檢查後）
 
-1. **驗「文風目標」有沒有用已完成**（2026-10-29 A/B，見 `docs/文風閉環.md`）：同一支模型、同一批書，
-   比「提示詞裡有沒有那串數字」。中文長篇的對白比例明顯改善（a-200 平均 48% → 24%，目標 19%）、
-   b-40 只是從偏高變成略低、日文那本反而更偏（37% → 48%），a-200 的最大偏離同時變大。
-   要再調的話，先把 after 樣本補到 4 個以上。
-2. **重建基線（`--repeat 3`）已完成**（`f70ada0`）：9 次生成、1,241 秒，結果在 `eval/baseline.json`。
-   單次抖動很大（同一章 `style_max_rel` 0.95／1.32／2.05），判讀請用中位數；
-   這次 a-200 的 `style_max_rel` 由 0.96 升到 1.68，其他兩本反而降。
-3. **P5 的收尾**：工作台按鈕與卷末提示（目前只有 CLI）、`--plan-out` 貼回卷綱的流程。
-4. **T6 已完成**（T6 完整版）：需求／安裝／設定後端／設定四個區段搬到 `docs/安裝與設定.md`、
-   `docs/en/install.md`、`docs/ja/install.md`；README 只留導覽與文件索引（三語標題分佈仍是 1／8／17）。
-5. **續寫合約收尾已完成**：
-   - Claude Code 模式的三份 `claude-md-template.md` 都加了「鐵律 5：寫正文前先讀 `設定/續寫合約.md`」，
-     合約優先於大綱與文風。
-   - 量測方式：`tools/contract_audit.py`（本機、零成本）拿設定回頭對正文，查「提前登場（≥15 章）」與
-     「久別重逢（≥30 章，只看主角／配角）」；實測 B 書 0 處、A 書 2 處、C 書 23 處。
-   - 「連續 10 章零衝突」已實跑（2026-10-29）：複製一本 50 章的書→連寫 51～60 章→
-     `contract_audit` 回報 0 處；自動駕駛檢查點 55／60 都通過。細節與用量見 `docs/續寫合約.md`。
-6. **卷先行（可用）**：續寫前先「卷綱草稿 → 討論確認 → 定案 → 整卷章綱」。
-   - 2026-10-29 完成第一段：`studio/volume.py` 統一解析卷綱；合約與漂移不再退回錯的卷；
-     整章自動流程遇到不在任何卷綱範圍內的章節會直接拒絕（409，訊息指出缺哪幾章）。
-   - 2026-10-29 完成第二段：大綱頁多了「卷況」卡——「開新卷」產生 `大綱/草稿/卷綱_第N卷.md`、
-     「採用」搬到正式卷綱（狀態改已確認）、「排這一卷的章綱」沿用既有章綱表單（先給總覽）；
-     草稿也列進左側清單，可直接開檔編輯。
-   - 2026-10-29 完成第三段：整章自動流程要求範圍內每一章都先有章綱，缺章綱就拒絕並叫你先排這一卷的章綱。
-   - 2026-10-29 完成第四段：卷綱更新草稿也收進 `大綱/草稿/`（`卷綱更新_第a-b章.md`），跟新卷草稿同一個資料夾、
-     用檔名與用途分開；大綱頁看得到、可編輯。
-   - 2026-10-30 完成第五段：續寫合約接進「卷綱草稿」與「章綱」的上下文；採用卷綱時把這一卷追加進
-     `大綱/全書大綱.md` 的分卷（帶入卷契約本文；只追加；範圍不同只警告）。卷況卡另有「同步大綱」可補舊段落。
-   - 2026-10-30 完成第六段：章綱體檢（`tools/card_audit.py`、卷況卡按鈕、流程開跑前的劇透檢查）；
-     卷綱草稿的上下文也帶入上一卷的卷末體檢草稿。
-   - 剩下的都做完了；這份清單的下一步回到「章節」本身（真實模型排 51–70 章綱→開寫）。
+**舊清單已完成**：文風目標 A/B、`--repeat 3` 基線、T6 README 減量、續寫合約收尾、卷先行六段
+（細節見各週表格與 `docs/卷先行.md`；不要再重做）。
+
+**還沒做，依優先序**：
+
+1. **S4 任務與事件回收**：`Runner.jobs` 只增不減、`Job.events` 無上限；pipeline `_wait` 沒有逾時。
+   長跑的工作台記憶體會單調成長（報告 §2.4）。
+2. **S3 原子寫檔收尾**：仍有 52 處直接 `open(..., "w")`（只有 16 處 `os.replace`）；`.studio/備份` 沒有上限。
+3. **卷綱狀態語意**：舊書 32 份「正式路徑＋狀態草稿」已用 `tools/volume_status.py --apply` 轉正
+   （備份在該書 `.studio/備份/`）；閘門與續寫合約**仍不看狀態**，依 2026-10-30 決策暫不收緊。
+4. **自動化測試**：`tests/` 不存在，CI 只跑 i18n 檢查＋假 provider 冒煙；
+   卷綱／章綱閘門、`safe_path`、權杖都只有手動驗證過。
+5. **小缺口**：A6 語言檔重複鍵偵測、`tools/i18n_status.py`（T4 配套）、`contract_audit` 的「未登記角色」、
+   P7 待辦檔與檢查點趨勢圖、漂移的卷末自動提示、P6 的「僅公有領域／自有作品」提示。
+6. **刻意暫緩**：T7 產生式外掛、T8 穩定鍵重構（理由見「已定決策」）。
 
 > Claude Code 模式的提示詞已經全部改走語言包（`b9ee6f8`）：review、revise、deslop、goal、
 > illust、card 六個任務都不再寫死中文；`docs/i18n-workflow.md` 有新增字串時該做的三件事。
@@ -171,13 +165,16 @@
   改這個檔案請用會保留 CRLF 的編輯器（VS Code 右下角確認「CRLF」）。
 - 舊的 clone 在 `<舊的 clone>`（OneDrive 底下，`.git` 同步容易衝突）；以 `<專案資料夾>` 為準。
 - 不要直接把 AI 初翻 merge 進語言檔：先出 patch、人工核可（見報告 T4）。
+- **repo 目前是 public**（2026-10-30 確認）。`main` 已用 squash 保持乾淨，但 PR `#1` 頁面與 `dev` 歷史仍看得到
+  早期兩個帶作品名的 commit 訊息與舊版文件的本機路徑；要徹底清除得重建 repo 或請 GitHub Support 處理。
 
 ## 驗證指令
 
 ```powershell
 cd <專案資料夾>
-python tools/check_i18n.py          # 應印「全部通過」
-python tools/check_parity.py        # 應印 FAIL 0、WARN 47（WARN 還沒燒完）
-python tools/prompt_lang_audit.py   # en／ja 送出的訊息沒有中文句子
-git diff --stat main...HEAD
+python tools/check_i18n.py               # 應印「全部通過」
+python tools/check_parity.py --strict    # 應印 FAIL 0、WARN 0（--strict：WARN 也擋）
+python tools/prompt_lang_audit.py        # en／ja 送出的訊息沒有中文句子
+python tools/book_eval.py                # 假 provider 冒煙，不花錢
+node --check static/app.js               # 前端語法
 ```

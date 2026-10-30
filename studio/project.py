@@ -3,6 +3,8 @@
 import os
 import re
 import time
+import json
+import threading
 
 import yaml
 
@@ -127,30 +129,100 @@ def is_book(path):
     return os.path.isfile(os.path.join(path, "CLAUDE.md"))
 
 
+_CACHE_LOCK = threading.Lock()
+_INFO_CACHE = None
+_CACHE_VERSION = 2          # 書架統計的算法一改就 +1，舊快取自動失效
+_CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".cache")
+
+
+def _cache_path():
+    return os.path.join(_CACHE_DIR, "books.json")
+
+
+def _cache_get():
+    """書架統計的磁碟快取（只用 stat 指紋失效，重啟後第一次也能快）。"""
+    global _INFO_CACHE
+    if _INFO_CACHE is None:
+        try:
+            with open(_cache_path(), encoding="utf-8") as f:
+                _INFO_CACHE = json.load(f)
+        except (OSError, ValueError):
+            _INFO_CACHE = {}
+    return _INFO_CACHE
+
+
+def _cache_save():
+    try:
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        p = _cache_path()
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(_INFO_CACHE, f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, p)
+    except OSError:
+        pass
+
+
+def _scan_fingerprint(book_dir):
+    """只用 stat 的版本指紋：檔案數、總大小、最新 mtime（不讀內容）。
+
+    書的內容一改，mtime 或大小就會變；夠用來判斷快取能不能重用。
+    """
+    count = total = 0
+    newest = 0.0
+    for sub in ("正文", "大綱", "追蹤", "設定", "候選"):
+        for root, _dirs, files in os.walk(os.path.join(book_dir, sub)):
+            for f in files:
+                if not f.endswith(".md"):
+                    continue
+                try:
+                    st = os.stat(os.path.join(root, f))
+                except OSError:
+                    continue
+                count += 1
+                total += st.st_size
+                if st.st_mtime > newest:
+                    newest = st.st_mtime
+    return [count, total, newest]
+
+
 def list_books(library):
     books = []
     if not library or not os.path.isdir(library):
         return books
-    for name in sorted(os.listdir(library)):
-        d = os.path.join(library, name)
-        if not os.path.isdir(d) or name.startswith(".") or name == "_共用":
-            continue
-        info = {"id": name, "name": name, "is_book": is_book(d)}
-        if info["is_book"]:
-            chs = scan_chapters(d)
-            written = [c for c in chs if c["text_file"]]
-            info.update({
-                "chapters_written": len(written),
-                "chapters_planned": len(chs),
-                "chars": sum(c["chars"] for c in written),
-                "hook": read_hook(d),
-                "updated": latest_mtime(d),
-                "pending_candidates": sum(1 for c in chs if c["candidate_file"]),
-            })
-            from . import lang as lang_mod
-            info["lang"] = lang_mod.book_lang(d)
-            info["unit"] = lang_mod.count_unit(info["lang"])
-        books.append(info)
+    from . import lang as lang_mod
+    with _CACHE_LOCK:
+        cache = _cache_get()
+        dirty = False
+        for name in sorted(os.listdir(library)):
+            d = os.path.join(library, name)
+            if not os.path.isdir(d) or name.startswith(".") or name == "_共用":
+                continue
+            info = {"id": name, "name": name, "is_book": is_book(d)}
+            if info["is_book"]:
+                fp = _scan_fingerprint(d)
+                hit = cache.get(d)
+                if hit and hit.get("v") == _CACHE_VERSION and hit.get("fp") == fp:
+                    info.update(hit.get("info") or {})
+                else:
+                    chs = scan_chapters(d)
+                    written = [c for c in chs if c["text_file"]]
+                    stats = {
+                        "chapters_written": len(written),
+                        "chapters_planned": len(chs),
+                        "chars": sum(c["chars"] for c in written),
+                        "hook": read_hook(d),
+                        "pending_candidates": sum(1 for c in chs if c["candidate_file"]),
+                    }
+                    info.update(stats)
+                    cache[d] = {"v": _CACHE_VERSION, "fp": fp, "info": stats}
+                    dirty = True
+                info["updated"] = fp[2]          # 最新 mtime（跟 latest_mtime 同義）
+                info["lang"] = lang_mod.book_lang(d)
+                info["unit"] = lang_mod.count_unit(info["lang"])
+            books.append(info)
+        if dirty:
+            _cache_save()
     books.sort(key=lambda b: (not b["is_book"], -(b.get("updated") or 0)))
     return books
 

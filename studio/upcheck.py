@@ -17,6 +17,17 @@ SPOILER_GAP = 15   # 「提前登場」：只是被提到很正常，差 15 章�
 IDLE_GAP = 30      # 「久別重逢」：最後登場之後 30 章又出現（只看主角／配角）
 KEEP_ROLES = ("主角", "主要配角", "配角")
 
+# 章綱的「禁止事項」是給作者／模型的限制（例如「某角色不得登場」），
+# 裡面的名字不是本章內容；掃章綱時要先整段拿掉，不然會把「不准提到」誤判成「提前提到」。
+FORBIDDEN_SECTION = re.compile(
+    r"^##\s*(?:[0-9一二三四五六七八九十]+[、.．]\s*)?禁止事[項项][^\n]*$.*?(?=^##\s|\Z)",
+    re.M | re.S)
+
+
+def _without_forbidden(text):
+    return FORBIDDEN_SECTION.sub("", text or "")
+
+
 
 def _num(v):
     m = re.search(r"\d+", str(v or ""))
@@ -55,7 +66,7 @@ def findings(book_dir, start, end, cards=False):
             _rel, text = context.card_text(book_dir, no)
             if not (text or "").strip():
                 continue
-            for c in conflicts(book_dir, no, text, chars):
+            for c in conflicts(book_dir, no, _without_forbidden(text), chars):
                 c["source"] = "章綱"
                 out.append(c)
         return out

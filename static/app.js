@@ -406,30 +406,55 @@ function newBookDialog() {
   const others = (S.books || []).map((b) => `<option value="${esc(b.name)}">${esc(b.title || b.name)}</option>`).join("");
   modal(`
     <h2>開新書</h2>
-    <p class="muted small">會在書庫建立資料夾，然後請 ${esc(Panel.provName())} 跟你做開書訪談（可以在右側面板上方切換執行者）。訪談問題會出現在右側面板，直接在下方回覆即可。</p>
+    <p class="muted small">先在書庫建立資料夾，再選開書方式。開書訪談會先問兩輪再建立專案；用參考書骨架直接開書會先產生骨架，然後直接寫入設定與大綱，跳過訪談。執行者可以在右側面板上方切換。</p>
     <label class="f"><span>書名（也是資料夾名稱）</span><input type="text" id="nb-name" placeholder="例如：退婚之後"></label>
     <label class="f"><span>寫作語言</span><select id="nb-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
     <p class="muted small">決定這本書的提示詞和模型輸出的語言。介面語言是另外的設定（右下角）。</p>
     <label class="f"><span>初步構想（選填）</span><textarea id="nb-idea" rows="4" placeholder="一句話、一段簡介，或幾個關鍵字"></textarea></label>
-    <label class="f"><span>參考書（選填）</span><select id="nb-ref"><option value="">（不參考）</option>${others}</select></label>
-    <p class="muted small">只沿用它的<b>文風指標</b>與<b>章節結構</b>（數字），不會帶入任何名字或情節。勾選下面的選項才會請模型另外生故事骨架（約 3 次呼叫）。</p>
-    <label class="f"><span><input type="checkbox" id="nb-gen"> 順便產生故事骨架（用上面的參考書，1–2 分鐘）</span></label>
+    <label class="f"><span>參考書（選填；用骨架直接開書時必選）</span><select id="nb-ref"><option value="">（不參考）</option>${others}</select></label>
+    <p class="muted small">只沿用它的<b>文風指標</b>與<b>章節結構</b>（數字），不會帶入任何名字或情節。</p>
+    <label class="f"><span>開書方式</span></label>
+    <div class="seg compact" id="nb-mode">
+      <label><input type="radio" name="nb-mode" value="interview" checked><span>開書訪談（推薦）</span></label>
+      <label><input type="radio" name="nb-mode" value="skeleton"><span>用參考書骨架直接開書</span></label>
+    </div>
+    <p class="muted small" id="nb-mode-hint"></p>
+    <label class="f" id="nb-gen-row"><span><input type="checkbox" id="nb-gen"> 順便產生故事骨架草稿（用上面的參考書，1–2 分鐘；不會自動套用）</span></label>
     <div class="row"><span class="grow"></span><button onclick="closeModal()">取消</button><button class="primary" id="nb-go">建立並開始訪談</button></div>`,
   (el) => {
     try { const ul = localStorage.getItem("ns_lang"); if (ul) $("#nb-lang", el).value = ul; } catch (e) {}
     $("#nb-name", el).focus();
+    const syncMode = () => {
+      const mode = el.querySelector('input[name="nb-mode"]:checked').value;
+      const skeleton = mode === "skeleton";
+      $("#nb-gen-row", el).style.display = skeleton ? "none" : "";
+      $("#nb-mode-hint", el).textContent = skeleton
+        ? t("需要選一本參考書。會先產生骨架（約 1–2 分鐘），然後直接寫入 CLAUDE.md、故事核心、全書大綱與卷綱，跳過開書訪談；骨架沒提到的欄位會標「待補」。")
+        : t("先問兩輪再建立專案。下面可以順便產生一份骨架草稿，但草稿不會自動套用。");
+      $("#nb-go", el).textContent = skeleton ? t("建立並用骨架開書") : t("建立並開始訪談");
+    };
+    el.querySelectorAll('input[name="nb-mode"]').forEach((r) => (r.onchange = syncMode));
+    syncMode();
     $("#nb-go", el).onclick = async () => {
       // 先讀完表單再跳「建立中…」：那個視窗會把表單換掉，之後再讀就會拿到 null
       const name = $("#nb-name", el).value;
       const lang = $("#nb-lang", el).value;
       const ref = $("#nb-ref", el).value;
-      const gen = $("#nb-gen", el).checked;
+      const mode = el.querySelector('input[name="nb-mode"]:checked').value;
+      const gen = mode !== "skeleton" && $("#nb-gen").checked;
       const idea = $("#nb-idea", el).value;
-      if (ref) modal(`<h2>建立中…</h2><p class="muted small">正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後會開始開書訪談。</p>`);
+      if (mode === "skeleton" && !ref) return toast("用骨架直接開書要先選一本參考書", true);
+      if (ref) modal(`<h2>建立中…</h2><p class="muted small">正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後${mode === "skeleton" ? "會開始產生骨架。" : "會開始開書訪談。"}</p>`);
       try {
-        const r = await api("POST", "/api/books", { name, idea, lang, provider: Panel.prov(), ref });
-        closeModal();
+        const r = await api("POST", "/api/books", { name, idea, lang, provider: Panel.prov(), ref, mode });
         S.books = (await api("GET", "/api/books")).books;
+        if (mode === "skeleton") {
+          // 不要先跳書頁：那會短暫顯示「不是小說專案」的兩個按鈕，看起來像又要開一次訪談。
+          // 直接讓 spinoffGenerate 接手「建立中…」視窗，成功後才進書。
+          spinoffGenerate(r.id, ref, idea, { apply: true });
+          return;
+        }
+        closeModal();
         go("#/b/" + enc(r.id));
         if (r.job) Panel.attach(r.job);
         if (r.seeded && r.seeded.length) toast("已沿用參考書的文風指標與章節結構");
@@ -460,40 +485,68 @@ function spinoffDialog() {
   });
 }
 
-async function spinoffGenerate(id, source, note) {
+async function spinoffGenerate(id, source, note, opts = {}) {
+  const applyMode = !!opts.apply;
   const t0 = Date.now();
   modal(`<h2>正在產生故事骨架</h2>
     <p class="muted small">用《${esc(source)}》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。</p>
     <p><b id="sp-stage">排隊中…</b> <span class="muted small" id="sp-elapsed">${t("已 {0} 秒", 0)}</span></p>
-    <p class="muted small">這個視窗可以留著看進度；草稿會寫到 <code>候選/新書草稿/</code>，不會自動套用。</p>`);
+    <p class="muted small">${applyMode ? "正在建立專案，請稍待…完成後會直接寫入設定與大綱。" : "這個視窗可以留著看進度；草稿會寫到 <code>候選/新書草稿/</code>，不會自動套用。"}</p>
+    ${applyMode ? "" : `<div class="row"><span class="grow"></span><button id="sp-bg">背景執行</button></div>`}`);
+  let background = false;
+  const bgBtn = $("#sp-bg");
+  if (bgBtn) bgBtn.onclick = () => { background = true; closeModal(); };
   const setStage = (s) => { const el = $("#sp-stage"); if (el) el.textContent = s; };
   const tick = setInterval(() => {
     const el = $("#sp-elapsed");
     if (el) el.textContent = t("已 {0} 秒", Math.floor((Date.now() - t0) / 1000));
   }, 500);
   try {
-    const start = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov() });
+    const start = await api("POST", `/api/books/${enc(id)}/spinoff`, { source, note, provider: Panel.prov(), apply: applyMode });
     setStage(start.stage || "執行中…");
     let st = { status: "running" };
     while (st.status === "running") {
       await new Promise((r) => setTimeout(r, 1200));
+      if (!$("#sp-stage")) background = true;   // 視窗被關掉（按背景或點外面）就不要再彈結果視窗
       st = await api("GET", `/api/books/${enc(id)}/spinoff/${enc(start.task)}`);
       setStage(st.stage || "執行中…");
     }
     clearInterval(tick);
+    if (!$("#sp-stage")) background = true;   // 最後一刻才關掉視窗也算背景執行
+    if (background) {
+      if (st.status === "error") toast("骨架沒有產生：" + (st.error || "未知錯誤"), true);
+      else if (applyMode) { if (S.book === id) refresh(); toast("已用骨架開書"); }
+      else { refresh(); toast("骨架草稿已產生"); }
+      return;
+    }
     if (st.status === "error") {
       modal(`<h2>產生失敗</h2><p style="color:#b45309">${esc(st.error || "未知錯誤")}</p>
-        <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
+        <p class="muted small">可以按「重試」再跑一次；一直失敗的話，把右側執行者換成另一個 API 模型再試。</p>
+        <div class="row"><span class="grow"></span><button onclick="closeModal()">知道了</button><button class="primary" id="sp-retry">重試</button></div>`);
+      $("#sp-retry").onclick = () => { closeModal(); spinoffGenerate(id, source, note, opts); };
       toast("骨架沒有產生", true);
       return;
     }
     const r = st.result || {};
     const bad = (r.guard && r.guard["撞到名字"]) || [];
+    if (applyMode) {
+      const files = (r.applied && r.applied.files) || [];
+      go("#/b/" + enc(id));
+      modal(`<h2>已用骨架開書</h2>
+        <p class="muted small">${files.length ? `已寫入 ${files.length} 個檔案：${files.map((x) => esc(x)).join("、")}。` : "已寫入設定與大綱。"}</p>
+        ${bad.length ? `<p class="muted small" style="color:#b45309">護欄：有名字和參考書重複（${esc(bad.join("、"))}），請手動改掉。</p>` : ""}
+        <p class="muted small">目標讀者、平台、篇幅、讀者契約等骨架沒提到的欄位已標「待補」，可在「設定 → 故事核心」補；章綱請用「卷先行 → 排這一卷的章綱」。</p>
+        <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal(); refresh()">進入這本書</button></div>`);
+      refresh();
+      toast("已用骨架開書");
+      return;
+    }
     modal(`<h2>故事骨架草稿</h2>
-      <p class="muted small">已寫到 <code>${esc(r.draft || "")}</code>。看完滿意再貼進「設定」與「大綱」——工作台不會自動套用。</p>
+      <p class="muted small">已寫到 <code>${esc(r.draft || "")}</code>。這只是草稿，不會改動設定或大綱；滿意再手動貼進「設定」與「大綱」。</p>
       ${bad.length ? `<p class="muted small" style="color:#b45309">護欄：有名字和參考書重複（${esc(bad.join("、"))}），請手動改掉。</p>` : ""}
       <div class="md">${md(r.preview || "")}</div>
-      <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">知道了</button></div>`);
+      <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal(); refresh()">知道了</button></div>`);
+    refresh();
     toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
   } catch (e) { clearInterval(tick); fail(e); }
 }
@@ -569,9 +622,24 @@ async function viewOverview(view) {
   const ov = await api("GET", B("/overview"));
   if (!S.books.length) S.books = (await api("GET", "/api/books")).books;
   if (!ov.is_book) {
+    const draftPath = "候選/新書草稿/骨架.md";
+    let hasDraft = false;
+    try { await api("GET", B("/file?path=" + enc(draftPath))); hasDraft = true; } catch (e) {}
     view.innerHTML = `<div class="page-head"><div><h1>${esc(S.book)}</h1><div class="sub">這個資料夾還不是小說專案</div></div></div>
       <div class="card"><p>還沒有 CLAUDE.md。開書訪談完成後，這裡就會出現進度與資料。</p>
-      <div class="row"><button class="primary" onclick="Panel.openForm('setup_new')">開始開書訪談</button></div></div>`;
+      <div class="row"><button class="primary" onclick="Panel.openForm('setup_new')">開始開書訪談</button>
+        <button id="ov-spin">用參考書產生故事骨架</button>
+        ${hasDraft ? `<button id="ov-draft">查看參考書骨架草稿</button>` : ""}</div></div>
+      ${hasDraft ? `<div class="card" id="ov-draft-card" style="display:none">
+        <div class="card-title"><h2>參考書骨架草稿</h2><span class="muted small">${esc(draftPath)}</span></div>
+        <p class="muted small">這是模型依參考書產生的草稿，還不是這本書的設定；不會自動套用。</p>
+        <div id="ov-draft-body"></div></div>` : ""}`;
+    $("#ov-spin").onclick = () => spinoffDialog();
+    if (hasDraft) $("#ov-draft").onclick = () => {
+      $("#ov-draft-card").style.display = "";
+      $("#ov-draft").disabled = true;
+      docView($("#ov-draft-body"), draftPath);
+    };
     return;
   }
   const sc = ov.status_count, total = Math.max(ov.chapters, 1);
@@ -868,7 +936,7 @@ async function pipeModal(no) {
   const lastCard = Math.max(no, ...chs.filter((c) => c.card_file).map((c) => c.no));
   const d = r.defaults;
   modal(`<h2>⚡ 整章自動流程</h2>
-    <p class="muted small">每章依序：${r.steps.map((s) => esc(s.label)).join(" → ")}。<br>已有章綱就不重寫；已有候選稿就從核對開始。每一步各自呼叫一次 AI；任何一步失敗都會停在那一步，修正後可以從那一步繼續。</p>
+    <p class="muted small">每章依序：${r.steps.map((s) => esc(s.label)).join(" → ")}。<br>已有章綱就不重寫；已有候選稿就從核對開始。會呼叫 AI 的步驟各自呼叫一次；任何一步失敗都會停在那一步，修正後可以從那一步繼續。</p>
     <div class="row"><span class="small muted">從第</span><input type="number" id="pp-from" class="num-in" value="${no}" min="1"><span class="small muted">章到第</span>
       <input type="number" id="pp-to" class="num-in" value="${no}" min="1"><span class="small muted">章</span>
       <span class="muted small">（章綱寫到第${lastCard}章）</span></div>
@@ -1506,6 +1574,7 @@ async function viewBible(view, t, file) {
   };
   if (t === "核心") btns["核心"] = `<button onclick="go('#/shared?t=${enc("文風")}')">共用文風庫</button>` + btns["核心"];
   const isEnt = ["角色", "勢力", "世界觀"].includes(t);
+  const canDel = !!file && (isEnt || t === "草稿");
   const filt = isEnt ? loadEntryFilter(S.book, t) : {};
   const plainList = list.length ? list.map((e) => `
         <div class="item ${e.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(t)}&f=${enc(e.file)}')">
@@ -1519,13 +1588,23 @@ async function viewBible(view, t, file) {
   const idxBtn = isEnt ? `<button onclick="rebuildBibleIndex()" title="重新產生 設定/_索引.md，給 novel-bible 先讀">重建索引</button>` : "";
   view.innerHTML = `
     <div class="page-head"><div><h1>設定集</h1><div class="sub">靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。</div></div>
-      <div class="row">${btns[t] || ""}${idxBtn}<button class="primary" onclick="bibleGenDialog()">生成設定</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
+      <div class="row">${btns[t] || ""}${canDel ? `<button class="danger" id="bible-del">${I18N.t("刪除這份")}</button>` : ""}${idxBtn}<button class="primary" onclick="bibleGenDialog()">生成設定</button><button onclick="go('#/b/${enc(S.book)}/reverse')" title="從正文反推設定；核對、採用草稿">從正文建立設定</button></div></div>
     <div class="tabs">${tabs.map((x) => `<button class="tab ${x === t ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/bible?t=${enc(x)}')">${x}${b[x] && b[x].length ? ` <span class="badge">${b[x].length}</span>` : ""}</button>`).join("")}</div>
     <div class="split">
       <div class="list">${dupHtml}${listHtml}</div>
       <div><div id="doc">${file ? "" : '<div class="card empty"><div class="big">✦</div>選左邊的項目查看。</div>'}</div>
         <div id="ent-card" style="margin-top:14px"></div><div id="ent-ill" style="margin-top:14px"></div></div>
     </div>`;
+  if (canDel) $("#bible-del").onclick = async () => {
+    const ent = list.find((e) => e.file === file) || {};
+    const nm = ent.name || file;
+    if (!confirm(`刪除「${nm}」？\n會移到 .studio/刪除，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。`)) return;
+    try {
+      const r = await api("POST", B("/bible/delete"), { path: file });
+      toast(r.warning || "已移到 .studio/刪除", !!r.warning);
+      go(`#/b/${enc(S.book)}/bible?t=${enc(t)}`);
+    } catch (e) { fail(e); }
+  };
   if (isEnt) bindEntryFilter(view, t, list, file, filt);
   if (idx) bindDupPanel(view, t, idx, file);
   if (t === "章節結構") { $(".split", view).outerHTML = '<div id="bs-box"></div>'; return renderBookStructures($("#bs-box"), file); }
@@ -1770,7 +1849,7 @@ async function viewSettings(view) {
     </div>
     <div class="card">
       <h2 style="margin-bottom:12px">整章自動流程</h2>
-      <div class="muted small" style="margin-bottom:8px">章綱 → 寫章節（候選稿）→ 章綱核對 → 去 AI 味 → 審查意見 → 自動勾選 → 依勾選意見修訂 → 全部套用 → 定稿並回寫追蹤。每一步各自呼叫一次 AI，不會一次塞太多內容。</div>
+      <div class="muted small" style="margin-bottom:8px">章綱 → 寫章節（候選稿）→ 章綱核對 → 去 AI 味 → 文風檢查 → 審查意見 → 自動勾選 → 依勾選意見修訂 → 全部套用 → 定稿並回寫追蹤。7 個步驟各呼叫一次 AI；文風檢查、自動勾選、全部套用是本機計算，不呼叫模型。</div>
       <div class="f"><span>自動勾選哪些等級的審查意見</span></div>
       <div class="row" id="c-psev">${["必須修", "建議修", "提醒"].map((x) => `<label class="cb"><input type="checkbox" value="${x}" ${(c.pipeline_severities || ["必須修", "建議修"]).includes(x) ? "checked" : ""}> ${x}</label>`).join("")}</div>
       <div class="f" style="margin-top:8px"><span>預設跑法</span></div>
@@ -1779,6 +1858,7 @@ async function viewSettings(view) {
         <label><input type="radio" name="c-pmode" value="continue" ${c.pipeline_mode === "continue" ? "checked" : ""}><span>連續寫到最後一章</span></label>
       </div>
       <div class="muted small" style="margin-top:6px">章綱核對發現沒寫到的情節點，會一併交給修訂。開始時也可以臨時改這兩項。</div>
+      <label class="cb" style="margin-top:10px"><input type="checkbox" id="c-pscheck" ${c.pipeline_style_check !== false ? "checked" : ""}> 文風檢查（本機計算，不花錢；關掉就跳過這一步）</label>
       <div class="f" style="margin-top:12px"><span>自動駕駛：每幾章停下來檢查一次（0＝不檢查）</span></div>
       <div class="grid g3">
         <label class="f"><span>每幾章檢查</span><input type="number" id="c-ape" min="0" value="${esc(c.autopilot_every ?? 0)}"></label>
@@ -1958,6 +2038,7 @@ async function viewSettings(view) {
         reconcile_before_write: $("#c-recon").checked, goal_check_after_write: $("#c-goal").checked,
         pipeline_severities: [...document.querySelectorAll("#c-psev input:checked")].map((x) => x.value),
         pipeline_mode: document.querySelector('input[name="c-pmode"]:checked').value,
+        pipeline_style_check: $("#c-pscheck").checked,
         autopilot_every: parseInt($("#c-ape").value) || 0,
         autopilot_stop_must: parseInt($("#c-apsm").value) || 1,
         autopilot_stop_style: parseFloat($("#c-apss").value) || 2.4,

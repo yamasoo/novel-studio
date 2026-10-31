@@ -169,7 +169,7 @@ def translate(prov, lang, keys, counts):
     user = "請翻譯下面這些介面字串（一行一條，Tab 後面是它在介面出現的次數，僅供判斷語氣）：\n\n" + listed
     text, _ = providers.chat(ROOT, prov, [{"role": "system", "content": system},
                                           {"role": "user", "content": user}],
-                             json_mode=True, max_tokens=max(1024, 120 * len(keys)))
+                             json_mode=True, max_tokens=max(1024, 120 * len(keys)), stage="structured")
     data = providers.parse_json(text)
     out = {}
     for k, v in (data or {}).items():

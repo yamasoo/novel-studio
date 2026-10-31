@@ -1565,12 +1565,22 @@ async def new_book(req: Request):
     lib = CONFIG.get("library")
     if not lib:
         raise HTTPException(400, "請先設定書庫資料夾")
+    mode = str(body.get("mode") or "interview").strip()
+    if mode not in ("interview", "skeleton"):
+        raise HTTPException(400, "開書方式不對")
+    ref = (body.get("ref") or "").strip()
+    if mode == "skeleton" and not ref:
+        raise HTTPException(400, "用參考書骨架直接開書，要先選一本參考書")
+    prov = get_provider(body.get("provider"))
+    if mode == "skeleton" and prov.get("type") == "claude_code":
+        raise HTTPException(400, "用骨架直接開書要走 API 的執行者（Claude Code 不行），請先切換執行者。")
     os.makedirs(lib, exist_ok=True)
     d = wrap(lambda: project.create_book(lib, body.get("name", "")))
     name = os.path.basename(d)
     lang_mod.set_book_lang(d, body.get("lang"))   # 先記下這本書的語言，開書訪談的指令與之後的所有提示詞才會用對的語言
+    if mode == "skeleton":            # 先把空白範本建好，之後套用骨架時才有檔案可備份、覆寫
+        wrap(lambda: native_files.ensure_skeleton(d, PLUGIN_DIR))
     seeded = []
-    ref = (body.get("ref") or "").strip()
     if ref:                          # 參考書（P6）：把它的風格指標與章節結構補進新書，全程不呼叫模型
         try:
             ref_dir = book_dir(ref)
@@ -1582,12 +1592,12 @@ async def new_book(req: Request):
         finally:
             prompts.set_lang(lang_mod.book_lang(d))
     job = None
-    if body.get("start_setup", True):
+    if mode != "skeleton" and body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
         title, prompt = actions.build("setup_new", params, name, lang=lang_mod.book_lang(d))
         job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
-                                          provider=get_provider(body.get("provider"))))
-    return {"id": name, "job": job.to_dict() if job else None, "seeded": seeded}
+                                          provider=prov))
+    return {"id": name, "job": job.to_dict() if job else None, "seeded": seeded, "mode": mode}
 
 
 SPINOFF_TASKS = {}
@@ -1623,6 +1633,18 @@ async def spinoff_start(book_id: str, req: Request):
     if prov.get("type") == "claude_code":
         raise HTTPException(400, "產生骨架要走 API 的執行者（Claude Code 不行），請在右側面板上方切換。")
     note = (body.get("note") or "").strip()
+    apply = bool(body.get("apply"))
+    if apply:
+        # 「用骨架直接開書」只給還沒有 CLAUDE.md 的新書；已經有專案的書不能整包覆蓋。
+        p = os.path.join(d, "CLAUDE.md")
+        if os.path.isfile(p):
+            try:
+                old = project.read_text(p)
+            except OSError:
+                old = ""
+            if "用參考書骨架直接開書" not in old:
+                raise HTTPException(409, "這本書已經是專案，不能用『直接開書』覆蓋。")
+        wrap(lambda: native_files.ensure_skeleton(d, PLUGIN_DIR))
     tid = secrets.token_hex(8)
     state = {"id": tid, "book": book_id, "status": "running", "stage": "排隊中…",
              "error": "", "result": None, "started": time.time()}
@@ -1630,16 +1652,21 @@ async def spinoff_start(book_id: str, req: Request):
 
     def run():
         try:
-            prompts.set_lang(lang_mod.book_lang(src))
-            data = spinoff.generate(prov, src, note, progress=lambda msg: state.update(stage=msg))
+            lang = lang_mod.book_lang(d)
+            prompts.set_lang(lang)
+            data = spinoff.generate(prov, src, note, lang=lang, progress=lambda msg: state.update(stage=msg))
             rel = spinoff.save(d, data)
+            applied = (spinoff.apply_new(d, data, title=book_id, lang=lang, source=source)
+                       if apply else None)
             state.update(status="done", stage="完成",
                          result={"draft": rel, "preview": spinoff.show(data),
-                                 "guard": data.get("護欄") or {}})
+                                 "guard": data.get("護欄") or {}, "applied": applied})
         except SystemExit as e:
             state.update(status="error", error=str(e))
         except providers.ProviderError as e:
             state.update(status="error", error="模型回覆有問題：%s" % e)
+        except project.ProjectError as e:
+            state.update(status="error", error="套用失敗：%s" % e)
         except Exception as e:      # 背景執行緒：不要讓例外默默消失
             state.update(status="error", error="產生失敗：%s" % e)
         finally:
@@ -1799,6 +1826,39 @@ def book_chapters(book_id: str):
 @app.get("/api/books/{book_id}/bible")
 def book_bible(book_id: str):
     return project.bible(book_dir(book_id))
+
+
+@app.post("/api/books/{book_id}/bible/delete")
+async def book_bible_delete(book_id: str, req: Request):
+    """刪除設定集的一個檔案：不永久刪除，移到 .studio/刪除/，再重建索引。"""
+    d = book_dir(book_id)
+    body = await req.json()
+    rel = str(body.get("path") or "").strip().replace("\\", "/")
+    allowed = ("設定/角色/", "設定/勢力/", "設定/世界觀/", "設定/草稿/")
+    if not rel or ".." in rel.split("/") or not any(rel.startswith(p) for p in allowed):
+        raise HTTPException(400, "只能刪除設定集裡的角色、勢力、世界觀或草稿。")
+    p = wrap(lambda: project.safe_path(d, rel))
+    if not os.path.isfile(p):
+        raise HTTPException(404, "找不到這個設定檔")
+    trash = os.path.join(d, ".studio", "刪除")
+    os.makedirs(trash, exist_ok=True)
+    cat = rel.split("/")[1] if len(rel.split("/")) > 2 else "設定"
+    base = "%s_%s_%s" % (time.strftime("%Y%m%d-%H%M%S"), cat, os.path.basename(p))
+    dst = os.path.join(trash, base)
+    i = 2
+    while os.path.exists(dst):
+        dst = os.path.join(trash, "%s_%d.md" % (os.path.splitext(base)[0], i))
+        i += 1
+    try:
+        os.replace(p, dst)
+    except OSError as e:
+        raise HTTPException(400, "刪除失敗：%s" % e)
+    warn = ""
+    try:
+        bible_index.rebuild(d)
+    except Exception as e:  # 索引是產生物，重建失敗不影響刪除
+        warn = "索引重建失敗：%s" % e
+    return {"deleted": rel, "moved_to": project.rel_of(d, dst), "warning": warn}
 
 
 @app.get("/api/books/{book_id}/outline")

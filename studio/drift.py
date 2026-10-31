@@ -300,7 +300,7 @@ def llm_pass(prov, book_dir, d, max_chars=4000):
             text, usage = providers.chat(root, prov,
                                          [{"role": "system", "content": DRIFT_RULE},
                                           {"role": "user", "content": user}],
-                                         json_mode=True, max_tokens=limit)
+                                         json_mode=True, max_tokens=limit, stage="structured")
         except Exception as e:
             last = "呼叫失敗：%s" % str(e)[:100]
             continue

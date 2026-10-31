@@ -5,7 +5,7 @@
 ## 專案
 
 - 路徑：`<專案資料夾>`
-- 來源：<https://github.com/yamasoo/novel-studio>（`main`，`7274675`，v1.17.0；`dev` 與 `main` 同點）
+- 來源：<https://github.com/yamasoo/novel-studio>（`main`，`e26cfff`，v1.18.0；`dev` 與 `main` 同點）
 - 執行：`.\start.bat`（第一次會建 `.venv` 並安裝 5 個套件，需網路）→ <http://127.0.0.1:8765>
 - 檢查：`python tools/check_i18n.py`、`python tools/check_parity.py --strict`、`python tools/prompt_lang_audit.py`（都不需要模型、不花錢）
 
@@ -23,12 +23,13 @@
 3. 續寫先做「合約、檢索、文風閉環、回歸測試」（P1–P4），再做「A 書→B 書」（P6）。
 4. 沒有 CI 這件事已經改掉：push／PR 都會被 `.github/workflows/checks.yml` 擋。
 
-## 目前狀態（2026-10-30，v1.17.0 已發版）
+## 目前狀態（2026-10-30，v1.18.0 已發版）
 
-- `dev` 已於 2026-10-30 以 **squash merge** 合併回 `main`（PR `#1`，84 個 commit），發版 `v1.17.0`（`7274675`）。
-  之後 `dev` 是整合分支：功能 commit 進 `dev`，發版再 squash 回 `main`；**合併後要把 `dev` 對齊 `main`**
+- `dev` 已於 2026-10-30 以 **squash merge** 合併回 `main`（PR `#2`，14 個 commit），發版 `v1.18.0`（`e26cfff`）。
+  之前的 `v1.17.0`（PR `#1`，84 個 commit，`7274675`）是上一個基線。
+  發版後 `dev` 已 `reset --hard main` 並 force push，現在與 `main` 同點。
+- 之後 `dev` 是整合分支：功能 commit 進 `dev`，發版再 squash 回 `main`；**合併後要把 `dev` 對齊 `main`**
   （`git reset --hard main` ＋ `push --force-with-lease`），規則寫在 `docs/新對話交接.md`「分支與發版」。
-- 合併後 `dev` 又累積了未發版的 commit（說明頁、設定集生成、卷綱修訂、章節入口預填…）；發版時再 squash。
 - `check_i18n` 全過；`check_parity --strict` **FAIL 0、WARN 0**；`prompt_lang_audit` 也過；
   GitHub Actions 在 PR 與 `main` push 都綠（`checks.yml`）。
 - 介面字串：`tools/i18n_keys.json` 1,628 鍵；en／ja 各 1,622 條（其餘是 `==` 同形標記）。
@@ -110,6 +111,9 @@
 | 5 | 建專案（`studio/spawn.py`、`tools/spawn.py`） | `8218444` | 用B 書建新書：is_book True、19 項、parse_metrics 讀得到 6 項、合約 741 字、for_chapter 4,438 tokens 含章綱與文風目標、37 檔 |
 | 3 | 新書骨架（`studio/spinoff.py`、`tools/spinoff.py`） | `4b1f2e0` | 假模型：禁用名單 48 個、第一次故意撞名 → 護欄擋下並重寫 → 共 3 次呼叫、最終撞名 0、草稿寫進 候選/新書草稿/ |
 | 6 | 接進工作台（開新書對話框＋`/api/books/{id}/spinoff`） | 本 commit | 端點存在、前端含 nb-ref／nb-gen／spinoffGenerate、node --check 通過；spawn.seed 在 app 建的新書寫出 4 檔、指標 6 項 |
+
+> 2026-10-31：新書多了「用參考書骨架直接開書」（跳過訪談，寫 `CLAUDE.md`／故事核心／世界觀／全書大綱／卷綱，
+> 章綱之後再用卷先行排）；既有書仍只產生草稿，沒有「套用卷綱」。細節見 `docs/P6-新書骨架.md`。
 
 ## 下一步（2026-10-30 健康檢查後）
 

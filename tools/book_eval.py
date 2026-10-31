@@ -197,7 +197,7 @@ def judge(prov, lang, card, output):
     try:
         text, _ = providers.chat(ROOT, prov, [{"role": "system", "content": RUBRIC},
                                              {"role": "user", "content": user}],
-                                 json_mode=True, max_tokens=600)
+                                 json_mode=True, max_tokens=600, stage="structured")
         data = providers.parse_json(text)
     except Exception as e:
         return {"llm_ok": 0, "llm_note": str(e)[:60]}

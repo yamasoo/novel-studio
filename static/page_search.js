@@ -25,10 +25,20 @@
   };
 
   function snippetNode(sn, index) {
+    // 舊版把整段交給 innerHTML，HTML 解析器會把相鄰的文字併成同一個文字節點；
+    // 這裡照樣把相鄰的非高亮片段（含前後的「…」）併進同一個字串，字形整形才會一致。
     const parts = [];
-    if (sn.pre) parts.push("…");
-    for (const g of sn.segs) parts.push(g.hl ? h("mark", {}, g.t) : g.t);
-    if (sn.post) parts.push("…");
+    let buf = sn.pre ? "…" : "";
+    for (const g of sn.segs) {
+      if (g.hl) {
+        if (buf) { parts.push(buf); buf = ""; }
+        parts.push(h("mark", {}, g.t));
+      } else {
+        buf += g.t;
+      }
+    }
+    if (sn.post) buf += "…";
+    if (buf) parts.push(buf);
     return h("div", {
       class: "small",
       "data-i18n-skip": "",
@@ -106,11 +116,14 @@
         h("div", { class: "row" },
           h("a", {
             class: "nm", "data-open": String(i), role: "button", tabindex: "0",
+            // 舊版是 href 假連結（瀏覽器預設 cursor:pointer）；這裡補回游標，不動共用 CSS。
+            style: "cursor:pointer",
             onclick: () => openResult(x),
             onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openResult(x); } },
           },
-            x.scope === "正文" ? null : [h("span", { class: "badge" }, scopeLabel(x.scope)), " "],
-            x.kind === "chapter" ? "第" + x.no + "章　" + x.title : x.path),
+            x.scope === "正文" ? null : h("span", { class: "badge" }, scopeLabel(x.scope)),
+            // 舊版是「標籤＋一個空白＋標題」的同一段文字；這裡也併成一個字串。
+            (x.scope === "正文" ? "" : " ") + (x.kind === "chapter" ? "第" + x.no + "章　" + x.title : x.path)),
           h("span", { class: "grow" }),
           h("span", { class: "muted small" }, x.count + " 處")),
         snippets);
@@ -125,10 +138,12 @@
       return card;
     });
 
-    const summary = h("div", { class: "muted small", style: "margin:0 0 8px" },
-      "「" + r.terms.join("」＋「") + "」：",
-      r.chapters ? "出現在 " + r.chapters + " 章正文" + (r.first ? "，第一次在第 " + r.first + " 章" : "") + "；" : "",
-      "共 " + r.files + " 份檔案、" + r.hits + " 處" + (r.truncated ? "（結果太多，只列前面的）" : ""));
+    // 舊版這整行是一個字串（innerHTML 解析後是單一文字節點），這裡也拼成一個字串。
+    const summaryText =
+      "「" + r.terms.join("」＋「") + "」：" +
+      (r.chapters ? "出現在 " + r.chapters + " 章正文" + (r.first ? "，第一次在第 " + r.first + " 章" : "") + "；" : "") +
+      "共 " + r.files + " 份檔案、" + r.hits + " 處" + (r.truncated ? "（結果太多，只列前面的）" : "");
+    const summary = h("div", { class: "muted small", style: "margin:0 0 8px" }, summaryText);
     box.replaceChildren(summary, ...cards);
   }
 

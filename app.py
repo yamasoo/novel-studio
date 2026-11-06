@@ -29,6 +29,7 @@ import uvicorn
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
+import ns_jobs  # noqa: E402  舊任務事件 → fekit 任務增量的轉接層（repo 根）
 
 VERSION = "1.18.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
@@ -760,10 +761,8 @@ async def shared_style_compare(name: str, req: Request):
     return {"rows": shared.compare(target, actual), "actual": actual}
 
 
-@app.post("/api/shared/styles/design")
-async def shared_style_design(req: Request):
-    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）。"""
-    body = await req.json()
+def start_shared_style(body):
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）；回傳啟動後的任務。"""
     lib = library()
     params = {k: body.get(k) for k in ("mode", "name", "genre", "feel", "refs", "pov", "readers", "avoid", "note", "overwrite")}
     text, names = _sample_text(body)
@@ -798,7 +797,13 @@ async def shared_style_design(req: Request):
         job = RUNNER.start(job)
     except RuntimeError as e:
         raise HTTPException(409, str(e))
-    return job.to_dict()
+    return job
+
+
+@app.post("/api/shared/styles/design")
+async def shared_style_design(req: Request):
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）。"""
+    return start_shared_style(await req.json()).to_dict()
 
 
 @app.post("/api/shared/styles/save")
@@ -2501,6 +2506,37 @@ async def job_events(job_id: str, request: Request, since: int = 0):
 
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# ---------------------------------------------------------------------------
+# fekit 面板的任務端點（docs/02_API合約.md 第 4 節；轉接層在 ns_jobs.py）
+# ---------------------------------------------------------------------------
+def fe_launch_reply(book_id, job, text):
+    """Fekit 面板的 reply：一般任務接續同一本書；文風設計接 _共用。"""
+    if isinstance(job, dict):
+        data = job
+    else:
+        data = job.to_dict(True)
+    meta = data.get("meta") or {}
+    if data.get("status") == "running":
+        raise HTTPException(409, "還在執行，請等這一輪結束")
+    if meta.get("action") == "style_design":
+        body = {
+            "mode": "revise",
+            "name": (meta.get("params") or {}).get("name"),
+            "note": text,
+            "provider": data.get("provider"),
+            "lang": (meta.get("params") or {}).get("lang"),   # 少了它會用錯語言組提示詞
+        }
+        return start_shared_style(body)      # 把原本 /api/shared/styles/design 的內容抽成這支
+    if book_id != data.get("book"):
+        raise HTTPException(409, "這個任務不屬於這本書")
+    prov = get_provider(data.get("provider"))
+    return launch_job(book_id, book_dir(book_id), "reply", {"text": text}, prov,
+                      resume=data.get("session_id"), text=text)
+
+
+ns_jobs.install(app, RUNNER, book_dir, runner_mod.load_history, runner_mod.load_job_file, fe_launch_reply)
 
 
 # ---------------------------------------------------------------------------

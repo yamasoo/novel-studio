@@ -1,0 +1,44 @@
+/* 轉移計畫 §7.3：P3 起面板是 fekit 的 FE.jobs.panel。這支只修舊 style.css 撞到的 class，
+   載入順序 tokens → base → components → style → ns-fekit，所以這裡最後、只寫差異。 */
+
+#fe-panel-host { flex: 1 1 auto; min-height: 0; display: flex; }
+#fe-panel-host .job-panel { flex: 1 1 auto; min-height: 0; }
+
+/* P5 的 shell panel 直接放 actions／form／job-panel，也要有高度。 */
+.shell-panel-body { display: flex; flex-direction: column; min-height: 0; }
+.shell-panel-body > #panel-actions,
+.shell-panel-body > #panel-form { flex: 0 0 auto; }
+.shell-panel-body > .job-panel { flex: 1 1 auto; min-height: 0; height: auto; }
+
+/* 舊 style.css 的 .chip 會蓋掉 kit 的狀態色，面板內拉回。 */
+.job-panel .chip {
+  display: inline-flex; align-items: center; gap: .25rem;
+  border: 1px solid transparent; border-radius: 999px;
+  padding: .1rem .55rem; font-size: .75rem; line-height: 1.4;
+  background: var(--bg-sunken); color: var(--fg-muted);
+}
+.job-panel .chip-accent { background: var(--accent-soft); color: var(--accent); }
+.job-panel .chip-ok { background: var(--ok-soft); color: var(--ok); }
+.job-panel .chip-warn { background: var(--warn-soft); color: var(--warn); }
+.job-panel .chip-err { background: var(--err-soft); color: var(--err); }
+
+/* 舊 .alert 的 display:flex 會影響 kit 的錯誤框，面板內只留顏色。 */
+.job-panel .alert { display: block; }
+.job-panel .hidden { display: none !important; }
+
+/* kit 的 FE.modal：舊 style.css 的 .modal 是「遮罩」，kit 的 .modal 是「盒子」。
+   不覆蓋的話 kit 對話框會變成全螢幕。
+   不要用 display:grid：grid item 會讓 kit 的 width: min(32rem,100%) 解析成 auto，
+   對話框會塌成內容寬（實測 106px，正常是 512px）。kit 自己用 flex，這裡跟著用 flex。 */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 100; display: flex;
+  align-items: center; justify-content: center;
+  padding: 1rem; background: var(--overlay);
+}
+.modal-backdrop .modal {
+  position: static; inset: auto; z-index: auto; display: block;
+  width: min(32rem, 100%); max-height: calc(100vh - 2rem); overflow: auto;
+  padding: 0; background: var(--bg-elev); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+}
+.modal-backdrop .modal.modal-wide { width: min(52rem, 100%); }

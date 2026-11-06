@@ -6,7 +6,7 @@ const S = {
   book: null,                 // 目前的書 id
   bookLang: null,             // 目前這本書的語言（zh-TW／en／ja）；書的內容用它標 lang，字形才對
   job: null,                  // 面板目前顯示的任務 {id, status, session_id}
-  es: null,                   // EventSource
+  es: null,                   // EventSource（P3 起由 FE.jobs.panel 開，這個欄位已不再使用）
   lastText: "",
   routeName: "",
 };
@@ -156,11 +156,8 @@ async function setBook(id, keep) {
   S.bookLang = ((S.books || []).find((x) => x.id === id) || {}).lang || null;
   Panel.renderActions();
   if (!id) return;
-  // 若這本書有執行中的任務，接上
-  try {
-    const hist = await api("GET", B("/jobs"));
-    if (hist[0] && hist[0].status === "running" && !(S.job && S.job.id === hist[0].id)) Panel.attach(hist[0], true);
-  } catch (e) { /* ignore */ }
+  // 若這本書有執行中的任務，接上（轉移計畫 §7.4：交給 Panel.resume 查 /api/fe，不再用舊的 B("/jobs")）
+  if (Panel.resume) Panel.resume().catch(() => {});
 }
 
 function renderNav() {
@@ -3460,6 +3457,23 @@ async function restartServer(port) {
 window.restartServer = restartServer;
 
 /* ------------------------------------------------------------------ Claude 面板 */
+// 面板本體在 P3 換成 fekit 的 FE.jobs.panel（轉移計畫 §7.2）；Panel 只剩門面，100 多處舊呼叫不用改。
+let fePanel = null;
+
+function panelBase(job) {
+  const book = (job && (job.book || job.book_id)) || S.book;
+  return "/api/fe/books/" + encodeURIComponent(book) + "/jobs";
+}
+
+// render_md：串流段落的第一個字元是 U+200C 時收成「模型輸出全文」（D3-07）。
+function panelRenderMd(text) {
+  const collapse = text.charCodeAt(0) === 0x200c;
+  const raw = collapse ? text.slice(1) : text;
+  const md = FE.md.render(raw);
+  if (!collapse) return md;
+  return FE.h("details", { class: "ev-full" },
+    FE.h("summary", {}, `模型輸出全文（${raw.length} 字）`), md);
+}
 const Panel = {
   open: false,
   toggle(v) {
@@ -3541,7 +3555,62 @@ const Panel = {
         + `<div class="muted">沒勾任何一個，AI 只會列出草稿，不會定案。</div>`;
     } catch (e) { box.textContent = "讀取草稿失敗"; }
   },
+  /* ── P3：面板本體換成 fekit 的 FE.jobs.panel，這裡只剩門面（轉移計畫 §7.2） ── */
+  mount(root) {
+    if (fePanel) fePanel.destroy();
+    fePanel = FE.jobs.panel({
+      root: root,
+      transport: "sse",
+      base: () => panelBase(),
+      render_md: panelRenderMd,
+      notify: false,
+      onreveal: () => Panel.toggle(true),
+      onchange: (job) => {
+        S.job = job;
+        const running = !!job && (job.status === "running" || job.status === "queued");
+        const runDot = document.querySelector("#run-dot");
+        const fabDot = document.querySelector("#fab-dot");
+        if (runDot) runDot.className = "dot" + (running ? " run" : "");
+        if (fabDot) fabDot.className = "dot" + (running ? " run" : "");
+        // fekit 的 drawAsk 把 null 直接傳給 replaceChildren，回覆框會多一個裸的「null」文字節點
+        // （jobs.js 717-727；vendor/fekit 不可改）。每次重畫後清掉，P5 修 kit 後連這三行一起刪。
+        const ask = document.querySelector("#fe-panel-host .job-ask");
+        if (ask) for (const node of [...ask.childNodes]) if (node.nodeType === 3) node.remove();
+      },
+      onend: (job) => Panel.finish(job),
+    });
+  },
+  attach(job, quiet, keepLog) {
+    fePanel.attach(job, { base: panelBase(job), keep: !!keepLog });
+  },
+  async show(id) {
+    const base = panelBase();
+    try {
+      // 只拿狀態判斷要不要 live；不要把整包 patch 傳給 attach
+      // （attach 會丟掉 patch 的 log/stream，seq 卻已經是最新的，內容會消失）。
+      const job = await api("GET", base + "/" + encodeURIComponent(id));
+      if (job.status === "running") fePanel.attach(id, { base });
+      else fePanel.show(id, { base });
+    } catch (error) {
+      fail(error);
+    }
+  },
+  async resume() {
+    if (!fePanel || !S.book) return null;
+    const book = S.book;
+    const base = panelBase();
+    const current = fePanel.tracker();
+    // 已經在追蹤同一本書的任務（例如使用者剛按了執行）就不要被晚到的列表換掉。
+    if (current && current.conn !== "closed" && current.conn !== "gone" &&
+        S.job && S.job.book === S.book) return S.job;
+    const found = await FE.jobs.list({ base, status: "queued,running", limit: 1 });
+    if (!found.length || S.book !== book) return null;
+    if (S.job && S.job.id === found[0].id && S.job.status === "running") return found[0];
+    fePanel.attach({ id: found[0].id, status: found[0].status }, { base, reveal: false });
+    return found[0];
+  },
   async run(action, params, provider) {
+    // D3-09：建立任務照舊打舊端點 POST /api/books/{book}/jobs，不用 panel.run()（它的 base 建立時就固定）。
     if ((action === "write" || action === "chapter_cards") && !(Number(params && params.from) > 0)) {
       toast(t("請先填「從第幾章」。")); return;
     }
@@ -3553,121 +3622,20 @@ const Panel = {
       this.attach(job);
     } catch (e) { fail(e); }
   },
-  async reply() {
-    const text = $("#reply-text").value.trim();
-    if (!text || !S.job) return;
-    if (S.job.status === "running") { toast("還在執行，請等這一輪結束", true); return; }
-    const sp = S.job.meta && S.job.meta.action === "style_design" && S.job.meta.params;
-    if (sp && sp.name) {   // 文風任務：回覆就當成「請 AI 調整」
-      try {
-        const job = await api("POST", "/api/shared/styles/design", { mode: "revise", name: sp.name, note: text, provider: S.job.provider || this.prov() });
-        $("#reply-text").value = "";
-        S.styleJobTarget = sp.name;
-        this.attach(job, false, true);
-      } catch (e) { fail(e); }
-      return;
-    }
-    try {
-      const job = await api("POST", JB(S.job, "/jobs"), { action: "reply", resume: S.job.session_id, resume_provider: S.job.provider, provider: S.job.provider || this.prov(), params: { text } });
-      $("#reply-text").value = "";
-      this.attach(job, false, true);
-    } catch (e) { fail(e); }
-  },
-  attach(job, quiet, keepLog) {
-    if (S.es) { S.es.close(); S.es = null; }
-    S.job = job; S.lastText = "";
-    this.toggle(true);
-    if (!keepLog) $("#panel-log").innerHTML = "";
-    this.add(`<div class="ev-prompt">${esc(job.title === "回覆" ? job.prompt : job.title)}</div>`);
-    this.setRunning(true);
-    S.es = new EventSource(`/api/jobs/${job.id}/events`);
-    S.es.onmessage = (m) => this.onEvent(JSON.parse(m.data));
-    S.es.addEventListener("close", () => { S.es.close(); S.es = null; this.finish(); });
-    S.es.onerror = () => { if (S.es && S.es.readyState === 2) { S.es = null; this.finish(); } };
-  },
-  async show(id) {
-    try {
-      const j = await api("GET", B("/jobs/" + id));
-      if (j.status === "running") return this.attach(j);
-      if (S.es) { S.es.close(); S.es = null; }
-      S.job = j; S.lastText = "";
-      this.toggle(true);
-      $("#panel-log").innerHTML = "";
-      this.add(`<div class="ev-meta">${fmtTime(j.started)}　${esc(j.title)}　${jobBadge(j.status)}</div>`);
-      this.add(`<div class="ev-prompt">${esc(j.prompt)}</div>`);
-      (j.events || []).forEach((e) => this.onEvent(e));
-      this.setRunning(false);
-    } catch (e) { fail(e); }
-  },
-  onEvent(e) {
-    if (e.kind === "stream_start") {
-      S.streamJson = !!e.json;
-      this.add(`<div class="ev-stream">${e.text ? `<div class="ev-meta" style="text-align:left">${esc(e.text)}</div>` : ""}
-        <details class="ev-think" hidden><summary>思考過程</summary><div class="tt"></div></details>
-        <div class="ev-text st ${e.json ? "json" : ""}"></div></div>`);
-      return;
-    }
-    const box = [...$("#panel-log").querySelectorAll(".ev-stream")].pop();
-    if (e.kind === "thinking" && box) {
-      const d = $(".ev-think", box); d.hidden = false; $(".tt", d).textContent += e.text; this.scroll(); return;
-    }
-    if (e.kind === "stream" && box) { $(".st", box).textContent += e.text; this.scroll(); return; }
-    if (e.kind === "stream_end" && box) {
-      const st = $(".st", box);
-      if (S.streamJson) { st.outerHTML = `<details class="ev-json"><summary>結構化資料（JSON）</summary><pre>${esc(st.textContent)}</pre></details>`; }
-      else { const raw = st.textContent; st.innerHTML = `<details class="ev-full"><summary>模型輸出全文（${raw.length} 字）</summary><div class="md"${LA()}>${md(raw)}</div></details>`; }
-      return;
-    }
-    if (e.kind === "text") { S.lastText = e.text; this.add(`<div class="ev-text"><div class="md"${LA()}>${md(e.text)}</div></div>`); }
-    else if (e.kind === "tool") this.add(`<div class="ev-tool">${esc(e.text)}</div>`);
-    else if (e.kind === "tool_error") this.add(`<div class="ev-log">工具回報錯誤：${esc(e.text)}</div>`);
-    else if (e.kind === "error") this.add(`<div class="ev-err">${esc(e.text)}</div>`);
-    else if (e.kind === "log") this.add(`<div class="ev-log">${esc(e.text)}</div>`);
-    else if (e.kind === "cancelled") this.add(`<div class="ev-meta">已停止</div>`);
-    else if (e.kind === "result") {
-      if (e.text && e.text.trim() === (S.lastText || "").trim()) {
-        const last = [...$("#panel-log").querySelectorAll(".ev-text")].pop();
-        if (last) { last.className = "ev-report"; last.insertAdjacentHTML("afterbegin", '<div class="rh">匯報</div>'); }
-      } else if (e.text) {
-        this.add(`<div class="ev-report"><div class="rh">匯報</div><div class="md"${LA()}>${md(e.text)}</div></div>`);
-      }
-      const u = e.usage ? `輸入 ${fmtNum(e.usage.prompt_tokens)}／輸出 ${fmtNum(e.usage.completion_tokens)} tokens` : "";
-      this.add(`<div class="ev-meta">${e.turns ? e.turns + " 輪　" : ""}${u}${e.cost != null ? "　$" + Number(e.cost).toFixed(4) : ""}</div>`);
-    } else if (e.kind === "end") {
-      if (S.job) S.job.status = e.status;
-    } else if (e.kind === "init" && S.job) { S.job.session_id = e.session_id; }
-  },
-  scroll() {
-    const log = $("#panel-log");
-    if (log.scrollHeight - log.scrollTop - log.clientHeight < 160) log.scrollTop = log.scrollHeight;
-  },
-  add(html) {
-    const log = $("#panel-log");
-    const empty = log.querySelector(".ev-empty"); if (empty) empty.remove();
-    const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-    log.insertAdjacentHTML("beforeend", html);
-    if (nearBottom) log.scrollTop = log.scrollHeight;
-  },
-  async finish() {
-    this.setRunning(false);
-    try {
-      const j = await api("GET", JB(S.job, "/jobs/" + S.job.id));
-      S.job.status = j.status; S.job.session_id = j.session_id;
-    } catch (e) { /* ignore */ }
+  reply() { /* 由面板的 ask 表單處理（轉移計畫 §7.2） */ },
+  async finish(job) {
+    if (!job) return;
     S.books = (await api("GET", "/api/books").catch(() => ({ books: S.books }))).books;
-    if (document.querySelector("textarea.editor")) toast("任務完成。你正在編輯，所以頁面沒有自動重新整理。");
-    else if (S.job && S.job.book === "_共用") { if (typeof S.onSharedJob === "function") S.onSharedJob(S.job); }
-    else if (S.book) refresh();
-    if (S.job && S.job.meta && S.job.meta.action === "volume_draft" && S.job.status === "done") {
+    if (document.querySelector("textarea.editor")) {
+      toast("任務完成。你正在編輯，所以頁面沒有自動重新整理。");
+    } else if (job.book === "_共用") {
+      if (typeof S.onSharedJob === "function") S.onSharedJob(job);
+    } else if (S.book) {
+      refresh();
+    }
+    if ((job.meta || {}).action === "volume_draft" && job.status === "done") {
       toast("卷綱草稿已產生：到大綱頁的「卷況」按「採用」才會變成正式卷綱。");
     }
-    $("#reply-text").focus();
-  },
-  setRunning(on) {
-    $("#run-dot").className = "dot" + (on ? " run" : "");
-    $("#fab-dot").className = "dot" + (on ? " run" : "");
-    $("#btn-stop").hidden = !on;
-    $("#reply-btn").disabled = on;
   },
 };
 Panel.setWidth = function (w) {
@@ -3700,9 +3668,5 @@ Panel.setWidth = function (w) {
   r.addEventListener("dblclick", () => Panel.setWidth(null));
 })();
 window.Panel = Panel;
-
-$("#btn-stop").onclick = async () => { if (S.job) await api("POST", `/api/jobs/${S.job.id}/cancel`).catch(fail); };
-$("#reply-btn").onclick = () => Panel.reply();
-$("#reply-text").addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") Panel.reply(); });
 
 /* 啟動搬到 boot.js：本檔只定義，載入後不會自己 init／route。 */

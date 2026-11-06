@@ -61,13 +61,13 @@ function wrapNativeDialogs() {
     fail(e);
   }
 
-  // P3 起這行要刪：那時 #panel-log 已經從 index.html 拿掉（見轉移計畫 7.3）。
-  $("#panel-log").innerHTML = '<div class="ev-empty">從上方選一個動作，或在頁面上按按鈕。' +
-    '<br>Claude 的過程與匯報會顯示在這裡。</div>';
-
   let open = false;
   try { open = localStorage.getItem("panelOpen") === "1"; } catch (e) { /* ignore */ }
   Panel.toggle(open);
+
+  // P3：面板換成 FE.jobs.panel（轉移計畫 §7.4）。#panel-log 已經不在 DOM 裡，空狀態由面板自己畫。
+  await FE.md.load();
+  Panel.mount("#fe-panel-host");
 
   try { S.provider = localStorage.getItem("provider") || null; } catch (e) { /* ignore */ }
   if (S.provider && !provChoices().find((p) => p.id === S.provider)) S.provider = null;
@@ -78,4 +78,6 @@ function wrapNativeDialogs() {
   // 舊路由交接（P1 全部視為舊）：PAGES 沒登記的路徑都交給舊的 route()。
   FE.PAGES.not_found = () => route();
   await FE.start({ root: "#view" });
+  // FE.start 之後再 resume，避免和第一次 legacy route 的 setBook 搶
+  Panel.resume().catch(() => {});
 })();

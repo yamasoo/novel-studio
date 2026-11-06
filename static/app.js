@@ -127,7 +127,6 @@ async function route() {
       if (sub === "tracking") return await viewTracking(view, q.t);
       if (sub === "export") return await viewExport(view);
       if (sub === "illust") return await viewIllust(view, q.t);
-      if (sub === "search") return await viewSearch(view, q.q || "", q.s);
       if (sub === "drift") return await viewDrift(view, q.from, q.to);
     }
     S.routeName = "shelf";
@@ -177,60 +176,13 @@ function renderNav() {
 }
 
 /* ------------------------------------------------------------------ 前文搜尋（本機，不用模型） */
-const SEARCH_SCOPES = [["正文", "正文"], ["候選", "候選稿"], ["章綱", "大綱與章綱"], ["設定", "設定集"], ["追蹤", "追蹤"]];
-function searchScopes() {
-  try { const v = JSON.parse(localStorage.getItem("search-scopes") || "null"); if (Array.isArray(v) && v.length) return v; } catch (e) { /* ignore */ }
-  return ["正文"];
-}
 window.sideSearch = (q) => { q = (q || "").trim(); if (q) go(`#/b/${enc(S.book)}/search?q=${enc(q)}`); };
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K") && S.book) {
     e.preventDefault(); const i = $("#search-q") || $("#side-q"); if (i) { i.focus(); i.select(); }
   }
 });
-async function viewSearch(view, q, s) {
-  const scopes = s ? s.split(",") : searchScopes();
-  view.innerHTML = `
-    <div class="page-head"><div><h1>搜尋前文</h1><div class="sub">在本機直接找，不用模型。多個詞用空白分開＝要出現在同一章；「」或 "" 包起來＝完整片語；不分繁簡。</div></div></div>
-    <div class="card" style="margin-bottom:14px"><form id="search-form" class="row" style="flex-wrap:wrap;gap:10px">
-      <input id="search-q" type="search" value="${esc(q)}" placeholder="例如：玉珮、林遠 沈家、「三年前那場雨」" style="flex:1;min-width:240px">
-      <button class="primary">搜尋</button>
-      <div class="row" style="gap:12px;width:100%">${SEARCH_SCOPES.map(([k, l]) => `<label class="cb" style="margin:0"><input type="checkbox" name="sc" value="${k}" ${scopes.includes(k) ? "checked" : ""}> ${l}</label>`).join("")}</div>
-    </form></div>
-    <div id="search-res"></div><div id="doc" style="margin-top:14px"></div>`;
-  $("#search-form").onsubmit = (e) => {
-    e.preventDefault();
-    const sc = [...document.querySelectorAll('#search-form input[name="sc"]:checked')].map((x) => x.value);
-    try { localStorage.setItem("search-scopes", JSON.stringify(sc)); } catch (err) { /* ignore */ }
-    go(`#/b/${enc(S.book)}/search?q=${enc($("#search-q").value.trim())}&s=${enc(sc.join(","))}`);
-  };
-  if (!q.trim()) { $("#search-q").focus(); return; }
-  const box = $("#search-res");
-  box.innerHTML = `<div class="card muted">搜尋中…</div>`;
-  const r = await api("GET", B(`/search?q=${enc(q)}&scopes=${enc(scopes.join(","))}`));
-  S.searchTerms = r.terms;
-  if (!r.results.length) { box.innerHTML = `<div class="card empty">找不到「${esc(r.terms.join("」＋「"))}」。可以勾選更多範圍再試。</div>`; return; }
-  const segs = (sn) => (sn.pre ? "…" : "") + sn.segs.map((g) => g.hl ? `<mark>${esc(g.t)}</mark>` : esc(g.t)).join("") + (sn.post ? "…" : "");
-  const label = (x) => x.kind === "chapter" ? `第${x.no}章　${esc(x.title)}` : esc(x.path);
-  const tag = (x) => x.scope === "正文" ? "" : `<span class="badge">${esc(SEARCH_SCOPES.find((z) => z[0] === x.scope)[1])}</span> `;
-  box.innerHTML = `<div class="muted small" style="margin:0 0 8px">「${esc(r.terms.join("」＋「"))}」：${r.chapters ? `出現在 ${r.chapters} 章正文${r.first ? `，第一次在第 ${r.first} 章` : ""}；` : ""}共 ${r.files} 份檔案、${r.hits} 處${r.truncated ? "（結果太多，只列前面的）" : ""}</div>
-    ${r.results.map((x, i) => `<div class="card" style="margin-bottom:10px;padding:12px 16px">
-      <div class="row"><a href="javascript:void 0" class="nm" data-open="${i}">${tag(x)}${label(x)}</a><span class="grow"></span><span class="muted small">${x.count} 處</span></div>
-      ${x.snippets.map((sn, j) => `<div class="small"${LP()} style="margin-top:6px;line-height:1.7${j >= 3 ? ";display:none" : ""}" data-more="${i}">${segs(sn)}</div>`).join("")}
-      ${x.snippets.length > 3 || x.more ? `<button class="ghost sm" style="margin-top:4px" data-expand="${i}">展開其餘 ${x.snippets.length - 3 + x.more} 處</button>` : ""}
-    </div>`).join("")}`;
-  box.querySelectorAll("[data-expand]").forEach((b) => b.onclick = () => {
-    box.querySelectorAll(`[data-more="${b.dataset.expand}"]`).forEach((d) => d.style.display = ""); b.remove();
-  });
-  box.querySelectorAll("[data-open]").forEach((a) => a.onclick = async () => {
-    const x = r.results[+a.dataset.open];
-    const tab = x.scope === "正文" ? "text" : x.scope === "候選" ? "candidate"
-      : x.no && x.path.startsWith("大綱/章綱/") ? "card" : x.no && x.path.startsWith("追蹤/章節摘要/") ? "summary" : null;
-    if (tab) { S.hl = r.terms; go(`#/b/${enc(S.book)}/ch/${x.no}?tab=${tab}`); return; }
-    await docView($("#doc"), x.path);
-    highlightTerms($("#doc"), r.terms);
-  });
-}
+
 /* 在畫面裡標亮搜尋詞並捲到第一處（等內容載入，最多 3 秒） */
 async function highlightTerms(root, terms) {
   terms = (terms || []).filter(Boolean);

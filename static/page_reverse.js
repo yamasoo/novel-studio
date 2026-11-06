@@ -1,6 +1,6 @@
 /* 反推設定頁（轉移計畫 §8.2.7）：從 app.js 的 viewReverse 搬過來（原本 181-241）。
    三個原生 confirm 改 await FE.confirm（文字一字不差）；動作做完一律 FE.route()（同一頁重載），
-   不再自己遞迴呼叫 viewReverse；草稿清單不再用 javascript: 假連結。
+   不再自己遞迴呼叫 viewReverse；草稿清單不再用偽協定的假連結。
    Panel／S／B() 仍是 app.js 全域。 */
 (function () {
   "use strict";
@@ -36,7 +36,7 @@
   }
 
   function draftLink(x, docEl) {
-    // 舊版是 <a href="javascript:void 0" data-view>；改成真的節點事件，不留假連結。
+    // 舊版是 href 指向偽協定的假連結；改成真的節點事件，不留假連結。
     const open = () => docView(docEl, x.draft);
     return h("div", {},
       h("a", {

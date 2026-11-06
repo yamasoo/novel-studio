@@ -2,6 +2,36 @@
 
 > 這份檔案給「下一個對話」或「未來的自己」看。看完這一頁就能接手，不需要重讀整份報告。
 
+## P4：逐頁拆成 page_*.js（完成）
+
+舊的單檔前端（`static/app.js`，3,672 行）已經**整份拆完**：18 個頁面各一個 `static/page_*.js`，
+`app.js` 降到 **845 行**，只剩共用工具（`S`／`api`／`B`／`esc`／`toast`／`fail`／`setBook`／`renderNav`／
+`highlightTerms`／`splitFM`／`parseHash`…）、`Panel` 面板轉接、以及還沒換掉的舊對話框（`modal`／`closeModal`）。
+
+**共用檔（四支）**
+
+| 檔案 | 內容 |
+|---|---|
+| `static/ns_page.js` | `nsPage(key, routeName, options, render)` 註冊殼：設 `S.routeName`、`setBook`／`clearBook`、`renderNav`、叫 handler |
+| `static/ns_shared.js` | 狀態／任務 badge 的節點版、`fmtTime`／`fmtNum`／`unitCh` 轉接、`nodesFromHtml` |
+| `static/ns_doc.js` | 文件檢視／編輯，對外仍是全域 `docView`（Markdown 用 `FE.md.render`、未存檔走 `FE.dirty`、Ctrl+S） |
+| `static/ns_pipe.js` | 整章自動流程，對外仍是全域 `renderPipe`／`pipeModal`／…；換頁會停輪詢 |
+
+**每頁的寫法（一致）**：IIFE ＋ `"use strict"`、只用 `ctx.view(...)` 寫主區、GET 一律 `FE.api(path, { signal: ctx.signal })`
+（AbortError 不吞）、對話框用 `FE.modal`／`FE.confirm`／`FE.toast`／`FE.fail`、不用字串 `innerHTML`／行內 `onclick`。
+
+**路由**：全部由 `FE.PAGES` 接管，舊的 `route()`／`guardedView()` 已刪；`PAGES.not_found` 交給 fekit 預設的
+`notFoundView()`（「找不到這個頁面。回首頁」）。書內頁的 key 一律是 `b/:book/xxx`；`b/:book` 只吃 0 個殘餘段
+（有殘餘段或書不存在時顯示 404）。
+
+**驗收方式**：每個頁面 × 三語（zh-TW／en／ja）× 深淺（dark／light）各開一次，檢查 console 0 錯誤、h1、
+側欄 active、`#view` 內行內 `onclick` 為 0；截圖基線在 `docs/screenshots/p4`（18 頁 × 深淺＝36 個 PNG），
+比對用**逐通道最大差**（bbox／max／≥1／≥32／≥64 四項），不要用灰階（會低估真實差異）。
+
+**P5 開工前先讀**：這一段 → `docs/backlog.md` → `static/ns_page.js` 與 `vendor/fekit/fe/core.js` 的
+`matchPage`／`PAGES` 規則。P5 的重點是把殼（側欄、麵包屑、檔案選擇器）換成 fekit 的版本，並把還是字串版的
+`bookOpts`／`provOpts`／`provSelectHtml` 改成節點版。
+
 ## 專案
 
 - 路徑：`<專案資料夾>`

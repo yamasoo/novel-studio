@@ -43,6 +43,8 @@
         "data-view": x.draft,
         role: "button",
         tabindex: "0",
+        // 舊版是 href 假連結（瀏覽器預設 cursor:pointer）；這裡補回游標，不動共用 CSS。
+        style: "cursor:pointer",
         onclick: open,
         onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } },
       }, x.rel),

@@ -123,7 +123,6 @@ async function route() {
       S.routeName = sub;
       renderNav();
       if (sub === "ch") return await viewChapter(view, parseInt(parts[3]), q.tab);
-      if (sub === "outline") return await viewOutline(view, q.f);
       if (sub === "bible") return await viewBible(view, q.t, q.f);
       if (sub === "tracking") return await viewTracking(view, q.t);
       if (sub === "export") return await viewExport(view);
@@ -1095,129 +1094,6 @@ window.recoverView = async (id) => {
     });
   } catch (e) { fail(e); }
 };
-/* ------------------------------------------------------------------ 大綱 */
-function volCard(v) {
-  const vols = (v.volumes || []).map((x) => `<div class="row"><span>${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}${x.status ? "（" + esc(x.status) + "）" : ""}</span></span><span class="grow"></span>
-    ${x.kind === "卷" ? `<button class="sm" data-revise="${x.no}">${t("修訂")}</button><button class="sm" data-sync="${x.no}">${t("同步大綱")}</button>` : ""}
-    <button class="sm" data-check="${x.lo}-${x.hi}">${t("章綱體檢")}</button>
-    <button class="sm" data-card="${x.lo}-${x.hi}">${t("排這一卷的章綱")}</button></div>`).join("");
-  const drafts = (v.drafts || []).map((x) => `<div class="row"><span>${t("草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
-    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
-    <button class="sm primary" data-adopt="${x.no}">${t("採用")}</button></div>`).join("");
-  const revs = (v.revisions || []).map((x) => `<div class="row"><span>${t("卷綱修訂草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
-    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button>
-    <button class="sm" data-diff="${x.no}">${t("看差異")}</button>
-    <button class="sm primary" data-revapply="${x.no}">${t("套用修訂")}</button></div>`).join("");
-  const plans = (v.plans || []).map((x) => `<div class="row"><span>${t("卷綱更新草稿")}：${esc(x.name)} <span class="muted small">${t("第 {0}–{1} 章", x.lo, x.hi)}</span></span><span class="grow"></span>
-    <button class="sm" data-open="${esc(x.rel)}">${t("編輯")}</button></div>`).join("");
-  return `<div class="card" id="vol-card">
-    <div class="row"><b>${t("卷況")}</b><span class="grow"></span><button class="primary" id="vol-new">${t("開新卷")}</button></div>
-    <div class="muted small">${t("卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。")}</div>
-    <div style="margin-top:8px">${vols || `<div class="muted">${t("還沒有卷綱。")}</div>`}${drafts}${revs}${plans}</div>
-    ${drafts ? `<div class="muted small">${t("採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。")}</div>` : ""}
-    ${revs ? `<div class="muted small">${t("修訂會先產生草稿；看過差異按「套用修訂」才覆蓋正式卷綱（會先備份）。")}</div>` : ""}
-  </div>`;
-}
-async function showRevision(no) {
-  try {
-    const r = await api("GET", B(`/volumes/revision/${no}`));
-    const body = (r.diff || "").split("\n").map((line) => {
-      const plus = line.startsWith("+") && !line.startsWith("+++");
-      const minus = line.startsWith("-") && !line.startsWith("---");
-      const color = plus ? "#1a7f37" : minus ? "#b42318" : "#666";
-      return `<div style="color:${color};white-space:pre-wrap">${esc(line)}</div>`;
-    }).join("");
-    modal(`<h2>${t("卷綱修訂差異")}（第 ${no} 卷）</h2>
-      <p class="muted small">${t("紅色是正式卷綱被拿掉的行，綠色是修訂後新增或改寫的行。按「套用修訂」才會覆蓋正式檔（會先備份）。")}</p>
-      <div style="max-height:55vh;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;background:#faf8f4;padding:8px;border-radius:6px">${body || t("沒有差異。")}</div>
-      <div class="row"><span class="grow"></span><button onclick="closeModal()">${t("取消")}</button><button class="primary" onclick="applyRevision(${no})">${t("套用修訂")}</button></div>`);
-  } catch (e) { fail(e); }
-}
-
-async function applyRevision(no) {
-  if (!confirm(t("套用後會覆蓋正式卷綱（會先備份），確定嗎？"))) return;
-  try {
-    const r = await api("POST", B("/volumes/revision/apply"), { volume: no });
-    const warn = (r && r.warnings) || [];
-    closeModal();
-    toast(warn.length ? warn.join("；") : t("已套用卷綱修訂"), warn.length > 0);
-    go(location.hash);
-  } catch (e) { fail(e); }
-}
-
-function bindVol(v) {
-  const el = $("#vol-card");
-  if (!el) return;
-  const nb = $("#vol-new", el);
-  if (nb) nb.onclick = () => Panel.openForm("volume_draft", { volume: v.next, from: v.from, to: v.from + 19 });
-  el.querySelectorAll("[data-card]").forEach((b) => { b.onclick = () => { const [a, z] = b.dataset.card.split("-").map(Number); Panel.openForm("chapter_cards", { from: a, to: z }); }; });
-  el.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => go('#/b/' + enc(S.book) + '/outline?f=' + enc(b.dataset.open)); });
-  el.querySelectorAll("[data-revise]").forEach((b) => { b.onclick = () => Panel.openForm("volume_revise", { volume: b.dataset.revise }); });
-  el.querySelectorAll("[data-diff]").forEach((b) => { b.onclick = () => showRevision(Number(b.dataset.diff)); });
-  el.querySelectorAll("[data-revapply]").forEach((b) => { b.onclick = () => applyRevision(Number(b.dataset.revapply)); });
-  el.querySelectorAll("[data-sync]").forEach((b) => {
-    b.onclick = async () => {
-      try {
-        const r = await api("POST", B("/volumes/outline-sync"), { volume: Number(b.dataset.sync) });
-        const warn = (r && r.warnings) || [];
-        if (warn.length) toast(warn.join("；"), true);
-        else toast(t("已同步全書大綱"));
-        go(location.hash);
-      } catch (e) { fail(e); }
-    };
-  });
-  el.querySelectorAll("[data-check]").forEach((b) => {
-    b.onclick = async () => {
-      const [a, z] = b.dataset.check.split("-").map(Number);
-      try {
-        const r = await api("GET", B(`/card-check?from=${a}&to=${z}`));
-        const rows = r.findings || [];
-        modal(`<h2>${t("章綱體檢")}（第 ${a}–${z} 章）</h2>
-          ${rows.length ? `<div class="card"><div class="small muted">${t("把設定和章綱對照：提前登場（劇透風險）與久別重逢（設定說已退場）。")}</div>
-            ${rows.map((f) => `<div class="row" style="align-items:flex-start"><span class="badge">${esc(f.kind)}</span>
-              <span>${t("第 {0} 章", f.chapter)}「${esc(f.name)}」：${esc(f.detail)}</span></div>`).join("")}</div>`
-            : `<div class="card"><p>${t("章綱沒有發現衝突。")}</p></div>`}
-          <div class="row"><span class="grow"></span><button class="primary" onclick="closeModal()">${t("知道了")}</button></div>`);
-      } catch (e) { fail(e); }
-    };
-  });
-  el.querySelectorAll("[data-adopt]").forEach((b) => {
-    b.onclick = async () => {
-      try {
-        const r = await api("POST", B("/volumes/adopt"), { volume: Number(b.dataset.adopt) });
-        const warn = (r && r.warnings) || [];
-        if (warn.length) toast(warn.join("；"), true);
-        else toast(t("已採用第 {0} 卷卷綱", b.dataset.adopt));
-        go(location.hash);
-      } catch (e) { fail(e); }
-    };
-  });
-}
-async function viewOutline(view, file) {
-  const files = await api("GET", B("/outline"));
-  const vol = await api("GET", B("/volumes")).catch(() => null);
-  const chs = await api("GET", B("/chapters")).catch(() => []);
-  const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
-  // 卷綱草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
-  const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + t("草稿") + "）", file: x.rel }));
-  const plans = ((vol && vol.plans) || []).map((x) => ({ name: x.name, file: x.rel }));
-  const all = files.concat(drafts).concat(plans);
-  if (!file && all.length) file = all[0].file;
-  view.innerHTML = `
-    <div class="page-head"><div><h1>大綱</h1><div class="sub">全書大綱與卷綱。章綱在「章節」頁。</div></div>
-      <div class="row"><button onclick="Panel.openForm('concept')">故事核心診斷</button><button onclick="Panel.openForm('master_outline')">全書大綱</button>
-      <button onclick="spinoffDialog()">參考書骨架</button><button class="primary" onclick="Panel.openForm('chapter_cards',{from:${nextNo},to:${nextNo + 9}})">排接下來 10 章</button></div></div>
-    ${vol ? volCard(vol) : ""}
-    <div class="split">
-      <div class="list">${all.length ? all.map((x) => `<div class="item ${x.file === file ? "active" : ""}" onclick="go('#/b/${enc(S.book)}/outline?f=${enc(x.file)}')"><div class="nm">${esc(x.name)}</div></div>`).join("")
-        : '<div class="muted">還沒有大綱。</div>'}
-        <div class="item" onclick="go('#/b/${enc(S.book)}/bible?t=核心&f=${enc("設定/故事核心.md")}')"><div class="nm">故事核心</div><div class="ds">設定/故事核心.md</div></div>
-      </div>
-      <div id="doc">${file ? "" : '<div class="card empty"><div class="big">⌘</div>還沒有大綱。可以先做「故事核心診斷」，再規劃全書大綱。</div>'}</div>
-    </div>`;
-  if (vol) bindVol(vol);
-  if (file) await docView($("#doc"), file);
-}
 
 /* ------------------------------------------------------------------ 設定集 */
 /* 設定集：角色、勢力、世界觀列表的篩選與分組 */

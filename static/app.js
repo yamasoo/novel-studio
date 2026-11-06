@@ -116,7 +116,6 @@ async function route() {
   try {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
     if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
-    if (parts[0] === "import") { S.routeName = "import"; return await viewImport(view); }
     if (parts[0] === "b" && parts[1]) {
       await setBook(parts[1]);
       const sub = parts[2] || "overview";
@@ -1945,122 +1944,6 @@ async function viewShared(view, t, file) {
     }
   }
   if (file) await docView($("#doc"), file.startsWith("preset:") ? file : file, { base: "/api/shared", readonly: file.startsWith("preset:") });
-}
-
-/* ------------------------------------------------------------------ 匯入舊稿 */
-const IMP = { files: [], preview: null };
-async function viewImport(view) {
-  const info = await api("GET", "/api/import/info");
-  IMP.files = []; IMP.preview = null;
-  view.innerHTML = `
-    <div class="page-head"><div><h1>匯入舊稿</h1><div class="sub">把已經寫好的 TXT、Markdown、Word（.docx）拆成章節放進書裡；全部在本機處理，不呼叫 AI</div></div></div>
-    <div class="grid exp-grid">
-      <div class="card">
-        <h2 style="margin-bottom:10px">1. 選擇稿子</h2>
-        <label class="f"><span>稿子的語言</span><select id="im-lang"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
-        <label class="f"><span>檔案（可以一次選多個；一個檔案一章也可以）</span><input type="file" id="im-files" multiple accept=".txt,.md,.markdown,.docx"></label>
-        <label class="f"><span>或直接貼上</span><textarea id="im-text" rows="6" placeholder="第一章 ……&#10;正文……&#10;&#10;第二章 ……"></textarea></label>
-        <div class="muted small">編碼會自動判斷（UTF-8、Big5、GB18030）。舊版 .doc 請先在 Word 另存成 .docx。</div>
-      </div>
-      <div class="card">
-        <h2 style="margin-bottom:10px">2. 怎麼拆章</h2>
-        <div class="grid g2">
-          <label class="f"><span>章節標題</span><select id="im-mode">
-            <option value="auto">自動（第X章、Chapter N、楔子、番外；找不到再用 # 標題）</option>
-            <option value="chapter">只認「第X章／第X回」這類標題</option>
-            <option value="markdown">只認 Markdown 的 # 標題</option></select></label>
-          <label class="f"><span>章號</span><select id="im-num">
-            <option value="auto">照標題上的章號（不連續時自動改成依順序）</option>
-            <option value="sequential">依順序重新編號</option></select></label>
-          <label class="f"><span>依順序編號時從第幾章開始</span><input type="number" id="im-start" value="1" min="1"></label>
-        </div>
-        <label class="cb" id="im-conv-wrap"><input type="checkbox" id="im-conv" ${info.has_opencc ? "" : "disabled"}> 簡體轉成台灣繁體（含用語，例如「軟件」→「軟體」）
-          ${info.has_opencc ? "" : '<span class="badge b-warn">需要 OpenCC：關閉工作台後重新執行 start.bat 會自動安裝</span>'}</label>
-        <label class="cb"><input type="checkbox" id="im-pre"> 把第一個章節標題之前的文字當成一章（例如楔子）</label>
-        <label class="cb"><input type="checkbox" id="im-punct" checked> 修正標點（西式引號改「」、半形逗號改全形等）</label>
-        <div class="row"><span class="grow"></span><button class="primary" id="im-preview">預覽拆章結果</button></div>
-      </div>
-    </div>
-    <div id="im-out"></div>`;
-  const opts = () => ({ mode: $("#im-mode").value, numbering: $("#im-num").value, start: parseInt($("#im-start").value) || 1,
-    convert: IMP.lang === "zh-TW" && $("#im-conv").checked, lang: IMP.lang, preface_as_chapter: $("#im-pre").checked, fix_punct: $("#im-punct").checked });
-  const payload = () => ({ files: IMP.files, text: $("#im-text").value });
-  // 英文、日文稿子不需要簡轉繁，簡體相關的選項與對照一起收起來
-  const syncLang = () => {
-    IMP.lang = $("#im-lang").value;
-    $("#im-conv-wrap").style.display = IMP.lang === "zh-TW" ? "" : "none";
-  };
-  $("#im-lang").onchange = syncLang;
-  syncLang();
-  $("#im-files").onchange = async (ev) => { try { IMP.files = await readFiles(ev.target); } catch (e) { fail(e); } };
-  $("#im-preview").onclick = async () => {
-    const btn = $("#im-preview"); btn.disabled = true; btn.textContent = "處理中……";
-    try {
-      const r = await api("POST", "/api/import/preview", { payload: payload(), opts: opts() });
-      IMP.preview = r;
-      renderImportPreview(r, info, payload, opts);
-    } catch (e) { fail(e); } finally { btn.disabled = false; btn.textContent = "預覽拆章結果"; }
-  };
-}
-
-function renderImportPreview(r, info, payload, opts) {
-  const total = r.chapters.reduce((a, c) => a + c.chars, 0);
-  const zhOn = IMP.lang === "zh-TW";   // 只有繁體中文稿才顯示簡體相關的檢查與對照
-  const wu = unitOfLang(IMP.lang);
-  const flagsOf = (c) => (c.flags || []).filter((f) => zhOn || !/簡體/.test(f));
-  const guessName = (IMP.files[0] && IMP.files[0].name.replace(/\.[^.]+$/, "").replace(/^\d+[\s._\-、]*/, "")) || "";
-  $("#im-out").innerHTML = `
-    <div class="card" style="margin-top:14px">
-      <div class="card-title"><h2>拆章結果：${r.chapters.length} 章，${fmtNum(total)} ${unitCh(wu)}${(() => { const n = r.chapters.filter((c) => flagsOf(c).length).length; return n ? `<span class="badge b-warn" style="margin-left:8px">${n} 章要檢查</span>` : `<span class="badge b-ok" style="margin-left:8px">沒有發現問題</span>`; })()}</h2>
-        <span class="muted small">${r.numbered_by_title ? "章號照標題" : "章號依順序"}</span></div>
-      <div class="row small muted" style="margin-bottom:8px">${r.sources.map((s) => `<span class="badge">${esc(s.name)}：${esc(s.encoding)}${zhOn && s.simplified ? `，簡體字約 ${s.simplified}` : ""}</span>`).join("")}</div>
-      ${r.warnings.map((w) => `<div class="alert warn"><span class="t">${esc(w)}</span></div>`).join("")}
-      ${r.preface.map((p) => `<div class="muted small" style="margin:6px 0">開頭文字（${esc(p.name)}，${p.chars} ${unitCh(wu)}）：${esc(p.preview)}……</div>`).join("")}
-      <div class="table-wrap" style="max-height:360px"><table>
-        <tr><th class="num">章</th><th>章名</th><th class="num">${wu === "words" ? "詞數" : "字數"}</th><th>檢查</th><th>開頭</th></tr>
-        ${r.chapters.map((c) => `<tr class="${flagsOf(c).length ? "hl" : ""}"><td class="num">${c.no}</td><td>${esc(c.title) || '<span class="muted">（無章名）</span>'}</td>
-          <td class="num">${fmtNum(c.chars)}</td><td>${flagsOf(c).map((f) => `<span class="badge ${/空章|重複|倒退|簡體/.test(f) ? "b-bad" : "b-warn"}">${esc(f)}</span>`).join(" ")}</td>
-          <td class="muted small">${esc(c.head)}</td></tr>`).join("")}
-      </table></div>
-    </div>
-    <div class="card" style="margin-top:14px">
-      <h2 style="margin-bottom:10px">3. 放到哪裡</h2>
-      <div class="seg compact"><label><input type="radio" name="im-dest" value="new" ${info.books.length ? "" : "checked"}><span>建立新書</span></label>
-        <label><input type="radio" name="im-dest" value="old" ${info.books.length ? "checked" : ""} ${info.books.length ? "" : "disabled"}><span>放進現有的書</span></label></div>
-      <div class="grid g2" style="margin-top:10px">
-        <label class="f" data-dest="new"><span>書名</span><input type="text" id="im-name" value="${esc(guessName)}"></label>
-        <label class="f" data-dest="old"><span>書</span><select id="im-book">${bookOpts(info.books, S.book)}</select></label>
-        <label class="f"><span>放進</span><select id="im-target"><option value="正文">正文（直接當成定稿）</option><option value="候選">候選稿（逐章審閱後再採用）</option></select></label>
-        <label class="f" data-dest="old"><span>書裡已經有同一章時</span><select id="im-conflict"><option value="skip">跳過，保留書裡的</option><option value="overwrite">覆蓋（原檔先備份）</option></select></label>
-      </div>
-      <div class="row"><span class="grow"></span><button class="primary" id="im-go">匯入 ${r.chapters.length} 章</button></div>
-      <div id="im-result"></div>
-    </div>`;
-  const sync = () => {
-    const d = document.querySelector('input[name="im-dest"]:checked').value;
-    document.querySelectorAll("[data-dest]").forEach((x) => { x.hidden = x.dataset.dest !== d; });
-  };
-  document.querySelectorAll('input[name="im-dest"]').forEach((x) => x.onchange = sync);
-  sync();
-  $("#im-go").onclick = async () => {
-    const isNew = document.querySelector('input[name="im-dest"]:checked').value === "new";
-    const body = { payload: payload(), opts: Object.assign(opts(), { target: $("#im-target").value, conflict: $("#im-conflict").value }) };
-    if (isNew) { body.new_book = $("#im-name").value.trim(); if (!body.new_book) return toast("請輸入書名", true); }
-    else body.book = $("#im-book").value;
-    const btn = $("#im-go"); btn.disabled = true;
-    try {
-      const res = await api("POST", "/api/import/commit", body);
-      S.books = (await api("GET", "/api/books")).books;
-      $("#im-result").innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="k">完成</span><span class="t">
-        匯入 ${res.written.length} 章（${fmtNum(res.chars)} ${unitCh(unitOfLang(IMP.lang))}）到《${esc(res.book)}》的${esc(res.target)}。
-        ${res.skipped.length ? `跳過已存在的第 ${res.skipped.join("、")} 章。` : ""}${res.replaced.length ? `覆蓋了第 ${res.replaced.join("、")} 章（原檔已備份）。` : ""}</span>
-        <button class="sm primary" onclick="go('#/b/${enc(res.book)}')">開啟這本書</button></div>
-        <div class="muted small" style="margin-top:8px">下一步建議：${res.target === "正文"
-          ? `已經寫好的書，可以用 <a href="#/b/${enc(res.book)}/reverse">從正文建立設定</a> 讓 AI 從正文反推角色、世界觀、名詞表、大綱、章綱、伏筆與時間線（先存成草稿，不需要開書訪談）；文風可以到「共用庫 → 文風」用這本書的正文分析。`
-          : "到章節頁逐章審閱候選稿，按「採用」移入正文並回寫追蹤。"}</div>`;
-      renderNav();
-    } catch (e) { fail(e); } finally { btn.disabled = false; }
-  };
 }
 
 /* ------------------------------------------------------------------ 本書章節結構 */

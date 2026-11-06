@@ -1,7 +1,7 @@
 /* 總覽頁（轉移計畫 §8.2.5）：從 app.js 的 viewOverview（原 628-697，含區塊標頭 627）與 alertHtml（原 706-719）搬過來。
    註冊兩個 PAGES key：
-     "b/:book"          → #/b/<book>（無子路徑）與尾斜線都畫總覽；BUT 沒登記的子路徑（還沒搬的頁）要交回舊 route()，
-                          否則 2 段的 key 會把 /bible、/tracking… 全部攔下來。
+     "b/:book"          → #/b/<book>（無子路徑）與尾斜線都畫總覽；有殘餘段（沒登記的頁）時畫 404（不再回舊 route()）。
+                          留著這個 key 是因為 matchPage 取最長命中：刪掉它，#/b/<book> 會直接掉到 not_found。
      "b/:book/overview" → #/b/<book>/overview。
    renderPipe／pipeModal／setBookLang／splitFM／docView／spinoffDialog 仍是 app.js 全域（PIPE 那批才搬）。 */
 (function () {
@@ -176,9 +176,26 @@
         : null);
   }
 
-  // #/b/<book>：沒有子路徑就是總覽；有子路徑（還沒搬的頁）交回舊 route()，不要攔。
-  nsPage("b/:book", "overview", { book: true }, async (ctx) => {
-    if (ctx.args.length) return route();
+  // #/b/<book>：0 個殘餘段就是總覽。有殘餘段（沒有登記的頁）或書不存在時只畫 404，不再呼叫舊 route()。
+  // 不能直接刪掉這個 key：matchPage 是「最長的 key 勝出」，刪了 #/b/<book> 反而會落到 not_found。
+  // 這裡的節點刻意與 fekit core.js 的 notFoundView 一致（div.empty「找不到這個頁面。回首頁」）。
+  const notFound = () => h("div", { class: "empty" }, "找不到這個頁面。", " ", h("a", { href: "#/" }, "回首頁"));
+
+  // 書不在 S.books 裡就先重抓一次目錄再判斷（外建目錄的情況），免得上來就對不存在的書發請求
+  async function knownBook(id) {
+    if (!id) return false;
+    if ((S.books || []).some((b) => b.id === id)) return true;
+    try { S.books = (await FE.api("/api/books")).books; } catch (e) { /* 目錄讀不到就當作不認識 */ }
+    return (S.books || []).some((b) => b.id === id);
+  }
+
+  // 不用 nsPage 的 book 選項：它會在 handler 之前就 setBook（對不存在的書會讓面板去輪詢一個 404 的任務端點）。
+  nsPage("b/:book", "overview", {}, async (ctx) => {
+    const id = ctx.params.book;
+    const known = await knownBook(id);
+    if (known) await setBook(id);
+    else await setBook(null, true);
+    if (ctx.args.length || !known) { ctx.view(notFound()); return; }
     await render(ctx);
   });
   nsPage("b/:book/overview", "overview", { book: true }, render);

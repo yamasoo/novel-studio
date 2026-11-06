@@ -91,44 +91,6 @@ function parseHash() {
   return { parts, q };
 }
 
-// 舊頁競態（轉移計畫 §5.5）：route() 一進來就換 token，舊頁晚回來的寫入會被丟掉。
-let routeToken = 0;
-
-function guardedView(el, token) {
-  return new Proxy(el, {
-    set(target, prop, value) {
-      if (token !== routeToken && (prop === "innerHTML" || prop === "textContent")) return true;
-      return Reflect.set(target, prop, value);
-    },
-    get(target, prop) {
-      if (prop === "replaceChildren" && token !== routeToken) return () => {};
-      const value = Reflect.get(target, prop, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
-}
-
-async function route() {
-  const token = ++routeToken;
-  if (!$("#modal").hidden) closeModal();
-  const { parts, q } = parseHash();
-  const view = guardedView($("#view"), token);
-  try {
-    if (parts[0] === "b" && parts[1]) {
-      await setBook(parts[1]);
-      const sub = parts[2] || "overview";
-      S.routeName = sub;
-      renderNav();
-    }
-    // 書架已經由 page_shelf.js 接管（FE.PAGES 的 "home"）；route() 現在只剩「不認得的路徑」這條最後退路。
-    await FE.go("#/");
-  } catch (e) {
-    view.innerHTML = `<div class="card"><h2>出了點問題</h2><p class="muted">${esc(e.message)}</p><button onclick="go('#/')">回書架</button></div>`;
-  } finally {
-    renderNav();
-    if (S.hl) { const t = S.hl; S.hl = null; highlightTerms(view, t); }
-  }
-}
 function refresh() { return FE.route(); }
 
 async function setBook(id, keep) {

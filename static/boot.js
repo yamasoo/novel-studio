@@ -75,9 +75,8 @@ function wrapNativeDialogs() {
   Panel.renderProv();
   Panel.renderActions();
 
-  // 舊路由交接（P1 全部視為舊）：PAGES 沒登記的路徑都交給舊的 route()。
-  FE.PAGES.not_found = () => route();
+  // P4：PAGES 沒登記的路徑不再交給舊 route()（已刪）。fekit 在 PAGES.not_found 不存在時會自己畫 notFoundView()。
   await FE.start({ root: "#view" });
-  // FE.start 之後再 resume，避免和第一次 legacy route 的 setBook 搶
+  // FE.start 之後再 resume，避免和第一次路由的 setBook 搶
   Panel.resume().catch(() => {});
 })();

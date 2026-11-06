@@ -59,6 +59,10 @@ function navItems() {
       { label: "任務紀錄", icon: "◷", href: base + "/jobs", page: "b/:book/jobs" },
       { label: "插圖", icon: "✎", href: base + "/illust", page: "b/:book/illust" },
       { label: "匯出", icon: "⇩", href: base + "/export", page: "b/:book/export" },
+      { group: "工具" },
+      { label: "搜尋前文", icon: "⌕", href: base + "/search", page: "b/:book/search" },
+      { label: "從正文建立設定", icon: "⇄", href: base + "/reverse", page: "b/:book/reverse" },
+      { label: "卷末體檢", icon: "△", href: base + "/drift", page: "b/:book/drift" },
       { group: "工作台" });
   }
   items.push(

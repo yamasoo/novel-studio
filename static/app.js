@@ -24,7 +24,6 @@ const unitOfBook = (id) => { const b = (S.books || []).find((x) => x.id === (id 
 // 書的語言：顯示書內容的容器加 lang（日文書在中文介面下用日文字形，中文書在日文介面下用繁中字形）。介面本身的 <html lang> 仍跟著介面語言
 const bookLang = () => S.bookLang || ((S.books || []).find((x) => x.id === S.book) || {}).lang || "zh-TW";
 const LA = () => ` lang="${bookLang()}"`;               // 只標語言
-const LP = () => ` lang="${bookLang()}" data-i18n-skip`;  // 標語言，並且不被介面翻譯動到（正文）
 function fmtTime(t) {
   if (!t) return "";
   const d = new Date(t * 1000), now = new Date();
@@ -64,15 +63,6 @@ function splitFM(text) {
   }
   return [{}, text];
 }
-function md(text) {
-  const html = marked.parse(text || "", { gfm: true, breaks: false });
-  return html.replace(/<script[\s\S]*?<\/script>/gi, "");
-}
-// 對照表在 ns_shared.js（單一來源）；這裡只把節點版轉回字串，呼叫端與輸出都不變。
-function statusBadge(s) {
-  return nsShared.html(nsShared.statusBadgeNode(s));
-}
-
 function modal(html, onMount) {
   $("#modal-body").innerHTML = html;
   $("#modal").hidden = false;
@@ -203,10 +193,6 @@ window.recoverView = async (id) => {
 };
 
 window.openCharState = (file) => docView($("#doc"), file);
-
-function jobBadge(s) {
-  return nsShared.html(nsShared.jobBadgeNode(s));
-}
 
 
 /* ------------------------------------------------------------------ 共用庫 */

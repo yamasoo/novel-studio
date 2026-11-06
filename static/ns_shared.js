@@ -1,7 +1,7 @@
 /* 頁面檔的共用小工具（轉移計畫 §8.3）：單一來源，不跟 app.js 各寫一份。
    本檔在 app.js 之前載入，所以 fmtTime／fmtNum／unitCh／unitOfBook 直接轉呼叫 app.js 的同名全域
    （function 宣告是 window 的屬性，const 是全域語彙綁定，兩者在後續 script 都取得到）；
-   statusBadge／jobBadge 的對照表只留在這裡，app.js 那兩個改成薄序列化。 */
+   statusBadge／jobBadge 的對照表只留在這裡（app.js 的字串版已在 P4-19b 刪掉）。 */
 (function () {
   "use strict";
 
@@ -40,18 +40,9 @@
     return Array.from(doc.body.childNodes).map((node) => document.importNode(node, true));
   }
 
-  // 薄序列化：app.js 的 statusBadge／jobBadge 呼叫端要的是字串，節點版在轉回 HTML。
-  // 這是本檔唯一出現 outerHTML 的地方。
-  function html(node) {
-    if (!node) return "";
-    if (node.nodeType === 1) return node.outerHTML;
-    return esc(node.nodeValue == null ? "" : node.nodeValue);
-  }
-
   window.nsShared = {
     statusBadgeNode,
     jobBadgeNode,
-    html,
     nodesFromHtml,
     // 轉呼叫 app.js 的實作；本檔比 app.js 先載入，所以包一層到呼叫時才解析。
     fmtTime(t) { return fmtTime(t); },

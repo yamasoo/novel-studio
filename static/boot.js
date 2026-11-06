@@ -31,6 +31,20 @@ function migrateStore() {
       if (Number.isFinite(w) && w > 0) FE.store.set("shell.w.panel", w);
     }
   } catch (e) { /* 舊值壞掉就維持預設 */ }
+
+  // 遷移完就把舊 key 刪掉（backlog ⑬）：只在 store 已經有對應值時才刪，刪不到的一律留著，
+  // 之後也不再掃（legacy.pruned 標記）。代價：日後回退到 P4 版，語言／執行者／面板寬度會回預設。
+  try {
+    if (FE.store.get("legacy.pruned", false)) return;
+    const pairs = [
+      ["lang", "ns_lang"], ["provider", "provider"], ["actsCollapsed", "actsCollapsed"],
+      ["search-scopes", "search-scopes"], ["shell.off.panel", "panelOpen"], ["shell.w.panel", "panelW"],
+    ];
+    pairs.forEach(([key, old]) => {
+      if (FE.store.get(key, undefined) !== undefined) localStorage.removeItem(old);
+    });
+    FE.store.set("legacy.pruned", true);
+  } catch (e) { /* localStorage 不可用就留著 */ }
 }
 
 // 舊 i18n 會包住原生對話框；墊片照做，直到 P4 把頁面換成 FE.confirm／FE.modal（§6.3）。

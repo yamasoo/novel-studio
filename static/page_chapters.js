@@ -1,4 +1,4 @@
-/* 章節頁（轉移計畫 §8.2.4）：從 app.js 的 viewChapters 搬過來（原本 723-744）。
+/* 章節頁（轉移計畫 §8.2.4）：從 app.js 的 viewChapters 搬過來（原本 723-743，含區塊標頭 722）。
    Panel.openForm 是面板門面；pipeModal／renderPipe 還在 app.js（跟 PIPE 一起在單章那批才搬），這裡直接呼叫全域。
    列用 h("tr",{onclick})，不留 inline onclick。 */
 (function () {

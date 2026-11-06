@@ -122,7 +122,6 @@ async function route() {
       const sub = parts[2] || "overview";
       S.routeName = sub;
       renderNav();
-      if (sub === "overview") return await viewOverview(view);
       if (sub === "ch") return await viewChapter(view, parseInt(parts[3]), q.tab);
       if (sub === "outline") return await viewOutline(view, q.f);
       if (sub === "bible") return await viewBible(view, q.t, q.f);
@@ -624,77 +623,6 @@ window.initFolder = async (id) => {
   setTimeout(() => Panel.openForm("setup_new"), 300);
 };
 
-/* ------------------------------------------------------------------ 總覽 */
-async function viewOverview(view) {
-  const ov = await api("GET", B("/overview"));
-  if (!S.books.length) S.books = (await api("GET", "/api/books")).books;
-  if (!ov.is_book) {
-    const draftPath = "候選/新書草稿/骨架.md";
-    let hasDraft = false;
-    try { await api("GET", B("/file?path=" + enc(draftPath))); hasDraft = true; } catch (e) {}
-    view.innerHTML = `<div class="page-head"><div><h1>${esc(S.book)}</h1><div class="sub">這個資料夾還不是小說專案</div></div></div>
-      <div class="card"><p>還沒有 CLAUDE.md。開書訪談完成後，這裡就會出現進度與資料。</p>
-      <div class="row"><button class="primary" onclick="Panel.openForm('setup_new')">開始開書訪談</button>
-        <button id="ov-spin">用參考書產生故事骨架</button>
-        ${hasDraft ? `<button id="ov-draft">查看參考書骨架草稿</button>` : ""}</div></div>
-      ${hasDraft ? `<div class="card" id="ov-draft-card" style="display:none">
-        <div class="card-title"><h2>參考書骨架草稿</h2><span class="muted small">${esc(draftPath)}</span></div>
-        <p class="muted small">這是模型依參考書產生的草稿，還不是這本書的設定；不會自動套用。</p>
-        <div id="ov-draft-body"></div></div>` : ""}`;
-    $("#ov-spin").onclick = () => spinoffDialog();
-    if (hasDraft) $("#ov-draft").onclick = () => {
-      $("#ov-draft-card").style.display = "";
-      $("#ov-draft").disabled = true;
-      docView($("#ov-draft-body"), draftPath);
-    };
-    return;
-  }
-  const sc = ov.status_count, total = Math.max(ov.chapters, 1);
-  const seg = (n, cls) => n ? `<div class="${cls}" style="width:${(n / total) * 100}%"></div>` : "";
-  S.bookLang = ov.lang || S.bookLang;
-  const [, stateBody] = splitFM(ov.state_card || "");
-  const next = ov.next;
-  setTimeout(() => { const sel = $("#book-lang"); if (sel) sel.value = ov.lang || "zh-TW"; }, 0);
-  setTimeout(() => renderPipe(), 0);
-  view.innerHTML = `
-    <div class="page-head">
-      <div><h1>${esc(S.book)}</h1><div class="sub">${esc(ov.hook || "")}</div>
-        <div class="sub small"><label>寫作語言：<select id="book-lang" onchange="setBookLang(this.value)"><option value="zh-TW">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label></div></div>
-      <div class="row">
-        ${next.has_card
-          ? `<button class="primary" onclick="Panel.openForm('write',{from:${next.no},to:${next.no}})">寫第${next.no}章${next.title ? "《" + esc(next.title) + "》" : ""}</button>`
-          : `<button class="primary" onclick="Panel.openForm('chapter_cards',{from:${next.no},to:${next.no + 9}})">排第${next.no}–${next.no + 9}章的章綱</button>`}
-        <button onclick="pipeModal(${next.no})">⚡ 整章自動</button>
-        <button onclick="Panel.openForm('review',{from:${Math.max(1, ov.latest - 4)},to:${Math.max(1, ov.latest)}})">審查最近章節</button>
-        <button onclick="go('#/b/' + enc(S.book) + '/drift')">卷末體檢</button>
-      </div>
-    </div>
-    <div class="pipe-box"></div>
-    <div class="grid g4">
-      <div class="card stat"><div class="num">${ov.written}</div><div class="lbl">已寫章數</div></div>
-      <div class="card stat"><div class="num">${fmtNum(ov.chars)}</div><div class="lbl">${ov.unit === "words" ? "正文詞數" : "正文字數"}</div></div>
-      <div class="card stat"><div class="num">${ov.chapters}</div><div class="lbl">已規劃章數（含章綱）</div></div>
-      <div class="card stat"><div class="num">${next.no}</div><div class="lbl">下一章 ${next.has_card ? statusBadge(next.card_status) : '<span class="badge b-bad">沒有章綱</span>'}</div></div>
-    </div>
-    <div class="card" style="margin-top:14px">
-      <div class="card-title"><h2>章綱進度</h2><a href="#/b/${enc(S.book)}/chapters">看全部章節 →</a></div>
-      <div class="progress">${seg(sc["已寫"], "c-written")}${seg(sc["已確認"], "c-confirmed")}${seg(sc["草稿"], "c-draft")}${seg(sc["無章綱"], "c-none")}</div>
-      <div class="legend"><span><i class="c-written"></i>已寫 ${sc["已寫"] || 0}</span><span><i class="c-confirmed"></i>章綱已確認 ${sc["已確認"] || 0}</span>
-        <span><i class="c-draft"></i>章綱草稿 ${sc["草稿"] || 0}</span>${sc["無章綱"] ? `<span><i class="c-none"></i>有正文無章綱 ${sc["無章綱"]}</span>` : ""}</div>
-    </div>
-    <div class="grid g2" style="margin-top:14px">
-      <div class="card">
-        <div class="card-title"><h2>需要注意</h2><span class="badge">${ov.alerts.length}</span></div>
-        ${ov.alerts.length ? ov.alerts.map(alertHtml).join("") : '<div class="muted">一切正常。</div>'}
-      </div>
-      <div class="card state">
-        <div class="card-title"><h2>狀態卡</h2><a href="#/b/${enc(S.book)}/tracking?t=state">開啟 →</a></div>
-        <div class="md"${LA()}>${stateBody.trim() ? md(stateBody) : '<span class="muted">還沒有狀態卡。寫完第一章後會自動產生。</span>'}</div>
-      </div>
-    </div>
-    ${ov.recent.length ? `<div class="card" style="margin-top:14px"><div class="card-title"><h2>最近章節</h2></div>
-      <table>${ov.recent.map((c) => `<tr class="click" onclick="go('#/b/${enc(S.book)}/ch/${c.no}')"><td>第${c.no}章</td><td>${esc(c.title)}</td><td class="num">${fmtNum(c.chars)} ${unitCh(ov.unit)}</td></tr>`).join("")}</table></div>` : ""}`;
-}
 window.setBookLang = async (v) => {
   try {
     await api("POST", B("/lang"), { lang: v }); S.bookLang = v; toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]);
@@ -703,21 +631,6 @@ window.setBookLang = async (v) => {
   }
   catch (e) { fail(e); refresh(); }
 };
-function alertHtml(a) {
-  let btn = "";
-  if (a.chapter) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/ch/${a.chapter}?tab=${a.tab || "candidate"}')">${a.tab === "revision" ? "確認" : "審閱"}</button>`;
-  else if (a.action === "recoveries") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/jobs')">查看</button>`;
-  else if (a.action === "sync_tracking") btn = `<button class="sm" onclick="Panel.run('sync_tracking',{})">補齊</button>`;
-  else if (a.action === "rewriteback") btn = `<button class="sm" onclick="if(confirm('重跑第${a.chapter_no}章的回寫追蹤？會依正文重新整理這章的摘要、伏筆、時間線、角色狀態等。'))Panel.run('accept',{chapter:${a.chapter_no},path:'${esc(a.path || "")}'})">重跑回寫</button>`;
-  else if (a.action === "reverse") btn = `<button class="sm primary" onclick="go('#/b/${enc(S.book)}/reverse')">前往</button>`;
-  else if (a.kind === "懸念久未回收") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking?t=reader')">查看</button>`;
-  else if (a.kind === "設定草稿") btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/bible?t=草稿')">查看</button>`;
-  else if (a.kind.startsWith("伏筆")) btn = `<button class="sm" onclick="go('#/b/${enc(S.book)}/tracking')">查看</button>`;
-  const more = a.details && a.details.length > 1
-    ? `<details class="small" style="margin-top:4px"><summary>展開 ${a.details.length} 項</summary>${a.details.map((x) => `<div>${esc(x)}</div>`).join("")}</details>` : "";
-  return `<div class="alert ${a.level}"><span class="k">${esc(a.kind)}</span><span class="t">${esc(a.text)}${more}</span>${btn}</div>`;
-}
-
 /* ------------------------------------------------------------------ 單章 */
 async function viewChapter(view, no, tab) {
   const [chs, rvRes, recs] = await Promise.all([api("GET", B("/chapters")), api("GET", B(`/revision/${no}`)).catch(() => ({})),

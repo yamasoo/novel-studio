@@ -7,6 +7,7 @@
 |---|---|---|---|---|
 | fekit | 0.0.1 | MIT | `vendor/fekit/`（`fe/`、`css/`、`py/fekit/`） | 內部前端套件，複製品與同步資訊見 `vendor/fekit/VENDORED.md`、`vendor/fekit/THIRD_PARTY_NOTICES.md` |
 | marked | 18.1.3 | MIT（LICENSE 另含 Markdown 原作者的 BSD-3-Clause 條文） | `vendor/fekit/vendor/marked/marked.umd.js`、`vendor/fekit/vendor/marked/LICENSE` | npm `marked@18.1.3`，經 fekit 同步進來 |
+| Cytoscape | 3.34.4 | MIT | `vendor/fekit/vendor/cytoscape/cytoscape.min.js`、`vendor/fekit/vendor/cytoscape/LICENSE` | npm `cytoscape@3.34.4`，經 fekit 同步進來（角色關係圖） |
 | oh-story-claudecode | — | MIT | 只參考設計概念，未使用其程式碼 | <https://github.com/worldwonderer/oh-story-claudecode>，授權全文見 `plugin/THIRD_PARTY_NOTICES.md` |
 
 ## 說明

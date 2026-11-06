@@ -1,7 +1,7 @@
 /* 追蹤頁（轉移計畫 §8.2.16）：從 app.js 搬 viewTracking（原 783-929）＋ dueCh（原 773-780）。
    nsPage("b/:book/tracking","tracking",{book:true},render)；參數取 ctx.query.t。
    七個分頁（伏筆／時間線／讀者認知／角色關係／角色狀態／狀態卡／名詞表）照舊；表格全部改成節點（tableNode）。
-   關係圖仍用 static/relgraph.js 的全域 window.RelGraph.mount（P5 才換），這裡只呼叫不改寫。
+   關係圖改用 FE.graph（Cytoscape）自畫：資料轉換、章的滑桿、配角篩選、詳細資料都在這支（舊 static/relgraph.js 已刪）。
    REL_VIEW／REL_NOTE 從 app.js 的全域改成這支的模組變數；角色卡與狀態卡用全域 docView（傳自己建的節點）；
    原生 confirm 全改 FE.confirm；重新載入一律 FE.route()（舊版是遞迴呼叫 viewTracking）。 */
 (function () {
@@ -33,6 +33,173 @@
         h("thead", {}, h("tr", {}, headers.map((x) => h("th", {}, x)))),
         h("tbody", {}, rows.map((r) => h("tr", { class: rowClass(r) },
           headers.map((x) => h("td", {}, cell(r, x))))))));
+  }
+
+  // ---------------------------------------------------------------- 角色關係圖（FE.graph）
+  const MAIN_ROLES = ["主角", "主要配角"];   // 「顯示配角與反派」沒勾時只看得到這些
+  const chNo = (s) => { const m = String(s || "").match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+  const bareName = (id) => String(id == null ? "" : id).replace(/^[cf]:/, "");
+
+  // 舊 relgraph 的章節規則：起始章 <= n，而且沒有結束章、或結束章 > n。
+  function activeAt(data, n) {
+    const ended = String((data && data.end) || "").trim();
+    return chNo(data && data.start) <= n && (!ended || chNo(ended) > n);
+  }
+
+  let relGraph = null;   // 目前掛著的圖。FE 沒有 unmount 勾子，用 fe-route 事件收掉上一張。
+  window.addEventListener("fe-route", () => {
+    if (!relGraph) return;
+    try { relGraph.destroy(); } catch (e) { /* 已經拆掉了 */ }
+    relGraph = null;
+  });
+
+  const graphHint = (text) => h("div", { class: "muted", style: "padding:24px" }, text);
+
+  // relations_graph → FE.graph：勢力是框，角色放進自己所屬勢力的框，關係列是帶箭頭的線。
+  function graphData(g) {
+    const nodes = g.nodes || [], rows = g.rows || [];
+    const byName = {}; nodes.forEach((x) => { byName[x.name] = x; });
+    const chars = nodes.filter((x) => x.kind === "角色");
+    const facs = nodes.filter((x) => x.kind === "勢力");
+    const facNames = new Set(facs.map((x) => x.name));
+    const isFac = (name) => !!byName[name] && byName[name].kind === "勢力";
+    const idOf = (name) => (isFac(name) ? "f:" : "c:") + name;
+    // 角色對自己所屬（含 also）的勢力：靠框的位置表示，不畫線（舊版 own()）。
+    const mine = (c, fac) => !!c && !!fac && c.kind === "角色" && fac.kind === "勢力"
+      && (c.faction === fac.name || (c.also || []).includes(fac.name));
+    const own = (r) => mine(byName[r["誰"]], byName[r["對誰"]]) || mine(byName[r["對誰"]], byName[r["誰"]]);
+
+    const out = facs.map((x) => ({ id: idOf(x.name), label: x.name, box: true, data: { kind: "勢力" } }));
+    chars.forEach((c) => out.push({
+      id: idOf(c.name), label: c.name,
+      group: facNames.has(c.faction) ? "f:" + c.faction : undefined,
+      data: { kind: "角色", role: c.role || "" },
+    }));
+    const edges = [];
+    rows.forEach((r) => {
+      const a = byName[r["誰"]], b = byName[r["對誰"]];
+      if (!a || !b || r["誰"] === r["對誰"] || own(r)) return;
+      edges.push({
+        id: "e" + edges.length, source: idOf(r["誰"]), target: idOf(r["對誰"]), label: r["關係"] || "",
+        data: { start: r["起始章"], end: r["結束章"], a: r["誰"], b: r["對誰"] },
+      });
+    });
+    return { nodes: out, edges, rows, byName, chars, facs, idOf, own };
+  }
+
+  // 掛一張關係圖：控制列（章節滑桿、配角篩選、回到中心、重新排列）＋圖＋詳細資料。
+  async function mountGraph(card, d) {
+    if (!d.relations_graph) {
+      card.replaceChildren(graphHint("後端還沒送出關係圖資料——工作台程式是更新前啟動的，請關掉工作台（命令列視窗）後重新啟動，再回到這一頁。"));
+      return;
+    }
+    if (!FE.graph) {
+      card.replaceChildren(graphHint("關係圖的程式檔沒載入，請按 Ctrl+F5 強制重新整理。"));
+      return;
+    }
+    const m = graphData(d.relations_graph);
+    const latest = Math.max(parseInt(d.relations_graph.latest, 10) || 0, 0);
+    const st = { n: latest, all: false };
+
+    const nEl = h("b", { id: "rel-n" }, String(latest));
+    const slider = h("input", { type: "range", id: "rel-chapter", min: "0", max: String(Math.max(latest, 1)), value: String(latest) });
+    const allBox = h("input", { type: "checkbox", id: "rel-all" });
+    const fitBtn = h("button", { class: "sm", type: "button", id: "rel-fit" }, "回到中心");
+    const relayoutBtn = h("button", { class: "sm", type: "button", id: "rel-relayout" }, "重新排列");
+    const statEl = h("div", { class: "muted small", id: "rel-stat", style: "margin-top:6px" });
+    const detEl = h("div", { class: "small", id: "rel-detail", style: "margin-top:10px" });
+    const canvas = h("div", { id: "rel-graph", style: "margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden" });
+
+    function renderDetail(id) {
+      const nd = id ? m.byName[bareName(id)] : null;
+      if (!nd) {
+        detEl.replaceChildren(h("div", { class: "muted small" },
+          "點圖上的人或勢力，這裡會列出他在第 " + st.n + " 章的所有關係。滾輪縮放、拖背景移動。"));
+        return;
+      }
+      const out = m.rows.filter((r) => r["誰"] === nd.name), inn = m.rows.filter((r) => r["對誰"] === nd.name);
+      const line = (r, to) => h("div", { style: "padding:4px 0;border-bottom:1px dashed var(--line)" },
+        h("b", {}, to ? r["對誰"] : r["誰"]), "　", r["關係"] || "—",
+        r["態度"] ? h("span", { class: "badge", style: "margin-left:6px" }, r["態度"]) : null,
+        h("div", { class: "muted small" },
+          [r["起始章"] ? r["起始章"] + "起" : "", r["結束章"] ? "到" + r["結束章"] : "目前有效", r["變化原因"] || ""]
+            .filter(Boolean).join("　")));
+      detEl.replaceChildren(
+        h("div", { style: "font-size:15px;margin-bottom:2px" },
+          h("b", {}, nd.name), "　",
+          h("span", { class: "muted" }, nd.kind === "勢力" ? "勢力" : (nd.role || "角色"))),
+        nd.kind === "角色"
+          ? h("div", { class: "muted small" }, "所屬：" + (nd.faction || "無")
+            + ((nd.also || []).length ? "（也在 " + nd.also.join("、") + "）" : ""))
+          : h("div", { class: "muted small" }, "成員：" + ((nd.members || []).join("、") || "無")),
+        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, "他對別人（" + out.length + "）"),
+        out.length ? h("div", {}, out.map((r) => line(r, true))) : h("div", { class: "muted small" }, "沒有紀錄"),
+        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, "別人對他（" + inn.length + "）"),
+        inn.length ? h("div", {}, inn.map((r) => line(r, false))) : h("div", { class: "muted small" }, "沒有紀錄"));
+    }
+
+    let handle = null;
+
+    // 重算哪些節點／線該出現：角色看 role，勢力看有沒有看得到的成員或關係，線再看章節。
+    function refresh(refit) {
+      if (!handle) return;
+      const visChars = m.chars.filter((c) => st.all || MAIN_ROLES.includes(c.role));
+      const visSet = new Set(visChars.map((c) => c.name));
+      const facVis = new Set(m.facs.filter((f) => visChars.some((c) => c.faction === f.name)).map((f) => f.name));
+      m.rows.forEach((r) => {   // 沒有成員的勢力：只要和看得到的角色或勢力有關係就顯示
+        const a = m.byName[r["誰"]], b = m.byName[r["對誰"]];
+        if (!a || !b || !activeAt({ start: r["起始章"], end: r["結束章"] }, st.n)) return;
+        if (a.kind === "勢力" && (visSet.has(b.name) || facVis.has(b.name))) facVis.add(a.name);
+        if (b.kind === "勢力" && (visSet.has(a.name) || facVis.has(a.name))) facVis.add(b.name);
+      });
+      const inGraph = (name) => visSet.has(name) || facVis.has(name);
+      const hidden = new Set(m.chars.filter((c) => !visSet.has(c.name)).map((c) => m.idOf(c.name)));
+      m.facs.forEach((f) => { if (!facVis.has(f.name)) hidden.add(m.idOf(f.name)); });
+      handle.hide((item) => {
+        if (item.type === "node") return hidden.has(item.id);
+        return !activeAt(item.data, st.n) || !inGraph(item.data.a) || !inGraph(item.data.b);
+      });
+      const on = m.edges.filter((e) => activeAt(e.data, st.n) && inGraph(e.data.a) && inGraph(e.data.b));
+      const away = m.rows.filter((r) => !m.own(r) && r["誰"] !== r["對誰"] && m.byName[r["誰"]] && m.byName[r["對誰"]]
+        && activeAt({ start: r["起始章"], end: r["結束章"] }, st.n) && !(inGraph(r["誰"]) && inGraph(r["對誰"]))).length;
+      statEl.textContent = visChars.length + " 個角色 · " + facVis.size + " 個勢力 · " + on.length + " 條關係 · 第 " + st.n + " 章"
+        + (away > 0 ? " · 另有 " + away + " 條涉及未顯示的角色" : "");
+      nEl.textContent = String(st.n);
+      if (refit) handle.fit();
+    }
+
+    slider.oninput = () => { st.n = parseInt(slider.value, 10) || 0; refresh(false); };
+    allBox.onchange = () => { st.all = allBox.checked; refresh(true); };
+    fitBtn.onclick = () => { if (handle) handle.fit(); };
+    relayoutBtn.onclick = () => { if (handle) handle.relayout(); };
+
+    card.replaceChildren(
+      h("div", { class: "row", style: "margin-bottom:4px" },
+        h("label", { class: "cb", style: "margin:0" }, "看到第 ", nEl, " 章", slider),
+        h("label", { class: "cb", style: "margin:0" }, allBox, " 顯示配角與反派"),
+        h("span", { class: "grow" }),
+        fitBtn, relayoutBtn),
+      canvas, statEl, detEl);
+    renderDetail(null);
+
+    try {
+      await FE.graph.load();
+    } catch (e) {
+      canvas.replaceWith(graphHint("關係圖載不起來：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+      return;
+    }
+    if (!canvas.isConnected) return;   // 載入期間已經換頁
+    try {
+      handle = FE.graph.mount(canvas, {
+        nodes: m.nodes, edges: m.edges, height: 520, label: "角色關係圖",
+        on_select: (item) => { renderDetail(item && item.type === "node" ? item.id : null); },
+      });
+    } catch (e) {
+      canvas.replaceWith(graphHint("關係圖畫不出來：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+      return;
+    }
+    relGraph = handle;
+    refresh(false);
   }
 
   async function render(ctx) {
@@ -248,18 +415,12 @@
               h("span", {}, label))))));
       }
       if (rl.rows.length && REL_VIEW === "graph") {
-        const rgRoot = h("div", { id: "rg-root" });
-        parts.push(h("div", { class: "card" }, rgRoot));
+        const card = h("div", { class: "card" });
+        parts.push(card);
         after.push(() => {
-          if (!d.relations_graph) {
-            rgRoot.replaceChildren(h("div", { class: "muted", style: "padding:24px" },
-              "後端還沒送出關係圖資料——工作台程式是更新前啟動的，請關掉工作台（命令列視窗）後重新啟動，再回到這一頁。"));
-          } else if (!window.RelGraph) {
-            rgRoot.replaceChildren(h("div", { class: "muted", style: "padding:24px" },
-              "關係圖的程式檔沒載入，請按 Ctrl+F5 強制重新整理。"));
-          } else {
-            window.RelGraph.mount(rgRoot, d.relations_graph);
-          }
+          mountGraph(card, d).catch((e) => {
+            card.replaceChildren(graphHint("關係圖出錯：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+          });
         });
       } else if (rl.rows.length) {
         const hideBox = h("input", { type: "checkbox", id: "hide-done", checked: true });

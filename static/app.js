@@ -126,7 +126,6 @@ async function route() {
       if (sub === "bible") return await viewBible(view, q.t, q.f);
       if (sub === "tracking") return await viewTracking(view, q.t);
       if (sub === "illust") return await viewIllust(view, q.t);
-      if (sub === "drift") return await viewDrift(view, q.from, q.to);
     }
     S.routeName = "shelf";
     await setBook(null, true);
@@ -442,67 +441,6 @@ async function spinoffGenerate(id, source, note, opts = {}) {
     refresh();
     toast(bad.length ? "骨架生成了，但有撞名要處理" : "骨架草稿已產生", bad.length > 0);
   } catch (e) { clearInterval(tick); fail(e); }
-}
-/* ------------------------------------------------------------------ 卷末體檢（漂移報告） */
-async function viewDrift(view, fromQ, toQ) {
-  const ov = await api("GET", B("/overview")).catch(() => ({}));
-  const latest = ov.latest || 1;
-  const from = parseInt(fromQ || Math.max(1, latest - 9));
-  const to = parseInt(toQ || latest);
-  view.innerHTML = `
-    <div class="page-head"><div><h1>卷末體檢</h1>
-      <div class="sub">拿設定回頭對正文：哪幾章沒寫到章綱、哪些角色久未登場、哪些伏筆欠帳、哪些章文風偏了。本機計算，不花錢。</div></div></div>
-    <div class="card">
-      <div class="row" style="align-items:flex-end">
-        <label class="f" style="width:120px"><span>從第幾章</span><input type="number" id="dr-from" value="${from}"></label>
-        <label class="f" style="width:120px"><span>到第幾章</span><input type="number" id="dr-to" value="${to}"></label>
-        <span class="grow muted small">第一次掃一本長書約 2–10 秒（之後會快取）；掃描期間這個頁面可以切走。</span>
-        <button class="primary" id="dr-go">開始檢查</button>
-      </div>
-    </div>
-    <div id="dr-out"></div>`;
-  $("#dr-go").onclick = async () => {
-    const a = parseInt($("#dr-from").value) || 1, b = parseInt($("#dr-to").value) || a;
-    const out = $("#dr-out");
-    const t0 = Date.now();
-    out.innerHTML = `<div class="card"><p class="muted">檢查第 ${a}–${b} 章…（<span id="dr-sec">0</span> 秒）</p></div>`;
-    const tick = setInterval(() => { const el = $("#dr-sec"); if (el) el.textContent = ((Date.now() - t0) / 1000).toFixed(0); }, 500);
-    try {
-      const r = await api("GET", `${B("/drift")}?from=${a}&to=${b}`);
-      clearInterval(tick);
-      out.innerHTML = `<div class="card"><div class="md">${md(r.report)}</div>
-        <div class="row" style="margin-top:10px">
-          <span class="grow"></span>
-          <button id="dr-plan">產生卷綱更新草稿（用 ${esc(Panel.provName())}）</button>
-        </div>
-        <div id="dr-plan-out"></div></div>`;
-      $("#dr-plan").onclick = async () => {
-        const box = $("#dr-plan-out");
-        const t1 = Date.now();
-        box.innerHTML = `<p class="muted">產生中…（通常 30–90 秒，推理模型會久一點；<span id="dr-sec2">0</span> 秒）</p>`;
-        const tick2 = setInterval(() => { const el = $("#dr-sec2"); if (el) el.textContent = ((Date.now() - t1) / 1000).toFixed(0); }, 500);
-        try {
-          const p = await api("POST", B("/drift/plan"), { from: a, to: b, provider: Panel.prov() });
-          clearInterval(tick2);
-          if (p.error) {
-            box.innerHTML = `<p class="muted small" style="color:#b45309">產生失敗：${esc(p.error)}</p>
-              <p class="muted small">沒有存任何草稿，卷綱也沒動。可以再試一次，或換一個執行者。</p>`;
-            return;
-          }
-          box.innerHTML = `<div class="md">${md(p.plan_md)}</div>
-            <div class="row"><span class="grow"></span><button id="dr-apply">附加到卷綱</button></div>
-            <p class="muted small">附加＝在 <code>${esc(p.volume_file)}</code> 末尾加一節，不會覆蓋原本的卷綱。</p>`;
-          $("#dr-apply").onclick = async () => {
-            try {
-              const res = await api("POST", B("/drift/apply"), { from: a, to: b, draft: p.draft });
-              toast("已附加到 " + res.volume_file);
-              box.innerHTML = `<p class="muted">已附加到 <code>${esc(res.volume_file)}</code>（原本的內容沒動）。</p>`;
-            } catch (e) { fail(e); }
-          };
-        } catch (e) { clearInterval(tick2); fail(e); }
-      };
-    } catch (e) { clearInterval(tick); fail(e); }
-  };
 }
 
 window.initFolder = async (id) => {

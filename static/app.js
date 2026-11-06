@@ -128,7 +128,6 @@ async function route() {
       if (sub === "outline") return await viewOutline(view, q.f);
       if (sub === "bible") return await viewBible(view, q.t, q.f);
       if (sub === "tracking") return await viewTracking(view, q.t);
-      if (sub === "jobs") return await viewJobs(view);
       if (sub === "export") return await viewExport(view);
       if (sub === "illust") return await viewIllust(view, q.t);
       if (sub === "search") return await viewSearch(view, q.q || "", q.s);
@@ -1788,21 +1787,6 @@ async function viewTracking(view, t) {
 }
 window.openCharState = (file) => docView($("#doc"), file);
 
-/* ------------------------------------------------------------------ 任務紀錄 */
-async function viewJobs(view) {
-  const [hist, recs] = await Promise.all([api("GET", B("/jobs")), api("GET", B("/recoveries")).catch(() => [])]);
-  view.innerHTML = `
-    <div class="page-head"><div><h1>任務紀錄</h1><div class="sub">點一筆在右側面板查看完整過程，也可以接續那次的對話。</div></div></div>
-    ${recs.length ? `<div class="card" style="margin-bottom:14px"><div class="card-title"><h2>恢復稿</h2><span class="muted small">模型中途出錯、被停止或被截斷時保留下來的文字</span></div>
-      <table>${recs.map((r) => `<tr><td class="small">${fmtTime(r.created)}</td><td>${esc(r.label)}<div class="muted small">${esc(r.reason)}　·　${fmtNum(r.chars)} 字　·　…${esc(r.preview)}</div></td>
-        <td style="white-space:nowrap">${r.chapter ? `<button class="sm primary" onclick="Panel.run('recover_continue',{id:'${esc(r.id)}'})">接著寫完</button>
-          <button class="sm" onclick="recoverTo('${esc(r.id)}')">存成候選稿</button>` : ""}
-          <button class="sm" onclick="recoverView('${esc(r.id)}')">查看</button><button class="sm danger" onclick="recoverDiscard('${esc(r.id)}')">捨棄</button></td></tr>`).join("")}</table></div>` : ""}
-    <div class="card">${hist.length ? `<table><thead><tr><th>時間</th><th>任務</th><th>狀態</th><th>花費</th></tr></thead><tbody>
-      ${hist.map((j) => `<tr class="click" onclick="Panel.show('${esc(j.id)}')"><td>${fmtTime(j.started)}</td><td>${esc(j.title)}</td>
-        <td>${jobBadge(j.status)}</td><td class="muted small">${j.cost != null ? "$" + Number(j.cost).toFixed(3) : ""}</td></tr>`).join("")}
-      </tbody></table>` : '<div class="empty">還沒有任何任務。</div>'}</div>`;
-}
 function jobBadge(s) {
   return nsShared.html(nsShared.jobBadgeNode(s));
 }

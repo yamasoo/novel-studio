@@ -2,6 +2,41 @@
 
 > 這份檔案給「下一個對話」或「未來的自己」看。看完這一頁就能接手，不需要重讀整份報告。
 
+## P5：外殼、`fekit.install()`、舊檔清理（完成）
+
+- **後端**：`app.py` 的守門換成 fekit 的 `install()`（`vendor/fekit/py`）。`MUTATE_TOKEN`／`TOKEN_JS`／`same_origin`／`guard_mutations` 全刪，
+  首頁改 `fe.inject(html)`。**權杖只認 `X-FE-Token`（`X-NS-Token` 不再接受）**；`LocalGuard` 對所有請求驗 Host
+  （預設 127.0.0.1／localhost／[::1]），綁 `0.0.0.0` 要在 `config.json` 填 `allowed_hosts`；`DEFAULT_CONFIG` 已加 `"allowed_hosts": []`。
+- **行為變更**：`install()` 會裝自己的錯誤處理器 → 500 改通用句、`422` 由 `{"detail":[…]}` 變 `{"error","code","fields"}`、
+  traceback 走 `log.exception`（後端視窗不再有 `↑ 上面是 GET … 的完整堆疊` 那一行）。
+- **外殼**：`static/index.html` 只剩 `<div id="app"></div>`；`boot.js` 掛 `FE.shell.mount()`：頂列＝語言＋執行者＋AI 開關，
+  左欄＝`#book-switch`＋前文搜尋＋`navItems()`（本書 8 項／工作台 8 項，含「回報問題」），右欄＝`#panel-actions`／`#panel-form`＋`Panel.mount()`；
+  之後 `FE.start({ root: shell.view_el, crumbs: shell.crumbs_el })`。
+- **app.js（816 行）**：`Panel` 只剩門面（`toggle`→`shell.toggle`、`setWidth`→`shell.width`、`onchange`→`shell.badge`）；
+  `renderNav()` 只更新 `#book-switch` 的 option 與 `shell.refresh_nav()`；`setBook()` 會補一次 `renderNav()`（`#/b/<書>` 直開時側欄才不會空、書切換才選得到書）。
+- **store**：`boot.js` 的 `migrateStore()` 在 `FE.shell.mount()` **之前**跑，把舊 `ns_lang`／`provider`／`actsCollapsed`／`search-scopes`／
+  `panelOpen`／`panelW` 換算成 `FE.store`（前綴 `novel-studio.`）；只在 store 沒值時寫，重複整理頁不會蓋回使用者後來的調整。舊 key 沒刪。
+- **刪掉的檔／碼**：`static/i18n.js`、`static/ns_i18n.js`（`window.t`／`window.I18N` 一起消失，改用 `FE.t`／`FE.i18n.*`）、`#modal`／`#toast` DOM、
+  `modal()`／`closeModal()`、`bookOpts`／`provOpts`／`provSelectHtml`（改成回節點的 `bookOptions`／`provOptions`／`provSelect`）、`nsShared.nodesFromHtml`。
+- **CSS**：`ns-fekit.css` 收下兩條 shell 補丁（`#app > .shell { flex: 1 1 auto; min-width: 0 }`、`.shell-body { display: flex }`）——
+  舊 `style.css` 的 `#app{display:flex}` 會讓 `.shell` 縮成內容寬，`.split{grid-template-columns:260px 1fr}` 更會把主區壓成 260px。`style.css` 本身沒清。
+- **保留**：`static/relgraph.js`（關係圖沒換，見 `docs/backlog.md`）、`static/vendor/marked.min.js`（已經沒人用，但 about 頁的第三方清單提到它）。
+
+**驗收（實測，不是推論）**
+
+- 108 次頁面載入（18 頁 × zh-TW 深／淺 × en × ja × 窄螢幕 800×900 深／淺）：console 0 錯誤、`h1` 都在、`.nav .nav-item.active` 正確、
+  `#book-switch` 是 `SELECT` 且選到書、`#prov-sel` 7 個 option、`.job-panel` 都在；`search`／`reverse`／`drift` 三頁本來就不在導覽裡（P4 也是 0 個 active）。
+- 36 張截圖（`docs/screenshots/p5`）與 `docs/screenshots/p4` 逐像素比對：**整頁級差異**（bbox 全幅、ge32 約 4.6 萬–29 萬像素），原因見 P5 報告的「預期內差異」清單；
+  另補面板／窄螢幕抽屜／en／ja 共 5 張。
+- 重啟後 curl：無權杖 `403 bad_token`、錯權杖 403、舊 `X-NS-Token` 403、跨來源 `403 bad_origin`、非本機 Host `403 bad_host`、
+  `/fekit/py/*` 與 `/fekit/fekit.json` 404（`/fekit/fe/*`、`/fekit/css/*` 正常 200）。
+- 面板任務：切 `claude_code` → `Panel.openForm('setup_new')` 開出表單（1 個 textarea＋`#pf-go`），全程 `window.__writes = 0`（fetch stub 攔掉所有非 GET）。
+- 舊偏好遷移：寫入舊 key 後重載 → `provider=claude_code`、`actsCollapsed=true`、`search-scopes=["text","outline"]`、`shell.off.panel=false`、
+  `shell.w.panel=640`、`lang=en`（`html lang=en`）；使用者改過 provider／寬度再重載，舊 key 不會蓋回去。
+- `python -m compileall app.py studio ns_jobs.py`、`tools/check_i18n.py`、`tools/check_parity.py --strict`（FAIL 0、WARN 0）全過。
+
+**P6 接手前要記得**：`boot.js` 的 `migrateStore()` 不要刪（刪了使用者舊偏好會靜默歸零）；`window.t`／`window.I18N` 已經不存在；
+截圖新基線是 `docs/screenshots/p5`；`tools/i18n_keys.json` 還留著 P5 刪掉的字串（要重跑 `tools/i18n_extract.py` 再清語言檔，屬 i18n 流程）。
 ## P4：逐頁拆成 page_*.js（完成）
 
 舊的單檔前端（`static/app.js`，3,672 行）已經**整份拆完**：18 個頁面各一個 `static/page_*.js`，
@@ -172,8 +207,8 @@
   `備份/`（改檔前的舊版）、`反推/`（拆書進度與批次結果，一本 273 章的書是 91 個批次＋1.2 MB 累積）。
   那天為了清 `索引/recall.json` 一個快取，誤刪了整個 `.studio`，靠 `C:\Users\<你>\Documents\小說`
   的舊備份才補回來。要清快取就只刪 `索引/recall.json` 這一個檔，動手前先把完整路徑印出來確認。
-- **S2 之後變更 API 要帶權杖**：`POST`／`PUT`／`DELETE` 需要 `X-NS-Token`（每次啟動產生、注入首頁），
-  用 curl 或腳本直接打 API 會 403；`GET`／SSE 不受影響，頁面上的操作照常。
+- **S2 之後變更 API 要帶權杖**：`POST`／`PUT`／`DELETE` 需要 `X-FE-Token`（每次啟動產生、由 `fe.inject()` 寫進首頁的 `<meta name="fe-token">`），
+  用 curl 或腳本直接打 API 會 403；`GET`／SSE 不受影響，頁面上的操作照常。P5 起舊的 `X-NS-Token` 不再接受。
 - 驗 S2 時用 TestClient 打過 `/api/config`，`config.json` 被寫回預設值（該檔在 `.gitignore`，內容是空書庫）。
 - **工作區權限（2026-10-29 實測）**：`workspace-write` 模式下只有書庫根目錄可寫，
   `docs/`、`tools/`、`.git/` 這些既有子資料夾寫不進去（自動修復工具跑過兩次仍如此），

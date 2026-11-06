@@ -42,3 +42,10 @@
   box-shadow: var(--shadow-2);
 }
 .modal-backdrop .modal.modal-wide { width: min(52rem, 100%); }
+
+/* P5 外殼補丁：style.css 還是舊三欄版的規則，這兩個 class 和 fekit shell 撞名。
+   #app 是 flex 容器，shell 是它唯一子節點，不給寬度會縮成內容寬；
+   .split 在舊頁面是 260px + 1fr 的 grid（單章頁等還在用），外殼的 .shell-body 要的是 flex 橫排。
+   這支在 style.css 之後載入，權重一樣時後載入的贏，所以放這裡。 */
+#app > .shell { flex: 1 1 auto; min-width: 0; }
+.shell-body { display: flex; gap: 0; align-items: stretch; }

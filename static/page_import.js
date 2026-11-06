@@ -1,7 +1,7 @@
 /* 匯入頁（轉移計畫 §8.2.11）：從 app.js 搬 viewImport（原 2015-2067）、renderImportPreview（原 2069-2127）與 IMP 狀態（原 2014）。
    import 不碰 S.book（舊 route() 對它沒有 setBook／clearBook）。
-   readFiles／bookOpts／unitOfLang 留在 app.js（設定集與插圖也在用），這裡直接呼叫全域；
-   bookOpts 回傳的是 HTML 字串（全站唯一實作），這裡用惰性 DOMParser 轉成 option 節點，不碰 innerHTML。
+   readFiles／bookOptions／unitOfLang 留在 app.js（設定集與插圖也在用），這裡直接呼叫全域；
+   bookOptions 回傳的是 option 節點陣列，直接放進 select，不碰 innerHTML。
    檔案選擇沿用 <input type="file" multiple> ＋ readFiles（不是資料夾選擇的 pickPath／attachPicker）。 */
 (function () {
   "use strict";
@@ -11,13 +11,6 @@
   const enc = encodeURIComponent;
 
   const IMP = { files: [], preview: null };
-
-  function bookOptions(books, cur) {
-    // bookOpts → "&lt;option value=… selected&gt;書名&lt;/option&gt;"；DOMParser 產生的文件是惰性的（不執行、不載入）。
-    const doc = new DOMParser().parseFromString(bookOpts(books, cur), "text/html");
-    return Array.from(doc.body.querySelectorAll("option")).map((o) =>
-      h("option", { value: o.value, selected: o.getAttribute("selected") !== null }, o.textContent));
-  }
 
   async function render(ctx) {
     const signal = ctx.signal;

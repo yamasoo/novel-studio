@@ -1,16 +1,15 @@
 /* 設定頁（轉移計畫 §8.2.13）：從 app.js 的 viewSettings（原 1385-1638）搬過來。
    nsPage("settings","settings",{clearBook:true},render)——舊 route() 對 settings 就是 setBook(null, true)。
    留誰誰走的判定（grep 依據見回報）：本頁用到的 top-level 名稱全部是別頁／Panel／boot 也在用的，
-   所以都留在 app.js，這裡直接呼叫：provOpts／provChoices／provName／stepProv／STEP_OF_ACTION／AI_STEP_LABELS
+   所以都留在 app.js，這裡直接呼叫：provOptions／provChoices／provName／stepProv／STEP_OF_ACTION／AI_STEP_LABELS
    （Panel.openForm、Panel.renderProv、pipeModal、boot.js）、attachPicker（書架、插圖頁）、
-   renderIllSettings（插圖頁）、restartServer（window.restartServer 匯出）、readFiles／bookOpts（共用庫、匯入頁）。
+   renderIllSettings（插圖頁）、restartServer（window.restartServer 匯出）、readFiles／bookOptions（共用庫、匯入頁）。
    沒有「只有設定頁在用」的 top-level 名稱，所以這一頁沒有帶走任何 helper。
-   provOpts 仍是字串版，這裡用 nsShared.nodesFromHtml 轉成 option 節點（不碰 innerHTML）。 */
+   provOptions／bookOptions 已是節點版，直接用（不碰 innerHTML）。 */
 (function () {
   "use strict";
 
   const { h } = FE;
-  const { nodesFromHtml } = nsShared;
   const enc = encodeURIComponent;
 
   const EFFORT_LABEL = { off: "關閉", low: "低", medium: "中", high: "高", max: "最高" };
@@ -45,7 +44,7 @@
     const toolsArea = h("textarea", { id: "c-tools", rows: "5" }, (c.allowed_tools || []).join(String.fromCharCode(10)));
 
     // ── AI 執行者 ──
-    const defProvSel = h("select", { id: "c-defprov" }, nodesFromHtml(provOpts(c.default_provider)));
+    const defProvSel = h("select", { id: "c-defprov" }, provOptions(c.default_provider));
     const keyStoreBox = h("div", { id: "key-store", style: "margin-bottom:10px" });
     const provList = h("div", { id: "prov-list" });
     const provAddBtn = h("button", { class: "sm", id: "prov-add" }, "＋ 新增 OpenAI 相容服務");
@@ -73,7 +72,7 @@
         h("span", {}, l),
         h("select", { "data-step": k },
           h("option", { value: "" }, "跟流程的執行者"),
-          nodesFromHtml(provOpts((c.pipeline_providers || {})[k]))))));
+          provOptions((c.pipeline_providers || {})[k])))));
 
     // ── 插圖設定 ──
     const illCard = h("div", { class: "card", id: "ill-settings" });

@@ -1,7 +1,7 @@
 /* 插圖頁與插圖區塊（轉移計畫 §8.2.17）：從 app.js 搬 viewIllust（原 948-993）＋ renderIllust（629-901）
    ＋ imageModal（609-626）＋ pickStyles（569-607）＋ imgUrl（547）。
    對外維持 window.renderIllust：page_chapter.js（章節插圖分頁）與 page_bible.js（角色視覺卡下方）都呼叫它。
-   留在 app.js 的（有別頁呼叫端，搬了會壞）：illCfg／illProvOptions／tagAppend／waitJob／renderCard（設定頁的視覺卡與 renderCard 在用）、
+   留在 app.js 的（有別頁呼叫端，搬了會壞）：illCfg／provOptions／tagAppend／waitJob／renderCard（設定頁的視覺卡與 renderCard 在用）、
    loraRowsHtml／bindLoraRows／COMFY_KINDS（只有 renderIllSettings 在用，而 renderIllSettings 由設定頁呼叫）、
    ILL（illCfg 與 renderIllSettings 的狀態）、pickPath／attachPicker。
    全部改成 h() 節點；圖片預覽用 h("img",{src,alt})；imageModal／pickStyles 改 FE.modal；任務照舊 Panel.attach(job)；
@@ -260,7 +260,7 @@
           h("div", { id: "il-chars" }, charRows()),
           h("h3", {}, (isCh ? "3. " : "") + "畫面描述"),
           h("div", { class: "row", style: "margin-bottom:8px" },
-            h("select", { id: "il-prov" }, nsShared.nodesFromHtml(illProvOptions(cfgR))),
+            h("select", { id: "il-prov" }, provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true })),
             h("button", { class: "sm primary", id: "il-ai" }, "AI 產生畫面描述"),
             h("button", { class: "sm", id: "il-zh" }, "本機查標籤"),
             h("span", { class: "muted small" }, "AI 只寫下面幾欄（一小段 JSON）；角色外觀、品質、畫風由程式組裝。")),

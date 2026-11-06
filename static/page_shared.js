@@ -3,12 +3,12 @@
    舊 route() 對 shared 沒有 setBook 也沒有 clearBook，所以 options 給 {}。
    文風任務照舊 Panel.attach(job)（job 的 book 是 _共用，base 由 panelBase 決定）；
    S.onSharedJob 改成每次 render 設定、ctx.signal abort 時清掉，避免換頁後還指到舊頁。
-   bookOpts／provOpts／provSelectHtml 仍是 app.js 的字串版，這裡用 nsShared.nodesFromHtml 轉成節點。 */
+   書名／執行者下拉直接用 app.js 的節點版 bookOptions／provOptions／provSelect。 */
 (function () {
   "use strict";
 
   const { h } = FE;
-  const { fmtNum, nodesFromHtml } = nsShared;
+  const { fmtNum } = nsShared;
   const enc = encodeURIComponent;
   const BASE = "#/shared";
 
@@ -29,7 +29,7 @@
           h("input", { type: "radio", name: "ss-kind", value: k, checked: i === 0 }),
           h("span", {}, SS_LABELS[k])))),
       h("div", { "data-ss": "book copy_book", class: "row", style: "margin-top:8px" },
-        h("select", { id: "ss-book" }, nodesFromHtml(bookOpts(books, S.book))),
+        h("select", { id: "ss-book" }, bookOptions(books, S.book)),
         h("span", { "data-ss": "book", class: "row" },
           h("span", { class: "small muted" }, "章節"),
           h("input", { type: "number", id: "ss-from", class: "num-in", placeholder: "全部" }),
@@ -90,7 +90,7 @@
   }
 
   function provSelect(id) {
-    return h("select", { id }, nodesFromHtml(provOpts(Panel.prov())));
+    return h("select", { id }, provOptions(Panel.prov()));
   }
 
   async function styleAiModal(mode, books, name, signal) {
@@ -363,7 +363,7 @@
         aiTestBtn.onclick = () => styleAiModal("test", books, name, signal);
 
         applyBtn.onclick = () => {
-          const bookSel = h("select", { id: "ap-book" }, nodesFromHtml(bookOpts(books, S.book, curItem.lang)));
+          const bookSel = h("select", { id: "ap-book" }, bookOptions(books, S.book, curItem.lang));
           const close = FE.modal({
             title: "把「" + name + "」套用到書",
             body: [
@@ -387,7 +387,7 @@
         };
 
         compareBtn.onclick = () => {
-          const bookSel = h("select", { id: "cp-book" }, nodesFromHtml(bookOpts(books, S.book, curItem.lang)));
+          const bookSel = h("select", { id: "cp-book" }, bookOptions(books, S.book, curItem.lang));
           const fromInput = h("input", { type: "number", id: "cp-from", class: "num-in", placeholder: "全部" });
           const toInput = h("input", { type: "number", id: "cp-to", class: "num-in", placeholder: "全部" });
           const out = h("div", { id: "cp-out", style: "margin-top:12px" });
@@ -497,7 +497,7 @@
         ]));
 
         applyBtn.onclick = () => {
-          const bookSel = h("select", { id: "sa-book" }, nodesFromHtml(bookOpts(books, S.book, curItem.lang)));
+          const bookSel = h("select", { id: "sa-book" }, bookOptions(books, S.book, curItem.lang));
           const defBox = h("input", { type: "checkbox", id: "sa-def", checked: !(curItem.scope && curItem.scope.includes("卷")) });
           const close = FE.modal({
             title: "把「" + name + "」套用到書",

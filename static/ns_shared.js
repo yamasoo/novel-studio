@@ -33,17 +33,9 @@
     return h("span", { class: hit[0] ? "badge " + hit[0] : "badge" }, hit[1]);
   }
 
-  // 舊的 HTML 字串型 helper（bookOpts／provOpts／provSelectHtml）轉成節點用：
-  // 惰性 DOMParser 產生的文件不執行 script、不載入圖片，比 innerHTML 安全。
-  function nodesFromHtml(html) {
-    const doc = new DOMParser().parseFromString(String(html == null ? "" : html), "text/html");
-    return Array.from(doc.body.childNodes).map((node) => document.importNode(node, true));
-  }
-
   window.nsShared = {
     statusBadgeNode,
     jobBadgeNode,
-    nodesFromHtml,
     // 轉呼叫 app.js 的實作；本檔比 app.js 先載入，所以包一層到呼叫時才解析。
     fmtTime(t) { return fmtTime(t); },
     fmtNum(n) { return fmtNum(n); },

@@ -11,10 +11,8 @@
   const SEARCH_SCOPES = [["正文", "正文"], ["候選", "候選稿"], ["章綱", "大綱與章綱"], ["設定", "設定集"], ["追蹤", "追蹤"]];
 
   function searchScopes() {
-    try {
-      const v = JSON.parse(localStorage.getItem("search-scopes") || "null");
-      if (Array.isArray(v) && v.length) return v;
-    } catch (e) { /* ignore */ }
+    const v = FE.store.get("search-scopes", null);
+    if (Array.isArray(v) && v.length) return v;
     return ["正文"];
   }
 
@@ -70,7 +68,7 @@
     form.onsubmit = (ev) => {
       ev.preventDefault();
       const sc = Array.from(form.querySelectorAll('input[name="sc"]:checked')).map((x) => x.value);
-      try { localStorage.setItem("search-scopes", JSON.stringify(sc)); } catch (err) { /* ignore */ }
+      FE.store.set("search-scopes", sc);
       FE.go(bookPath("/search?q=" + enc(input.value.trim()) + "&s=" + enc(sc.join(","))));
     };
 

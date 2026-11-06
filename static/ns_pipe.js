@@ -240,7 +240,7 @@
           .map(([k, l]) => l + " → " + provName(d.step_providers[k])).join("、")
         + "；其他步驟用上面選的執行者。（設定 → 整章自動流程）")
       : null;
-    const provSel = nsShared.nodesFromHtml(provSelectHtml("pp-prov"))[0];
+    const provSel = provSelect("pp-prov", Panel.prov());
 
     const close = FE.modal({
       title: "⚡ 整章自動流程",

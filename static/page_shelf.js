@@ -21,7 +21,7 @@
 
   function renderDemoCard(card) {
     if (!card) return;
-    let lang = (window.I18N && I18N.lang) || "zh-TW";
+    let lang = (FE.i18n && FE.i18n.lang) || "zh-TW";
     if (!DEMO_INTRO[lang]) lang = "zh-TW";
     const langSel = h("select", { id: "demo-lang" }, Object.keys(DEMO_INTRO).map((l) =>
       h("option", { value: l, selected: l === lang }, DEMO_LANGS[l])));
@@ -79,7 +79,9 @@
       ],
     });
 
-    try { const ul = localStorage.getItem("ns_lang"); if (ul) langSel.value = ul; } catch (e) { /* 無痕模式：略過 */ }
+    // P5 起改讀 FE.i18n，不再寫入舊的 ns_lang 偏好。
+    const ul = FE.i18n && FE.i18n.lang;
+    if (ul) langSel.value = ul;
     nameInput.focus();
     const syncMode = () => {
       const mode = close.el.querySelector('input[name="nb-mode"]:checked').value;

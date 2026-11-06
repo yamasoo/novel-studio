@@ -16,14 +16,13 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const enc = encodeURIComponent;
 const pad3 = (n) => String(n).padStart(3, "0");
-const fmtNum = (n) => (n || 0).toLocaleString({ en: "en-US", ja: "ja-JP" }[window.I18N && I18N.lang] || "zh-TW");
+const fmtNum = (n) => (n || 0).toLocaleString({ en: "en-US", ja: "ja-JP" }[window.FE && FE.i18n && FE.i18n.lang] || "zh-TW");
 // 字數單位：中文、日文書算「字」（chars），英文書算「詞」（words）；後端回傳 unit，這裡決定顯示哪個字
 const unitCh = (unit) => (unit === "words" ? "詞" : "字");   // i18n-skip
 const unitOfLang = (lang) => (lang === "en" ? "words" : "chars");
 const unitOfBook = (id) => { const b = (S.books || []).find((x) => x.id === (id || S.book)); return (b && b.unit) || "chars"; };
 // 書的語言：顯示書內容的容器加 lang（日文書在中文介面下用日文字形，中文書在日文介面下用繁中字形）。介面本身的 <html lang> 仍跟著介面語言
 const bookLang = () => S.bookLang || ((S.books || []).find((x) => x.id === S.book) || {}).lang || "zh-TW";
-const LA = () => ` lang="${bookLang()}"`;               // 只標語言
 function fmtTime(t) {
   if (!t) return "";
   const d = new Date(t * 1000), now = new Date();
@@ -42,14 +41,10 @@ async function api(method, url, body) {
 const B = (path) => `/api/books/${enc(S.book)}${path}`;
 const JB = (job, path) => `/api/books/${enc((job && job.book) || S.book)}${path}`;  // 任務所屬的書（共用庫任務掛在 _共用）
 
-function toast(msg, err) {
-  const el = document.createElement("div");
-  el.className = "toast" + (err ? " err" : "");
-  el.textContent = msg;
-  $("#toast").appendChild(el);
-  setTimeout(() => el.remove(), err ? 6000 : 2600);
-}
-function fail(e) { console.error(e); toast(e.message || String(e), true); }
+// 薄別名：舊呼叫端到處都是 fail(e)／toast(msg, true)，實際走 fekit 的 FE.fail／FE.toast。
+// FE.fail 會吞 AbortError，換頁中止的請求不會再跳錯誤。
+function fail(e) { FE.fail(e); }
+function toast(msg, err) { FE.toast(msg, err ? "err" : undefined); }
 
 function splitFM(text) {
   if (!text.startsWith("---")) return [{}, text];
@@ -63,24 +58,7 @@ function splitFM(text) {
   }
   return [{}, text];
 }
-function modal(html, onMount) {
-  $("#modal-body").innerHTML = html;
-  $("#modal").hidden = false;
-  if (onMount) onMount($("#modal-body"));
-}
-function closeModal() { $("#modal").hidden = true; $("#modal-body").innerHTML = ""; }
-window.closeModal = closeModal;
-$("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
-
 /* ------------------------------------------------------------------ 路由 */
-function parseHash() {
-  const h = location.hash.replace(/^#\/?/, "");
-  const [pathPart, query] = h.split("?");
-  const parts = pathPart.split("/").filter(Boolean).map(decodeURIComponent);
-  const q = Object.fromEntries(new URLSearchParams(query || ""));
-  return { parts, q };
-}
-
 function refresh() { return FE.route(); }
 
 async function setBook(id, keep) {
@@ -89,32 +67,35 @@ async function setBook(id, keep) {
   S.book = id;
   S.bookLang = ((S.books || []).find((x) => x.id === id) || {}).lang || null;
   Panel.renderActions();
+  // page_overview 是在 handler 內才 setBook，nsPage 的 renderNav 已經先跑過；直接開 #/b/<書> 時要補畫本書項目
+  if (FE.shell.current()) renderNav();
   if (!id) return;
   // 若這本書有執行中的任務，接上（轉移計畫 §7.4：交給 Panel.resume 查 /api/fe，不再用舊的 B("/jobs")）
   if (Panel.resume) Panel.resume().catch(() => {});
 }
 
+// 導覽列本身由 shell 依 navItems() 重畫；這裡只更新左欄上方那兩塊（切換書、前文搜尋）。
 function renderNav() {
-  const nav = $("#nav");
-  const sw = $("#book-switch");
-  const books = S.books.filter((b) => b.is_book || b.id === S.book);
-  if (S.book && !books.find((b) => b.id === S.book)) books.push({ id: S.book, name: S.book });
-  sw.innerHTML = books.length ? `<select onchange="go('#/b/'+encodeURIComponent(this.value))">
-      ${S.book ? "" : '<option value="">選擇一本書…</option>'}
-      ${books.map((b) => `<option value="${esc(b.id)}" ${b.id === S.book ? "selected" : ""}>${esc(b.name)}</option>`).join("")}
-    </select>` : "";
-  if (!S.book) { nav.innerHTML = ""; }
-  else {
-    const base = "#/b/" + enc(S.book);
-    const items = [
-      ["overview", "◉", "總覽"], ["chapters", "☰", "章節"], ["outline", "⌘", "大綱"],
-      ["bible", "✦", "設定集"], ["tracking", "⟲", "伏筆與時間線"], ["jobs", "◷", "任務紀錄"], ["illust", "✎", "插圖"], ["export", "⇩", "匯出"],
-    ];
-    nav.innerHTML = `<form class="side-search" onsubmit="event.preventDefault();sideSearch(this.q.value)">
-        <input name="q" id="side-q" type="search" placeholder="搜尋前文（Ctrl+K）" value="${esc(S.routeName === "search" ? (parseHash().q.q || "") : "")}"></form>` + items.map(([r, i, t]) =>
-      `<a class="navlink ${S.routeName === r || (r === "chapters" && S.routeName === "ch") ? "active" : ""}" href="${base}/${r}"><span class="ico">${i}</span><span>${t}</span></a>`).join("");
+  const shell = FE.shell.current();
+  if (!shell) return;
+  const sw = document.querySelector("#book-switch");
+  if (sw) {
+    const books = S.books.filter((b) => b.is_book || b.id === S.book);
+    const opts = S.book ? [] : [FE.h("option", { value: "" }, "選擇一本書…")];
+    for (const b of books) opts.push(FE.h("option", { value: b.id, selected: b.id === S.book }, b.name));
+    sw.replaceChildren(...opts);
+    sw.value = S.book || "";
+    sw.onchange = (ev) => go("#/b/" + enc(ev.target.value));
   }
-  document.querySelectorAll(".side-bottom .navlink").forEach((a) => a.classList.toggle("active", a.dataset.r === S.routeName));
+  // 沒有書就整塊藏起來；正在搜尋時把查詢字填回去
+  const q = document.querySelector("#side-q");
+  if (q) {
+    const form = q.closest("form");
+    if (form) form.hidden = !S.book;
+    const ctx = FE.current();
+    q.value = ctx && ctx.page === "b/:book/search" ? ((ctx.query || {}).q || "") : "";
+  }
+  shell.refresh_nav();
 }
 
 /* ------------------------------------------------------------------ 前文搜尋（本機，不用模型） */
@@ -184,11 +165,21 @@ window.recoverDiscard = async (id) => {
 window.recoverView = async (id) => {
   try {
     const r = await api("GET", B(`/recoveries/${id}`));
-    modal(`<h2>恢復稿</h2><div class="muted small" style="margin-bottom:8px">${esc(r.label)}　·　${esc(r.reason)}　·　${fmtNum(r.chars)} ${unitCh(unitOfBook())}</div>
-      <textarea class="editor prose"${LA()} style="min-height:50vh" readonly>${esc(r.text)}</textarea>
-      <div class="row" style="margin-top:10px"><span class="grow"></span><button id="rc-copy">複製</button><button onclick="closeModal()">關閉</button></div>`, (el) => {
-      $("#rc-copy", el).onclick = () => { navigator.clipboard.writeText(r.text).then(() => toast("已複製")); };
+    const textArea = FE.h("textarea", { class: "editor prose", lang: bookLang(), style: "min-height:50vh", readonly: true });
+    textArea.value = r.text;
+    const copyBtn = FE.h("button", {}, "複製");
+    const closeBtn = FE.h("button", {}, "關閉");
+    const close = FE.modal({
+      title: "恢復稿",
+      body: [
+        FE.h("div", { class: "muted small", style: "margin-bottom:8px" },
+          `${r.label}　·　${r.reason}　·　${fmtNum(r.chars)} ${unitCh(unitOfBook())}`),
+        textArea,
+        FE.h("div", { class: "row", style: "margin-top:10px" }, FE.h("span", { class: "grow" }), copyBtn, closeBtn),
+      ],
     });
+    copyBtn.onclick = () => { navigator.clipboard.writeText(r.text).then(() => toast("已複製")); };
+    closeBtn.onclick = () => close();
   } catch (e) { fail(e); }
 };
 
@@ -203,12 +194,12 @@ const readFiles = (input) => Promise.all([...input.files].map((f) => new Promise
   r.readAsDataURL(f);
 })));
 // lang 有值時（套用共用文風、結構）：同語言的書排前面，語言不同的標「（語言不同）」，不擋，讓作者自己決定
-const bookOpts = (books, cur, lang) => {
+function bookOptions(books, cur, lang) {
   const langs = S.sharedLangs || {};
   const diff = (b) => !!lang && !!langs[b] && langs[b] !== lang;
   const list = lang ? [...books.filter((b) => !diff(b)), ...books.filter(diff)] : books;
-  return list.map((b) => `<option value="${esc(b)}" ${b === cur ? "selected" : ""}>${diff(b) ? `${esc(b)}（語言不同）` : esc(b)}</option>`).join("");
-};
+  return list.map((b) => FE.h("option", { value: b, selected: b === cur }, diff(b) ? `${b}（語言不同）` : b));
+}
 
 
 // 整章自動流程的步驟與面板動作的對應；面板按鈕也預設用該步驟分配的執行者
@@ -220,16 +211,17 @@ function provChoices() {
   return ((S.config && S.config.providers) || [{ id: "claude_code", name: "Claude Code", type: "claude_code" }])
     .map((p) => ({ id: p.id, name: p.name, type: p.type, group: p.name, label: p.name, base: p.id }));
 }
-function provOpts(cur, opts = {}) {
+function provOptions(cur, opts = {}) {
   const groups = [];
   provChoices().forEach((c) => {
     let g = groups.find((x) => x.base === c.base);
     if (!g) { g = { base: c.base, label: c.group, items: [] }; groups.push(g); }
     g.items.push(c);
   });
-  const one = (c, text) => `<option value="${esc(c.id)}" ${c.id === cur ? "selected" : ""}>${esc(text)}${opts.unset && c.unset ? "（未設定）" : ""}${opts.claudeNote && c.type === "claude_code" ? "（用訂閱額度）" : ""}</option>`;
+  const one = (c, text) => FE.h("option", { value: c.id, selected: c.id === cur },
+    text + (opts.unset && c.unset ? "（未設定）" : "") + (opts.claudeNote && c.type === "claude_code" ? "（用訂閱額度）" : ""));
   return groups.map((g) => g.items.length === 1 ? one(g.items[0], g.items[0].name)
-    : `<optgroup label="${esc(g.label)}">${g.items.map((c) => one(c, c.label)).join("")}</optgroup>`).join("");
+    : FE.h("optgroup", { label: g.label }, g.items.map((c) => one(c, c.label))));
 }
 function provName(id) { const p = provChoices().find((x) => x.id === id); return p ? p.name : id; }
 function stepProv(action) {
@@ -238,8 +230,8 @@ function stepProv(action) {
   const ids = provChoices().map((p) => p.id);
   return k && m[k] && ids.includes(m[k]) ? m[k] : Panel.prov();
 }
-function provSelectHtml(id) {
-  return `<select id="${id}">${provOpts(Panel.prov())}</select>`;
+function provSelect(id, cur, opts) {
+  return FE.h("select", { id }, ...provOptions(cur, opts));
 }
 
 async function renderChapterStructure(el, no) {
@@ -273,9 +265,6 @@ async function waitJob(id) {
     if (j.status !== "running") return j;
   }
 }
-function illProvOptions(cfg, cur) {
-  return provOpts(cur || cfg.config.provider || Panel.prov(), { claudeNote: true });
-}
 const tagAppend = (cur, add) => {
   const have = (cur || "").split(/\s*,\s*/).filter(Boolean);
   add.split(/\s*,\s*/).filter(Boolean).forEach((t) => { if (!have.map((x) => x.toLowerCase()).includes(t.toLowerCase())) have.push(t); });
@@ -294,7 +283,7 @@ async function renderCard(el, file, text) {
   const render = () => {
     el.innerHTML = `<div class="card ill-card">
       <div class="card-title"><h2>視覺卡 ${has ? "" : '<span class="badge b-warn">還沒有</span>'}</h2>
-        <div class="row"><select id="vc-prov">${illProvOptions(cfgR)}</select><button class="sm" id="vc-ai">AI 從設定產生</button>
+        <div class="row"><select id="vc-prov"></select><button class="sm" id="vc-ai">AI 從設定產生</button>
           <button class="sm" id="vc-edit">${editing ? "取消" : "手動編輯"}</button></div></div>
       <div class="muted small" style="margin-bottom:8px">固定不變的外觀（英文 Danbooru 標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。</div>
       ${editing ? `<label class="f"><span>標籤</span><textarea id="vc-tags" rows="2" placeholder="1girl, long hair, black hair, red eyes, white hanfu">${esc(card.tags)}</textarea></label>
@@ -304,6 +293,7 @@ async function renderCard(el, file, text) {
         <div class="row"><span class="grow"></span><button class="primary sm" id="vc-save">儲存</button></div>`
       : has ? `<div class="kv"><span class="k">標籤</span><span>${esc(card.tags)}</span><span class="k">描述</span><span>${esc(card.description)}</span></div>` : ""}
     </div>`;
+    $("#vc-prov", el).replaceChildren(...provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true }));
     $("#vc-edit", el).onclick = () => { editing = !editing; render(); };
     $("#vc-ai", el).onclick = async () => {
       try {
@@ -542,16 +532,29 @@ async function renderIllSettings(el) {
 function pickPath(opts, onPick) {
   const mode = opts.mode || "dir";
   let cur = opts.start || "";
-  modal(`<h2>${esc(opts.title || (mode === "dir" ? "選擇資料夾" : "選擇檔案"))}</h2>
-    <div class="row" style="margin-bottom:8px"><button class="sm" id="pp-up">↑ 上一層</button>
-      <input type="text" id="pp-path" style="flex:1" placeholder="輸入路徑後按 Enter"></div>
-    <div class="pp-roots" id="pp-roots"></div>
-    <div class="pp-list" id="pp-list"></div>
-    <div class="row" style="margin-top:10px">
-      ${mode === "dir" ? '<button class="sm" id="pp-mk">＋ 新增資料夾</button>' : `<span class="muted small">${opts.exts && opts.exts.length ? "只顯示 " + esc(opts.exts.join("、")) : ""}</span>`}
-      <span class="grow"></span><button onclick="closeModal()">取消</button>
-      ${mode === "dir" ? '<button class="primary" id="pp-ok">選擇這個資料夾</button>' : ""}</div>`, (el) => {
-    let parent = null;
+  let parent = null;
+  const upBtn = FE.h("button", { class: "sm", id: "pp-up" }, "↑ 上一層");
+  const pathInput = FE.h("input", { type: "text", id: "pp-path", style: "flex:1", placeholder: "輸入路徑後按 Enter" });
+  const rootsBox = FE.h("div", { class: "pp-roots", id: "pp-roots" });
+  const listBox = FE.h("div", { class: "pp-list", id: "pp-list" });
+  const mkBtn = mode === "dir" ? FE.h("button", { class: "sm", id: "pp-mk" }, "＋ 新增資料夾") : null;
+  const okBtn = mode === "dir" ? FE.h("button", { class: "primary", id: "pp-ok", disabled: true }, "選擇這個資料夾") : null;
+  const close = FE.modal({
+    title: opts.title || (mode === "dir" ? "選擇資料夾" : "選擇檔案"),
+    body: [
+      FE.h("div", { class: "row", style: "margin-bottom:8px" }, upBtn, pathInput),
+      rootsBox,
+      listBox,
+    ],
+    foot: (done) => [
+      mkBtn || FE.h("span", { class: "muted small" }, opts.exts && opts.exts.length ? "只顯示 " + opts.exts.join("、") : ""),
+      FE.h("span", { class: "grow" }),
+      FE.h("button", { class: "btn", type: "button", onclick: () => done() }, "取消"),
+      okBtn,
+    ],
+  });
+  {
+    const el = close.el;
     const load = async (p) => {
       try {
         const r = await api("GET", `/api/fs/list?mode=${mode}&exts=${enc((opts.exts || []).join(","))}&path=${enc(p || "")}`);
@@ -566,20 +569,20 @@ function pickPath(opts, onPick) {
             + r.files.map((f) => `<div class="pp-item file" data-p="${esc(join(f))}">📄 ${esc(f)}</div>`).join(""))
             || '<div class="muted small" style="padding:10px">（空的）</div>';
         el.querySelectorAll(".pp-item.dir").forEach((d) => d.onclick = () => load(d.dataset.p));
-        el.querySelectorAll(".pp-item.file").forEach((f) => f.onclick = () => { closeModal(); onPick(f.dataset.p); });
-        if ($("#pp-ok", el)) $("#pp-ok", el).disabled = !cur;
+        el.querySelectorAll(".pp-item.file").forEach((f) => f.onclick = () => { close(); onPick(f.dataset.p); });
+        if (okBtn) okBtn.disabled = !cur;
       } catch (e) { fail(e); }
     };
     $("#pp-up", el).onclick = () => { if (parent) load(parent); };
     $("#pp-path", el).onkeydown = (e) => { if (e.key === "Enter") load(e.target.value.trim()); };
-    if ($("#pp-ok", el)) $("#pp-ok", el).onclick = () => { closeModal(); onPick(cur); };
-    if ($("#pp-mk", el)) $("#pp-mk", el).onclick = async () => {
+    if (okBtn) okBtn.onclick = () => { close(); onPick(cur); };
+    if (mkBtn) mkBtn.onclick = async () => {
       const name = prompt("新資料夾名稱");
       if (!name) return;
       try { const r = await api("POST", "/api/fs/mkdir", { path: cur, name }); load(r.path); } catch (e) { fail(e); }
     };
     load(cur);
-  });
+  }
 }
 window.pickPath = pickPath;
 
@@ -609,7 +612,9 @@ async function restartServer(port) {
   let r;
   try { r = await api("POST", "/api/restart"); } catch (e) { return fail(e); }
   const target = new URL(r.url);
-  modal(`<h2>重新啟動中……</h2><p class="muted" id="rs-msg">等待服務重新開啟${target.port !== location.port ? `（新的網址：${esc(target.origin)}）` : ""}</p>`);
+  const note = target.port !== location.port ? "（新的網址：" + target.origin + "）" : "";
+  const msg = FE.h("p", { class: "muted" }, "等待服務重新開啟" + note);
+  FE.modal({ title: "重新啟動中……", body: msg });
   const start = Date.now();
   await new Promise((res) => setTimeout(res, 1500));
   while (Date.now() - start < 40000) {
@@ -624,8 +629,8 @@ async function restartServer(port) {
     } catch (e) { /* 還沒好 */ }
     await new Promise((res) => setTimeout(res, 700));
   }
-  const msg = $("#rs-msg");
-  if (msg) msg.innerHTML = `服務沒有在預期時間內回來。請看一下啟動工作台的黑色視窗有沒有錯誤訊息，或手動開啟 <a href="${esc(target.origin)}">${esc(target.origin)}</a>。`;
+  msg.replaceChildren("服務沒有在預期時間內回來。請看一下啟動工作台的黑色視窗有沒有錯誤訊息，或手動開啟 ",
+    FE.h("a", { href: target.origin }, target.origin), "。");
 }
 window.restartServer = restartServer;
 
@@ -649,19 +654,18 @@ function panelRenderMd(text) {
 }
 const Panel = {
   open: false,
+  // 收合交給 shell（寬螢幕記在 shell.off.panel，窄螢幕是抽屜）
   toggle(v) {
-    this.open = v === undefined ? !this.open : v;
-    $("#panel").classList.toggle("closed", !this.open);
-    $("#app").classList.toggle("panel-open", this.open);
-    try { localStorage.setItem("panelOpen", this.open ? "1" : ""); } catch (e) { /* ignore */ }
+    const shell = FE.shell.current();
+    if (!shell) return;
+    shell.toggle("panel", v === undefined ? !shell.is_open("panel") : !!v);
   },
   renderActions() {
     const el = $("#panel-actions");
     if (!S.book) { el.innerHTML = '<div class="muted small">先從書架選一本書。</div>'; return; }
     const groups = {};
     S.actions.filter((a) => !a.hidden).forEach((a) => (groups[a.group] = groups[a.group] || []).push(a));
-    let collapsed = false;
-    try { collapsed = localStorage.getItem("actsCollapsed") === "1"; } catch (e) { /* ignore */ }
+    const collapsed = FE.store.get("actsCollapsed", false) === true;
     el.innerHTML = `<div class="row" style="margin-bottom:6px"><span class="gname muted small">動作</span><span class="grow"></span>
       <button class="ghost sm" onclick="Panel.collapseActs()">${collapsed ? "展開 ▾" : "收合 ▴"}</button></div>` +
       (collapsed ? "" : Object.entries(groups).map(([g, list]) => `<div class="act-group"><div class="gname">${esc(g)}</div>
@@ -676,17 +680,16 @@ const Panel = {
   provName() { return this.provObj().name; },
   isClaude() { return this.provObj().type === "claude_code"; },
   renderProv() {
-    $("#prov-sel").innerHTML = provOpts(this.prov(), { unset: true });
-    $("#fab-label").textContent = this.provName();
+    const sel = document.querySelector("#prov-sel");
+    if (sel) sel.replaceChildren(...provOptions(this.prov(), { unset: true }));
   },
   setProv(id) {
     S.provider = id;
-    try { localStorage.setItem("provider", id); } catch (e) { /* ignore */ }
+    FE.store.set("provider", id);
     this.renderProv(); this.renderActions();
   },
   collapseActs() {
-    let c = false;
-    try { c = localStorage.getItem("actsCollapsed") === "1"; localStorage.setItem("actsCollapsed", c ? "" : "1"); } catch (e) { /* ignore */ }
+    FE.store.set("actsCollapsed", !FE.store.get("actsCollapsed", false));
     this.renderActions();
   },
   openForm(id, prefill = {}) {
@@ -705,8 +708,10 @@ const Panel = {
         if (f.type === "drafts") return `<div class="f"><span>${esc(f.label)}</span><div id="pf-drafts" class="muted">讀取草稿中…</div></div>`;
         return `<label class="f"><span>${esc(f.label)}</span><input type="${f.type === "number" ? "number" : "text"}" data-k="${f.key}" value="${esc(v)}"></label>`;
       }).join("")}
-      ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov">${provOpts(stepProv(id))}</select></label>` : ""}
+      ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov"></select></label>` : ""}
       <div class="row"><span class="grow"></span><button class="primary" id="pf-go">執行</button></div>`;
+    const pfProv = el.querySelector("#pf-prov");
+    if (pfProv) pfProv.replaceChildren(...provOptions(stepProv(id)));
     if (a.fields.some((f) => f.type === "drafts")) this.loadDraftPicks(el);
     const first = el.querySelector("[data-k]"); if (first) first.focus();
     $("#pf-go").onclick = () => {
@@ -741,13 +746,11 @@ const Panel = {
       onchange: (job) => {
         S.job = job;
         const running = !!job && (job.status === "running" || job.status === "queued");
-        const runDot = document.querySelector("#run-dot");
-        const fabDot = document.querySelector("#fab-dot");
-        if (runDot) runDot.className = "dot" + (running ? " run" : "");
-        if (fabDot) fabDot.className = "dot" + (running ? " run" : "");
+        const shell = FE.shell.current();
+        if (shell) shell.badge("panel", running ? "busy" : null);
         // fekit 的 drawAsk 把 null 直接傳給 replaceChildren，回覆框會多一個裸的「null」文字節點
-        // （jobs.js 717-727；vendor/fekit 不可改）。每次重畫後清掉，P5 修 kit 後連這三行一起刪。
-        const ask = document.querySelector("#fe-panel-host .job-ask");
+        // （jobs.js 717-727；vendor/fekit 不可改，等 fekit 修好 drawAsk 再刪）。每次重畫後清掉。
+        const ask = document.querySelector(".job-panel .job-ask");
         if (ask) for (const node of [...ask.childNodes]) if (node.nodeType === 3) node.remove();
       },
       onend: (job) => Panel.finish(job),
@@ -765,7 +768,7 @@ const Panel = {
       if (job.status === "running") fePanel.attach(id, { base });
       else fePanel.show(id, { base });
     } catch (error) {
-      fail(error);
+      FE.fail(error);
     }
   },
   async resume() {
@@ -785,7 +788,7 @@ const Panel = {
   async run(action, params, provider) {
     // D3-09：建立任務照舊打舊端點 POST /api/books/{book}/jobs，不用 panel.run()（它的 base 建立時就固定）。
     if ((action === "write" || action === "chapter_cards") && !(Number(params && params.from) > 0)) {
-      toast(t("請先填「從第幾章」。")); return;
+      toast(FE.t("請先填「從第幾章」。")); return;
     }
     try {
       const pid = provider || stepProv(action);
@@ -811,35 +814,19 @@ const Panel = {
     }
   },
 };
+// 寬度交給 shell：記在 shell.w.panel，雙擊拖曳條恢復預設（傳 null 就直接結束）。
 Panel.setWidth = function (w) {
+  const shell = FE.shell.current();
+  if (!shell) return;
   const vw = window.innerWidth;
   let px = null;
   if (w === "narrow") px = 420;
   else if (w === "half") px = Math.round(vw * 0.5);
   else if (w === "wide") px = Math.round(vw * 0.65);
   else if (typeof w === "number") px = w;
-  if (px === null) {
-    document.documentElement.style.removeProperty("--panel-w");
-    try { localStorage.removeItem("panelW"); } catch (e) { /* ignore */ }
-    return;
-  }
-  px = Math.max(340, Math.min(px, vw - 420));
-  document.documentElement.style.setProperty("--panel-w", px + "px");
-  try { localStorage.setItem("panelW", String(px)); } catch (e) { /* ignore */ }
+  if (px === null) return;
+  shell.width("panel", px);
 };
-(function initResizer() {
-  try { const w = parseInt(localStorage.getItem("panelW")); if (w) Panel.setWidth(w); } catch (e) { /* ignore */ }
-  const r = $("#panel-resizer");
-  r.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    document.body.classList.add("resizing");
-    const move = (ev) => Panel.setWidth(window.innerWidth - ev.clientX);
-    const up = () => { document.body.classList.remove("resizing"); window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  });
-  r.addEventListener("dblclick", () => Panel.setWidth(null));
-})();
 window.Panel = Panel;
 
 /* 啟動搬到 boot.js：本檔只定義，載入後不會自己 init／route。 */

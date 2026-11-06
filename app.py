@@ -22,13 +22,16 @@ import webbrowser
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
+# vendor/fekit/py 不是 site-packages，先加進 sys.path；要在 from fekit 之前
+sys.path.insert(0, os.path.join(HERE, "vendor", "fekit", "py"))
+from fekit import install as fekit_install  # noqa: E402
 import ns_jobs  # noqa: E402  舊任務事件 → fekit 任務增量的轉接層（repo 根）
 
 VERSION = "1.18.0"
@@ -61,6 +64,7 @@ DEFAULT_CONFIG = {
     "stale_character": 15,
     "host": "127.0.0.1",
     "port": 8765,
+    "allowed_hosts": [],                 # 綁 0.0.0.0 給 LAN 用時，額外允許的 Host（例如內網名稱）
 }
 
 _cfg_lock = threading.Lock()
@@ -138,44 +142,10 @@ def provider_ids():
 app = FastAPI(title="小說工作台")
 
 # ---------------------------------------------------------------------------
-# 變更端點的守門（報告 S2）
-# 只綁 127.0.0.1 擋不住瀏覽器的 CSRF 與 DNS rebinding，所以：
-#   1. 變更方法（POST／PUT／DELETE…）只接受「同來源」請求：Origin 的 host 要等於這次的 Host，
-#      Sec-Fetch-Site 要是 same-origin／none。
-#   2. 變更方法還要帶一次性權杖 X-NS-Token：每次啟動產生，由 index() 注入頁面，
-#      前端在 index.html 載入時包一層 fetch 自動加上（見 TOKEN_JS）。
-# 這兩道都不影響 GET／SSE；直接用 curl 打 API 的腳本要自己帶權杖（重新啟動就失效）。
+# 變更端點的守門（報告 S2）：改由 fekit 的 LocalGuard 負責
+# 所有請求驗 Host（擋 DNS rebinding），變更方法再加驗 Sec-Fetch-Site／Origin／X-FE-Token。
+# 實作在 vendor/fekit/py/fekit/guard.py，於下面的 fekit_install() 時裝上。
 # ---------------------------------------------------------------------------
-MUTATE_TOKEN = secrets.token_urlsafe(32)
-TOKEN_HEADER = "x-ns-token"
-SAFE_METHODS = frozenset(["GET", "HEAD", "OPTIONS"])
-TOKEN_JS = (
-    "window.__NS_TOKEN__=%s;(function(){var f=window.fetch;window.fetch=function(u,o){"
-    "o=o||{};var h=new Headers(o.headers||{});h.set('X-NS-Token',window.__NS_TOKEN__);"
-    "o.headers=h;return f(u,o)};})();" % json.dumps(MUTATE_TOKEN)
-)
-
-
-def same_origin(request):
-    """請求是不是同一個來源（擋跨站表單與 DNS rebinding）。"""
-    site = (request.headers.get("sec-fetch-site") or "").strip().lower()
-    if site and site not in ("same-origin", "none"):
-        return False
-    origin = request.headers.get("origin")
-    if not origin:
-        return True          # 老瀏覽器不送 Origin：還是要靠下面的權杖
-    return urlsplit(origin).netloc.lower() == (request.headers.get("host") or "").lower()
-
-
-@app.middleware("http")
-async def guard_mutations(request: Request, call_next):
-    if request.method not in SAFE_METHODS:
-        if not same_origin(request):
-            return JSONResponse({"error": "拒絕跨來源的變更請求（請從工作台頁面操作）"}, status_code=403)
-        given = request.headers.get("X-FE-Token") or request.headers.get(TOKEN_HEADER) or ""
-        if not secrets.compare_digest(given, MUTATE_TOKEN):
-            return JSONResponse({"error": "請求權杖不正確，請重新整理頁面再試一次"}, status_code=403)
-    return await call_next(request)
 
 
 
@@ -2538,6 +2508,12 @@ def fe_launch_reply(book_id, job, text):
 
 ns_jobs.install(app, RUNNER, book_dir, runner_mod.load_history, runner_mod.load_job_file, fe_launch_reply)
 
+# fekit 的本機保護與頁面權杖（取代原本 app.py 自製的守門中介層）。
+# fs=False：/api/fs/list 這支工作台已經有自己的實作，再讓 fekit 掛一次會撞路由。
+# allowed_hosts：綁 0.0.0.0 給同一個區網的其他電腦用時，把它的 Host 名稱填進設定才進得來。
+fe = fekit_install(app, app_name="novel-studio", fs=False,
+                   allowed_hosts=tuple(CONFIG.get("allowed_hosts") or ()))
+
 
 # ---------------------------------------------------------------------------
 # 靜態頁面
@@ -2569,11 +2545,8 @@ def index():
         return '%s%s?v=%d"' % (m.group(1), m.group(2), v)
 
     html = re.sub(r'((?:src|href)=")(/static/[^"?]+)"', stamp, html)
-    # 一次性權杖：只注入給這個頁面，變更端點會驗它（前端 fetch 由 TOKEN_JS 自動帶上）
-    # fekit 的新程式讀 <meta name="fe-token">；舊的 TOKEN_JS 照留，讓還沒換掉的 fetch 繼續帶 X-NS-Token
-    html = html.replace("</head>", '<meta name="fe-token" content="%s">\n<meta name="fe-app" content="novel-studio">\n</head>' % MUTATE_TOKEN, 1)
-    html = html.replace("</head>", "<script>%s</script>\n</head>" % TOKEN_JS, 1)
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+    # 一次性權杖由 fekit 注入（<meta name="fe-token">／<meta name="fe-app">，前端 fetch 自己帶）
+    return HTMLResponse(fe.inject(html), headers={"Cache-Control": "no-cache"})
 
 
 def serve():

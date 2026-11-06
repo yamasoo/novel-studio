@@ -1,5 +1,23 @@
 # 更新紀錄
 
+## 未發版（P5：fekit 外殼與守門）
+
+- fekit 轉移 P5：外殼換成 `FE.shell`、後端守門換成 `fekit.install()`、舊檔清理；18 頁功能與網址都不變
+- 安全
+  - 變更端點改由 fekit 的 `LocalGuard` 驗 Host／Origin／`X-FE-Token`；**舊的 `X-NS-Token` 不再接受**，用 curl／腳本打 API 的人要改標頭
+  - 綁 `0.0.0.0` 的內網使用者：`LocalGuard` 預設只放行 127.0.0.1／localhost／[::1]，要在 `config.json` 加 `"allowed_hosts": ["192.168.x.x"]`，否則連開頁面都會 403（設定預設值已加空清單）
+  - 錯誤格式統一成 fekit 合約：`422` 由 `{"detail":[…]}` 變 `{"error","code","fields"}`；未預期例外的 500 改通用訊息，完整堆疊改由 logging 印（後端視窗不再有「完整堆疊在後端視窗」那句提示）
+- 介面
+  - 三欄外殼換成 fekit 的 `FE.shell`：頂列放品牌／麵包屑／語言選單／執行者選單／AI 面板開關；左欄可拖曳、可收合，窄螢幕變抽屜（Esc 關閉）
+  - 面板完全由 `FE.jobs.panel` 提供，舊的 `#panel`／`#panel-resizer`／`#panel-fab` DOM 移除
+  - 舊側欄底部的「回報問題」改列在導覽的「工作台」群組
+  - 語言與面板開關／寬度改存 `FE.store`；舊的 `ns_lang`／`panelOpen`／`panelW`／`provider`／`actsCollapsed`／`search-scopes` 第一次啟動會自動搬過去
+- 內部
+  - 刪掉 `static/i18n.js`、`static/ns_i18n.js`（`window.t`／`window.I18N` 墊片），頁面改用 `FE.t`／`FE.i18n.*`
+  - 刪掉字串型 helper `bookOpts`／`provOpts`／`provSelectHtml` 與 `nsShared.nodesFromHtml`，改成回節點的 `bookOptions`／`provOptions`／`provSelect`
+  - 舊的 `modal()`／`closeModal()`／`#modal`／`#toast` 全部改成 `FE.modal`／`FE.toast`
+  - `index.html` 只剩 `<div id="app"></div>`；`ns-fekit.css` 補兩條 shell 版面修正（舊 `style.css` 的 `#app`／`.split` 會撞名）
+
 ## 1.18.0（2026-10-30）
 
 - 說明頁、設定生成、卷綱修訂、章節入口與書架效能一起進 `main`（14 個 commit）

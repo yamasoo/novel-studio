@@ -18,6 +18,7 @@
   const BIBLE_FOLDER = { "角色": "角色", "勢力": "勢力", "世界觀": "世界觀" };
   const ENT_TABS = ["角色", "勢力", "世界觀"];
 
+  // 動態 key（書 id + 分頁名）這一輪維持 localStorage（§9.4 允許）；P6 再換 FE.store。
   const entryFilterKey = (book, t) => "studio.entityFilter." + book + "." + t;
   function loadEntryFilter(book, t) {
     try { return JSON.parse(localStorage.getItem(entryFilterKey(book, t)) || "null") || {}; } catch (e) { return {}; }

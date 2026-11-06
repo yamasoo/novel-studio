@@ -13,14 +13,14 @@
   // 設定檔裡的「欄位標籤」（例如「想要：」）和正文同一個文字節點，整段對不上鍵，所以要切開來翻。
   // 只改顯示，檔案內容不動；中文介面直接略過。
   function localizeLabels(root) {
-    if (!root || !window.I18N || I18N.lang === "zh-TW") return;
+    if (!root || !FE.i18n || FE.i18n.lang === "zh-TW") return;
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (w.nextNode()) nodes.push(w.currentNode);
     for (const n of nodes) {
       const m = n.nodeValue.match(/^(\s*)([^：:\n]{1,30}[：:])([\s\S]*)$/);
       if (!m) continue;
-      const label = I18N.tr(m[2]), rest = I18N.tr(m[3]);
+      const label = FE.i18n.tr(m[2]), rest = FE.i18n.tr(m[3]);
       const next = m[1] + label + rest;
       if (next !== n.nodeValue) n.nodeValue = next;
     }

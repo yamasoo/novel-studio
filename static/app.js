@@ -236,20 +236,25 @@ function provSelect(id, cur, opts) {
 
 async function renderChapterStructure(el, no) {
   try {
-    const r = await api("GET", B(`/structures?chapter=${no}`));
+    const r = await api("GET", B("/structures?chapter=" + no));
     const ch = r.chapter || {};
-    if (!ch.has_card) { el.innerHTML = ""; return; }
+    if (!ch.has_card) { el.replaceChildren(); return; }
     const def = r.list.find((s) => s.default);
-    el.innerHTML = `<div class="row struct-row">
-      <span class="small"><b>本章結構</b></span>
-      <select id="cs-sel"><option value="">${def ? `用全書預設（${esc(def.name)}）` : "不指定"}</option>
-        ${r.list.map((s) => `<option value="${esc(s.name)}" ${s.name === ch.assigned ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>
-      <span class="muted small">${r.list.length ? "寫這章時會參考這個節拍表；章綱的情節點優先。" : `這本書還沒有章節結構，<a href="#/shared?t=${enc("章節結構")}">到共用庫套用</a>。`}</span>
-    </div>`;
-    $("#cs-sel", el).onchange = async (ev) => {
-      try { await api("POST", B(`/chapters/${no}/structure`), { name: ev.target.value || null }); toast("已更新本章結構"); refresh(); } catch (e) { fail(e); }
+    const sel = FE.h("select", { id: "cs-sel" },
+      FE.h("option", { value: "" }, def ? "用全書預設（" + def.name + "）" : "不指定"),
+      r.list.map((s) => FE.h("option", { value: s.name, selected: s.name === ch.assigned }, s.name)));
+    sel.onchange = async (ev) => {
+      try { await api("POST", B("/chapters/" + no + "/structure"), { name: ev.target.value || null }); toast("已更新本章結構"); refresh(); } catch (e) { fail(e); }
     };
-  } catch (e) { el.innerHTML = ""; }
+    // 有章節結構就說明會參考；沒有就給「到共用庫套用」的連結
+    const note = r.list.length
+      ? "寫這章時會參考這個節拍表；章綱的情節點優先。"
+      : ["這本書還沒有章節結構，", FE.h("a", { href: "#/shared?t=" + enc("章節結構") }, "到共用庫套用"), "。"];
+    el.replaceChildren(FE.h("div", { class: "row struct-row" },
+      FE.h("span", { class: "small" }, FE.h("b", {}, "本章結構")),
+      sel,
+      FE.h("span", { class: "muted small" }, note)));
+  } catch (e) { el.replaceChildren(); }
 }
 
 /* ------------------------------------------------------------------ 插圖 */
@@ -281,18 +286,39 @@ async function renderCard(el, file, text) {
   const has = card.tags || card.description;
   let editing = false, zh = null;
   const render = () => {
-    el.innerHTML = `<div class="card ill-card">
-      <div class="card-title"><h2>視覺卡 ${has ? "" : '<span class="badge b-warn">還沒有</span>'}</h2>
-        <div class="row"><select id="vc-prov"></select><button class="sm" id="vc-ai">AI 從設定產生</button>
-          <button class="sm" id="vc-edit">${editing ? "取消" : "手動編輯"}</button></div></div>
-      <div class="muted small" style="margin-bottom:8px">固定不變的外觀（英文 Danbooru 標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。</div>
-      ${editing ? `<label class="f"><span>標籤</span><textarea id="vc-tags" rows="2" placeholder="1girl, long hair, black hair, red eyes, white hanfu">${esc(card.tags)}</textarea></label>
-        <div class="row" style="margin-bottom:8px"><input type="text" id="vc-zh-in" placeholder="輸入中文外觀（例如：黑色長髮、紅色眼睛、白色漢服），本機查標籤" style="flex:1"><button class="sm" id="vc-zh">查</button></div>
-        ${zh ? `<div class="ill-chips" style="margin-bottom:8px">${zh.map((h) => `<span class="chip add" data-tag="${esc(h.tag)}">${esc(h.zh)} → ${esc(h.tag)}</span>`).join("") || '<span class="muted small">沒有查到。</span>'}</div>` : ""}
-        <label class="f"><span>描述（英文）</span><textarea id="vc-desc" rows="2">${esc(card.description)}</textarea></label>
-        <div class="row"><span class="grow"></span><button class="primary sm" id="vc-save">儲存</button></div>`
-      : has ? `<div class="kv"><span class="k">標籤</span><span>${esc(card.tags)}</span><span class="k">描述</span><span>${esc(card.description)}</span></div>` : ""}
-    </div>`;
+    const kids = [
+      FE.h("div", { class: "card-title" },
+        FE.h("h2", {}, "視覺卡 ", has ? null : FE.h("span", { class: "badge b-warn" }, "還沒有")),
+        FE.h("div", { class: "row" },
+          FE.h("select", { id: "vc-prov" }),
+          FE.h("button", { class: "sm", id: "vc-ai" }, "AI 從設定產生"),
+          FE.h("button", { class: "sm", id: "vc-edit" }, editing ? "取消" : "手動編輯"))),
+      FE.h("div", { class: "muted small", style: "margin-bottom:8px" },
+        "固定不變的外觀（英文 Danbooru 標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。"),
+    ];
+    if (editing) {
+      kids.push(FE.h("label", { class: "f" },
+        FE.h("span", {}, "標籤"),
+        FE.h("textarea", { id: "vc-tags", rows: 2, placeholder: "1girl, long hair, black hair, red eyes, white hanfu", value: card.tags })));
+      kids.push(FE.h("div", { class: "row", style: "margin-bottom:8px" },
+        FE.h("input", { type: "text", id: "vc-zh-in", placeholder: "輸入中文外觀（例如：黑色長髮、紅色眼睛、白色漢服），本機查標籤", style: "flex:1" }),
+        FE.h("button", { class: "sm", id: "vc-zh" }, "查")));
+      if (zh) {
+        kids.push(FE.h("div", { class: "ill-chips", style: "margin-bottom:8px" },
+          zh.length ? zh.map((t) => FE.h("span", { class: "chip add", "data-tag": t.tag }, t.zh + " → " + t.tag))
+            : FE.h("span", { class: "muted small" }, "沒有查到。")));
+      }
+      kids.push(FE.h("label", { class: "f" },
+        FE.h("span", {}, "描述（英文）"),
+        FE.h("textarea", { id: "vc-desc", rows: 2, value: card.description })));
+      kids.push(FE.h("div", { class: "row" }, FE.h("span", { class: "grow" }),
+        FE.h("button", { class: "primary sm", id: "vc-save" }, "儲存")));
+    } else if (has) {
+      kids.push(FE.h("div", { class: "kv" },
+        FE.h("span", { class: "k" }, "標籤"), FE.h("span", {}, card.tags),
+        FE.h("span", { class: "k" }, "描述"), FE.h("span", {}, card.description)));
+    }
+    el.replaceChildren(FE.h("div", { class: "card ill-card" }, kids));
     $("#vc-prov", el).replaceChildren(...provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true }));
     $("#vc-edit", el).onclick = () => { editing = !editing; render(); };
     $("#vc-ai", el).onclick = async () => {
@@ -318,22 +344,31 @@ async function renderCard(el, file, text) {
 
 /* 設定頁：插畫（Forge Neo／ComfyUI） */
 // LoRA 列表（Forge 與 ComfyUI 共用）：可以打字搜尋；選好後讀同名 JSON 帶入觸發詞（前 3 個詞）與強度
-function loraRowsHtml(items, list, key, title, who) {
-  const dl = `lora-dl-${key}`;
+function loraRowsEl(items, list, key, title, who) {
+  const dl = "lora-dl-" + key;
   const rows = items.map((x, j) => {
     const nm = x.name || "";
     const miss = list && nm && !list.some((f) => f.name === nm);
-    return `<div class="row" style="gap:6px;margin-bottom:4px;align-items:center">
-      <input type="checkbox" data-lr="${key}:${j}" data-lk="on" ${x.on !== false ? "checked" : ""} title="使用這個 LoRA">
-      <input type="text" list="${dl}" data-lr="${key}:${j}" data-lk="name" value="${esc(nm)}" style="flex:2" placeholder="${list ? "打字搜尋 LoRA" : "LoRA 名稱（按測試連線後可以搜尋清單）"}" title="${miss ? who + " 找不到這個 LoRA" : ""}">
-      <input type="number" data-lr="${key}:${j}" data-lk="strength" value="${esc(x.strength ?? 1)}" step="0.05" min="-4" max="4" style="width:80px" title="強度">
-      <input type="text" data-lr="${key}:${j}" data-lk="trigger" value="${esc(x.trigger || "")}" placeholder="觸發詞（選填，接在正向提示詞後面）" style="flex:2">
-      <button class="sm danger" data-lrdel="${key}:${j}">刪除</button></div>${miss ? `<div class="err small" style="margin:-2px 0 4px 24px">${esc(who)} 找不到「${esc(nm)}」</div>` : ""}`;
-  }).join("");
-  return `<div class="f" style="margin-top:6px"><span>${title}</span>
-    ${list ? `<datalist id="${dl}">${list.map((f) => `<option value="${esc(f.name)}">${esc(f.folder || "")}</option>`).join("")}</datalist>` : ""}
-    ${rows || '<div class="muted small">沒有使用 LoRA。</div>'}
-    <div><button class="sm" data-lradd="${key}">＋ LoRA</button>${list ? `<span class="muted small">　共 ${list.length} 個；選好後會讀同名 JSON 帶入觸發詞（前 3 個詞）與建議強度，沒有 JSON 就用檔名</span>` : ""}</div></div>`;
+    const row = FE.h("div", { class: "row", style: "gap:6px;margin-bottom:4px;align-items:center" },
+      FE.h("input", { type: "checkbox", "data-lr": key + ":" + j, "data-lk": "on", checked: x.on !== false, title: "使用這個 LoRA" }),
+      FE.h("input", { type: "text", list: dl, "data-lr": key + ":" + j, "data-lk": "name", value: nm, style: "flex:2",
+        placeholder: list ? "打字搜尋 LoRA" : "LoRA 名稱（按測試連線後可以搜尋清單）",
+        title: miss ? who + " 找不到這個 LoRA" : "" }),
+      FE.h("input", { type: "number", "data-lr": key + ":" + j, "data-lk": "strength", value: String(x.strength ?? 1),
+        step: 0.05, min: -4, max: 4, style: "width:80px", title: "強度" }),
+      FE.h("input", { type: "text", "data-lr": key + ":" + j, "data-lk": "trigger", value: x.trigger || "",
+        placeholder: "觸發詞（選填，接在正向提示詞後面）", style: "flex:2" }),
+      FE.h("button", { class: "sm danger", "data-lrdel": key + ":" + j }, "刪除"));
+    if (!miss) return row;
+    return [row, FE.h("div", { class: "err small", style: "margin:-2px 0 4px 24px" }, who + " 找不到「" + nm + "」")];
+  });
+  return FE.h("div", { class: "f", style: "margin-top:6px" },
+    FE.h("span", {}, title),
+    list ? FE.h("datalist", { id: dl }, list.map((f) => FE.h("option", { value: f.name }, f.folder || ""))) : null,
+    rows.length ? rows : FE.h("div", { class: "muted small" }, "沒有使用 LoRA。"),
+    FE.h("div", {},
+      FE.h("button", { class: "sm", "data-lradd": key }, "＋ LoRA"),
+      list ? FE.h("span", { class: "muted small" }, "　共 " + list.length + " 個；選好後會讀同名 JSON 帶入觸發詞（前 3 個詞）與建議強度，沒有 JSON 就用檔名") : null));
 }
 function bindLoraRows(root, getList, backend, rerender) {
   root.querySelectorAll("[data-lr]").forEach((x) => {
@@ -361,60 +396,91 @@ async function renderIllSettings(el) {
   const profs = JSON.parse(JSON.stringify(c.comfy_profiles || []));
   let cst = null;   // ComfyUI 測試連線結果
   const be = c.backend === "comfy" ? "comfy" : "forge";
-  el.innerHTML = `
-    <h2 style="margin-bottom:4px">插畫（Forge Neo／ComfyUI）</h2>
-    <div class="f"><span>出圖後端</span></div>
-    <div class="seg compact" id="il-be" style="margin-bottom:12px">
-      <label><input type="radio" name="il-be" value="forge" ${be === "forge" ? "checked" : ""}><span>Forge Neo</span></label>
-      <label><input type="radio" name="il-be" value="comfy" ${be === "comfy" ? "checked" : ""}><span>ComfyUI</span></label>
-    </div>
-    <div data-be="forge">
-    <div class="muted small" style="margin-bottom:12px">Forge 要用 <code>--api</code> 啟動（加在啟動 bat 的 COMMANDLINE_ARGS）。出圖參數用 Forge「PNG Info」最後一行的格式，Forge 會自己切換模型和 VAE／文字編碼器。</div>
-    <div class="grid g2">
-      <label class="f"><span>Forge 網址</span><div class="row"><input type="text" id="il-url" value="${esc(c.forge_url)}" style="flex:1"><button class="sm" id="il-test">測試連線</button></div></label>
-      <label class="f"><span>Forge 資料夾（選填：讀最近一次的參數、找 tagcomplete 的標籤對照表）</span><input type="text" id="il-dir" value="${esc(c.forge_dir)}" placeholder="例如 D:\\sd-webui-forge-neo"></label>
-    </div>
-    <div class="small" id="il-status" style="margin:-4px 0 10px"></div>
-    <label class="f"><span>出圖參數（Forge PNG Info 最後一行；Seed、Size 由工作台決定）</span>
-      <textarea id="il-params" rows="2">${esc(c.params)}</textarea></label>
-    <div class="row" style="margin:-6px 0 12px"><button class="sm" id="il-fromforge">從 Forge 讀最近一次的參數</button><span class="muted small">讀 Forge 資料夾裡的 params.txt</span></div>
-    <label class="cb"><input type="checkbox" id="il-save" ${c.save_in_forge ? "checked" : ""}> 也在 Forge 的輸出資料夾存一份</label>
-    <div id="il-loras"></div>
-    </div>
-    <div data-be="comfy">
-      <div class="muted small" style="margin-bottom:10px">工作台用 ComfyUI 的 API 出圖，只會用到 ComfyUI 內建節點。每個「出圖設定」是一份 workflow：留空就用專案附的範本（<code>examples/comfy/</code>）；
-        要用自己的 workflow，請在 ComfyUI 選單用「Export (API)」匯出（沒有這個選項的話，到 ComfyUI 設定開啟開發者模式）。工作台只改正向、負向、seed、尺寸、張數，組提示詞用的自訂節點會自動略過。</div>
-      <label class="f"><span>ComfyUI 網址</span><div class="row"><input type="text" id="cf-url" value="${esc(c.comfy_url)}" style="flex:1"><button class="sm" id="cf-test">測試連線</button></div></label>
-      <div class="small" id="cf-status" style="margin:-4px 0 10px"></div>
-      <div id="cf-profs"></div>
-      <div class="row" style="margin:6px 0 10px"><button class="sm" id="cf-add">＋ 新增出圖設定</button>
-        <label class="f" style="margin:0 0 0 auto;flex-direction:row;align-items:center;gap:6px"><span>預設使用</span><select id="cf-def"></select></label></div>
-      <label class="cb"><input type="checkbox" id="cf-keep" ${c.comfy_keep_output ? "checked" : ""}> 也在 ComfyUI 的 output 資料夾存一份（不勾就只放 ComfyUI 的暫存）</label>
-      <label class="f"><span>LoRA 資料夾（讀同名 JSON 的觸發詞用；留空＝問 ComfyUI）</span><input type="text" id="cf-loradir" value="${esc(c.comfy_lora_dir || "")}" placeholder="例如 D:\\ComfyUI\\models\\loras"></label>
-    </div>
-    <h3 style="margin:14px 0 8px">提示詞</h3>
-    <div class="grid g4">
-      <label class="f"><span>預設寬</span><input type="number" id="il-w" value="${esc(c.width)}" step="8"></label>
-      <label class="f"><span>預設高</span><input type="number" id="il-h" value="${esc(c.height)}" step="8"></label>
-      <label class="f"><span>分級標籤</span><select id="il-safe">${["safe", "sensitive", "nsfw", "explicit", ""].map((v) => `<option value="${v}" ${c.safety === v ? "selected" : ""}>${v || "（不加）"}</option>`).join("")}</select></label>
-      <label class="f"><span>格式</span><select id="il-fmt">${[["mixed", "標籤＋自然語言"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => `<option value="${v}" ${c.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-    </div>
-    <div class="grid g2">
-      <label class="f"><span>品質標籤（放在最前面）</span><input type="text" id="il-q" value="${esc(c.quality)}"></label>
-      <label class="f"><span>負面提示詞</span><input type="text" id="il-neg" value="${esc(c.negative)}"></label>
-      <label class="f"><span>畫風樣式表（.xlsx 或 .json，格式同 examples/styles.example.json）</span><input type="text" id="il-sheet" value="${esc(c.style_sheet)}" placeholder="留空＝用專案附的 examples/styles.example.json"></label>
-      <label class="f"><span>樣式表用哪個欄位</span><select id="il-src">${[["prompt", "prompt（標籤）"], ["naturl_prompt", "naturl_prompt（自然語言）"], ["both", "prompt + naturl_prompt"]].map(([v, l]) => `<option value="${v}" ${c.style_source === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-      <label class="f"><span>產生畫面描述預設用的 AI</span><select id="il-prov"><option value="">面板目前的執行者</option>${r.providers.map((p) => `<option value="${esc(p.id)}" ${c.provider === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
-      <div class="f"><span>標籤對照表</span><div class="small">${r.tag_csv ? "✓ " + esc(r.tag_csv) : '<span class="muted">沒有（填 Forge 資料夾會自動找 tagcomplete 的 danbooru.csv）</span>'}<br>${r.tag_zh_csv ? "✓ " + esc(r.tag_zh_csv) : '<span class="muted">沒有中文對照表</span>'}</div></div>
-    </div>
-    <div class="small muted" style="margin:-4px 0 8px">${r.sheet_error ? '<span class="err">' + esc(r.sheet_error) + "</span>" : r.sheet_count ? `樣式表共 ${r.sheet_count} 個畫風${r.sheet_is_example ? "（目前用專案附的範例）" : ""}` : ""}　MOSS-Image 會自動改用自然語言，不加品質、分級與畫師標籤。</div>
-    <label class="cb"><input type="checkbox" id="il-nsfw" ${c.show_nsfw_styles ? "checked" : ""}> 選畫風時預設顯示 nsfw 分類</label>
-    <div class="row"><span class="grow"></span><button class="primary" id="il-savecfg">儲存插畫設定</button></div>`;
+  el.replaceChildren(
+    FE.h("h2", { style: "margin-bottom:4px" }, "插畫（Forge Neo／ComfyUI）"),
+    FE.h("div", { class: "f" }, FE.h("span", {}, "出圖後端")),
+    FE.h("div", { class: "seg compact", id: "il-be", style: "margin-bottom:12px" },
+      FE.h("label", {}, FE.h("input", { type: "radio", name: "il-be", value: "forge", checked: be === "forge" }), FE.h("span", {}, "Forge Neo")),
+      FE.h("label", {}, FE.h("input", { type: "radio", name: "il-be", value: "comfy", checked: be === "comfy" }), FE.h("span", {}, "ComfyUI"))),
+    FE.h("div", { "data-be": "forge" },
+      FE.h("div", { class: "muted small", style: "margin-bottom:12px" },
+        "Forge 要用 ", FE.h("code", {}, "--api"),
+        " 啟動（加在啟動 bat 的 COMMANDLINE_ARGS）。出圖參數用 Forge「PNG Info」最後一行的格式，Forge 會自己切換模型和 VAE／文字編碼器。"),
+      FE.h("div", { class: "grid g2" },
+        FE.h("label", { class: "f" }, FE.h("span", {}, "Forge 網址"),
+          FE.h("div", { class: "row" },
+            FE.h("input", { type: "text", id: "il-url", value: c.forge_url, style: "flex:1" }),
+            FE.h("button", { class: "sm", id: "il-test" }, "測試連線"))),
+        FE.h("label", { class: "f" }, FE.h("span", {}, "Forge 資料夾（選填：讀最近一次的參數、找 tagcomplete 的標籤對照表）"),
+          FE.h("input", { type: "text", id: "il-dir", value: c.forge_dir, placeholder: "例如 D:\\sd-webui-forge-neo" }))),
+      FE.h("div", { class: "small", id: "il-status", style: "margin:-4px 0 10px" }),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "出圖參數（Forge PNG Info 最後一行；Seed、Size 由工作台決定）"), " ",
+        FE.h("textarea", { id: "il-params", rows: 2, value: c.params })),
+      FE.h("div", { class: "row", style: "margin:-6px 0 12px" },
+        FE.h("button", { class: "sm", id: "il-fromforge" }, "從 Forge 讀最近一次的參數"),
+        FE.h("span", { class: "muted small" }, "讀 Forge 資料夾裡的 params.txt")),
+      FE.h("label", { class: "cb" },
+        FE.h("input", { type: "checkbox", id: "il-save", checked: !!c.save_in_forge }),
+        " 也在 Forge 的輸出資料夾存一份"),
+      FE.h("div", { id: "il-loras" })),
+    FE.h("div", { "data-be": "comfy" },
+      FE.h("div", { class: "muted small", style: "margin-bottom:10px" },
+        "工作台用 ComfyUI 的 API 出圖，只會用到 ComfyUI 內建節點。每個「出圖設定」是一份 workflow：留空就用專案附的範本（",
+        FE.h("code", {}, "examples/comfy/"),
+        "）； 要用自己的 workflow，請在 ComfyUI 選單用「Export (API)」匯出（沒有這個選項的話，到 ComfyUI 設定開啟開發者模式）。工作台只改正向、負向、seed、尺寸、張數，組提示詞用的自訂節點會自動略過。"),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "ComfyUI 網址"),
+        FE.h("div", { class: "row" },
+          FE.h("input", { type: "text", id: "cf-url", value: c.comfy_url, style: "flex:1" }),
+          FE.h("button", { class: "sm", id: "cf-test" }, "測試連線"))),
+      FE.h("div", { class: "small", id: "cf-status", style: "margin:-4px 0 10px" }),
+      FE.h("div", { id: "cf-profs" }),
+      FE.h("div", { class: "row", style: "margin:6px 0 10px" },
+        FE.h("button", { class: "sm", id: "cf-add" }, "＋ 新增出圖設定"),
+        FE.h("label", { class: "f", style: "margin:0 0 0 auto;flex-direction:row;align-items:center;gap:6px" },
+          FE.h("span", {}, "預設使用"), FE.h("select", { id: "cf-def" }))),
+      FE.h("label", { class: "cb" },
+        FE.h("input", { type: "checkbox", id: "cf-keep", checked: !!c.comfy_keep_output }),
+        " 也在 ComfyUI 的 output 資料夾存一份（不勾就只放 ComfyUI 的暫存）"),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "LoRA 資料夾（讀同名 JSON 的觸發詞用；留空＝問 ComfyUI）"),
+        FE.h("input", { type: "text", id: "cf-loradir", value: c.comfy_lora_dir || "", placeholder: "例如 D:\\ComfyUI\\models\\loras" }))),
+    FE.h("h3", { style: "margin:14px 0 8px" }, "提示詞"),
+    FE.h("div", { class: "grid g4" },
+      FE.h("label", { class: "f" }, FE.h("span", {}, "預設寬"), FE.h("input", { type: "number", id: "il-w", value: c.width, step: 8 })),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "預設高"), FE.h("input", { type: "number", id: "il-h", value: c.height, step: 8 })),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "分級標籤"),
+        FE.h("select", { id: "il-safe" }, ["safe", "sensitive", "nsfw", "explicit", ""].map((v) => FE.h("option", { value: v, selected: c.safety === v }, v || "（不加）")))),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "格式"),
+        FE.h("select", { id: "il-fmt" }, [["mixed", "標籤＋自然語言"], ["tags", "只有標籤"], ["natural", "自然語言為主"]].map(([v, l]) => FE.h("option", { value: v, selected: c.format === v }, l))))),
+    FE.h("div", { class: "grid g2" },
+      FE.h("label", { class: "f" }, FE.h("span", {}, "品質標籤（放在最前面）"), FE.h("input", { type: "text", id: "il-q", value: c.quality })),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "負面提示詞"), FE.h("input", { type: "text", id: "il-neg", value: c.negative })),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "畫風樣式表（.xlsx 或 .json，格式同 examples/styles.example.json）"),
+        FE.h("input", { type: "text", id: "il-sheet", value: c.style_sheet, placeholder: "留空＝用專案附的 examples/styles.example.json" })),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "樣式表用哪個欄位"),
+        FE.h("select", { id: "il-src" }, [["prompt", "prompt（標籤）"], ["naturl_prompt", "naturl_prompt（自然語言）"], ["both", "prompt + naturl_prompt"]].map(([v, l]) => FE.h("option", { value: v, selected: c.style_source === v }, l)))),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "產生畫面描述預設用的 AI"),
+        FE.h("select", { id: "il-prov" },
+          FE.h("option", { value: "" }, "面板目前的執行者"),
+          r.providers.map((pc) => FE.h("option", { value: pc.id, selected: c.provider === pc.id }, pc.name)))),
+      FE.h("div", { class: "f" }, FE.h("span", {}, "標籤對照表"),
+        FE.h("div", { class: "small" },
+          r.tag_csv ? "✓ " + r.tag_csv : FE.h("span", { class: "muted" }, "沒有（填 Forge 資料夾會自動找 tagcomplete 的 danbooru.csv）"),
+          FE.h("br"),
+          r.tag_zh_csv ? "✓ " + r.tag_zh_csv : FE.h("span", { class: "muted" }, "沒有中文對照表")))),
+    FE.h("div", { class: "small muted", style: "margin:-4px 0 8px" },
+      r.sheet_error ? FE.h("span", { class: "err" }, r.sheet_error)
+        : r.sheet_count ? "樣式表共 " + r.sheet_count + " 個畫風" + (r.sheet_is_example ? "（目前用專案附的範例）" : "") : "",
+      "　MOSS-Image 會自動改用自然語言，不加品質、分級與畫師標籤。"),
+    FE.h("label", { class: "cb" },
+      FE.h("input", { type: "checkbox", id: "il-nsfw", checked: !!c.show_nsfw_styles }),
+      " 選畫風時預設顯示 nsfw 分類"),
+    FE.h("div", { class: "row" }, FE.h("span", { class: "grow" }),
+      FE.h("button", { class: "primary", id: "il-savecfg" }, "儲存插畫設定")));
   const forgeLoras = JSON.parse(JSON.stringify(c.forge_loras || []));
   let fst = null;   // Forge 測試連線結果
   const renderForgeLoras = () => {
-    $("#il-loras", el).innerHTML = loraRowsHtml(forgeLoras, fst && fst.ok ? fst.loras || [] : null, "f",
-      "LoRA（出圖時加進提示詞：&lt;lora:名稱:強度&gt; 與觸發詞；提示詞裡已經有的不重複加）", "Forge");
+    $("#il-loras", el).replaceChildren(loraRowsEl(forgeLoras, fst && fst.ok ? fst.loras || [] : null, "f",
+      "LoRA（出圖時加進提示詞：<lora:名稱:強度> 與觸發詞；提示詞裡已經有的不重複加）", "Forge"));
     bindLoraRows($("#il-loras", el), () => forgeLoras, "forge", renderForgeLoras);
   };
   renderForgeLoras();
@@ -428,38 +494,55 @@ async function renderIllSettings(el) {
   const modelField = (p, i, key, label) => {
     const list = cst && cst.ok ? cst.lists[key === "upsampler_clip" ? "clip" : key] || [] : null;
     const guess = cst && cst.ok ? ((cst.profiles.find((x) => x.id === p.id) || {}).guess || {})[key] : "";
-    if (!list) return `<label class="f"><span>${label}</span><input type="text" data-pf="${i}" data-key="${key}" value="${esc(p[key] || "")}" placeholder="${key === "upsampler_clip" ? "例如 qwen3.5_9b_w4a8_gptq.safetensors" : "照 workflow（按測試連線後可以從清單選）"}"></label>`;
+    const box = FE.h("label", { class: "f" }, FE.h("span", {}, label));
+    if (!list) {
+      box.append(FE.h("input", { type: "text", "data-pf": i, "data-key": key, value: p[key] || "",
+        placeholder: key === "upsampler_clip" ? "例如 qwen3.5_9b_w4a8_gptq.safetensors" : "照 workflow（按測試連線後可以從清單選）" }));
+      return box;
+    }
     const cur = p[key] || "";
-    return `<label class="f"><span>${label}</span><select data-pf="${i}" data-key="${key}">
-      <option value="">${key === "upsampler_clip" ? "（請選擇）" : "照 workflow"}</option>
-      ${list.map((f) => `<option value="${esc(f)}" ${f === cur ? "selected" : ""}>${esc(f)}${f === guess && !cur ? "（建議）" : ""}</option>`).join("")}
-      ${cur && !list.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}（ComfyUI 找不到）</option>` : ""}</select></label>`;
+    box.append(FE.h("select", { "data-pf": i, "data-key": key },
+      FE.h("option", { value: "" }, key === "upsampler_clip" ? "（請選擇）" : "照 workflow"),
+      list.map((f) => FE.h("option", { value: f, selected: f === cur }, f + (f === guess && !cur ? "（建議）" : ""))),
+      cur && !list.includes(cur) ? FE.h("option", { value: cur, selected: true }, cur + "（ComfyUI 找不到）") : null));
+    return box;
   };
-  const loraRows = (p, i) => loraRowsHtml(p.loras || [], cst && cst.ok ? (cst.lists.lora || []).map((f) => ({ name: f, folder: f.replace(/\\/g, "/").split("/").slice(0, -1).join("/") })) : null,
-    `${i}`, "LoRA（用內建的 LoraLoaderModelOnly，接在模型後面；強度 -4～4）", "ComfyUI");
+  const loraRows = (p, i) => loraRowsEl(p.loras || [], cst && cst.ok ? (cst.lists.lora || []).map((f) => ({ name: f, folder: f.replace(/\\/g, "/").split("/").slice(0, -1).join("/") })) : null,
+    String(i), "LoRA（用內建的 LoraLoaderModelOnly，接在模型後面；強度 -4～4）", "ComfyUI");
   const renderProfs = () => {
-    $("#cf-profs", el).innerHTML = profs.map((p, i) => {
+    $("#cf-profs", el).replaceChildren(...profs.map((p, i) => {
       const st = cst && cst.ok ? cst.profiles.find((x) => x.id === p.id) : null;
       const sm = st && st.summary;
-      return `<div class="prov-box" style="margin-bottom:10px">
-        <div class="row"><b>${esc(p.name || "未命名")}</b><span class="grow"></span>${profs.length > 1 ? `<button class="sm danger" data-del="${i}">刪除</button>` : ""}</div>
-        <div class="grid g3">
-          <label class="f"><span>名稱</span><input type="text" data-pf="${i}" data-key="name" value="${esc(p.name)}"></label>
-          <label class="f"><span>模型種類（決定提示詞格式）</span><select data-pf="${i}" data-key="kind">${COMFY_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-          <label class="f"><span>workflow（API 格式 .json）</span><input type="text" data-pf="${i}" data-key="workflow" value="${esc(p.workflow)}" placeholder="留空＝專案附的範本"></label>
-          ${modelField(p, i, "unet", "模型")}${modelField(p, i, "clip", "文字編碼器")}${modelField(p, i, "vae", "VAE")}
-        </div>
-        <label class="f"><span>負面提示詞（留空＝${p.kind === "moss" ? "MOSS 官方建議" : "用下方「提示詞」的設定"}）</span><input type="text" data-pf="${i}" data-key="negative" value="${esc(p.negative)}"></label>
-        <label class="cb"><input type="checkbox" data-pf="${i}" data-key="upsampler" ${p.upsampler ? "checked" : ""}> Prompt Upsampler：送出前用 LLM 把提示詞改寫成更完整的描述（多約 6 GB VRAM、每張多 10～30 秒）</label>
-        ${p.upsampler && p.kind !== "moss" ? `<div class="grid g3">${modelField(p, i, "upsampler_clip", "改寫用的文字編碼器（MOSS 的 Qwen3.5 9B）")}</div>` : ""}
-        ${p.upsampler && p.kind === "moss" ? '<div class="muted small">MOSS 直接用自己的文字編碼器改寫。</div>' : ""}
-        ${loraRows(p, i)}
-        <div class="small" style="margin-top:6px">${st ? (st.error ? `<span class="badge b-bad">workflow 有問題</span> ${esc(st.error)}`
-          : `<span class="badge ${sm.missing.length ? "b-bad" : "b-ok"}">${sm.missing.length ? "ComfyUI 缺少節點" : "workflow 可以用"}</span>
-             ${sm.missing.length ? "缺：" + sm.missing.map(esc).join("、") + "　" : ""}<span class="muted">正向：${sm.positive.map(esc).join("、")}　負向：${sm.negative.map(esc).join("、") || "無"}　尺寸：${sm.latent.map(esc).join("、") || "無"}${sm.removed.length ? "　略過：" + sm.removed.map(esc).join("、") : ""}</span>`) : ""}</div>
-      </div>`;
-    }).join("");
-    $("#cf-def", el).innerHTML = profs.map((p) => `<option value="${esc(p.id)}" ${p.id === (c.comfy_profile || profs[0].id) ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+      const status = st ? (st.error
+        ? [FE.h("span", { class: "badge b-bad" }, "workflow 有問題"), " " + st.error]
+        : [FE.h("span", { class: "badge " + (sm.missing.length ? "b-bad" : "b-ok") }, sm.missing.length ? "ComfyUI 缺少節點" : "workflow 可以用"),
+          " " + (sm.missing.length ? "缺：" + sm.missing.join("、") + "　" : ""),
+          FE.h("span", { class: "muted" },
+            "正向：" + sm.positive.join("、") + "　負向：" + (sm.negative.join("、") || "無") + "　尺寸：" + (sm.latent.join("、") || "無")
+            + (sm.removed.length ? "　略過：" + sm.removed.join("、") : ""))]) : null;
+      return FE.h("div", { class: "prov-box", style: "margin-bottom:10px" },
+        FE.h("div", { class: "row" }, FE.h("b", {}, p.name || "未命名"), FE.h("span", { class: "grow" }),
+          profs.length > 1 ? FE.h("button", { class: "sm danger", "data-del": i }, "刪除") : null),
+        FE.h("div", { class: "grid g3" },
+          FE.h("label", { class: "f" }, FE.h("span", {}, "名稱"),
+            FE.h("input", { type: "text", "data-pf": i, "data-key": "name", value: p.name })),
+          FE.h("label", { class: "f" }, FE.h("span", {}, "模型種類（決定提示詞格式）"),
+            FE.h("select", { "data-pf": i, "data-key": "kind" },
+              COMFY_KINDS.map(([v, l]) => FE.h("option", { value: v, selected: p.kind === v }, l)))),
+          FE.h("label", { class: "f" }, FE.h("span", {}, "workflow（API 格式 .json）"),
+            FE.h("input", { type: "text", "data-pf": i, "data-key": "workflow", value: p.workflow, placeholder: "留空＝專案附的範本" })),
+          modelField(p, i, "unet", "模型"), modelField(p, i, "clip", "文字編碼器"), modelField(p, i, "vae", "VAE")),
+        FE.h("label", { class: "f" }, FE.h("span", {}, "負面提示詞（留空＝" + (p.kind === "moss" ? "MOSS 官方建議" : "用下方「提示詞」的設定") + "）"),
+          FE.h("input", { type: "text", "data-pf": i, "data-key": "negative", value: p.negative })),
+        FE.h("label", { class: "cb" },
+          FE.h("input", { type: "checkbox", "data-pf": i, "data-key": "upsampler", checked: !!p.upsampler }),
+          " Prompt Upsampler：送出前用 LLM 把提示詞改寫成更完整的描述（多約 6 GB VRAM、每張多 10～30 秒）"),
+        p.upsampler && p.kind !== "moss" ? FE.h("div", { class: "grid g3" }, modelField(p, i, "upsampler_clip", "改寫用的文字編碼器（MOSS 的 Qwen3.5 9B）")) : null,
+        p.upsampler && p.kind === "moss" ? FE.h("div", { class: "muted small" }, "MOSS 直接用自己的文字編碼器改寫。") : null,
+        loraRows(p, i),
+        FE.h("div", { class: "small", style: "margin-top:6px" }, status));
+    }));
+    $("#cf-def", el).replaceChildren(...profs.map((p) => FE.h("option", { value: p.id, selected: p.id === (c.comfy_profile || profs[0].id) }, p.name)));
     el.querySelectorAll("[data-pf]").forEach((x) => {
       x.onchange = () => {
         const p = profs[+x.dataset.pf];
@@ -479,8 +562,10 @@ async function renderIllSettings(el) {
     st.textContent = "連線中……";
     const s = await api("GET", "/api/illust/forge/status");
     fst = s; renderForgeLoras();
-    st.innerHTML = s.ok ? `<span class="badge b-ok">已連線</span> 模型：${esc(s.model || "")}　模組：${esc((s.modules || []).join("、"))}　取樣器 ${s.samplers.length} 種`
-      : `<span class="badge b-bad">連不到</span> ${esc(s.error)}`;
+    st.replaceChildren(...(s.ok
+      ? [FE.h("span", { class: "badge b-ok" }, "已連線"),
+        " 模型：" + (s.model || "") + "　模組：" + (s.modules || []).join("、") + "　取樣器 " + s.samplers.length + " 種"]
+      : [FE.h("span", { class: "badge b-bad" }, "連不到"), " " + s.error]));
   };
   const save = async () => {
     c.comfy_profile = $("#cf-def", el).value;
@@ -507,9 +592,12 @@ async function renderIllSettings(el) {
         if (!p.workflow) for (const k of ["unet", "clip", "vae"]) if (!p[k] && g[k]) { p[k] = g[k]; filled++; }
         if (p.upsampler && p.kind !== "moss" && !p.upsampler_clip && g.upsampler_clip) { p.upsampler_clip = g.upsampler_clip; filled++; }
       }
-      st.innerHTML = `<span class="badge b-ok">已連線</span> ComfyUI ${esc(cst.version)}　${esc(cst.device || "")}　模型 ${cst.lists.unet.length}、文字編碼器 ${cst.lists.clip.length}、VAE ${cst.lists.vae.length}、LoRA ${(cst.lists.lora || []).length} 個`
-        + (filled ? `　<span class="muted">已依檔名帶入建議的模型，確認後按「儲存插畫設定」</span>` : "");
-    } else st.innerHTML = `<span class="badge b-bad">連不到</span> ${esc(cst.error)}`;
+      st.replaceChildren(
+        FE.h("span", { class: "badge b-ok" }, "已連線"),
+        " ComfyUI " + cst.version + "　" + (cst.device || "") + "　模型 " + cst.lists.unet.length
+          + "、文字編碼器 " + cst.lists.clip.length + "、VAE " + cst.lists.vae.length + "、LoRA " + (cst.lists.lora || []).length + " 個",
+        ...(filled ? ["　", FE.h("span", { class: "muted" }, "已依檔名帶入建議的模型，確認後按「儲存插畫設定」")] : []));
+    } else st.replaceChildren(FE.h("span", { class: "badge b-bad" }, "連不到"), " " + cst.error);
     renderProfs();
   };
   attachPicker($("#il-dir", el), { mode: "dir", title: "選擇 Forge 資料夾" });
@@ -560,14 +648,17 @@ function pickPath(opts, onPick) {
         const r = await api("GET", `/api/fs/list?mode=${mode}&exts=${enc((opts.exts || []).join(","))}&path=${enc(p || "")}`);
         cur = r.path; parent = r.parent;
         $("#pp-path", el).value = cur;
-        $("#pp-roots", el).innerHTML = r.roots.map((x) => `<span class="chip" data-p="${esc(x.path)}">${esc(x.name)}</span>`).join("");
+        $("#pp-roots", el).replaceChildren(...r.roots.map((x) => FE.h("span", { class: "chip", "data-p": x.path }, x.name)));
         el.querySelectorAll("#pp-roots .chip").forEach((c) => c.onclick = () => load(c.dataset.p));
         const sep = r.sep || "\\";
         const join = (n) => cur.endsWith(sep) ? cur + n : cur + sep + n;
-        $("#pp-list", el).innerHTML = !cur ? '<div class="muted small" style="padding:10px">從上面選一個起點。</div>'
-          : (r.dirs.map((d) => `<div class="pp-item dir" data-p="${esc(join(d))}">📁 ${esc(d)}</div>`).join("")
-            + r.files.map((f) => `<div class="pp-item file" data-p="${esc(join(f))}">📄 ${esc(f)}</div>`).join(""))
-            || '<div class="muted small" style="padding:10px">（空的）</div>';
+        const items = cur
+          ? [...r.dirs.map((d) => FE.h("div", { class: "pp-item dir", "data-p": join(d) }, "📁 " + d)),
+            ...r.files.map((f) => FE.h("div", { class: "pp-item file", "data-p": join(f) }, "📄 " + f))]
+          : [];
+        $("#pp-list", el).replaceChildren(...(cur
+          ? (items.length ? items : [FE.h("div", { class: "muted small", style: "padding:10px" }, "（空的）")])
+          : [FE.h("div", { class: "muted small", style: "padding:10px" }, "從上面選一個起點。")]));
         el.querySelectorAll(".pp-item.dir").forEach((d) => d.onclick = () => load(d.dataset.p));
         el.querySelectorAll(".pp-item.file").forEach((f) => f.onclick = () => { close(); onPick(f.dataset.p); });
         if (okBtn) okBtn.disabled = !cur;
@@ -662,18 +753,22 @@ const Panel = {
   },
   renderActions() {
     const el = $("#panel-actions");
-    if (!S.book) { el.innerHTML = '<div class="muted small">先從書架選一本書。</div>'; return; }
+    if (!S.book) { el.replaceChildren(FE.h("div", { class: "muted small" }, "先從書架選一本書。")); return; }
     const groups = {};
     S.actions.filter((a) => !a.hidden).forEach((a) => (groups[a.group] = groups[a.group] || []).push(a));
     const collapsed = FE.store.get("actsCollapsed", false) === true;
-    el.innerHTML = `<div class="row" style="margin-bottom:6px"><span class="gname muted small">動作</span><span class="grow"></span>
-      <button class="ghost sm" onclick="Panel.collapseActs()">${collapsed ? "展開 ▾" : "收合 ▴"}</button></div>` +
-      (collapsed ? "" : Object.entries(groups).map(([g, list]) => `<div class="act-group"><div class="gname">${esc(g)}</div>
-      <div class="acts">${list.map((a) => {
+    const head = FE.h("div", { class: "row", style: "margin-bottom:6px" },
+      FE.h("span", { class: "gname muted small" }, "動作"), FE.h("span", { class: "grow" }),
+      FE.h("button", { class: "ghost sm", onclick: () => Panel.collapseActs() }, collapsed ? "展開 ▾" : "收合 ▴"));
+    const body = collapsed ? [] : Object.entries(groups).map(([g, list]) => FE.h("div", { class: "act-group" },
+      FE.h("div", { class: "gname" }, g),
+      FE.h("div", { class: "acts" }, list.map((a) => {
         const off = !Panel.isClaude() && !a.native;
-        return `<button class="sm ${off ? "dim-btn" : ""}" ${off ? 'title="這個動作目前只支援 Claude Code"' : ""} onclick="Panel.openForm('${a.id}')">${esc(a.label)}</button>`;
-      }).join("")}</div></div>`).join("")) +
-      (!collapsed && !Panel.isClaude() && S.actions.some((a) => !a.native) ? `<div class="muted small" style="margin-top:4px">灰色按鈕目前只支援 Claude Code。</div>` : "");
+        return FE.h("button", { class: off ? "sm dim-btn" : "sm", title: off ? "這個動作目前只支援 Claude Code" : null, onclick: () => Panel.openForm(a.id) }, a.label);
+      }))));
+    const note = !collapsed && !Panel.isClaude() && S.actions.some((a) => !a.native)
+      ? FE.h("div", { class: "muted small", style: "margin-top:4px" }, "灰色按鈕目前只支援 Claude Code。") : null;
+    el.replaceChildren(head, ...body, ...(note ? [note] : []));
   },
   prov() { return S.provider || (S.config && S.config.default_provider) || "claude_code"; },
   provObj() { return provChoices().find((p) => p.id === this.prov()) || { id: "claude_code", type: "claude_code", name: "Claude Code" }; },
@@ -699,17 +794,26 @@ const Panel = {
     if (!this.isClaude() && !a.native) { toast(`「${a.label}」目前只支援 Claude Code，請在面板上方切換執行者。`, true); return; }
     if (!S.book) { toast("先選一本書", true); return; }
     const el = $("#panel-form");
-    if (!a.fields.length) { this.run(id, {}); el.innerHTML = ""; return; }
-    el.innerHTML = `<div class="row" style="margin-bottom:8px"><b>${esc(a.label)}</b><span class="grow"></span><button class="ghost sm" onclick="Panel.closeForm()">✕</button></div>
-      ${a.fields.map((f) => {
-        const v = prefill[f.key] ?? f.default ?? "";
-        if (f.type === "textarea") return `<label class="f"><span>${esc(f.label)}</span><textarea data-k="${f.key}" rows="3">${esc(v)}</textarea></label>`;
-        if (f.type === "checkbox") return `<label class="cb"><input type="checkbox" data-k="${f.key}" ${v ? "checked" : ""}> ${esc(f.label)}</label>`;
-        if (f.type === "drafts") return `<div class="f"><span>${esc(f.label)}</span><div id="pf-drafts" class="muted">讀取草稿中…</div></div>`;
-        return `<label class="f"><span>${esc(f.label)}</span><input type="${f.type === "number" ? "number" : "text"}" data-k="${f.key}" value="${esc(v)}"></label>`;
-      }).join("")}
-      ${STEP_OF_ACTION[id] ? `<label class="f"><span>執行者（預設＝設定裡這一步的分配）</span><select id="pf-prov"></select></label>` : ""}
-      <div class="row"><span class="grow"></span><button class="primary" id="pf-go">執行</button></div>`;
+    if (!a.fields.length) { this.run(id, {}); el.replaceChildren(); return; }
+    const fields = a.fields.map((f) => {
+      const v = prefill[f.key] ?? f.default ?? "";
+      if (f.type === "textarea") return FE.h("label", { class: "f" }, FE.h("span", {}, f.label),
+        FE.h("textarea", { "data-k": f.key, rows: 3, value: v }));
+      if (f.type === "checkbox") return FE.h("label", { class: "cb" },
+        FE.h("input", { type: "checkbox", "data-k": f.key, checked: !!v }), " " + f.label);
+      if (f.type === "drafts") return FE.h("div", { class: "f" }, FE.h("span", {}, f.label),
+        FE.h("div", { id: "pf-drafts", class: "muted" }, "讀取草稿中…"));
+      return FE.h("label", { class: "f" }, FE.h("span", {}, f.label),
+        FE.h("input", { type: f.type === "number" ? "number" : "text", "data-k": f.key, value: v }));
+    });
+    el.replaceChildren(
+      FE.h("div", { class: "row", style: "margin-bottom:8px" },
+        FE.h("b", {}, a.label), FE.h("span", { class: "grow" }),
+        FE.h("button", { class: "ghost sm", onclick: () => Panel.closeForm() }, "✕")),
+      ...fields,
+      ...(STEP_OF_ACTION[id] ? [FE.h("label", { class: "f" },
+        FE.h("span", {}, "執行者（預設＝設定裡這一步的分配）"), FE.h("select", { id: "pf-prov" }))] : []),
+      FE.h("div", { class: "row" }, FE.h("span", { class: "grow" }), FE.h("button", { class: "primary", id: "pf-go" }, "執行")));
     const pfProv = el.querySelector("#pf-prov");
     if (pfProv) pfProv.replaceChildren(...provOptions(stepProv(id)));
     if (a.fields.some((f) => f.type === "drafts")) this.loadDraftPicks(el);
@@ -721,16 +825,18 @@ const Panel = {
       this.run(id, p, $("#pf-prov") ? $("#pf-prov").value : undefined);
     };
   },
-  closeForm() { $("#panel-form").innerHTML = ""; },
+  closeForm() { $("#panel-form").replaceChildren(); },
   async loadDraftPicks(el) {   // 「草稿轉正式」：列出目前的草稿讓作者勾選，不用自己打名字
     const box = el.querySelector("#pf-drafts");
     if (!box) return;
     try {
       const b = await api("GET", B("/bible"));
       const list = b["草稿"] || [];
-      if (!list.length) { box.innerHTML = `<span class="muted">目前沒有草稿。</span>`; return; }
-      box.innerHTML = list.map((e) => `<label class="cb"><input type="checkbox" data-draft="${esc(e.name)}"> ${esc(e.name)}${e.summary ? ` <span class="muted">— ${esc(e.summary)}</span>` : ""}</label>`).join("")
-        + `<div class="muted">沒勾任何一個，AI 只會列出草稿，不會定案。</div>`;
+      if (!list.length) { box.replaceChildren(FE.h("span", { class: "muted" }, "目前沒有草稿。")); return; }
+      box.replaceChildren(...list.map((e) => FE.h("label", { class: "cb" },
+        FE.h("input", { type: "checkbox", "data-draft": e.name }), " " + e.name,
+        e.summary ? [" ", FE.h("span", { class: "muted" }, "— " + e.summary)] : null)),
+        FE.h("div", { class: "muted" }, "沒勾任何一個，AI 只會列出草稿，不會定案。"));
     } catch (e) { box.textContent = "讀取草稿失敗"; }
   },
   /* ── P3：面板本體換成 fekit 的 FE.jobs.panel，這裡只剩門面（轉移計畫 §7.2） ── */

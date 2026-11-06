@@ -2,6 +2,44 @@
 
 > 這份檔案給「下一個對話」或「未來的自己」看。看完這一頁就能接手，不需要重讀整份報告。
 
+## P6 收尾：backlog ⑥–⑬ 與 2.0.0（完成）
+
+> 這一輪沒有新增功能，只把 P5 留下的收尾清乾淨並發版 **2.0.0**（2026-11-07）。分支 `feat/fekit-closeout`，**不 push、不合 main**。
+
+**八個 commit（一個項目一個 commit）**
+
+| commit | 項目 | 內容 |
+|---|---|---|
+| `ba9d302` | ⑩ | 「關於」頁第三方清單改指 fekit 帶的 marked；刪 `static/vendor/`；根目錄新增 `THIRD_PARTY_NOTICES.md` |
+| `a89b66c` | ⑨ | `style.css` 刪舊三欄死規則 -38 行；`ns-fekit.css` 的外殼補丁收回 `style.css`（要排在 `.split` 之後才蓋得過） |
+| `8f9a772` | ⑧ | `app.js` 16 個區塊字串 HTML → 節點（`FE.h`），`innerHTML` 歸零 |
+| `47ec7ef` | ⑦ | `sync_kit.py --add graph` → `page_tracking.js` 關係圖改 `FE.graph`（Cytoscape 3.34.4）；刪 `relgraph.js` 與 35 條 `.rg-*` |
+| `f0f73d1` | ⑪ | `ns_page.js` 統一給麵包屑「書名 › 頁名」（頁名取已渲染的 h1） |
+| `8cde06f` | ⑫ | `boot.js` 導覽加「工具」群組（搜尋前文／從正文建立設定／卷末體檢），三頁有 active |
+| `f465349` | ⑬ | 舊 localStorage key 遷移成功後刪除＋`legacy.pruned` 標記 |
+| （發版 commit） | — | `VERSION = 2.0.0`、CHANGELOG／README／docs／`docs/screenshots/p6`、tag `v2.0.0` |
+
+**已定決策**
+
+1. 版號 **2.0.0**：`X-NS-Token` 不再接受、422 改 `{error,code,fields}`、非本機 Host 403，對外用 API 的人是破壞性變更。
+2. ⑬ 真的刪舊 key（使用者同意）：回退到 P4 版時語言／執行者／面板寬度會回預設值，偏好本身都在 `FE.store`。
+3. ⑪ 用「書名＋h1」推麵包屑，不新增 18 份標題對照表；總覽頁 h1 就是書名時只留一段。
+4. ⑫ 三頁都是 book-scoped，掛在本書區的「工具」群組（不是掛到「總覽」的 page 陣列，那會讓側欄同時亮兩項）。
+
+**驗收（實測）**
+
+- 18 頁 × 6 種組態（zh-TW 深／淺 1440、en、ja、800×900 深／淺）＝ 108 次載入：console 0 錯誤、`h1` 都在、`.nav .nav-item.active` 正確、麵包屑非空。
+- 關係圖：用自造 payload（2 勢力／4 角色／5 關係）驗到節點 6、邊 4（角色對自己所屬勢力不畫線）、第 5 章 1 條關係、勾「顯示配角與反派」變 2 條、滑到第 4 章 3 條、點節點跑出詳細資料、fit／relayout／深色主題 0 錯誤且非 GET 請求 0 次。真資料（7 節點／0 關係）不炸。
+- `python -m compileall app.py studio ns_jobs.py`、`tools/check_i18n.py`、`tools/check_parity.py --strict`（FAIL 0／WARN 0）全過。
+- 截圖：新基線 `docs/screenshots/p6`（41 張）；與 `p5` 的逐像素差異逐頁列在 2.0.0 的階段報告裡（來源是書庫資料成長、⑪⑫ 的介面改動、關係圖換套件）。
+
+**P7 接手前要記得**
+
+1. **⑥ 還沒修**：`FE.jobs.panel` 的 `drawAsk` 會塞 `null` 進 `replaceChildren`，`app.js` 的 `Panel.mount` 那三行繞路要等 kit 修好才能刪；這一輪 `E:\dev\front-end` 唯讀，沒動。
+2. 截圖基線改用 `docs/screenshots/p6`（p5 保留當歷史）。
+3. 新增的 backlog：⑭ i18n 失效鍵（含新的關係圖字串）、⑮ `app.js` 的 `esc()` 已無呼叫端、⑯ 書庫資料與 p5 基線不同步。
+4. `vendor/fekit` 現在有 graph 模組與 Cytoscape；要再同步一律回 fekit 本體跑 `tools/sync_kit.py`。
+
 ## P5：外殼、`fekit.install()`、舊檔清理（完成）
 
 - **後端**：`app.py` 的守門換成 fekit 的 `install()`（`vendor/fekit/py`）。`MUTATE_TOKEN`／`TOKEN_JS`／`same_origin`／`guard_mutations` 全刪，

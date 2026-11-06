@@ -1,6 +1,6 @@
 # 更新紀錄
 
-## 未發版（P5：fekit 外殼與守門）
+## 2.0.0（2026-11-07）
 
 - fekit 轉移 P5：外殼換成 `FE.shell`、後端守門換成 `fekit.install()`、舊檔清理；18 頁功能與網址都不變
 - 安全
@@ -17,6 +17,19 @@
   - 刪掉字串型 helper `bookOpts`／`provOpts`／`provSelectHtml` 與 `nsShared.nodesFromHtml`，改成回節點的 `bookOptions`／`provOptions`／`provSelect`
   - 舊的 `modal()`／`closeModal()`／`#modal`／`#toast` 全部改成 `FE.modal`／`FE.toast`
   - `index.html` 只剩 `<div id="app"></div>`；`ns-fekit.css` 補兩條 shell 版面修正（舊 `style.css` 的 `#app`／`.split` 會撞名）
+
+### P5 之後的收尾（⑩–⑬）
+
+- 介面
+  - 「關於」頁的第三方清單改指 fekit 帶的 marked；本專案不再自帶 `static/vendor/`，根目錄新增 `THIRD_PARTY_NOTICES.md`（fekit、marked、Cytoscape、Python 套件與參考來源）
+  - 頂列麵包屑開始顯示「書名 › 頁名」（18 頁共用 `ns_page.js` 一處實作）
+  - 左欄新增「工具」群組（搜尋前文／從正文建立設定／卷末體檢），三頁導覽會標示目前位置
+  - **角色關係圖換成 fekit 的 `FE.graph`（Cytoscape）**：勢力是框、角色依勢力分組、關係是帶箭頭的線；章的滑桿與「顯示配角與反派」即時過濾、點節點看詳細資料、可回到中心／重新排列。舊的 SVG 版 `static/relgraph.js` 刪除
+- 內部
+  - `static/app.js` 最後 16 個字串版 HTML（章節結構、視覺卡、插畫設定、LoRA 列、面板表單…）全部改成節點，`innerHTML` 歸零
+  - `style.css` 清掉舊三欄死規則（`#sidebar`／`#main`／`#panel` 系列、`--panel-w`、`.navlink`、`.side-*` 等 38 行）；外殼補丁收回 `style.css`
+  - `vendor/fekit` 同步新增 graph 模組與 Cytoscape 3.34.4（仍然只由 `tools/sync_kit.py` 寫入）
+  - 舊 `localStorage` key（`ns_lang`／`provider`／`actsCollapsed`／`search-scopes`／`panelOpen`／`panelW`）在遷移成功後刪除，並記 `legacy.pruned` 標記；**回退到 P4 版會讓這些偏好回預設值**
 
 ## 1.18.0（2026-10-30）
 

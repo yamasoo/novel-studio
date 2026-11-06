@@ -2507,6 +2507,13 @@ async def job_events(job_id: str, request: Request, since: int = 0):
 # ---------------------------------------------------------------------------
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
+# fekit 的靜態檔案：只掛 css／fe／vendor 三個子資料夾，py/ 與 fekit.json 不公開
+FEKIT_DIR = os.path.join(HERE, "vendor", "fekit")
+for _sub in ("css", "fe", "vendor"):
+    _dir = os.path.join(FEKIT_DIR, _sub)
+    if os.path.isdir(_dir):
+        app.mount("/fekit/" + _sub, StaticFiles(directory=_dir), name="fekit-" + _sub)
+
 
 @app.get("/")
 def index():

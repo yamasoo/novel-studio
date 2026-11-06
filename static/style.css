@@ -1,36 +1,19 @@
+/* 舊變數 → fekit tokens 的別名。同名的不重寫，避免自我參照。 */
 :root {
-  --bg: #f6f2ea;
-  --paper: #fffdf8;
-  --side: #efe8db;
-  --ink: #2b2620;
-  --ink-2: #5d554a;
-  --ink-3: #8f8577;
-  --line: #e0d7c6;
-  --line-2: #cfc3ad;
-  --accent: #8a3b2e;
-  --accent-2: #a9533f;
-  --accent-soft: #f3e2dc;
-  --ok: #3f7a4f;
-  --ok-soft: #e1efe3;
-  --warn: #a8661a;
-  --warn-soft: #f8ead3;
-  --info: #3d6488;
-  --info-soft: #e1eaf3;
-  --bad: #a83a3a;
-  --bad-soft: #f6dfdf;
-  --shadow: 0 1px 2px rgba(60, 40, 20, .06), 0 4px 16px rgba(60, 40, 20, .06);
-  --sans: "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
-  --serif: "Noto Serif TC", "Source Han Serif TC", "PMingLiU", "MingLiU", "Songti TC", serif;
-  --mono: "Cascadia Mono", Consolas, "Noto Sans Mono CJK TC", monospace;
+  --paper: var(--bg-elev);
+  --side: var(--bg-sunken);
+  --ink: var(--fg);
+  --ink-2: var(--fg-muted);
+  --ink-3: var(--fg-faint);
+  --line-2: var(--line-strong);
+  --accent-2: var(--accent-hover);
+  --bad: var(--err);
+  --bad-soft: var(--err-soft);
+  --shadow: var(--shadow-1), var(--shadow-2);
+  --sans: var(--font-sans);
+  --serif: var(--font-serif);
+  --mono: var(--font-mono);
   --panel-w: clamp(420px, 40vw, 760px);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1d1a17; --paper: #24211d; --side: #191714; --ink: #ece5d8; --ink-2: #c3b9a8; --ink-3: #8e8476;
-    --line: #37322b; --line-2: #4a433a; --accent: #d47a62; --accent-2: #e2917a; --accent-soft: #3b2721;
-    --ok: #7fbf8d; --ok-soft: #22332a; --warn: #e0a55a; --warn-soft: #3a2e1d; --info: #8fb4d9; --info-soft: #1f2b37;
-    --bad: #e08a8a; --bad-soft: #3a2323; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
-  }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }

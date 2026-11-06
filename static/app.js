@@ -123,7 +123,6 @@ async function route() {
       S.routeName = sub;
       renderNav();
       if (sub === "overview") return await viewOverview(view);
-      if (sub === "chapters") return await viewChapters(view);
       if (sub === "ch") return await viewChapter(view, parseInt(parts[3]), q.tab);
       if (sub === "outline") return await viewOutline(view, q.f);
       if (sub === "bible") return await viewBible(view, q.t, q.f);
@@ -717,29 +716,6 @@ function alertHtml(a) {
   const more = a.details && a.details.length > 1
     ? `<details class="small" style="margin-top:4px"><summary>展開 ${a.details.length} 項</summary>${a.details.map((x) => `<div>${esc(x)}</div>`).join("")}</details>` : "";
   return `<div class="alert ${a.level}"><span class="k">${esc(a.kind)}</span><span class="t">${esc(a.text)}${more}</span>${btn}</div>`;
-}
-
-/* ------------------------------------------------------------------ 章節列表 */
-async function viewChapters(view) {
-  const chs = await api("GET", B("/chapters"));
-  const wu = unitOfBook();
-  const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
-  setTimeout(() => renderPipe(), 0);
-  view.innerHTML = `
-    <div class="page-head"><div><h1>章節</h1><div class="sub">共 ${chs.length} 章　·　點一列開啟</div></div>
-      <div class="row"><button onclick="Panel.openForm('chapter_cards',{from:${nextNo},to:${nextNo + 9}})">排接下來 10 章</button><button onclick="pipeModal()">⚡ 整章自動</button><button class="primary" onclick="Panel.openForm('write',{from:${nextNo},to:${nextNo}})">寫第${nextNo}章</button></div></div>
-    <div class="pipe-box"></div>
-    <div class="card">
-      ${chs.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>章</th><th>章名</th><th>功能</th><th>章綱</th><th style="text-align:right">${wu === "words" ? "正文詞數" : "正文字數"}</th><th>候選稿</th></tr></thead>
-        <tbody>${chs.map((c) => `<tr class="click" onclick="go('#/b/${enc(S.book)}/ch/${c.no}')">
-          <td>第${c.no}章</td><td>${esc(c.title)}</td><td class="muted">${esc(c.func)}</td>
-          <td>${c.card_file ? statusBadge(c.card_status || "草稿") : '<span class="badge b-bad">無</span>'}</td>
-          <td class="num">${c.text_file ? fmtNum(c.chars) : '<span class="muted">—</span>'}</td>
-          <td>${c.candidate_file ? `<span class="badge b-accent">待審 ${fmtNum(c.candidate_chars)} ${unitCh(wu)}</span>` : ""}</td></tr>`).join("")}
-        </tbody></table></div>`
-        : `<div class="empty"><div class="big">☰</div>還沒有任何章綱或正文。<br><button class="primary" style="margin-top:10px" onclick="Panel.openForm('chapter_cards',{from:1,to:10})">排第一批章綱</button></div>`}
-    </div>`;
 }
 
 /* ------------------------------------------------------------------ 單章 */

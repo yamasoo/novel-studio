@@ -21,7 +21,7 @@
       ["Uvicorn", "https://github.com/encode/uvicorn", "BSD-3-Clause", "網頁伺服器"],
       ["PyYAML", "https://github.com/yaml/pyyaml", "MIT", "讀取設定檔的 frontmatter"],
       ["OpenCC（opencc-python-reimplemented）", "https://github.com/yichen0831/opencc-python", "Apache-2.0", "匯入舊稿時簡體轉台灣繁體"],
-      ["marked", "https://github.com/markedjs/marked", "MIT", "在網頁上顯示 Markdown（static/vendor）"],
+      ["marked", "https://github.com/markedjs/marked", "MIT", "在網頁上顯示 Markdown（經 fekit 的 FE.md，檔案在 vendor/fekit/vendor/marked）"],
     ]],
     ["可以連接的 AI 與工具（不隨專案附帶）", [
       ["Claude Code", "https://docs.claude.com/en/docs/claude-code/overview", "", "用 Claude 訂閱執行 novel-* skills"],

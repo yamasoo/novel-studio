@@ -1016,7 +1016,7 @@
  "網頁伺服器": "Web サーバー",
  "讀取設定檔的 frontmatter": "設定ファイルの frontmatter を読み込み",
  "匯入舊稿時簡體轉台灣繁體": "古い原稿のインポート時に簡体字を台湾の繁体字へ変換",
- "在網頁上顯示 Markdown（static/vendor）": "ページに Markdown を表示（static/vendor）",
+ "在網頁上顯示 Markdown（經 fekit 的 FE.md，檔案在 vendor/fekit/vendor/marked）": "ページに Markdown を表示（fekit の FE.md 経由、ファイルは vendor/fekit/vendor/marked）",
  "可以連接的 AI 與工具（不隨專案附帶）": "接続できる AI とツール（プロジェクトには同梱されません）",
  "用 Claude 訂閱執行 novel-* skills": "Claude のサブスクリプションで novel-* スキルを実行",
  "OpenAI 相容服務": "OpenAI 互換サービス",

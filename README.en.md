@@ -345,7 +345,7 @@ novel-studio/
 │   └── skills/novel-setup, novel-style, novel-bible, novel-outline, novel-write, novel-review, novel-deslop
 ├── plugin-en/          English novel-* skills (original content, with an English check script)
 ├── plugin-ja/          Japanese novel-* skills (original content, with a Japanese check script)
-├── static/             web UI (index.html, app.js, style.css, marked.js) and static/locales/ (en.json, ja.json)
+├── static/             web UI (index.html, app.js, style.css, ns-fekit.css, page_*.js) and static/locales/ (en.json, ja.json)
 ├── tools/              developer tools (see below)
 ├── examples/           sample style sheets (styles.example.json / .xlsx), seven full style examples, ComfyUI template workflows (comfy/)
 └── demo/               tutorial slides (Traditional Chinese only), and the sample books:
@@ -387,7 +387,7 @@ If you run into a problem or have a suggestion, use "Report an issue" at the bot
 
 Released under the [MIT License](LICENSE). The in-app "About" page lists everything that was referenced or used.
 
-- marked.js (MIT), see `static/vendor/marked.LICENSE.md`
+- third-party packages (the project's own `static/vendor/` is gone; Markdown comes from the marked copy fekit ships): see `THIRD_PARTY_NOTICES.md` in the project root
 - FastAPI (MIT), Uvicorn (BSD-3-Clause), PyYAML (MIT) and [opencc-python-reimplemented](https://github.com/yichen0831/opencc-python) (Apache-2.0) are installed from `requirements.txt` and not bundled
 - Some design ideas in the skills are adapted from [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode) (MIT); the full license text is in `plugin/THIRD_PARTY_NOTICES.md` (and the same file in `plugin-en/` and `plugin-ja/`)
 - The page layout and the idea of "AI drafts go to a candidate area first" were inspired by [moshu 墨書](https://github.com/huihuijiangqiang/moshu) (its code is not used)

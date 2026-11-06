@@ -345,7 +345,7 @@ novel-studio/
 │   └── skills/novel-setup, novel-style, novel-bible, novel-outline, novel-write, novel-review, novel-deslop
 ├── plugin-en/          英語版の novel-* スキル（書き下ろし、英語のチェックスクリプトつき）
 ├── plugin-ja/          日本語版の novel-* スキル（書き下ろし、日本語のチェックスクリプトつき）
-├── static/             Web 画面（index.html、app.js、style.css、marked.js）と static/locales/（en.json、ja.json）
+├── static/             Web 画面（index.html、app.js、style.css、ns-fekit.css、page_*.js）と static/locales/（en.json、ja.json）
 ├── tools/              開発者向けツール（下記）
 ├── examples/           サンプルのスタイルシート（styles.example.json／.xlsx）、文体の完全な例 7 本、ComfyUI のワークフローのテンプレート（comfy/）
 └── demo/               チュートリアルのスライド（繁体字中国語のみ）と、サンプルブック：
@@ -387,7 +387,7 @@ novel-studio/
 
 [MIT ライセンス](LICENSE)で公開しています。アプリ内の「About」ページに、参考にしたもの、使っているものの一覧があります。
 
-- marked.js（MIT）、`static/vendor/marked.LICENSE.md` を参照
+- サードパーティのパッケージ（このプロジェクト自身の `static/vendor/` は廃止。Markdown は fekit が同梱する marked を使用）はルートの `THIRD_PARTY_NOTICES.md` を参照
 - FastAPI（MIT）、Uvicorn（BSD-3-Clause）、PyYAML（MIT）、[opencc-python-reimplemented](https://github.com/yichen0831/opencc-python)（Apache-2.0）は `requirements.txt` からインストールされ、同梱されていません
 - スキルの設計の一部は [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode)（MIT）を参考にしています。ライセンスの全文は `plugin/THIRD_PARTY_NOTICES.md`（`plugin-en/` と `plugin-ja/` にも同じファイル）にあります
 - 画面のレイアウトと「AI の下書きはまず候補エリアへ」という考え方は、[moshu 墨書](https://github.com/huihuijiangqiang/moshu)から着想を得ています（コードは使っていません）

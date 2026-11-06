@@ -331,7 +331,7 @@ novel-studio/
 │   └── skills/novel-setup、novel-style、novel-bible、novel-outline、novel-write、novel-review、novel-deslop
 ├── plugin-en/          英文版 novel-* skills（內容原創，含英文檢查腳本）
 ├── plugin-ja/          日文版 novel-* skills（內容原創，含日文檢查腳本）
-├── static/             網頁介面（index.html、app.js、style.css、marked.js）
+├── static/             網頁介面（index.html、app.js、style.css、ns-fekit.css、page_*.js）
 ├── examples/           範例樣式表（styles.example.json／.xlsx）、完整文風範例（7 種類型）、ComfyUI 範本 workflow（comfy/）
 └── demo/               新手教學簡報（只有繁體中文版）與三本示範書：
     ├── 退婚之後/                        繁體中文示範書
@@ -384,7 +384,7 @@ novel-studio/
 
 本專案以 [MIT 授權](LICENSE) 發布。工作台左下角的「關於」頁列出所有參考與使用的資源。
 
-- marked.js（MIT），見 `static/vendor/marked.LICENSE.md`
+- 第三方套件（本專案自己的 `static/vendor/` 已移除，Markdown 由 fekit 帶的 marked 提供）見根目錄 `THIRD_PARTY_NOTICES.md`
 - FastAPI（MIT）、Uvicorn（BSD-3-Clause）、PyYAML（MIT）、[opencc-python-reimplemented](https://github.com/yichen0831/opencc-python)（Apache-2.0）由 `requirements.txt` 安裝，不隨專案附帶
 - skills 的部分設計概念改寫自 [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode)（MIT），授權全文見 `plugin/THIRD_PARTY_NOTICES.md`
 - 介面規劃參考了 [moshu 墨書](https://github.com/huihuijiangqiang/moshu) 的頁面分工與「AI 草稿先進候選區」的概念（未使用其程式碼）

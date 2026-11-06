@@ -117,7 +117,6 @@ async function route() {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
     if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
     if (parts[0] === "import") { S.routeName = "import"; return await viewImport(view); }
-    if (parts[0] === "guide") { S.routeName = "guide"; await setBook(null, true); return await viewGuide(view); }
     if (parts[0] === "b" && parts[1]) {
       await setBook(parts[1]);
       const sub = parts[2] || "overview";
@@ -3257,24 +3256,6 @@ function attachPicker(input, opts, append) {
       input.dispatchEvent(new Event("input"));
     });
   };
-}
-
-async function viewGuide(view) {
-  const lang = (window.I18N && I18N.lang) || "zh-TW";
-  let text = null;
-  for (const u of [`/static/guide/${lang}.md`, "/static/guide/zh-TW.md"]) {
-    try {
-      const r = await fetch(u, { cache: "no-cache" });
-      if (r.ok) { text = await r.text(); break; }
-    } catch (e) { /* 換下一個 */ }
-  }
-  if (!text) {
-    view.innerHTML = `<div class="card empty"><div class="big">?</div>${esc(t("找不到說明文件。"))}</div>`;
-    return;
-  }
-  view.innerHTML = `<div class="page-head"><div><h1>${esc(t("使用說明"))}</h1>
-      <div class="sub">${esc(t("第一次用先看「兩個流程」；名詞看不懂再查名詞表。"))}</div></div></div>
-    <div class="card"><div class="md"${LA()}>${md(text)}</div></div>`;
 }
 
 

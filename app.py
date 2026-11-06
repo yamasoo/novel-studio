@@ -171,7 +171,8 @@ async def guard_mutations(request: Request, call_next):
     if request.method not in SAFE_METHODS:
         if not same_origin(request):
             return JSONResponse({"error": "拒絕跨來源的變更請求（請從工作台頁面操作）"}, status_code=403)
-        if not secrets.compare_digest(request.headers.get(TOKEN_HEADER, "") or "", MUTATE_TOKEN):
+        given = request.headers.get("X-FE-Token") or request.headers.get(TOKEN_HEADER) or ""
+        if not secrets.compare_digest(given, MUTATE_TOKEN):
             return JSONResponse({"error": "請求權杖不正確，請重新整理頁面再試一次"}, status_code=403)
     return await call_next(request)
 
@@ -2520,13 +2521,21 @@ def index():
     # 程式更新後瀏覽器常拿舊的 app.js：網址加上檔案修改時間，檔案一改就會重新下載
     st = os.path.join(HERE, "static")
     html = project.read_text(os.path.join(st, "index.html"))
-    for name in ("app.js", "style.css"):
+
+    def stamp(m):
+        # index.html 裡每個 /static/... 的 src／href 都補上 mtime；找不到檔案就原樣放回。
+        # /fekit/ 不加：那邊由 sync_kit.py 換版，靠 fekit.json 的版本與瀏覽器 revalidate。
+        name = m.group(2)[len("/static/"):]
         try:
             v = int(os.path.getmtime(os.path.join(st, name)))
         except OSError:
-            continue
-        html = html.replace('/static/%s"' % name, '/static/%s?v=%d"' % (name, v))
+            return m.group(0)
+        return '%s%s?v=%d"' % (m.group(1), m.group(2), v)
+
+    html = re.sub(r'((?:src|href)=")(/static/[^"?]+)"', stamp, html)
     # 一次性權杖：只注入給這個頁面，變更端點會驗它（前端 fetch 由 TOKEN_JS 自動帶上）
+    # fekit 的新程式讀 <meta name="fe-token">；舊的 TOKEN_JS 照留，讓還沒換掉的 fetch 繼續帶 X-NS-Token
+    html = html.replace("</head>", '<meta name="fe-token" content="%s">\n<meta name="fe-app" content="novel-studio">\n</head>' % MUTATE_TOKEN, 1)
     html = html.replace("</head>", "<script>%s</script>\n</head>" % TOKEN_JS, 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 

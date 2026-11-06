@@ -31,17 +31,14 @@ function fmtTime(t) {
   const hm = d.toTimeString().slice(0, 5);
   return d.toDateString() === now.toDateString() ? "今天 " + hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
 }
-function go(h) { if (location.hash === h) route(); else location.hash = h; }
+function go(h) { return FE.go(h); }
 window.go = go;
 
+// 轉接：舊呼叫端 api(method, url, body) 不動，實際走 FE.api（自動帶 X-FE-Token、讀 detail）
 async function api(method, url, body) {
-  const opt = { method, headers: {} };
-  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
-  const r = await fetch(url, opt);
-  let data = null;
-  try { data = await r.json(); } catch (e) { /* ignore */ }
-  if (!r.ok) throw new Error((data && (data.error || data.detail)) || ("HTTP " + r.status));
-  return data;
+  const opts = { method: String(method || "GET").toUpperCase() };
+  if (body !== undefined) opts.body = body;
+  return FE.api(url, opts);
 }
 const B = (path) => `/api/books/${enc(S.book)}${path}`;
 const JB = (job, path) => `/api/books/${enc((job && job.book) || S.book)}${path}`;  // 任務所屬的書（共用庫任務掛在 _共用）
@@ -94,10 +91,28 @@ function parseHash() {
   return { parts, q };
 }
 
+// 舊頁競態（轉移計畫 §5.5）：route() 一進來就換 token，舊頁晚回來的寫入會被丟掉。
+let routeToken = 0;
+
+function guardedView(el, token) {
+  return new Proxy(el, {
+    set(target, prop, value) {
+      if (token !== routeToken && (prop === "innerHTML" || prop === "textContent")) return true;
+      return Reflect.set(target, prop, value);
+    },
+    get(target, prop) {
+      if (prop === "replaceChildren" && token !== routeToken) return () => {};
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
 async function route() {
+  const token = ++routeToken;
   if (!$("#modal").hidden) closeModal();
   const { parts, q } = parseHash();
-  const view = $("#view");
+  const view = guardedView($("#view"), token);
   try {
     if (parts[0] === "settings") { S.routeName = "settings"; await setBook(null, true); return await viewSettings(view); }
     if (parts[0] === "shared") { S.routeName = "shared"; return await viewShared(view, q.t, q.f); }
@@ -132,8 +147,7 @@ async function route() {
     if (S.hl) { const t = S.hl; S.hl = null; highlightTerms(view, t); }
   }
 }
-window.addEventListener("hashchange", route);
-function refresh() { route(); }
+function refresh() { return FE.route(); }
 
 async function setBook(id, keep) {
   if (id === S.book) return;
@@ -692,9 +706,9 @@ window.setBookLang = async (v) => {
   try {
     await api("POST", B("/lang"), { lang: v }); S.bookLang = v; toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]);
     S.books = (await api("GET", "/api/books")).books;      // 字數單位跟著語言換（字／詞）
-    route && route();
+    refresh();
   }
-  catch (e) { fail(e); route && route(); }
+  catch (e) { fail(e); refresh(); }
 };
 function alertHtml(a) {
   let btn = "";
@@ -3691,20 +3705,4 @@ $("#btn-stop").onclick = async () => { if (S.job) await api("POST", `/api/jobs/$
 $("#reply-btn").onclick = () => Panel.reply();
 $("#reply-text").addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") Panel.reply(); });
 
-/* ------------------------------------------------------------------ 啟動 */
-(async function init() {
-  try {
-    const [cfg, acts, books] = await Promise.all([api("GET", "/api/config"), api("GET", "/api/actions"), api("GET", "/api/books")]);
-    S.config = cfg.config; S.claudeFound = cfg.claude_found; S.actions = acts; S.books = books.books;
-  } catch (e) { fail(e); }
-  $("#panel-log").innerHTML = '<div class="ev-empty">從上方選一個動作，或在頁面上按按鈕。<br>Claude 的過程與匯報會顯示在這裡。</div>';
-  let open = false;
-  try { open = localStorage.getItem("panelOpen") === "1"; } catch (e) { /* ignore */ }
-  Panel.toggle(open);
-  try { S.provider = localStorage.getItem("provider") || null; } catch (e) { /* ignore */ }
-  if (S.provider && !provChoices().find((p) => p.id === S.provider)) S.provider = null;
-  $("#prov-sel").onchange = (ev) => Panel.setProv(ev.target.value);
-  Panel.renderProv();
-  Panel.renderActions();
-  route();
-})();
+/* 啟動搬到 boot.js：本檔只定義，載入後不會自己 init／route。 */

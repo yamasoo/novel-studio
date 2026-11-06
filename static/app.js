@@ -68,9 +68,9 @@ function md(text) {
   const html = marked.parse(text || "", { gfm: true, breaks: false });
   return html.replace(/<script[\s\S]*?<\/script>/gi, "");
 }
+// 對照表在 ns_shared.js（單一來源）；這裡只把節點版轉回字串，呼叫端與輸出都不變。
 function statusBadge(s) {
-  const m = { "已寫": "b-ok", "已確認": "b-info", "草稿": "b-warn", "正式": "b-ok", "已回收": "b-ok", "推進中": "b-info", "已埋": "b-warn", "廢棄": "" };
-  return s ? `<span class="badge ${m[s] || ""}">${esc(s)}</span>` : "";
+  return nsShared.html(nsShared.statusBadgeNode(s));
 }
 
 function modal(html, onMount) {
@@ -1806,7 +1806,7 @@ async function viewJobs(view) {
       </tbody></table>` : '<div class="empty">還沒有任何任務。</div>'}</div>`;
 }
 function jobBadge(s) {
-  return { running: '<span class="badge b-ok">執行中</span>', done: '<span class="badge">完成</span>', error: '<span class="badge b-bad">失敗</span>', cancelled: '<span class="badge b-warn">已停止</span>' }[s] || esc(s);
+  return nsShared.html(nsShared.jobBadgeNode(s));
 }
 
 /* ------------------------------------------------------------------ 設定頁 */

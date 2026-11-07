@@ -15,7 +15,7 @@ import shutil
 import time
 import urllib.request
 
-from . import contract, context, project, prompts, shared, tracking, volume
+from . import contract, context, project, prompts, shared, textguard, tracking, volume
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -162,8 +162,10 @@ def apply_appends(book_dir, appends):
             continue
         tracking.backup(book_dir, full, "追加前")
         added = ("\n" if not cur.endswith("\n") else "") + "\n".join(new_rows) + "\n"
+        added, note = textguard.guard_text(book_dir, added)
         project.write_atomic(full, cur + added)
-        done.append("追加名詞 %d 筆：%s" % (len(new_rows), "、".join(r.split("|")[1].strip() for r in new_rows)))
+        done.append("追加名詞 %d 筆：%s%s" % (len(new_rows), "、".join(r.split("|")[1].strip() for r in new_rows),
+                                            ("（%s）" % note) if note else ""))
         if dup:
             skipped.append("已存在、略過：%s" % "、".join(dup))
     return done, skipped
@@ -188,8 +190,9 @@ def apply_blocks(book_dir, files, dels, appends=None):
             verb = "更新"
         else:
             verb = "新增"
-        project.write_atomic(full, content.strip() + "\n")
-        done.append("%s %s" % (verb, rel))
+        text, note = textguard.guard_text(book_dir, content.strip() + "\n")
+        project.write_atomic(full, text)
+        done.append("%s %s%s" % (verb, rel, ("（%s）" % note) if note else ""))
     for rel in dels:
         try:
             full = project.safe_path(book_dir, rel)

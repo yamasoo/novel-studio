@@ -8,6 +8,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from studio import textguard
 
+try:
+    import opencc  # noqa: F401
+    HAS_OPENCC = True
+except Exception:
+    HAS_OPENCC = False
+
+
+def make_book(lang=None):
+    """造一個只有 .studio/lang 的假書目錄（沒有就代表預設的繁體中文）。"""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="ns-lang-")
+    if lang:
+        os.makedirs(os.path.join(d, ".studio"), exist_ok=True)
+        with open(os.path.join(d, ".studio", "lang"), "w", encoding="utf-8", newline="\n") as f:
+            f.write(lang + "\n")
+    return d
+
 
 class SimpCountTest(unittest.TestCase):
     def test_簡體字算得出來(self):
@@ -55,6 +72,80 @@ class LangMismatchZhtwTest(unittest.TestCase):
         cn = "這是一段很長很長的中文內容而且完全沒有用到任何假名總共超過二十個字"
         self.assertTrue(textguard.lang_mismatch({"a": cn}, "ja")[0])
         self.assertFalse(textguard.lang_mismatch({"a": "これは長い日本語の文章です、ちゃんと仮名があります"}, "ja")[0])
+
+
+class GuardTextTest(unittest.TestCase):
+    def test_少量簡體轉成繁體(self):
+        if not HAS_OPENCC:
+            self.skipTest("沒有 OpenCC")
+        d = make_book()
+        out, note = textguard.guard_text(d, "他这时走了过来。")
+        self.assertEqual(out, "他這時走了過來。")
+        self.assertIn("已轉繁 4 處", note)   # 这、时、过、来
+
+    def test_繁體不動(self):
+        d = make_book()
+        text = "這是繁體，皇后與公里都正常。"
+        self.assertEqual(textguard.guard_text(d, text), (text, ""))
+
+    def test_英文書不動(self):
+        if not HAS_OPENCC:
+            self.skipTest("沒有 OpenCC")
+        d = make_book("en")
+        text = "他这时走了过来。"
+        self.assertEqual(textguard.guard_text(d, text), (text, ""))
+
+    def test_整段偏簡體只回報不轉(self):
+        d = make_book()
+        text = "这" * (textguard.SIMP_MAX + 5)
+        out, note = textguard.guard_text(d, text)
+        self.assertEqual(out, text)
+        self.assertIn("沒轉", note)
+        self.assertIn("整段偏簡體", note)
+
+    def test_沒有OpenCC只回報(self):
+        import sys
+        from unittest import mock
+        d = make_book()
+        text = "他这时走了过来。"
+        with mock.patch.dict(sys.modules, {"opencc": None}):
+            out, note = textguard.guard_text(d, text)
+        self.assertEqual(out, text)
+        self.assertIn("沒有 OpenCC", note)
+
+    def test_白名單裡的專有名詞不動(self):
+        if not HAS_OPENCC:
+            self.skipTest("沒有 OpenCC")
+        d = make_book()
+        with open(os.path.join(d, ".去AI味白名單"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("这明\n")
+        out, note = textguard.guard_text(d, "这明这时来了。")
+        self.assertIn("这明", out)          # 名字原樣
+        self.assertIn("這時", out)          # 其他照轉
+        self.assertIn("已轉繁 3 處", note)   # 第二個「这」、时、来
+
+    def test_不是字串就原樣回傳(self):
+        d = make_book()
+        self.assertEqual(textguard.guard_text(d, ""), ("", ""))
+        self.assertEqual(textguard.guard_text(d, None), (None, ""))
+
+
+class GuardDataTest(unittest.TestCase):
+    def test_逐層處理字串值(self):
+        if not HAS_OPENCC:
+            self.skipTest("沒有 OpenCC")
+        d = make_book()
+        data = {"角色": [{"一句話": "他这时来了。"}], "數量": 3, "_note": "这"}
+        out, note = textguard.guard_data(d, data)
+        self.assertEqual(out["角色"][0]["一句話"], "他這時來了。")
+        self.assertEqual(out["數量"], 3)
+        self.assertEqual(out["_note"], "这")     # 底線開頭不動
+        self.assertIn("已轉繁", note)
+
+    def test_沒問題時說明為空(self):
+        d = make_book()
+        data = {"a": "這是繁體"}
+        self.assertEqual(textguard.guard_data(d, data), (data, ""))
 
 
 if __name__ == "__main__":

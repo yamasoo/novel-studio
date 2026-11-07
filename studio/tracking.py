@@ -8,7 +8,7 @@ import re
 import subprocess
 import time
 
-from . import project, prompts
+from . import project, prompts, textguard
 
 STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
@@ -193,6 +193,9 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     """回寫一章的追蹤資料。回傳變更摘要（給匯報用）。"""
     label = chapter_label(no)
     log = []
+    data, note = textguard.guard_data(book_dir, data)
+    if note:
+        log.append(note)
 
     # 1. 章節摘要
     s = data.get("summary") or {}

@@ -1686,8 +1686,10 @@ async def drift_plan(book_id: str, req: Request):
         return {"plan_md": "", "draft": "", "volume_file": drift.volume_rel(d, b),
                 "error": res["error"]}
     text = drift.plan_md(res, a, b)
-    rel = drift.save_plan(d, a, b, text)
-    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b), "error": ""}
+    notes = []
+    rel = drift.save_plan(d, a, b, text, notes=notes)
+    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b), "error": "",
+            "warnings": notes}
 
 
 @app.post("/api/books/{book_id}/drift/apply")
@@ -1702,8 +1704,9 @@ async def drift_apply(book_id: str, req: Request):
     p = wrap(lambda: project.safe_path(d, draft))
     if not os.path.isfile(p) or not draft.startswith(("候選/", "大綱/草稿/")):
         raise HTTPException(400, "草稿路徑不對：%s" % draft)
-    rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b))
-    return {"volume_file": rel, "backup": os.path.basename(bak or "")}
+    notes = []
+    rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b, notes))
+    return {"volume_file": rel, "backup": os.path.basename(bak or ""), "warnings": notes}
 
 
 # ---------------------------------------------------------------------------
@@ -1979,8 +1982,9 @@ async def contract_build(book_id: str, req: Request):
         body = await req.json() if (req.headers.get("content-type") or "").startswith("application/json") else {}
     except ValueError:
         body = {}
-    rel = wrap(lambda: contract.ensure(d, force=bool((body or {}).get("force"))))
-    return {"path": contract.REL, "changed": bool(rel), "text": contract.text(d)}
+    notes = []
+    rel = wrap(lambda: contract.ensure(d, force=bool((body or {}).get("force")), notes=notes))
+    return {"path": contract.REL, "changed": bool(rel), "text": contract.text(d), "warnings": notes}
 
 
 @app.get("/api/books/{book_id}/search")

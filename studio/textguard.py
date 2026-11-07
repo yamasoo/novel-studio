@@ -176,3 +176,119 @@ def flag_mismatch(data):
             elif isinstance(v, dict):
                 flag_mismatch(v)
     return data
+
+
+# ---------------------------------------------------------------------------
+# 落檔前的繁體保護：少量簡體字逐字轉繁，整段偏簡體則原樣放行並回報
+# ---------------------------------------------------------------------------
+SIMP_MAX = 20          # 少於這數量的簡體字自動逐字轉繁；更多代表整段漂移，交給作者重跑
+
+_PUA = "\ue000"
+
+
+def s2t_map(chars):
+    """簡體字 → 繁體字：OpenCC 逐字對照；一簡對多繁（長度不是 1）的字不轉。沒有 OpenCC 回傳 {}。"""
+    if not chars:
+        return {}
+    try:
+        from opencc import OpenCC
+        cc = OpenCC("s2t")
+    except Exception:
+        return {}
+    out = {}
+    for ch in sorted(chars):
+        try:
+            t = cc.convert(ch)
+        except Exception:
+            continue
+        if len(t) == 1 and t != ch:
+            out[ch] = t
+    return out
+
+
+def _mask(text, terms):
+    """白名單詞換成私用區佔位字，轉完再放回；佔位字不含中日韓字，標點規則不會動到它。"""
+    table = {}
+    for i, term in enumerate(t for t in terms if t):
+        if term not in text:
+            continue
+        ph = "%s%d\ue001" % (_PUA, i)
+        text = text.replace(term, ph)
+        table[ph] = term
+    return text, table
+
+
+def _book_lang(book_dir):
+    try:
+        from . import lang as lang_mod
+        return lang_mod.book_lang(book_dir)
+    except Exception:
+        return ""
+
+
+def _guard_one(book_dir, text):
+    """回傳 (文字, 轉繁處數, 沒轉的簡體字數)。"""
+    if not text or not isinstance(text, str) or _book_lang(book_dir) != "zh-TW":
+        return text, 0, 0
+    simp = simp_count(text)
+    if not simp:
+        return text, 0, 0
+    if simp > SIMP_MAX:
+        return text, 0, simp
+    m = _zh_module()
+    if not m:
+        return text, 0, simp
+    mapping = s2t_map({ch for ch in text if ch in m.SIMPLIFIED_ONLY})
+    if not mapping:
+        return text, 0, simp
+    masked, table = _mask(text, m.load_whitelist(book_dir))
+    hits = 0
+    for k, v in mapping.items():
+        hits += masked.count(k)
+        masked = masked.replace(k, v)
+    for ph, term in table.items():
+        masked = masked.replace(ph, term)
+    return masked, hits, 0
+
+
+def guard_text(book_dir, text):
+    """繁體書的產出在落檔前過一道，回傳 (文字, 說明)；說明空字串代表沒動到內容。"""
+    out, hits, left = _guard_one(book_dir, text)
+    if hits:
+        return out, "簡體字已轉繁 %d 處" % hits
+    if left:
+        why = "整段偏簡體" if left > SIMP_MAX else "沒有 OpenCC 可轉"
+        return out, "有 %d 個簡體字沒轉（%s），建議重跑這個步驟" % (left, why)
+    return out, ""
+
+
+def guard_data(book_dir, data):
+    """把 dict／list 裡的字串值都過一次 guard_text；回傳 (新資料, 說明)。"""
+    hit = left = 0
+
+    def walk(v):
+        nonlocal hit, left
+        if isinstance(v, dict):
+            return {k: (val if str(k).startswith("_") else walk(val)) for k, val in v.items()}
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, str) and v:
+            out, h, l = _guard_one(book_dir, v)
+            hit += h
+            left += l
+            return out
+        return v
+
+    out = walk(data)
+    if hit:
+        note = "簡體字已轉繁 %d 處" % hit
+        return out, note + ("；另有 %d 個沒轉" % left if left else "")
+    if left:
+        return out, "有 %d 個簡體字沒轉（整段偏簡體或沒有 OpenCC），建議重跑" % left
+    return out, ""
+
+
+def notify(note):
+    """沒有回報通道的地方（例如續寫合約）把語言修正寫到後端視窗。"""
+    if note:
+        print("【語言】%s" % note, flush=True)

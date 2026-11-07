@@ -21,7 +21,7 @@ sys.path.insert(0, ROOT)
 HAN = re.compile(r"[㐀-鿿豈-﫿]")
 KANA = re.compile("[" + chr(0x3040) + "-" + chr(0x30fa) + chr(0x30fc) + "-" + chr(0x30ff) + "]")   # 平假名＋片假名；中點「・」(U+30FB) 不算
 VAR = re.compile(r"\{[A-Za-z_0-9]*\}")
-SAME = "=="   # 同形標記：三語相同，執行期顯示原文（static/i18n.js 會略過這個值）
+SAME = "=="   # 同形標記：三語相同，執行期顯示原文（fekit 的 fe/i18n.js 會略過這個值）
 
 # ---- 英文包允許出現的中文：先把這些樣式從字串拿掉，再看還有沒有漢字 ----
 _PATH_HEAD = r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|\.studio)"

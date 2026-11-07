@@ -305,7 +305,7 @@ After every write-back (adopting, filling in, the finalize step of a full-chapte
 - A change does **not overwrite**: the old row gets an end chapter and a new row is opened, so the history stays. A blank end chapter means currently valid. During write-back the AI reports only relationships that changed, and the studio closes the old row and opens the new one; re-running the write-back of a chapter does not create duplicates.
 - Writing sends only currently valid relationships between characters on stage; review sends the history too; during write-back a reminder appears if a character state records a relationship change but the table was not updated. Revising an older chapter does not touch the table (the current relationship follows the newest chapter).
 - New books (before chapter 15 is written back): created automatically. Books with many chapters already written: on Threads & timeline → Relationships, press "Create a draft from character files". The studio turns each character file's "## 關係" lines ("person: description") into a table draft, **without a model and without tokens**; review and edit, then "Adopt draft". Start chapters stay empty and fill in as write-backs happen; "attitude" is empty for you to fill. The "## 關係" section in character files is kept as a readable summary.
-- **Relationship map.** Switch to "Relationship map (grouped by faction)" at the top of the Relationships page. Each faction is a box with its members inside, and arrows show relationships between characters (A toward B and B toward A are drawn separately). By default only the lead and main supporting characters are shown; tick "Show supporting cast and villains" to add the rest. Drag the "up to chapter N" slider to see the relationships at that point; lines that changed in that chapter are orange. Click a person or faction to list all relationships they have toward others and others toward them. Faction members come from the "related characters", leader and main members fields of `設定/勢力/`. It is plain SVG and needs no external package.
+- **Relationship map.** Switch to "Relationship map (grouped by faction)" at the top of the Relationships page. Each faction is a box with its members inside, and arrows show relationships between characters (A toward B and B toward A are drawn separately). By default only the lead and main supporting characters are shown; tick "Show supporting cast and villains" to add the rest. Drag the "up to chapter N" slider to see the relationships at that point; The panel below the map lists all relationships the selected person or faction has toward others and others toward them (with start and end chapter). Faction members come from the "related characters", leader and main members fields of `設定/勢力/`. It is drawn with fekit's `FE.graph` (Cytoscape, shipped in `vendor/fekit/`; nothing is loaded from the network).
 
 ## Project layout
 
@@ -345,7 +345,8 @@ novel-studio/
 │   └── skills/novel-setup, novel-style, novel-bible, novel-outline, novel-write, novel-review, novel-deslop
 ├── plugin-en/          English novel-* skills (original content, with an English check script)
 ├── plugin-ja/          Japanese novel-* skills (original content, with a Japanese check script)
-├── static/             web UI (index.html, app.js, style.css, marked.js) and static/locales/ (en.json, ja.json)
+├── static/             web UI (index.html, app.js, style.css, ns-fekit.css, page_*.js) and static/locales/ (en.json, ja.json)
+├── vendor/fekit/       vendored fekit (fe/, css/, py/fekit/, Cytoscape; only written by tools/sync_kit.py)
 ├── tools/              developer tools (see below)
 ├── examples/           sample style sheets (styles.example.json / .xlsx), seven full style examples, ComfyUI template workflows (comfy/)
 └── demo/               tutorial slides (Traditional Chinese only), and the sample books:
@@ -387,7 +388,7 @@ If you run into a problem or have a suggestion, use "Report an issue" at the bot
 
 Released under the [MIT License](LICENSE). The in-app "About" page lists everything that was referenced or used.
 
-- marked.js (MIT), see `static/vendor/marked.LICENSE.md`
+- third-party packages (the project's own `static/vendor/` is gone; Markdown comes from the marked copy fekit ships): see `THIRD_PARTY_NOTICES.md` in the project root
 - FastAPI (MIT), Uvicorn (BSD-3-Clause), PyYAML (MIT) and [opencc-python-reimplemented](https://github.com/yichen0831/opencc-python) (Apache-2.0) are installed from `requirements.txt` and not bundled
 - Some design ideas in the skills are adapted from [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode) (MIT); the full license text is in `plugin/THIRD_PARTY_NOTICES.md` (and the same file in `plugin-en/` and `plugin-ja/`)
 - The page layout and the idea of "AI drafts go to a candidate area first" were inspired by [moshu 墨書](https://github.com/huihuijiangqiang/moshu) (its code is not used)

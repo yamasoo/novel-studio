@@ -22,15 +22,19 @@ import webbrowser
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
+# vendor/fekit/py 不是 site-packages，先加進 sys.path；要在 from fekit 之前
+sys.path.insert(0, os.path.join(HERE, "vendor", "fekit", "py"))
+from fekit import install as fekit_install  # noqa: E402
+import ns_jobs  # noqa: E402  舊任務事件 → fekit 任務增量的轉接層（repo 根）
 
-VERSION = "1.18.0"
+VERSION = "2.0.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -60,6 +64,7 @@ DEFAULT_CONFIG = {
     "stale_character": 15,
     "host": "127.0.0.1",
     "port": 8765,
+    "allowed_hosts": [],                 # 綁 0.0.0.0 給 LAN 用時，額外允許的 Host（例如內網名稱）
 }
 
 _cfg_lock = threading.Lock()
@@ -137,43 +142,10 @@ def provider_ids():
 app = FastAPI(title="小說工作台")
 
 # ---------------------------------------------------------------------------
-# 變更端點的守門（報告 S2）
-# 只綁 127.0.0.1 擋不住瀏覽器的 CSRF 與 DNS rebinding，所以：
-#   1. 變更方法（POST／PUT／DELETE…）只接受「同來源」請求：Origin 的 host 要等於這次的 Host，
-#      Sec-Fetch-Site 要是 same-origin／none。
-#   2. 變更方法還要帶一次性權杖 X-NS-Token：每次啟動產生，由 index() 注入頁面，
-#      前端在 index.html 載入時包一層 fetch 自動加上（見 TOKEN_JS）。
-# 這兩道都不影響 GET／SSE；直接用 curl 打 API 的腳本要自己帶權杖（重新啟動就失效）。
+# 變更端點的守門（報告 S2）：改由 fekit 的 LocalGuard 負責
+# 所有請求驗 Host（擋 DNS rebinding），變更方法再加驗 Sec-Fetch-Site／Origin／X-FE-Token。
+# 實作在 vendor/fekit/py/fekit/guard.py，於下面的 fekit_install() 時裝上。
 # ---------------------------------------------------------------------------
-MUTATE_TOKEN = secrets.token_urlsafe(32)
-TOKEN_HEADER = "x-ns-token"
-SAFE_METHODS = frozenset(["GET", "HEAD", "OPTIONS"])
-TOKEN_JS = (
-    "window.__NS_TOKEN__=%s;(function(){var f=window.fetch;window.fetch=function(u,o){"
-    "o=o||{};var h=new Headers(o.headers||{});h.set('X-NS-Token',window.__NS_TOKEN__);"
-    "o.headers=h;return f(u,o)};})();" % json.dumps(MUTATE_TOKEN)
-)
-
-
-def same_origin(request):
-    """請求是不是同一個來源（擋跨站表單與 DNS rebinding）。"""
-    site = (request.headers.get("sec-fetch-site") or "").strip().lower()
-    if site and site not in ("same-origin", "none"):
-        return False
-    origin = request.headers.get("origin")
-    if not origin:
-        return True          # 老瀏覽器不送 Origin：還是要靠下面的權杖
-    return urlsplit(origin).netloc.lower() == (request.headers.get("host") or "").lower()
-
-
-@app.middleware("http")
-async def guard_mutations(request: Request, call_next):
-    if request.method not in SAFE_METHODS:
-        if not same_origin(request):
-            return JSONResponse({"error": "拒絕跨來源的變更請求（請從工作台頁面操作）"}, status_code=403)
-        if not secrets.compare_digest(request.headers.get(TOKEN_HEADER, "") or "", MUTATE_TOKEN):
-            return JSONResponse({"error": "請求權杖不正確，請重新整理頁面再試一次"}, status_code=403)
-    return await call_next(request)
 
 
 
@@ -759,10 +731,8 @@ async def shared_style_compare(name: str, req: Request):
     return {"rows": shared.compare(target, actual), "actual": actual}
 
 
-@app.post("/api/shared/styles/design")
-async def shared_style_design(req: Request):
-    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）。"""
-    body = await req.json()
+def start_shared_style(body):
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）；回傳啟動後的任務。"""
     lib = library()
     params = {k: body.get(k) for k in ("mode", "name", "genre", "feel", "refs", "pov", "readers", "avoid", "note", "overwrite")}
     text, names = _sample_text(body)
@@ -797,7 +767,13 @@ async def shared_style_design(req: Request):
         job = RUNNER.start(job)
     except RuntimeError as e:
         raise HTTPException(409, str(e))
-    return job.to_dict()
+    return job
+
+
+@app.post("/api/shared/styles/design")
+async def shared_style_design(req: Request):
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）。"""
+    return start_shared_style(await req.json()).to_dict()
 
 
 @app.post("/api/shared/styles/save")
@@ -2503,9 +2479,53 @@ async def job_events(job_id: str, request: Request, since: int = 0):
 
 
 # ---------------------------------------------------------------------------
+# fekit 面板的任務端點（docs/02_API合約.md 第 4 節；轉接層在 ns_jobs.py）
+# ---------------------------------------------------------------------------
+def fe_launch_reply(book_id, job, text):
+    """Fekit 面板的 reply：一般任務接續同一本書；文風設計接 _共用。"""
+    if isinstance(job, dict):
+        data = job
+    else:
+        data = job.to_dict(True)
+    meta = data.get("meta") or {}
+    if data.get("status") == "running":
+        raise HTTPException(409, "還在執行，請等這一輪結束")
+    if meta.get("action") == "style_design":
+        body = {
+            "mode": "revise",
+            "name": (meta.get("params") or {}).get("name"),
+            "note": text,
+            "provider": data.get("provider"),
+            "lang": (meta.get("params") or {}).get("lang"),   # 少了它會用錯語言組提示詞
+        }
+        return start_shared_style(body)      # 把原本 /api/shared/styles/design 的內容抽成這支
+    if book_id != data.get("book"):
+        raise HTTPException(409, "這個任務不屬於這本書")
+    prov = get_provider(data.get("provider"))
+    return launch_job(book_id, book_dir(book_id), "reply", {"text": text}, prov,
+                      resume=data.get("session_id"), text=text)
+
+
+ns_jobs.install(app, RUNNER, book_dir, runner_mod.load_history, runner_mod.load_job_file, fe_launch_reply)
+
+# fekit 的本機保護與頁面權杖（取代原本 app.py 自製的守門中介層）。
+# fs=False：/api/fs/list 這支工作台已經有自己的實作，再讓 fekit 掛一次會撞路由。
+# allowed_hosts：綁 0.0.0.0 給同一個區網的其他電腦用時，把它的 Host 名稱填進設定才進得來。
+fe = fekit_install(app, app_name="novel-studio", fs=False,
+                   allowed_hosts=tuple(CONFIG.get("allowed_hosts") or ()))
+
+
+# ---------------------------------------------------------------------------
 # 靜態頁面
 # ---------------------------------------------------------------------------
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
+
+# fekit 的靜態檔案：只掛 css／fe／vendor 三個子資料夾，py/ 與 fekit.json 不公開
+FEKIT_DIR = os.path.join(HERE, "vendor", "fekit")
+for _sub in ("css", "fe", "vendor"):
+    _dir = os.path.join(FEKIT_DIR, _sub)
+    if os.path.isdir(_dir):
+        app.mount("/fekit/" + _sub, StaticFiles(directory=_dir), name="fekit-" + _sub)
 
 
 @app.get("/")
@@ -2513,15 +2533,20 @@ def index():
     # 程式更新後瀏覽器常拿舊的 app.js：網址加上檔案修改時間，檔案一改就會重新下載
     st = os.path.join(HERE, "static")
     html = project.read_text(os.path.join(st, "index.html"))
-    for name in ("app.js", "style.css"):
+
+    def stamp(m):
+        # index.html 裡每個 /static/... 的 src／href 都補上 mtime；找不到檔案就原樣放回。
+        # /fekit/ 不加：那邊由 sync_kit.py 換版，靠 fekit.json 的版本與瀏覽器 revalidate。
+        name = m.group(2)[len("/static/"):]
         try:
             v = int(os.path.getmtime(os.path.join(st, name)))
         except OSError:
-            continue
-        html = html.replace('/static/%s"' % name, '/static/%s?v=%d"' % (name, v))
-    # 一次性權杖：只注入給這個頁面，變更端點會驗它（前端 fetch 由 TOKEN_JS 自動帶上）
-    html = html.replace("</head>", "<script>%s</script>\n</head>" % TOKEN_JS, 1)
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+            return m.group(0)
+        return '%s%s?v=%d"' % (m.group(1), m.group(2), v)
+
+    html = re.sub(r'((?:src|href)=")(/static/[^"?]+)"', stamp, html)
+    # 一次性權杖由 fekit 注入（<meta name="fe-token">／<meta name="fe-app">，前端 fetch 自己帶）
+    return HTMLResponse(fe.inject(html), headers={"Cache-Control": "no-cache"})
 
 
 def serve():

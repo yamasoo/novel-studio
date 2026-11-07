@@ -1,5 +1,45 @@
 # 更新紀錄
 
+## 2.0.0（2026-11-07）
+
+- fekit 轉移 P5：外殼換成 `FE.shell`、後端守門換成 `fekit.install()`、舊檔清理；18 頁功能與網址都不變
+- 安全
+  - 變更端點改由 fekit 的 `LocalGuard` 驗 Host／Origin／`X-FE-Token`；**舊的 `X-NS-Token` 不再接受**，用 curl／腳本打 API 的人要改標頭
+  - 綁 `0.0.0.0` 的內網使用者：`LocalGuard` 預設只放行 127.0.0.1／localhost／[::1]，要在 `config.json` 加 `"allowed_hosts": ["192.168.x.x"]`，否則連開頁面都會 403（設定預設值已加空清單）
+  - 錯誤格式統一成 fekit 合約：`422` 由 `{"detail":[…]}` 變 `{"error","code","fields"}`；未預期例外的 500 改通用訊息，完整堆疊改由 logging 印（後端視窗不再有「完整堆疊在後端視窗」那句提示）
+- 介面
+  - 三欄外殼換成 fekit 的 `FE.shell`：頂列放品牌／麵包屑／語言選單／執行者選單／AI 面板開關；左欄可拖曳、可收合，窄螢幕變抽屜（Esc 關閉）
+  - 面板完全由 `FE.jobs.panel` 提供，舊的 `#panel`／`#panel-resizer`／`#panel-fab` DOM 移除
+  - 舊側欄底部的「回報問題」改列在導覽的「工作台」群組
+  - 語言與面板開關／寬度改存 `FE.store`；舊的 `ns_lang`／`panelOpen`／`panelW`／`provider`／`actsCollapsed`／`search-scopes` 第一次啟動會自動搬過去
+- 內部
+  - 刪掉 `static/i18n.js`、`static/ns_i18n.js`（`window.t`／`window.I18N` 墊片），頁面改用 `FE.t`／`FE.i18n.*`
+  - 刪掉字串型 helper `bookOpts`／`provOpts`／`provSelectHtml` 與 `nsShared.nodesFromHtml`，改成回節點的 `bookOptions`／`provOptions`／`provSelect`
+  - 舊的 `modal()`／`closeModal()`／`#modal`／`#toast` 全部改成 `FE.modal`／`FE.toast`
+  - `index.html` 只剩 `<div id="app"></div>`；`ns-fekit.css` 補兩條 shell 版面修正（舊 `style.css` 的 `#app`／`.split` 會撞名）
+
+### P5 之後的收尾（⑩–⑬）
+
+- 介面
+  - 「關於」頁的第三方清單改指 fekit 帶的 marked；本專案不再自帶 `static/vendor/`，根目錄新增 `THIRD_PARTY_NOTICES.md`（fekit、marked、Cytoscape、Python 套件與參考來源）
+  - 頂列麵包屑開始顯示「書名 › 頁名」（18 頁共用 `ns_page.js` 一處實作）
+  - 左欄新增「工具」群組（搜尋前文／從正文建立設定／卷末體檢），三頁導覽會標示目前位置
+  - **角色關係圖換成 fekit 的 `FE.graph`（Cytoscape）**：勢力是框、角色依勢力分組、關係是帶箭頭的線；章的滑桿與「顯示配角與反派」即時過濾、點節點看詳細資料、可回到中心／重新排列。舊的 SVG 版 `static/relgraph.js` 刪除
+- 內部
+  - `static/app.js` 最後 16 個字串版 HTML（章節結構、視覺卡、插畫設定、LoRA 列、面板表單…）全部改成節點，`innerHTML` 歸零
+  - `style.css` 清掉舊三欄死規則（`#sidebar`／`#main`／`#panel` 系列、`--panel-w`、`.navlink`、`.side-*` 等 38 行）；外殼補丁收回 `style.css`
+  - `vendor/fekit` 同步新增 graph 模組與 Cytoscape 3.34.4（仍然只由 `tools/sync_kit.py` 寫入）
+  - 舊 `localStorage` key（`ns_lang`／`provider`／`actsCollapsed`／`search-scopes`／`panelOpen`／`panelW`）在遷移成功後刪除，並記 `legacy.pruned` 標記；**回退到 P4 版會讓這些偏好回預設值**
+
+### 再收尾（⑭–⑯）
+
+- 內部
+  - `tools/i18n_extract.py` 不再寫死檔名（改掃 `static/index.html` 與 `static/*.js`），並折疊 `"甲 " + n + " 乙"` 這種字串串接；重跑後清掉 156 條失效鍵、補 189 條缺鍵（en／ja 各一份）
+  - `static/app.js` 再刪 8 項 0 呼叫端的舊 helper（`esc`／`pad3`／`JB`／`S.es`／`S.lastText`／`Panel.open`／`Panel.reply`／`Panel.setWidth`），24 個 `static/*.js` 語法檢查全過、18 頁 console 0 錯誤
+  - `vendor/fekit` 同步 kit `56a37e4`：`FE.jobs.drawAsk` 不再把 `null` 塞進 `replaceChildren`，新增 `FE.jobs.onend`；`app.js` 的三行繞路移除
+- 文件
+  - 截圖基線確定用 `docs/screenshots/p6`（p5 只當歷史保留）；`docs/backlog.md` 記 ⑰（p6 拍完後書庫又動過，要比像素前先重拍）
+
 ## 1.18.0（2026-10-30）
 
 - 說明頁、設定生成、卷綱修訂、章節入口與書架效能一起進 `main`（14 個 commit）

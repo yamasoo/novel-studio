@@ -1,0 +1,139 @@
+/* fekit tokens.css — 配色、字型、間距、深色模式
+ * 淺色為預設；深色由 prefers-color-scheme 自動啟用，
+ * 也可用 <html data-theme="light|dark"> 強制指定。 */
+
+:root {
+  color-scheme: light;
+
+  /* 配色：紙張色系 */
+  --bg: #f6f2ea;
+  --bg-elev: #fffdf8;
+  --bg-sunken: #ede7da;
+  --fg: #2b2620;
+  --fg-muted: #6e655a;
+  --fg-faint: #9a9084;
+  --line: #ddd4c4;
+  --line-strong: #c4b8a3;
+
+  --accent: #8a3b2e;
+  --accent-hover: #722f24;
+  --accent-soft: #f1dfd9;
+  --on-accent: #fffdf8;
+
+  --ok: #3f6b3a;
+  --ok-soft: #dfeadb;
+  --warn: #8a6410;
+  --warn-soft: #f3e8c8;
+  --err: #a02a2a;
+  --err-soft: #f4d9d6;
+  --info: #2f5a7a;
+  --info-soft: #d9e6ef;
+
+  --focus-ring: rgba(138, 59, 46, .45);
+  --overlay: rgba(30, 24, 18, .45);
+  --shadow-1: 0 1px 2px rgba(60, 40, 20, .08);
+  --shadow-2: 0 6px 20px rgba(60, 40, 20, .16);
+
+  /* 字型 */
+  --font-sans: "Microsoft JhengHei", "微軟正黑體", "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  --font-serif: "Noto Serif TC", "Source Han Serif TC", "PMingLiU", serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Noto Sans Mono CJK TC", monospace;
+
+  --fs-xs: .75rem;
+  --fs-sm: .875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --lh: 1.65;
+
+  /* 間距（4px 基準） */
+  --sp-1: .25rem;
+  --sp-2: .5rem;
+  --sp-3: .75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  /* 形狀與動態 */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --ctl-h: 2.25rem;
+  --t-fast: .12s ease;
+  --t-med: .2s ease;
+
+  --shell-top-h: 2.75rem;
+
+  --z-split: 10;
+  --z-drawer: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+}
+
+/* 深色：兩份數值必須一致（自動＋手動） */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1c1915;
+    --bg-elev: #26221c;
+    --bg-sunken: #15130f;
+    --fg: #ece5d8;
+    --fg-muted: #b0a696;
+    --fg-faint: #857b6d;
+    --line: #3a342b;
+    --line-strong: #52493c;
+
+    --accent: #d9826f;
+    --accent-hover: #e89886;
+    --accent-soft: #3d2620;
+    --on-accent: #1c1915;
+
+    --ok: #8fc287;
+    --ok-soft: #223020;
+    --warn: #e0b95c;
+    --warn-soft: #382d12;
+    --err: #ee8d86;
+    --err-soft: #3d1f1d;
+    --info: #86b6d8;
+    --info-soft: #1c2c38;
+
+    --focus-ring: rgba(217, 130, 111, .55);
+    --overlay: rgba(0, 0, 0, .6);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1c1915;
+  --bg-elev: #26221c;
+  --bg-sunken: #15130f;
+  --fg: #ece5d8;
+  --fg-muted: #b0a696;
+  --fg-faint: #857b6d;
+  --line: #3a342b;
+  --line-strong: #52493c;
+
+  --accent: #d9826f;
+  --accent-hover: #e89886;
+  --accent-soft: #3d2620;
+  --on-accent: #1c1915;
+
+  --ok: #8fc287;
+  --ok-soft: #223020;
+  --warn: #e0b95c;
+  --warn-soft: #382d12;
+  --err: #ee8d86;
+  --err-soft: #3d1f1d;
+  --info: #86b6d8;
+  --info-soft: #1c2c38;
+
+  --focus-ring: rgba(217, 130, 111, .55);
+  --overlay: rgba(0, 0, 0, .6);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
+}

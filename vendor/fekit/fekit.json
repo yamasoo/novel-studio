@@ -1,0 +1,35 @@
+{
+  "fekit_version": "0.0.1",
+  "source": "E:\\dev\\front-end",
+  "modules": [
+    "i18n",
+    "md",
+    "graph"
+  ],
+  "files": {
+    "THIRD_PARTY_NOTICES.md": "d550cf665d0704f2eb328345cd9be4a4505019ed5f92bb1805c6bb84ef0f1cde",
+    "VERSION": "e6635045e1d2478ec4ca712d8c0e1dfcef8bb7b5b1e8e3bb560d37fe399a9e72",
+    "css/base.css": "d1dac26ca75c75cfae4ec1aef31a82665d94efdca130ecee4c6738095a95e933",
+    "css/components.css": "0c21ff90308c317901f4be1fab91f9357a606cf6efdcf662a475a5a47e29c489",
+    "css/tokens.css": "a13ab11e14da9b61fc638134fcd7ee9349080eaea011c93a4adcb1553461c05e",
+    "fe/core.js": "78b470b2066612e8af5b14e03d25f3a7f4d1c238aab82051d36622c0e34d039a",
+    "fe/globals.js": "8ef66e71947bbc48324efac87ee6c2c86a38abdf95c3ef56e139cfdec4a9a6e7",
+    "fe/graph.js": "6058024a242edbb83a9e033c1388f1cc13a166561ccb66a104649718b9ea96ed",
+    "fe/i18n.js": "92a1ea0917aba115fe7956215ba3fc8c47f579787c24ac0481c303e74cde14d5",
+    "fe/jobs.js": "592c55378c27d1bb0e0d827af9072a00fc8676d2274571bd8db738f27d39bc08",
+    "fe/md.js": "b7b332d617122514819e60730274d94ce350d06865141cbc77f9bff55c2ee9fb",
+    "fe/shell.js": "8addfff22ef99a44749f10afefbfcaf370ce0d613c62ef62998d190f4730d8bb",
+    "py/fekit/__init__.py": "7f22276799ef0d5df0ae1d575e2732800f15ceb776b76a1003dbe3e187e8f847",
+    "py/fekit/errors.py": "7e58d55fc057534ca7a8a5e6c2e1eff9518b9b59bcc6b1ba97818daf3cc6f361",
+    "py/fekit/fs.py": "4e53e81fa38bf4febbe6038e644a5d4d9284fcb1509c25078bd696db3f4a8472",
+    "py/fekit/guard.py": "7de82dc3591ce83dd3b1390090007861694ae1a30295d43afe3ea124d90fac84",
+    "py/fekit/install.py": "3449c03d2ebd0f899c185c9de2957004bad774e256839f5a305ee94f910822eb",
+    "py/fekit/jobs.py": "3c3803f6b49956a01f0f94f9a39d9f921530d3cbf4fd73f39155b1ee34231321",
+    "py/fekit/pages.py": "a1fe47b5aa8087d53ee501fcdf147c8b1221665d83a8505be08a0fa9862e8d97",
+    "py/fekit/upload.py": "bb6922a91d149e6fe001b994d2fd637da8efd0e3b9dc89138b55d87ebab9c294",
+    "vendor/cytoscape/LICENSE": "eb319c6e6f233607f71e8e2f450391751883cfc0eeb3ca7ef574c13d1d9c2203",
+    "vendor/cytoscape/cytoscape.min.js": "081591ab735b2b6a3b31a3c60f8f3a3e2fee8c92939e0c7820ad1208571b6cd8",
+    "vendor/marked/LICENSE": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+    "vendor/marked/marked.umd.js": "82525bd589501be369bff99257f407e191f97d5422dede2bcb44071289a03688"
+  }
+}

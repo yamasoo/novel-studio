@@ -1,10 +1,10 @@
 {
- "generated": "2026-10-29T11:31:37",
+ "generated": "2026-11-07T08:27:56",
  "units": {
   "README.md": {
-   "en": "237aa08c9ade279f11eace210347e50a0cef9382cc6cf103a8044f1ee4398cd8",
-   "ja": "118596e89c4db7593a88af10a377857f1e8f039a9d8cbf90d3f550b299f7fcc4",
-   "zh": "4c118248d1496688af604b3f8a53345bdbb8d3562102afb2efa0aab52fc8b012"
+   "en": "4db3e39c98ddd4120ad7b252346493dc4e79e416bedaa26dd7511c81904102b0",
+   "ja": "077bcd76ef9bd2e3fa3c0ba2df2cb401125cd709924afb1d41ddb967098342c2",
+   "zh": "40c6f8eee121cbdfbafa025a84c3e8cf130c0969fc41f9d8c8e9aa141b628551"
   },
   "demo/退婚之後/CLAUDE.md": {
    "en": "018acaef4b89fbede86d08baf107e3fe1f98be6ec3d92a0e07e42a3e5f6ac156",
@@ -272,9 +272,9 @@
    "zh": "1faf88df35547d6f300c5df3e6ba7893c7dc9f52359e51a643549294377ecb25"
   },
   "plugin/skills/novel-setup/references/claude-md-template.md": {
-   "en": "3a4d19f360091045e870e3e9ef9a77fbe80ba060b16d6c4aade2ce9793eb1228",
-   "ja": "4a9e29888b9c9d81fe610e442d409a25283b4c4f6764a5fce2b13d0626be8c93",
-   "zh": "ee805f0bdf676e96ef13648e5188e2ab7c2ae696885994a303c5cf4e4d56129b"
+   "en": "a8a92d98c2049ce51bf1de7c9821b849317c3b47df228bab27eb90c2b841c9f6",
+   "ja": "ef6df4ac172f2723fbd06928d4340fe8010f1cb4a3d8fc1dc36c0b645c0697a5",
+   "zh": "87ac6ad6549b0f1e552dd49cf4e778212eb43a9e5136ffdeb85a841ad7fcd48a"
   },
   "plugin/skills/novel-setup/references/interview.md": {
    "en": "60c5fe24054ca9b9c45e5ebd92be518083aac48a456522ea54d35e7a142b9d99",

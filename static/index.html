@@ -4,64 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>小說工作台</title>
+<link rel="stylesheet" href="/fekit/css/tokens.css">
+<link rel="stylesheet" href="/fekit/css/base.css">
+<link rel="stylesheet" href="/fekit/css/components.css">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/ns-fekit.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%238a3b2e'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='serif'>書</text></svg>">
 </head>
 <body>
-<div id="app">
-  <aside id="sidebar">
-    <div class="brand" onclick="go('#/')">
-      <span class="seal" data-i18n-skip>書</span>
-      <div><div class="brand-name">小說工作台</div><div class="brand-sub">Novel Studio</div></div>
-    </div>
-    <div id="book-switch"></div>
-    <nav id="nav"></nav>
-    <div class="side-bottom">
-      <a href="#/" class="navlink" data-r="shelf"><span class="ico">▤</span>書架</a>
-      <a href="#/shared" class="navlink" data-r="shared"><span class="ico">❖</span>共用庫</a>
-      <a href="#/import" class="navlink" data-r="import"><span class="ico">⇪</span>匯入舊稿</a>
-      <a href="#/settings" class="navlink" data-r="settings"><span class="ico">⚙</span>設定</a>
-      <a href="#/guide" class="navlink" data-r="guide"><span class="ico">?</span>說明</a>
-      <a href="#/about" class="navlink" data-r="about"><span class="ico">ⓘ</span>關於</a>
-      <select id="lang-select" class="lang-select" title="Language / 言語 / 語言" aria-label="Language" data-i18n-skip></select>
-      <div class="side-ext">
-        <a href="https://github.com/yamasoo/novel-studio" target="_blank" rel="noopener" title="在 GitHub 打開專案頁">GitHub 專案 ↗</a>
-        <a href="https://github.com/yamasoo/novel-studio/issues/new" target="_blank" rel="noopener" title="回報問題或提出建議">回報問題 ↗</a>
-      </div>
-    </div>
-  </aside>
+<div id="app"></div>
 
-  <main id="main"><div id="view"></div></main>
-
-  <aside id="panel" class="closed">
-    <div id="panel-resizer" title="拖曳調整寬度，雙擊恢復預設"></div>
-    <div class="panel-head">
-      <div class="panel-title"><span id="run-dot" class="dot"></span><select id="prov-sel" title="執行者"></select></div>
-      <div class="panel-tools">
-        <button class="ghost sm" id="btn-stop" title="停止目前任務" hidden>停止</button>
-        <button class="ghost sm w-btn" onclick="Panel.setWidth('narrow')" title="窄">窄</button>
-        <button class="ghost sm w-btn" onclick="Panel.setWidth('half')" title="一半">半</button>
-        <button class="ghost sm w-btn" onclick="Panel.setWidth('wide')" title="寬">寬</button>
-        <button class="ghost sm" onclick="Panel.toggle(false)" title="收起">✕</button>
-      </div>
-    </div>
-    <div id="panel-actions"></div>
-    <div id="panel-form"></div>
-    <div id="panel-log"></div>
-    <div id="panel-reply">
-      <textarea id="reply-text" rows="2" placeholder="回覆（例如：選 1，或補充說明）　Ctrl+Enter 送出"></textarea>
-      <button class="primary" id="reply-btn">送出</button>
-    </div>
-  </aside>
-  <button id="panel-fab" onclick="Panel.toggle(true)"><span id="fab-dot" class="dot"></span><span id="fab-label">AI</span></button>
-</div>
-
-<div id="modal" class="modal" hidden><div class="modal-box"><div id="modal-body"></div></div></div>
-<div id="toast"></div>
-
-<script src="/static/vendor/marked.min.js"></script>
-<script src="/static/i18n.js"></script>
-<script src="/static/relgraph.js"></script>
+<script src="/fekit/fe/core.js"></script>
+<script src="/fekit/fe/graph.js"></script>
+<script src="/fekit/fe/i18n.js"></script>
+<script src="/fekit/fe/jobs.js"></script>
+<script src="/fekit/fe/md.js"></script>
+<script src="/fekit/fe/shell.js"></script>
+<script src="/static/ns_shared.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/ns_doc.js"></script>
+<script src="/static/ns_pipe.js"></script>
+<script src="/static/ns_page.js"></script>
+<script src="/static/page_about.js"></script>
+<script src="/static/page_guide.js"></script>
+<script src="/static/page_jobs.js"></script>
+<script src="/static/page_chapters.js"></script>
+<script src="/static/page_overview.js"></script>
+<script src="/static/page_outline.js"></script>
+<script src="/static/page_reverse.js"></script>
+<script src="/static/page_search.js"></script>
+<script src="/static/page_export.js"></script>
+<script src="/static/page_drift.js"></script>
+<script src="/static/page_import.js"></script>
+<script src="/static/page_chapter.js"></script>
+<script src="/static/page_bible.js"></script>
+<script src="/static/page_tracking.js"></script>
+<script src="/static/page_illust.js"></script>
+<script src="/static/page_shelf.js"></script>
+<script src="/static/page_shared.js"></script>
+<script src="/static/page_settings.js"></script>
+<script src="/static/boot.js"></script>
 </body>
 </html>

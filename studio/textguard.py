@@ -30,6 +30,30 @@ def _lang_checker(lang):
     return _LOADED[lang] or None
 
 
+def _zh_module():
+    """內建的繁體中文檢查腳本（plugin/…/check_text.py），沒有就回傳 None。"""
+    if "zh" not in _LOADED:
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "plugin", "skills", "novel-deslop", "scripts", "check_text.py")
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("check_text_zh", p)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            _LOADED["zh"] = mod
+        except Exception:
+            _LOADED["zh"] = False
+    return _LOADED["zh"] or None
+
+
+def simp_count(text):
+    """文字裡有幾個「簡體專用字」（Big5 沒有的字，不需要 OpenCC）。"""
+    m = _zh_module()
+    if not m or not text:
+        return 0
+    return sum(1 for ch in text if ch in m.SIMPLIFIED_ONLY)
+
+
 def _en_checker():
     return _lang_checker("en")
 
@@ -115,14 +139,19 @@ def _is_enum(s):
 
 
 def lang_mismatch(data, book_lang):
-    """回傳 (不符?, 可疑字串數, 檢查的字串數)。繁中書不檢查。
+    """回傳 (不符?, 可疑字串數, 檢查的字串數)。
+    繁中書：長度 8 以上的字串中，含 2 個以上簡體專用字的超過 15%。
     英文書：長度 8 以上的字串中，含 3 個以上漢字的超過 10%。
     日文書：長度 20 以上、有漢字但完全沒有假名的字串超過 30%（日文的專有名詞常只有漢字，所以只看長句）。
     列舉值、第N章、F001 這類編號、資料夾路徑不算。"""
-    if book_lang not in ("en", "ja"):
+    if book_lang not in ("en", "ja", "zh-TW"):
         return False, 0, 0
     vals = [s for s in _strings(data, []) if s and not _CH_REF.search(s) and not _is_enum(s)]
-    if book_lang == "en":
+    if book_lang == "zh-TW":
+        pool = [s for s in vals if len(s) >= 8]
+        bad = [s for s in pool if simp_count(s) >= 2]
+        limit = 0.15
+    elif book_lang == "en":
         pool = [s for s in vals if len(s) >= 8]
         bad = [s for s in pool if len(_HAN.findall(s)) >= 3]
         limit = 0.10

@@ -20,6 +20,7 @@ def studio_system(book_dir):
 
 
 IS_WIN = os.name == "nt"
+KEEP_FINISHED = 30      # 記憶體裡保留最近幾個「已結束」的任務；執行中的永遠保留（磁碟另有完整紀錄）
 
 
 def find_claude(cmd=None):
@@ -168,11 +169,12 @@ class Job:
 
 
 class Runner:
-    def __init__(self, get_config, home=None, plugin_dir=None, checker=None):
+    def __init__(self, get_config, home=None, plugin_dir=None, checker=None, on_forget=None):
         self.get_config = get_config
         self.home, self.plugin_dir, self.checker = home, plugin_dir, checker
         self.jobs = {}
         self.lock = threading.Lock()
+        self.on_forget = on_forget     # 被回收的任務 id：讓 ns_jobs 一起放掉它的 View
 
     def running_for(self, book_id):
         with self.lock:
@@ -192,6 +194,23 @@ class Runner:
 
     def get(self, job_id):
         return self.jobs.get(job_id)
+
+    def reclaim(self, keep=None):
+        """只留最近 keep 個已結束的任務，回傳被放掉的 id。
+        任務結束時已經寫進 .studio/jobs/，之後要看清單或明細會改讀檔案，不會掉資料。"""
+        keep = KEEP_FINISHED if keep is None else int(keep)
+        with self.lock:
+            done = sorted((j.ended or j.started or 0, jid)
+                          for jid, j in self.jobs.items() if j.status != "running")
+            drop = [jid for _, jid in done[:max(0, len(done) - keep)]]
+            for jid in drop:
+                self.jobs.pop(jid, None)
+        if drop and self.on_forget:
+            try:
+                self.on_forget(drop)
+            except Exception:
+                pass
+        return drop
 
     def cancel(self, job_id):
         job = self.jobs.get(job_id)
@@ -248,6 +267,12 @@ class Runner:
         return cmd
 
     def _run(self, job):
+        try:
+            self._run_job(job)
+        finally:
+            self.reclaim()      # 任務結束就回收舊任務，長時間開著才不會單調成長
+
+    def _run_job(self, job):
         try:
             from . import prompts, lang as _lang
             prompts.set_lang(_lang.book_lang(job.book_dir))

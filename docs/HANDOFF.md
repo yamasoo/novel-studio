@@ -138,7 +138,8 @@
   GitHub Actions 在 PR 與 `main` push 都綠（`checks.yml`）。
 - 介面字串：`tools/i18n_keys.json` 1,628 鍵；en／ja 各 1,622 條（其餘是 `==` 同形標記）。
 - `i18n/glossary.tsv`：36 條術語，`check_parity` 會抓「禁用譯法」與「表跟介面不一致」。
-- 三份 README 標題分佈 1／8／17；三本示範書 `_範本/` 都是 18 個檔。
+- 三份 README 標題分佈 **1／9／8**（2026-11-07 改成使用者導向：安裝→寫完一本書，含三張 `docs/images/*.svg` 示意圖）；
+  技術內容（功能細節、各執行者、運作方式、檔案結構、貢獻者工具）搬到 `docs/開發者.md`。三本示範書 `_範本/` 都是 18 個檔。
 - `tools/i18n_fill.py`：翻譯缺口 → 初翻 patch → 人工核可 → `--apply`。
 - `studio/contract.py`：`設定/續寫合約.md`，priority 0 注入每章上下文（見 `docs/續寫合約.md`）。
 - 書架統計有快取：`<專案>/.cache/books.json`（用「檔案數／大小／最新 mtime」的 stat 指紋失效，不讀內容）；

@@ -12,7 +12,21 @@ import json, re, sys, os, ast, glob
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-FILES = ["static/app.js", "static/index.html", "static/relgraph.js"]
+def _ui_files():
+    """介面檔案：index.html 加 static/ 下所有 .js。
+
+    2026-11 起介面已拆成 static/page_*.js（舊的 static/relgraph.js 刪了），寫死檔名清單會漏掃整個介面。
+    """
+    js = sorted(os.path.relpath(p, ROOT).replace("\\", "/")
+                for p in glob.glob(os.path.join(ROOT, "static", "*.js")))
+    return ["static/index.html"] + js
+
+
+FILES = _ui_files()
+# kit 是外掛進來的共用模組（vendor/fekit/fe/*.js），它也會產生介面文字，但那些字串由 kit 自己維護；
+# 這裡只用來判斷「既有的譯文還活著嗎」，不要求補它的翻譯。
+KIT_FILES = sorted(os.path.relpath(p, ROOT).replace("\\", "/")
+                   for p in glob.glob(os.path.join(ROOT, "vendor", "fekit", "fe", "*.js")))
 CJK = re.compile(r"[぀-ヿ㐀-鿿]")
 
 
@@ -270,15 +284,69 @@ def extract_py(with_manual=False):
     return (keys, manual) if with_manual else keys
 
 
+_LIT = r'"(?:[^"\\\n]|\\.)*"|\x27(?:[^\x27\\\n]|\\.)*\x27'
+_NOTQ = r'[^"\x27\x60\n;]'
+_CONCAT = re.compile(r'(?:' + _LIT + r')(?:\s*\+\s*' + _NOTQ + r'+?\s*\+\s*(?:' + _LIT + r'))+')
+
+
+def concat_fold(src):
+    """把「字串 + 變數 + 字串」折成一段，變數位置留 \x00（最後變成 {0}）。
+
+    js_strings 只認樣板字串的插值，字串用 + 接起來的句子會被切成兩半，產生兩條對不到
+    語言檔的碎片（docs/backlog.md ⑭）。執行期是同一個文字節點，鍵要合起來才對得上。
+    """
+    for _ in range(4):          # 三段以上的串接要多跑幾輪
+        out, pos, found = [], 0, False
+        for m in _CONCAT.finditer(src):
+            lits = re.findall(_LIT, m.group(0))
+            out.append(src[pos:m.start()])
+            out.append('"' + "\x00".join(x[1:-1] for x in lits) + '"')
+            pos, found = m.end(), True
+        out.append(src[pos:])
+        src = "".join(out)
+        if not found:
+            break
+    return src
+
+
+def _read(rel):
+    path = os.path.join(ROOT, rel)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def extract_kit_live(keys):
+    """kit 的字串只補回「語言檔已經有譯文」的那些：避免把還活著的鍵當成失效，也不擴張待翻範圍。"""
+    translated = set()
+    for lang in ("en", "ja"):
+        raw = _read(os.path.join("static", "locales", lang + ".json"))
+        if raw:
+            translated.update(k for k in json.loads(raw) if not k.startswith("_"))
+    for f in KIT_FILES:
+        src = _read(f)
+        if not src:
+            continue
+        for s in js_strings(concat_fold(fold_units(src))):
+            for seg in segments(s):
+                if seg in translated:
+                    keys.setdefault(seg, 1)
+    return keys
+
+
 def extract():
     keys = {}
     for f in FILES:
-        src = fold_units(open(os.path.join(ROOT, f), encoding="utf-8").read())
-        strs = [src] if f.endswith(".html") else js_strings(src)
+        src = _read(f)
+        if src is None:
+            continue
+        src = fold_units(src)
+        strs = [src] if f.endswith(".html") else js_strings(concat_fold(src))
         for s in strs:
             for seg in segments(s):
                 keys[seg] = keys.get(seg, 0) + 1
-    return keys
+    return extract_kit_live(keys)
 
 
 if __name__ == "__main__":

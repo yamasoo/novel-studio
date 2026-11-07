@@ -83,7 +83,7 @@ Full-chapter automation chains the steps: plan the card → write the chapter �
 
 ![A book's folders](docs/images/03-一本書的資料夾.svg)
 
-A book is one folder with six subfolders: `設定/` (settings), `大綱/` (outlines), `正文/` (manuscript), `候選/` (candidates), `追蹤/` (tracking) and `.studio/`. Pure text throughout: open it, edit it directly, refresh the page (the workbench always reads the files). Folder and file names stay Chinese in every language — that is why the diagram labels are Chinese.
+A book is one folder with six subfolders: `設定/` (settings), `大綱/` (outlines), `正文/` (manuscript), `候選/` (candidates), `追蹤/` (tracking) and `.studio/`. Pure text throughout: open it, edit it directly, refresh the page (the workbench always reads the files). Folder and file names stay Chinese in every language — that is why the diagram labels are Chinese. The story text, summaries, chapter titles and the exported table of contents follow the book's language; the interface language is a separate setting (bottom right).
 
 **`.studio/` is not a cache**: it holds backups, task records, indexes and reverse-engineering progress. To free space, delete only cache files, never the folder.
 

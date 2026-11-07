@@ -7,7 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from studio import tracking
+from studio import importer, shared, tracking
 
 
 class BackupKeepTest(unittest.TestCase):
@@ -63,6 +63,25 @@ class BackupKeepTest(unittest.TestCase):
         self._write(self.d, name, "舊備份\n")
         self.assertIsNone(tracking.backup(self.book, os.path.join(self.book, "沒有.md"), "修改前"))
         self.assertTrue(os.path.isfile(os.path.join(self.d, name)))
+
+
+    def test_共用庫備份走同一套上限(self):
+        src = os.path.join(self.book, "設定", "文風.md")
+        self._write(os.path.dirname(src), os.path.basename(src), "新文風\n")
+        base = 1700000000
+        for i in range(31):
+            self._write(self.d, "文風_文風.%d.md" % (base + i), "舊\n")
+        shared._backup(self.book, src, "文風")
+        kept = [f for f in os.listdir(self.d) if f.startswith("文風_文風.") and f.endswith(".md")]
+        self.assertEqual(len(kept), tracking.BACKUP_KEEP)
+        self.assertNotIn("文風_文風.%d.md" % base, kept)      # 最舊的被修剪
+        self.assertNotIn("文風_文風.%d.md" % (base + 1), kept)
+
+    def test_匯入備份檔名會被上限認得(self):
+        import re
+        name = importer._backup_name("第001章_甲.md", 1700000000)
+        self.assertTrue(re.match(tracking.BACKUP_NAME_RE, name))
+        self.assertEqual(name, "匯入前_第001章_甲.1700000000.md")
 
 
 if __name__ == "__main__":

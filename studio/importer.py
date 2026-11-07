@@ -472,6 +472,11 @@ def _fname_title(t):
     return project.safe_filename(t, MAX_TITLE)
 
 
+def _backup_name(name, stamp):
+    """覆寫前的備份檔名：和 tracking.backup 同一種樣式（標籤_原檔名.<epoch>.md），備份上限才認得。"""
+    return "匯入前_%s.%d.md" % (os.path.splitext(name)[0], stamp)
+
+
 def commit(book_dir, payload, opts, checker=None):
     """寫入書目錄。opts: target（"正文"|"候選"）、conflict（"skip"|"overwrite"）、fix_punct。"""
     r = plan(payload, opts)
@@ -495,7 +500,10 @@ def commit(book_dir, payload, opts, checker=None):
                 continue
             os.makedirs(bak, exist_ok=True)
             old = os.path.join(tdir, existing[no])
-            shutil.copy2(old, os.path.join(bak, "匯入前_%s_%d_%s" % (target, stamp, existing[no])))
+            name = _backup_name(existing[no], stamp)
+            shutil.copy2(old, os.path.join(bak, name))
+            from . import tracking      # 只有備份上限要用；放在函式裡免得模組層互相 import
+            tracking.prune_backups(bak, name)
             os.remove(old)
             replaced.append(no)
         name = "第%03d章_%s.md" % (no, _fname_title(title))

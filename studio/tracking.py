@@ -402,8 +402,13 @@ def discard_reader_draft(book_dir):
 BACKUP_NAME_RE = re.compile(r"^(.*)\.(\d{9,})\.md$")
 
 
-def _trim_backups(d, name):
-    """只修剪與這份新備份同一組（標籤_原檔名）的舊檔，留下 epoch 最大的 BACKUP_KEEP 份。"""
+def prune_backups(d, name, keep=None):
+    """只修剪與這份新備份同一組（標籤_原檔名）的舊檔，留下 epoch 最大的 keep 份（預設 BACKUP_KEEP）。
+
+    檔名樣式由 tracking.backup 決定；其他也寫 .studio/備份 的地方（共用庫備份、匯入備份）
+    沿用同一個樣式並呼叫這裡，備份目錄的總量才有上限。
+    """
+    keep = BACKUP_KEEP if keep is None else keep
     m = BACKUP_NAME_RE.match(name)
     if not m:
         return
@@ -424,7 +429,7 @@ def _trim_backups(d, name):
         except OSError:
             continue
     group.sort(key=lambda t: (t[0], t[1]), reverse=True)
-    for _, _, p in group[BACKUP_KEEP:]:
+    for _, _, p in group[keep:]:
         try:
             os.remove(p)
         except OSError:
@@ -439,5 +444,5 @@ def backup(book_dir, path, tag):
     dst = os.path.join(d, "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time())))
     with open(path, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as g:
         g.write(f.read())
-    _trim_backups(d, os.path.basename(dst))
+    prune_backups(d, os.path.basename(dst))
     return dst

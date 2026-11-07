@@ -93,9 +93,12 @@ def safe_shared_path(library, rel):
 
 def _backup(book_dir, path, tag):
     if os.path.isfile(path):
+        from . import tracking      # 只有備份上限要用；放在函式裡免得模組層互相 import
         bak = os.path.join(book_dir, ".studio", "備份")
         os.makedirs(bak, exist_ok=True)
-        shutil.copy2(path, os.path.join(bak, "%s_%s_%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time()))))
+        name = "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time()))
+        shutil.copy2(path, os.path.join(bak, name))
+        tracking.prune_backups(bak, name)
 
 
 def set_fm(text, key, value):

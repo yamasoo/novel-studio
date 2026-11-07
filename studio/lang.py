@@ -9,6 +9,8 @@
 import os
 import re
 
+from . import project
+
 DEFAULT = "zh-TW"
 SUPPORTED = ("zh-TW", "en", "ja")
 LABELS = {"zh-TW": "繁體中文", "en": "English", "ja": "日本語"}
@@ -91,6 +93,5 @@ def set_book_lang(book_dir, value):
         with open(p, encoding="utf-8") as f:
             text = f.read()
         if text.startswith("---"):
-            with open(p, "w", encoding="utf-8", newline="\n") as f:
-                f.write(shared.set_fm(text, "語言", lang))
+            project.write_atomic(p, shared.set_fm(text, "語言", lang))
     return lang

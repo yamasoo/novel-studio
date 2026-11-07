@@ -358,8 +358,7 @@ def save_plan(book_dir, a, b, text):
     rel = "大綱/草稿/卷綱更新_第%d-%d章.md" % (a, b)
     p = project.safe_path(book_dir, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text if text.endswith("\n") else text + "\n")
+    project.write_atomic(p, text if text.endswith("\n") else text + "\n")
     return rel
 
 
@@ -378,6 +377,5 @@ def apply_plan(book_dir, no, text, a=None, b=None):
     # 草稿裡的第一個 # 標題會和卷綱標題打架，去掉它
     if body.startswith("# "):
         body = body.split("\n", 1)[1].lstrip()
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(old.rstrip() + head + body + "\n")
+    project.write_atomic(p, old.rstrip() + head + body + "\n")
     return rel, bak

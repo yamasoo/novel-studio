@@ -899,8 +899,10 @@ def save_card_result(book, p, data):
     if not card["tags"] and not card["description"]:
         raise NativeError("模型沒有回傳視覺卡內容")
     card = illust.sanitize_card(card, f.split("/")[1] if f.count("/") >= 2 else "")
-    project.write_atomic(path, illust.write_card(text, card))
-    return "**視覺卡已寫入 %s**\n- 標籤：%s\n- 描述：%s" % (f, illust.normalize_tags(card["tags"]), card["description"])
+    body, note = textguard.guard_text(book, illust.write_card(text, card))
+    project.write_atomic(path, body)
+    return "**視覺卡已寫入 %s**%s\n- 標籤：%s\n- 描述：%s" % (f, ("（%s）" % note) if note else "",
+                                                        illust.normalize_tags(card["tags"]), card["description"])
 
 
 def act_visual_card(c, p):

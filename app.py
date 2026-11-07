@@ -1310,7 +1310,9 @@ async def book_card_save(book_id: str, req: Request):
     p = wrap(lambda: project.safe_path(d, f))
     text = project.read_text(p)
     native.tracking.backup(d, p, "視覺卡")
-    project.write_atomic(p, illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
+    card, note = textguard.guard_text(d, illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
+    textguard.notify(note)
+    project.write_atomic(p, card)
     return {"card": illust.read_card(project.read_text(p))}
 
 

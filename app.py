@@ -451,8 +451,7 @@ def recovery_to_candidate(book_id: str, rid: str):
         os.remove(os.path.join(cand, old))
     name = "第%03d章_%s.md" % (no, title)
     fixed, _ = check_text.fix_punct(text)
-    with open(os.path.join(cand, name), "w", encoding="utf-8", newline="\n") as f:
-        f.write(fixed)
+    project.write_atomic(os.path.join(cand, name), fixed)
     recovery.discard(d, rid)
     return {"path": "候選/" + name, "chapter": no}
 
@@ -1311,8 +1310,7 @@ async def book_card_save(book_id: str, req: Request):
     p = wrap(lambda: project.safe_path(d, f))
     text = project.read_text(p)
     native.tracking.backup(d, p, "視覺卡")
-    with open(p, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
+    project.write_atomic(p, illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
     return {"card": illust.read_card(project.read_text(p))}
 
 
@@ -2049,8 +2047,7 @@ async def write_file(book_id: str, req: Request):
     if os.path.isfile(p) and body.get("mtime") and abs(os.path.getmtime(p) - float(body["mtime"])) > 0.001:
         raise HTTPException(409, "檔案在你編輯期間被修改過了。請複製你的修改，重新載入後再存。")
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(body.get("text", ""))
+    project.write_atomic(p, body.get("text", ""))
     return {"ok": True, "mtime": os.path.getmtime(p)}
 
 
@@ -2115,8 +2112,8 @@ async def bible_set_category(book_id: str, req: Request):
             text = project.set_frontmatter_field(text, "分類", cat)
         if status is not None:
             text = project.set_frontmatter_field(text, "狀態", status)
-        with open(p, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
+        native.tracking.backup(d, p, "改分類前")
+        project.write_atomic(p, text)
     return {"ok": True, "updated": len(targets)}
 
 

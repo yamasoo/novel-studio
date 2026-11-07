@@ -392,8 +392,7 @@ class Pipeline:
             self._shelve(cand_path, "重跑前候選")
             if snap.get("candidate"):
                 os.makedirs(os.path.join(self.d, "候選"), exist_ok=True)
-                with open(os.path.join(self.d, "候選", snap["candidate"]), "w", encoding="utf-8", newline="\n") as f:
-                    f.write(snap["text"])
+                project.write_atomic(os.path.join(self.d, "候選", snap["candidate"]), snap["text"])
         # 之後各步的紀錄
         recs = {"goal": ("核對", "第%03d章.json" % no), "review": ("審查", "第%03d章.json" % no)}
         for k, (sub, fn) in recs.items():

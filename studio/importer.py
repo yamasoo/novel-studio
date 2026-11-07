@@ -499,8 +499,7 @@ def commit(book_dir, payload, opts, checker=None):
             os.remove(old)
             replaced.append(no)
         name = "第%03d章_%s.md" % (no, _fname_title(title))
-        with open(os.path.join(tdir, name), "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
+        project.write_atomic(os.path.join(tdir, name), text)
         written.append({"no": no, "file": target + "/" + name, "chars": c["chars"]})
     return {"target": target, "written": written, "skipped": skipped, "replaced": replaced,
             "chars": sum(w["chars"] for w in written)}
@@ -539,5 +538,4 @@ def make_claude_md(book_dir, plugin_dir, title):
         text = text.replace(k, note)
     todo = {"en": "(to fill in)", "ja": "（未記入）"}.get(lang_mod.book_lang(book_dir), "（待補）")
     text = re.sub(r"\{[^{}\n]*\}", todo, text)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text.strip() + "\n")
+    project.write_atomic(p, text.strip() + "\n")

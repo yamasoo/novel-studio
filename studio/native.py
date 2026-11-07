@@ -220,8 +220,7 @@ def _save_candidate(c, no, title, text):
         os.remove(os.path.join(d, old))
     fixed, n = c.checker.fix_punct(text)
     name = "第%03d章_%s.md" % (no, title)
-    with open(os.path.join(d, name), "w", encoding="utf-8", newline="\n") as f:
-        f.write(fixed)
+    project.write_atomic(os.path.join(d, name), fixed)
     return "候選/" + name, n
 
 
@@ -258,8 +257,7 @@ def _fix_simplified(c, rel, res):
         return res, ""
     for k, v in mapping.items():
         text = text.replace(k, v)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    project.write_atomic(p, text)
     pairs = "、".join("%s→%s" % kv for kv in list(mapping.items())[:6])
     return c.checker.check_file(p, c.checker.load_whitelist(c.book)), "簡體字自動轉繁 %d 處（%s）" % (hits, pairs)
 
@@ -901,8 +899,7 @@ def save_card_result(book, p, data):
     if not card["tags"] and not card["description"]:
         raise NativeError("模型沒有回傳視覺卡內容")
     card = illust.sanitize_card(card, f.split("/")[1] if f.count("/") >= 2 else "")
-    with open(path, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(illust.write_card(text, card))
+    project.write_atomic(path, illust.write_card(text, card))
     return "**視覺卡已寫入 %s**\n- 標籤：%s\n- 描述：%s" % (f, illust.normalize_tags(card["tags"]), card["description"])
 
 

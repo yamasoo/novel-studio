@@ -6,16 +6,12 @@ const S = {
   book: null,                 // 目前的書 id
   bookLang: null,             // 目前這本書的語言（zh-TW／en／ja）；書的內容用它標 lang，字形才對
   job: null,                  // 面板目前顯示的任務 {id, status, session_id}
-  es: null,                   // EventSource（P3 起由 FE.jobs.panel 開，這個欄位已不再使用）
-  lastText: "",
   routeName: "",
 };
 
 /* ------------------------------------------------------------------ 工具 */
 const $ = (sel, el = document) => el.querySelector(sel);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const enc = encodeURIComponent;
-const pad3 = (n) => String(n).padStart(3, "0");
 const fmtNum = (n) => (n || 0).toLocaleString({ en: "en-US", ja: "ja-JP" }[window.FE && FE.i18n && FE.i18n.lang] || "zh-TW");
 // 字數單位：中文、日文書算「字」（chars），英文書算「詞」（words）；後端回傳 unit，這裡決定顯示哪個字
 const unitCh = (unit) => (unit === "words" ? "詞" : "字");   // i18n-skip
@@ -39,7 +35,6 @@ async function api(method, url, body) {
   return FE.api(url, opts);
 }
 const B = (path) => `/api/books/${enc(S.book)}${path}`;
-const JB = (job, path) => `/api/books/${enc((job && job.book) || S.book)}${path}`;  // 任務所屬的書（共用庫任務掛在 _共用）
 
 // 薄別名：舊呼叫端到處都是 fail(e)／toast(msg, true)，實際走 fekit 的 FE.fail／FE.toast。
 // FE.fail 會吞 AbortError，換頁中止的請求不會再跳錯誤。
@@ -744,7 +739,6 @@ function panelRenderMd(text) {
     FE.h("summary", {}, `模型輸出全文（${raw.length} 字）`), md);
 }
 const Panel = {
-  open: false,
   // 收合交給 shell（寬螢幕記在 shell.off.panel，窄螢幕是抽屜）
   toggle(v) {
     const shell = FE.shell.current();
@@ -854,10 +848,6 @@ const Panel = {
         const running = !!job && (job.status === "running" || job.status === "queued");
         const shell = FE.shell.current();
         if (shell) shell.badge("panel", running ? "busy" : null);
-        // fekit 的 drawAsk 把 null 直接傳給 replaceChildren，回覆框會多一個裸的「null」文字節點
-        // （jobs.js 717-727；vendor/fekit 不可改，等 fekit 修好 drawAsk 再刪）。每次重畫後清掉。
-        const ask = document.querySelector(".job-panel .job-ask");
-        if (ask) for (const node of [...ask.childNodes]) if (node.nodeType === 3) node.remove();
       },
       onend: (job) => Panel.finish(job),
     });
@@ -904,7 +894,6 @@ const Panel = {
       this.attach(job);
     } catch (e) { fail(e); }
   },
-  reply() { /* 由面板的 ask 表單處理（轉移計畫 §7.2） */ },
   async finish(job) {
     if (!job) return;
     S.books = (await api("GET", "/api/books").catch(() => ({ books: S.books }))).books;
@@ -919,19 +908,6 @@ const Panel = {
       toast("卷綱草稿已產生：到大綱頁的「卷況」按「採用」才會變成正式卷綱。");
     }
   },
-};
-// 寬度交給 shell：記在 shell.w.panel，雙擊拖曳條恢復預設（傳 null 就直接結束）。
-Panel.setWidth = function (w) {
-  const shell = FE.shell.current();
-  if (!shell) return;
-  const vw = window.innerWidth;
-  let px = null;
-  if (w === "narrow") px = 420;
-  else if (w === "half") px = Math.round(vw * 0.5);
-  else if (w === "wide") px = Math.round(vw * 0.65);
-  else if (typeof w === "number") px = w;
-  if (px === null) return;
-  shell.width("panel", px);
 };
 window.Panel = Panel;
 

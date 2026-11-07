@@ -35,10 +35,11 @@
 
 **P7 接手前要記得**
 
-1. **⑥ 還沒修**：`FE.jobs.panel` 的 `drawAsk` 會塞 `null` 進 `replaceChildren`，`app.js` 的 `Panel.mount` 那三行繞路要等 kit 修好才能刪；這一輪 `E:\dev\front-end` 唯讀，沒動。
+1. **⑥ 已修（2026-11-07）**：`FE.jobs.panel` 的 `drawAsk` 改成先濾掉 null 再 `replaceChildren`（fekit 本體 `56a37e4`，同一批還有新的 `FE.jobs.onend`）；`vendor/fekit` 已同步，`app.js` 的 `Panel.mount` 三行繞路已刪。要再同步一律回 fekit 本體跑 `tools/sync_kit.py`。
 2. 截圖基線改用 `docs/screenshots/p6`（p5 保留當歷史）。
 3. 新增的 backlog：⑭ i18n 失效鍵（含新的關係圖字串）、⑮ `app.js` 的 `esc()` 已無呼叫端、⑯ 書庫資料與 p5 基線不同步。
 4. `vendor/fekit` 現在有 graph 模組與 Cytoscape；要再同步一律回 fekit 本體跑 `tools/sync_kit.py`。
+5. 2026-11-07 收尾：⑮ 刪掉 `app.js` 裡 8 項 0 呼叫端的舊 helper（`esc`／`pad3`／`JB`／`S.es`／`S.lastText`／`Panel.open`／`Panel.reply`／`Panel.setWidth`，18 頁 console 0 錯誤、DOM 快照不變）；⑯ 基線確定用 `docs/screenshots/p6`，p6 拍完之後書庫又動過（⑰），要比像素前先重拍。
 
 ## P5：外殼、`fekit.install()`、舊檔清理（完成）
 
@@ -74,7 +75,7 @@
 - `python -m compileall app.py studio ns_jobs.py`、`tools/check_i18n.py`、`tools/check_parity.py --strict`（FAIL 0、WARN 0）全過。
 
 **P6 接手前要記得**：`boot.js` 的 `migrateStore()` 不要刪（刪了使用者舊偏好會靜默歸零）；`window.t`／`window.I18N` 已經不存在；
-截圖新基線是 `docs/screenshots/p5`；`tools/i18n_keys.json` 還留著 P5 刪掉的字串（要重跑 `tools/i18n_extract.py` 再清語言檔，屬 i18n 流程）。
+截圖新基線是 `docs/screenshots/p5`（**P6 起已改用 `docs/screenshots/p6`**）；`tools/i18n_keys.json` 還留著 P5 刪掉的字串（要重跑 `tools/i18n_extract.py` 再清語言檔，屬 i18n 流程）。
 ## P4：逐頁拆成 page_*.js（完成）
 
 舊的單檔前端（`static/app.js`，3,672 行）已經**整份拆完**：18 個頁面各一個 `static/page_*.js`，

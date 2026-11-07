@@ -87,18 +87,28 @@
 
 ## 2.0.0 收尾期間新發現
 
-### ⑭ `tools/i18n_keys.json` 的失效鍵又多了一批（i18n 流程）
+### ⑭ `tools/i18n_keys.json` 的失效鍵又多了一批（i18n 流程）— ✅ 已修 2026-11-07
 
 - 症狀：P5 刪掉的 `static/i18n.js` 字串還在鍵檔裡；這一輪刪掉 `static/relgraph.js`、about 那一條字串已同步改鍵，而 `page_tracking.js` 關係圖的新字串（控制列、詳細資料）沒有進語言檔。
-- 為什麼這一輪沒修：清理要走 `docs/i18n-workflow.md`（重跑 `tools/i18n_extract.py` → 補初翻 → 人工核可），不是收尾可以順手做的事；`check_i18n` 與 `check_parity --strict` 目前仍是 FAIL 0／WARN 0。
-- 下一輪：重跑抽取器、清 en／ja 的失效鍵、補關係圖那批新字串。
+- 根因不只「鍵沒清」：抽取器的 `FILES` 還寫死 `static/relgraph.js`（**一跑就 FileNotFoundError**），而且沒掃 `static/page_*.js`、也不認 `"甲 " + n + " 乙"` 這種字串串接，所以介面拆檔之後整批字串都抓不到。
+- 已修：抽取器改成掃 `static/index.html` ＋ `static/*.js`、加 `concat_fold()` 折疊串接、kit 字串只當「既有譯文還活著」的判定；重跑得到 **156 條失效鍵、189 條缺鍵**（en／ja 同批），舊鍵已從兩份語言檔刪除，缺鍵由初翻補上（`i18n/pending/*.review.md` 是核可紀錄）。收尾時 `check_i18n` 通過、`check_parity --strict` FAIL 0／WARN 0、`i18n.lock.json` 已重設。
+- 殘留：`en.json` 的 `章`／`張`／`裡` 與 `ja.json` 的 `看到第` 是舊抽取器留下的碎片鍵，值是空字串（鍵長 ≤4，檢查器不擋）；要清得先確認沒有執行期文字對得上，留給下一輪。
 
-### ⑮ `static/app.js` 的 `esc()` 已經沒有呼叫端
+### ⑮ `static/app.js` 的 `esc()` 已經沒有呼叫端 — ✅ 已修 2026-11-07
 
-- 字串版 HTML 全部改成節點之後 `esc()` 只剩定義；下一輪連同其他沒人用的舊 helper 一起清（先 grep 過 18 個 page 檔）。
+- 症狀：字串版 HTML 全部改成節點之後 `esc()` 只剩定義；連同其他沒人用的舊 helper 一起清（先 grep 過 18 個 page 檔）。
+- 已修：grep 過 18 個 page 檔＋其餘 `static/*.js`（24 檔）與 `index.html`，沒有 `window[…]`／`eval`／`new Function` 這種字串呼叫，整批刪掉 0 呼叫端的 8 項：`esc()`、`pad3()`、`JB()`、`S.es`、`S.lastText`、`Panel.open`、`Panel.reply()`、`Panel.setWidth()`。
+- 驗證：24 個 `static/*.js` 語法檢查全過；18 頁載入 console 0 錯誤／0 警告；書架／總覽／插圖／任務紀錄四頁改前改後 DOM 快照（標籤、class、coords、文字）逐字相同。
 
-### ⑯ 書庫資料與 `docs/screenshots/p5` 基線已經不同步
+### ⑯ 書庫資料與 `docs/screenshots/p5` 基線已經不同步 — ✅ 已修 2026-11-07
 
 - 症狀：p5 截圖之後示範書被改寫（23 檔）、`銀河英雄傳說` 變成 88 章，另有 7 筆 `.studio/jobs/*.json`；所以 01／03／05／06／08／10／15 這些帶數字的頁面與 p5 比對一定會有差（`before→p5` 與 `after→p5` 數字一致可佐證不是程式造成）。
-- 下一輪：比對一律改用 `docs/screenshots/p6`（2.0.0 收尾時建立的新基線）。
+- 已修：比對一律改用 `docs/screenshots/p6`（2.0.0 收尾建立，41 張；p5 只當歷史保留）。`docs/HANDOFF.md` 的 P5 段落已標成「P6 起改用 p6」，P7 接手清單也指 p6。
+- 原則：書庫是活資料（`.studio/jobs`、候選稿、插圖都會動），逐像素比對前先確認書庫沒再變；變了就重拍基線，不要拿舊基線推論「程式改壞了」。
+
+### ⑰ `docs/screenshots/p6` 拍完之後書庫又變了
+
+- 症狀：p6 是 2026-11-07 00:58 拍的；同一天 08:18–08:22 重跑「退婚之後（示範）」的前三章，多出 `插圖/封面/*.png`、`插圖/章節/第001章/*.png`、`候選/第003章_鋪子裡的帳.md` 與 8 筆 `.studio/jobs/*.json`。
+- 影響：01 書架／03 總覽／05 章節／08 任務紀錄／09 插圖（封面縮圖、候選數、任務列表）跟 p6 比對會有差，而且不是程式造成的。
+- 下一輪：要比像素之前先重拍一份（p7），或把書庫回滾到 p6 的狀態；只想確認介面有沒有壞，用 DOM 快照（`h1`＋節點數＋console）比像素穩。
 

@@ -97,6 +97,29 @@
     return (data && data.jobs) || [];
   }
 
+  /* ──────────────── 全域結束事件 ──────────────── */
+
+  // 任何被追蹤的任務結束都會通知，頁面切走也不會斷；回傳取消訂閱的函式。
+  // 面板在同一頁時會自己跳 toast（opts.notify），要避免重複就傳 panel({ notify: false })。
+  const endSubs = new Set();
+
+  function onend(fn) {
+    if (typeof fn !== "function") throw new TypeError("FE.jobs.onend()：需要一個函式");
+    endSubs.add(fn);
+    return () => endSubs.delete(fn);
+  }
+
+  function publishEnd(job) {
+    for (const fn of endSubs) {
+      try {
+        fn(job);
+      } catch (error) {
+        // 訂閱者出錯不能影響其他訂閱者，也不能被當成連線失敗。
+        console.error(error);
+      }
+    }
+  }
+
   /* ──────────────── 追蹤器 ──────────────── */
 
   function watch(input, opts = {}) {
@@ -178,6 +201,7 @@
       if (liveSeen) {
         liveSeen = false;
         emit("onend", tracker.job);
+        publishEnd(tracker.job);
       }
     }
 
@@ -714,7 +738,7 @@
           reply(input.value);
         },
       }) : null;
-      askEl.replaceChildren(
+      const nodes = [
         h("div", { class: "job-ask-prompt" }, ask.prompt === undefined ? "" : String(ask.prompt)),
         options.length ? h("div", { class: "job-ask-options" }, options.map((option) => h("button", {
           class: "btn btn-sm",
@@ -724,7 +748,9 @@
         input,
         input ? h("div", { class: "job-ask-send" },
           h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => reply(input.value) }, "送出")) : null,
-      );
+      ];
+      // replaceChildren 會把 null 轉成文字節點「null」，先把空的濾掉。
+      askEl.replaceChildren(...nodes.filter(Boolean));
       askEl.classList.remove("hidden");
       // 任務停在這裡等人，要讓使用者看得到。
       if (job.status === "running") reveal();
@@ -1019,5 +1045,5 @@
     };
   }
 
-  FE.jobs = { panel, watch, list, apply_patch: applyPatch, blank, is_terminal: isTerminal };
+  FE.jobs = { panel, watch, onend, list, apply_patch: applyPatch, blank, is_terminal: isTerminal };
 })();

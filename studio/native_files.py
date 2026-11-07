@@ -161,10 +161,8 @@ def apply_appends(book_dir, appends):
             skipped.append("追加名詞：沒有新名稱" + ("（已存在：%s）" % "、".join(dup) if dup else ""))
             continue
         tracking.backup(book_dir, full, "追加前")
-        with open(full, "a", encoding="utf-8", newline="\n") as f:
-            if not cur.endswith("\n"):
-                f.write("\n")
-            f.write("\n".join(new_rows) + "\n")
+        added = ("\n" if not cur.endswith("\n") else "") + "\n".join(new_rows) + "\n"
+        project.write_atomic(full, cur + added)
         done.append("追加名詞 %d 筆：%s" % (len(new_rows), "、".join(r.split("|")[1].strip() for r in new_rows)))
         if dup:
             skipped.append("已存在、略過：%s" % "、".join(dup))
@@ -190,9 +188,7 @@ def apply_blocks(book_dir, files, dels, appends=None):
             verb = "更新"
         else:
             verb = "新增"
-        os.makedirs(os.path.dirname(full), exist_ok=True)
-        with open(full, "w", encoding="utf-8", newline="\n") as f:
-            f.write(content.strip() + "\n")
+        project.write_atomic(full, content.strip() + "\n")
         done.append("%s %s" % (verb, rel))
     for rel in dels:
         try:
@@ -329,8 +325,7 @@ def _style_metrics_after(c, m, done):
         return
     fp = os.path.join(c.book, "設定", "文風.md")
     t = shared.put_metrics(project.read_text(fp), m)
-    with open(fp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(t)
+    project.write_atomic(fp, t)
 
 
 def spec_preference(c, p):

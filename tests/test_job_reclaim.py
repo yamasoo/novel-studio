@@ -91,6 +91,23 @@ class RunnerReclaimTest(unittest.TestCase):
         self.assertEqual(calls, ["reclaim"])
 
 
+class JobSaveTest(unittest.TestCase):
+    def test_存檔是原子寫且讀得回來(self):
+        import json
+        tmp = tempfile.mkdtemp(prefix="ns-save-")
+        job = make_job(tmp, ended=1.0, title="寫第1章")
+        job.result = "完成"
+        job.save()
+        path = os.path.join(tmp, ".studio", "jobs", job.id + ".json")
+        self.assertTrue(os.path.isfile(path))
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertEqual(data["title"], "寫第1章")
+        self.assertEqual(data["result"], "完成")
+        self.assertTrue(data["events"])
+        self.assertEqual([f for f in os.listdir(os.path.dirname(path)) if f.endswith(".tmp")], [])
+
+
 class ViewPruneTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="ns-view-")

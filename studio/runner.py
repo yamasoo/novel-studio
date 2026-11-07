@@ -162,10 +162,12 @@ class Job:
         return d
 
     def save(self):
+        from . import project
         d = os.path.join(self.book_dir, ".studio", "jobs")
         os.makedirs(d, exist_ok=True)
-        with open(os.path.join(d, self.id + ".json"), "w", encoding="utf-8") as f:
-            json.dump(self.to_dict(True), f, ensure_ascii=False)
+        # 任務紀錄含完整事件，可能幾百 KB：用原子寫，中途斷掉才不會留下半個 json
+        project.write_atomic(os.path.join(d, self.id + ".json"),
+                             json.dumps(self.to_dict(True), ensure_ascii=False))
 
 
 class Runner:

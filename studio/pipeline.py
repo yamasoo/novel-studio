@@ -143,8 +143,7 @@ class Pipeline:
 
     def save(self):
         self.s["updated"] = time.time()
-        with open(_state_path(self.d), "w", encoding="utf-8") as f:
-            json.dump(self.s, f, ensure_ascii=False, indent=1)
+        project.write_atomic(_state_path(self.d), json.dumps(self.s, ensure_ascii=False, indent=1))
 
     def to_dict(self):
         with self.lock:

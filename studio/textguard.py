@@ -226,67 +226,99 @@ def _book_lang(book_dir):
         return ""
 
 
+def term_map(module):
+    """從檢查腳本的大陸用語表挑「可以直接換」的：等級是建議修、建議值唯一（沒有／、（）。
+    長的排前面，避免短的先吃掉長的（人工智能先於智能、公交車先於公交）。"""
+    out = []
+    for item in getattr(module, "MAINLAND_TERMS", []):
+        bad, good = item[0], item[1]
+        level = item[2] if len(item) > 2 else ""
+        if level != "建議修" or not bad or not good:
+            continue
+        if "／" in good or "（" in good or "(" in good:
+            continue
+        out.append((bad, good))
+    out.sort(key=lambda kv: -len(kv[0]))
+    return out
+
+
 def _guard_one(book_dir, text):
-    """回傳 (文字, 轉繁處數, 沒轉的簡體字數)。"""
+    """回傳 (文字, 計數)。計數是 {"simp": 轉繁處數, "term": 用語處數, "punct": 標點處數, "left": 沒轉的簡體字數}。"""
+    zero = {"simp": 0, "term": 0, "punct": 0, "left": 0}
     if not text or not isinstance(text, str) or _book_lang(book_dir) != "zh-TW":
-        return text, 0, 0
-    simp = simp_count(text)
-    if not simp:
-        return text, 0, 0
-    if simp > SIMP_MAX:
-        return text, 0, simp
+        return text, zero
     m = _zh_module()
     if not m:
-        return text, 0, simp
-    mapping = s2t_map({ch for ch in text if ch in m.SIMPLIFIED_ONLY})
-    if not mapping:
-        return text, 0, simp
+        return text, zero
+    simp = simp_count(text)
+    if simp > SIMP_MAX:        # 整段漂移：不硬轉，交給作者重跑
+        return text, dict(zero, left=simp)
     masked, table = _mask(text, m.load_whitelist(book_dir))
-    hits = 0
-    for k, v in mapping.items():
-        hits += masked.count(k)
-        masked = masked.replace(k, v)
+    done = dict(zero)
+    if simp:
+        mapping = s2t_map({ch for ch in masked if ch in m.SIMPLIFIED_ONLY})
+        for k, v in mapping.items():
+            done["simp"] += masked.count(k)
+            masked = masked.replace(k, v)
+        done["left"] = simp_count(masked)
+    for bad, good in term_map(m):
+        n = masked.count(bad)
+        if n:
+            masked = masked.replace(bad, good)
+            done["term"] += n
+    if "```" not in masked:   # 程式碼區塊不動標點
+        masked, done["punct"] = m.fix_punct(masked)
     for ph, term in table.items():
         masked = masked.replace(ph, term)
-    return masked, hits, 0
+    return masked, done
+
+
+def _note_of(done):
+    """把計數寫成一句給作者看的話；沒動到內容就回傳空字串。"""
+    parts = []
+    if done.get("simp"):
+        parts.append("簡體字已轉繁 %d 處" % done["simp"])
+    if done.get("term"):
+        parts.append("用語 %d 處" % done["term"])
+    if done.get("punct"):
+        parts.append("標點 %d 處" % done["punct"])
+    if not parts and not done.get("left"):
+        return ""
+    note = "、".join(parts)
+    if done.get("left"):
+        if done["left"] > SIMP_MAX:
+            why = "整段偏簡體"
+        else:
+            why = "沒有 OpenCC 可轉" if not parts else "白名單或對照表沒涵蓋"
+        tail = "有 %d 個簡體字沒轉（%s），建議重跑這個步驟" % (done["left"], why)
+        note = (note + "；" + tail) if note else tail
+    return note
 
 
 def guard_text(book_dir, text):
-    """繁體書的產出在落檔前過一道，回傳 (文字, 說明)；說明空字串代表沒動到內容。"""
-    out, hits, left = _guard_one(book_dir, text)
-    if hits:
-        return out, "簡體字已轉繁 %d 處" % hits
-    if left:
-        why = "整段偏簡體" if left > SIMP_MAX else "沒有 OpenCC 可轉"
-        return out, "有 %d 個簡體字沒轉（%s），建議重跑這個步驟" % (left, why)
-    return out, ""
+    """繁體書的產出在落檔前過一道（簡體轉繁、用語、標點），回傳 (文字, 說明)。"""
+    out, done = _guard_one(book_dir, text)
+    return out, _note_of(done)
 
 
 def guard_data(book_dir, data):
     """把 dict／list 裡的字串值都過一次 guard_text；回傳 (新資料, 說明)。"""
-    hit = left = 0
+    total = {"simp": 0, "term": 0, "punct": 0, "left": 0}
 
     def walk(v):
-        nonlocal hit, left
         if isinstance(v, dict):
             return {k: (val if str(k).startswith("_") else walk(val)) for k, val in v.items()}
         if isinstance(v, list):
             return [walk(x) for x in v]
         if isinstance(v, str) and v:
-            out, h, l = _guard_one(book_dir, v)
-            hit += h
-            left += l
+            out, done = _guard_one(book_dir, v)
+            for k in total:
+                total[k] += done.get(k, 0)
             return out
         return v
 
     out = walk(data)
-    if hit:
-        note = "簡體字已轉繁 %d 處" % hit
-        return out, note + ("；另有 %d 個沒轉" % left if left else "")
-    if left:
-        return out, "有 %d 個簡體字沒轉（整段偏簡體或沒有 OpenCC），建議重跑" % left
-    return out, ""
-
+    return out, _note_of(total)
 
 def notify(note):
     """沒有回報通道的地方（例如續寫合約）把語言修正寫到後端視窗。"""

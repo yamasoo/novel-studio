@@ -122,7 +122,7 @@ class GuardTextTest(unittest.TestCase):
         out, note = textguard.guard_text(d, "这明这时来了。")
         self.assertIn("这明", out)          # 名字原樣
         self.assertIn("這時", out)          # 其他照轉
-        self.assertIn("已轉繁 3 處", note)   # 第二個「这」、时、来
+        self.assertIn("已轉繁 3 處", note)   # 名字被遮罩；剩下第二個「这」、时、来
 
     def test_不是字串就原樣回傳(self):
         d = make_book()
@@ -146,6 +146,40 @@ class GuardDataTest(unittest.TestCase):
         d = make_book()
         data = {"a": "這是繁體"}
         self.assertEqual(textguard.guard_data(d, data), (data, ""))
+
+
+class GuardTermsTest(unittest.TestCase):
+    def test_用語換成台灣說法(self):
+        d = make_book()
+        out, note = textguard.guard_text(d, "他打開軟件，看了一下默認設定。")
+        self.assertEqual(out, "他打開軟體，看了一下預設設定。")
+        self.assertIn("用語 2 處", note)
+
+    def test_提醒級的用語不自動改(self):
+        d = make_book()
+        text = "地鐵很方便，水平也不錯。"
+        self.assertEqual(textguard.guard_text(d, text), (text, ""))
+
+    def test_長詞優先(self):
+        d = make_book()
+        out, _ = textguard.guard_text(d, "這是人工智能的時代。")
+        self.assertEqual(out, "這是人工智慧的時代。")
+
+    def test_標點改成全形(self):
+        d = make_book()
+        out, note = textguard.guard_text(d, "他說,走吧.")
+        self.assertEqual(out, "他說，走吧。")
+        self.assertIn("標點 2 處", note)
+
+    def test_程式碼區塊不動標點(self):
+        d = make_book()
+        text = "\u0060\u0060\u0060\na,b\n\u0060\u0060\u0060"
+        self.assertEqual(textguard.guard_text(d, text), (text, ""))
+
+    def test_沒有用語表也能跑(self):
+        d = make_book()
+        text = "這是完全正常的繁體句子。"
+        self.assertEqual(textguard.guard_text(d, text), (text, ""))
 
 
 if __name__ == "__main__":

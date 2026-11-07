@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="1000" height="440" role="img" aria-label="候選稿到定稿的流程">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b7c"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; fill: #1f2933; }
+    .t { font-size: 17px; font-weight: 700; }
+    .s { font-size: 13px; fill: #52606d; }
+    .l { font-size: 13px; fill: #5b6b7c; }
+    .box { fill: #f5f7fa; stroke: #b6c2cf; stroke-width: 1.5; rx: 12; }
+    .key { fill: #e8f1fb; stroke: #6f9fd8; }
+    .ok  { fill: #eaf5ec; stroke: #6aa87b; }
+    .warn{ fill: #fdf3e3; stroke: #d8a24a; }
+    .dash{ stroke: #5b6b7c; stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow); }
+    .line{ stroke: #5b6b7c; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  </style>
+  <text class="t" x="40" y="42" style="font-size:20px">AI 的草稿永遠先放「候選」，不會直接改你的正文</text>
+  <text class="s" x="40" y="66">套用之前，舊版會先備份到 .studio/備份/</text>
+  <rect class="box " x="40" y="130" width="200" height="96"/>
+  <text class="t" x="140" y="165" text-anchor="middle">AI 產出</text>
+  <text class="s" x="140" y="185" text-anchor="middle">章節・設定・審查</text>
+  <text class="s" x="140" y="202" text-anchor="middle">一次只做一件事</text>
+  <rect class="box key" x="280" y="130" width="200" height="96"/>
+  <text class="t" x="380" y="165" text-anchor="middle">候選/</text>
+  <text class="s" x="380" y="185" text-anchor="middle">草稿先放這裡</text>
+  <text class="s" x="380" y="202" text-anchor="middle">正文完全不動</text>
+  <rect class="box warn" x="520" y="130" width="200" height="96"/>
+  <text class="t" x="620" y="165" text-anchor="middle">檢查與修訂</text>
+  <text class="s" x="620" y="185" text-anchor="middle">用語・AI 味・標點</text>
+  <text class="s" x="620" y="202" text-anchor="middle">逐段選「原文」或「修訂」</text>
+  <rect class="box ok" x="760" y="130" width="200" height="96"/>
+  <text class="t" x="860" y="165" text-anchor="middle">定稿</text>
+  <text class="s" x="860" y="185" text-anchor="middle">搬進 正文/</text>
+  <text class="s" x="860" y="202" text-anchor="middle">追蹤表一起更新</text>
+  <path class="line" d="M246,178 L272,178"/>
+  <path class="line" d="M486,178 L512,178"/>
+  <path class="line" d="M726,178 L752,178"/>
+  <path class="dash" d="M860,234 L860,286 L380,286 L380,234"/>
+  <text class="l" x="620" y="308" text-anchor="middle">不滿意就丟掉，正文沒有任何改變；再想一次就重寫</text>
+  <rect class="box ok" x="40" y="340" width="420" height="70"/>
+  <text class="t" x="250" y="331" text-anchor="middle">正文/ 只在「定稿」時被寫入</text>
+  <text class="s" x="250" y="351" text-anchor="middle">備份在 .studio/備份/，每組留最近 30 份</text>
+  <rect class="box " x="500" y="340" width="460" height="70"/>
+  <text class="t" x="730" y="331" text-anchor="middle">每一步都能停</text>
+  <text class="s" x="730" y="351" text-anchor="middle">任務中斷會留恢復稿；重跑可以從某一步開始</text>
+</svg>

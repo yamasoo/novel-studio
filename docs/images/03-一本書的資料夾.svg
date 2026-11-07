@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-label="一本書的資料夾結構">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b7c"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; fill: #1f2933; }
+    .t { font-size: 17px; font-weight: 700; }
+    .s { font-size: 13px; fill: #52606d; }
+    .l { font-size: 13px; fill: #5b6b7c; }
+    .box { fill: #f5f7fa; stroke: #b6c2cf; stroke-width: 1.5; rx: 12; }
+    .key { fill: #e8f1fb; stroke: #6f9fd8; }
+    .ok  { fill: #eaf5ec; stroke: #6aa87b; }
+    .warn{ fill: #fdf3e3; stroke: #d8a24a; }
+    .dash{ stroke: #5b6b7c; stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow); }
+    .line{ stroke: #5b6b7c; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  </style>
+  <text class="t" x="40" y="42" style="font-size:20px">一本書在硬碟上長什麼樣</text>
+  <text class="s" x="40" y="66">全部是純文字（Markdown＋YAML），可以直接看、直接改、用 git 備份</text>
+  <rect class="box " x="40" y="100" width="300" height="88"/>
+  <text class="t" x="190" y="131" text-anchor="middle">設定/</text>
+  <text class="s" x="190" y="151" text-anchor="middle">角色・勢力・世界觀</text>
+  <text class="s" x="190" y="168" text-anchor="middle">故事核心・文風・續寫合約</text>
+  <rect class="box " x="356" y="100" width="300" height="88"/>
+  <text class="t" x="506" y="131" text-anchor="middle">大綱/</text>
+  <text class="s" x="506" y="151" text-anchor="middle">全書大綱・卷綱</text>
+  <text class="s" x="506" y="168" text-anchor="middle">章綱（每章一張）</text>
+  <rect class="box ok" x="672" y="100" width="300" height="88"/>
+  <text class="t" x="822" y="131" text-anchor="middle">正文/</text>
+  <text class="s" x="822" y="151" text-anchor="middle">定稿的章節</text>
+  <text class="s" x="822" y="168" text-anchor="middle">（AI 不會直接改）</text>
+  <rect class="box key" x="40" y="216" width="300" height="88"/>
+  <text class="t" x="190" y="247" text-anchor="middle">候選/</text>
+  <text class="s" x="190" y="267" text-anchor="middle">AI 剛寫完的草稿</text>
+  <text class="s" x="190" y="284" text-anchor="middle">檢查完才搬進正文</text>
+  <rect class="box " x="356" y="216" width="300" height="88"/>
+  <text class="t" x="506" y="247" text-anchor="middle">追蹤/</text>
+  <text class="s" x="506" y="267" text-anchor="middle">狀態卡・伏筆・時間線</text>
+  <text class="s" x="506" y="284" text-anchor="middle">章節摘要・讀者認知</text>
+  <rect class="box warn" x="672" y="216" width="300" height="88"/>
+  <text class="t" x="822" y="247" text-anchor="middle">.studio/</text>
+  <text class="s" x="822" y="267" text-anchor="middle">備份・任務紀錄・索引</text>
+  <text class="s" x="822" y="284" text-anchor="middle">不是暫存，請不要刪</text>
+  <text class="l" x="40" y="366" text-anchor="start">書名／　底下就是這六個資料夾；換電腦、換 AI、換版本，資料都還是你的。</text>
+</svg>

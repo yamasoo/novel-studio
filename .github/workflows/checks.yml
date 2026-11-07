@@ -2,11 +2,12 @@ name: checks
 
 # 目的：把「靠人記得跑」的檢查變成 push 就擋。
 # 這支 workflow 不呼叫任何模型、不花錢，跑完約 1 分鐘（prompt_lang_audit 與 book_eval 用的是假 provider）。
+# tests/ 用 stdlib 的 unittest 跑（不需要 pytest）：write_atomic 的中斷保護、備份上限、繁簡守門都在裡面。
 # check_parity 以 --strict 跑：WARN 也擋（2026-10-29 起 WARN 已歸零；那天之前只擋 FAIL）。
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]     # dev 是整合分支：直推也要驗，不然等發版 PR 才發現壞掉
   pull_request:
   workflow_dispatch:
   schedule:
@@ -26,6 +27,11 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+
+      # 0) 單元測試：stdlib unittest，幾百毫秒；放最前面，壞了最快知道。
+      #    requirements.txt 有 opencc，所以轉換類測試在 CI 也會真的跑到（本機系統 python 會 skip）。
+      - name: 單元測試（tests/）
+        run: python -m unittest discover -s tests -p "test_*.py" -v
 
       # 1) 既有檢查：提示詞包的鍵／變數、語言檔的變數與空值、路徑不被翻譯
       - name: check_i18n

@@ -2572,8 +2572,15 @@ def serve():
 
 
 def preflight():
-    """啟動時的自我檢查：書庫寫不寫得進去。寫不進去時給能動的解法，而不是等按下快照才炸。"""
+    """啟動時的自我檢查：書庫寫不寫得進去。寫不進去時給能動的解法，而不是等按下快照才炸。
+
+    三種情況要分開講，混在一起會誤導：
+    沒設書庫＝第一次啟動的正常狀態；權限不足才是 .venv／工作區限制；其他 OSError 是路徑本身有問題。
+    """
     lib = CONFIG.get("library") or ""
+    if not lib:
+        print("書庫還沒指定：啟動後在書架頁選一個資料夾（第一次啟動的正常狀態）。")
+        return False
     try:
         os.makedirs(lib, exist_ok=True)
         probe = os.path.join(lib, ".ns-write-test-%d" % os.getpid())
@@ -2581,9 +2588,9 @@ def preflight():
             f.write("ok")
         os.remove(probe)
         return True
-    except OSError as e:
+    except PermissionError as e:
         print("\n" + "=" * 70)
-        print("警告：這個 python 寫不進書庫，寫稿／存設定會失敗。")
+        print("警告：這個 python 沒有權限寫入書庫，寫稿／存設定會失敗。")
         print("  書庫：%s" % lib)
         print("  原因：%s" % e)
         print("  目前用的 python：%s" % sys.executable)
@@ -2591,6 +2598,15 @@ def preflight():
         print("  解法：改用外部虛擬環境啟動——")
         print("    set NS_VENV=C:\\Users\\你\\venvs\\novel-studio")
         print("    start.bat")
+        print("=" * 70 + "\n")
+        return False
+    except OSError as e:
+        print("\n" + "=" * 70)
+        print("警告：書庫路徑不能用，寫稿／存設定會失敗。")
+        print("  書庫：%s" % lib)
+        print("  原因：%s" % e)
+        print("  怎麼查：這個資料夾存不存在？磁碟機或網路磁碟有沒有連上？")
+        print("  解法：在書架頁重新選一個資料夾，或直接改 config.json 的 library。")
         print("=" * 70 + "\n")
         return False
 

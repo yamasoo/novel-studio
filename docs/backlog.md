@@ -31,13 +31,13 @@
 
 ## P5 期間新發現
 
-### ⑥ fekit 的 `drawAsk` 會把 `null` 塞進 `replaceChildren`（kit 缺陷，仍未修）
-
-- 2.0.0 收尾時確認：這一輪 `E:\dev\front-end` 唯讀，不能改 kit，所以 app.js 那三行繞路照舊留著；`sync_kit.py --add graph` 的 dry-run 也顯示 `fe/jobs.js` 與 kit 目前版本相同（缺陷還在 kit 裡）。
+### ⑥ fekit 的 `drawAsk` 會把 `null` 塞進 `replaceChildren`（kit 缺陷，✅ 已修 2026-11-07）
 
 - 症狀：面板回覆框多一個裸的 `null` 文字節點（`vendor/fekit/fe/jobs.js` 的 `drawAsk`）。
-- 現況：`app.js` 的 `Panel.mount` 的 `onchange` 每次重畫後把 `.job-panel .job-ask` 裡的純文字節點刪掉（三行繞路，有註解）。
-- P6：要修在 fekit 本體（`E:\dev\front-end\kit\fe\jobs.js`），修好後刪掉那三行。**不要**手改 `vendor/fekit`。
+- 已修：修在 fekit 本體（kit 專案的 `fe/jobs.js`，kit `56a37e4`）——`drawAsk` 先濾掉 null 再 `replaceChildren`，同一批加了 `FE.jobs.onend`。
+  `vendor/fekit` 由 `tools/sync_kit.py` 同步（`be027f7`），`app.js` 的 `Panel.mount` 三行繞路已刪。
+- 驗證：`git grep job-ask -- static/app.js` 0 命中；18 頁載入 console 0 錯誤（同 2.0.0 收尾那輪的驗法）。
+- 原則：`vendor/fekit` 一律由 `tools/sync_kit.py` 寫入，**不要**手改；kit 的缺陷回 kit 本體修好再同步。
 
 ### ⑦ `static/relgraph.js` 沒有換成 `FE.graph`（關係圖）（2.0.0 已修）
 

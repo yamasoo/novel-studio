@@ -31,6 +31,15 @@
   - `vendor/fekit` 同步新增 graph 模組與 Cytoscape 3.34.4（仍然只由 `tools/sync_kit.py` 寫入）
   - 舊 `localStorage` key（`ns_lang`／`provider`／`actsCollapsed`／`search-scopes`／`panelOpen`／`panelW`）在遷移成功後刪除，並記 `legacy.pruned` 標記；**回退到 P4 版會讓這些偏好回預設值**
 
+### 再收尾（⑭–⑯）
+
+- 內部
+  - `tools/i18n_extract.py` 不再寫死檔名（改掃 `static/index.html` 與 `static/*.js`），並折疊 `"甲 " + n + " 乙"` 這種字串串接；重跑後清掉 156 條失效鍵、補 189 條缺鍵（en／ja 各一份）
+  - `static/app.js` 再刪 8 項 0 呼叫端的舊 helper（`esc`／`pad3`／`JB`／`S.es`／`S.lastText`／`Panel.open`／`Panel.reply`／`Panel.setWidth`），24 個 `static/*.js` 語法檢查全過、18 頁 console 0 錯誤
+  - `vendor/fekit` 同步 kit `56a37e4`：`FE.jobs.drawAsk` 不再把 `null` 塞進 `replaceChildren`，新增 `FE.jobs.onend`；`app.js` 的三行繞路移除
+- 文件
+  - 截圖基線確定用 `docs/screenshots/p6`（p5 只當歷史保留）；`docs/backlog.md` 記 ⑰（p6 拍完後書庫又動過，要比像素前先重拍）
+
 ## 1.18.0（2026-10-30）
 
 - 說明頁、設定生成、卷綱修訂、章節入口與書架效能一起進 `main`（14 個 commit）

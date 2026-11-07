@@ -77,6 +77,8 @@
                 h("p", { class: "muted small" }, "沒有存任何草稿，卷綱也沒動。可以再試一次，或換一個執行者。"));
               return;
             }
+            const w1 = p.warnings || [];
+            if (w1.length) FE.toast(w1.join("；"), "err");
             const applyBtn = h("button", { id: "dr-apply" }, "附加到卷綱");
             planOut.replaceChildren(
               FE.md.render(p.plan_md || ""),
@@ -85,7 +87,9 @@
             applyBtn.onclick = async () => {
               try {
                 const res = await FE.api(B("/drift/apply"), { method: "POST", body: { from: a, to: b, draft: p.draft }, signal });
-                FE.toast("已附加到 " + res.volume_file);
+                const w2 = res.warnings || [];
+                if (w2.length) FE.toast(w2.join("；"), "err");
+                else FE.toast("已附加到 " + res.volume_file);
                 planOut.replaceChildren(h("p", { class: "muted" }, "已附加到 ", h("code", {}, res.volume_file), "（原本的內容沒動）。"));
               } catch (e) { FE.fail(e); }
             };

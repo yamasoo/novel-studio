@@ -45,6 +45,8 @@ def clean_step_providers(m, valid_ids):
             out[k] = v
     return out
 DEFAULT_SEVERITIES = ["必須修", "建議修"]
+WAIT_TOTAL = 1800      # 一步最多等 30 分鐘
+WAIT_IDLE = 600        # 10 分鐘沒有任何新事件就當卡住（正常的長任務仍會持續輸出）
 AUTO_NOTE = ("這是整章自動流程的一步：不要停下來問作者，也不要等作者確認；"
              "不確定的地方採用最合理、和既有設定一致的寫法，並在匯報列出來。")
 
@@ -141,8 +143,7 @@ class Pipeline:
 
     def save(self):
         self.s["updated"] = time.time()
-        with open(_state_path(self.d), "w", encoding="utf-8") as f:
-            json.dump(self.s, f, ensure_ascii=False, indent=1)
+        project.write_atomic(_state_path(self.d), json.dumps(self.s, ensure_ascii=False, indent=1))
 
     def to_dict(self):
         with self.lock:
@@ -280,8 +281,19 @@ class Pipeline:
                 if st["status"] == "running":
                     st["job"] = job.id
         self.save()
+        t0 = last = time.time()
+        seen = len(job.events or [])
         while not (job.events and job.events[-1].get("kind") == "end"):
             time.sleep(0.4)
+            n = len(job.events or [])
+            if n != seen:                       # 有輸出就算活著
+                seen, last = n, time.time()
+            if self.stop_flag:
+                if job.status != "running":     # 已停止但等不到 end：不要繼續等
+                    break
+                continue
+            if time.time() - t0 > WAIT_TOTAL or time.time() - last > WAIT_IDLE:
+                self._abort_slow(job, time.time() - last, time.time() - t0)
         if job.status == "cancelled" or self.stop_flag:
             raise Stopped()
         if job.status != "done":
@@ -289,6 +301,18 @@ class Pipeline:
             raise StepFailed(errs[-1] if errs else "任務沒有完成（%s）" % job.status)
         self._add_usage(job)
         return job
+
+    def _abort_slow(self, job, idle, total):
+        """任務卡住（閒置太久或總時長超過上限）：先取消再讓這一步失敗。
+        沒有這道保護時流程會永遠停在 running，那本書就再也開不了新任務。"""
+        try:
+            self.h["cancel"](job.id)
+        except Exception:
+            pass
+        why = ("閒置 %.0f 分鐘沒有輸出" % (idle / 60)) if idle > WAIT_IDLE else ("總共等了 %.0f 分鐘" % (total / 60))
+        raise StepFailed("「%s」這一步%s，已停止這個任務，工作台不會一直等下去；"
+                         "確認原因後可以從這一步繼續。"
+                         % (LABEL.get(getattr(self, "cur", None)) or "AI 步驟", why))
 
     def _add_usage(self, job):
         """把這一輪任務的 token 與費用累加到流程狀態（檢查點與 UI 都用得到）。"""
@@ -392,8 +416,7 @@ class Pipeline:
             self._shelve(cand_path, "重跑前候選")
             if snap.get("candidate"):
                 os.makedirs(os.path.join(self.d, "候選"), exist_ok=True)
-                with open(os.path.join(self.d, "候選", snap["candidate"]), "w", encoding="utf-8", newline="\n") as f:
-                    f.write(snap["text"])
+                project.write_atomic(os.path.join(self.d, "候選", snap["candidate"]), snap["text"])
         # 之後各步的紀錄
         recs = {"goal": ("核對", "第%03d章.json" % no), "review": ("審查", "第%03d章.json" % no)}
         for k, (sub, fn) in recs.items():

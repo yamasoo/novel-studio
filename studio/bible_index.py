@@ -308,8 +308,7 @@ def merge(book_dir, canonical, duplicates_rel):
     # 1) 保留檔：加別名、附上併入內容
     new_text = _set_aliases(canon_text, aliases) if aliases else canon_text
     new_text = new_text.rstrip("\n") + "".join(sections) + "\n"
-    with open(canon_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(new_text)
+    project.write_atomic(canon_path, new_text)
 
     # 2) 把指向舊檔的路徑改成保留檔（名詞表、其他設定檔）
     replacements = {r: canon_rel for r, _ in dups}
@@ -328,8 +327,7 @@ def merge(book_dir, canonical, duplicates_rel):
         for old, newp in replacements.items():
             new = new.replace(old, newp)
         if new != t:
-            with open(tp, "w", encoding="utf-8", newline="\n") as f:
-                f.write(new)
+            project.write_atomic(tp, new)
             refs_changed.append(os.path.relpath(tp, book_dir).replace("\\", "/"))
 
     # 3) 舊檔移到 設定/_已合併/（不刪除）

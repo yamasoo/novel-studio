@@ -93,9 +93,12 @@ def safe_shared_path(library, rel):
 
 def _backup(book_dir, path, tag):
     if os.path.isfile(path):
+        from . import tracking      # 只有備份上限要用；放在函式裡免得模組層互相 import
         bak = os.path.join(book_dir, ".studio", "備份")
         os.makedirs(bak, exist_ok=True)
-        shutil.copy2(path, os.path.join(bak, "%s_%s_%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time()))))
+        name = "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time()))
+        shutil.copy2(path, os.path.join(bak, name))
+        tracking.prune_backups(bak, name)
 
 
 def set_fm(text, key, value):
@@ -233,9 +236,7 @@ def apply_style(library, name, book_dir):
     _backup(book_dir, dst, "文風")
     text = project.read_text(src)
     text = set_fm(set_fm(set_fm(set_fm(text, "類型", "文風"), "來源", "共用文風「%s」" % name), "名稱", None), "語言", None)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    with open(dst, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    project.write_atomic(dst, text)
     return "設定/文風.md"
 
 
@@ -555,8 +556,7 @@ def apply_structure(library, name, origin, book_dir, make_default=False):
     dst = os.path.join(d, name + ".md")
     _backup(book_dir, dst, "章節結構")
     text = set_fm(set_fm(set_fm(project.read_text(src), "預設", None), "名稱", None), "語言", None)
-    with open(dst, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    project.write_atomic(dst, text)
     if make_default or not any(s["default"] for s in book_structures(book_dir)):
         set_book_default(book_dir, name)
     return "設定/章節結構/%s.md" % name
@@ -570,8 +570,8 @@ def set_book_default(book_dir, name):
         new = set_fm(text, "預設", "是" if s["name"] == name else None)
         found = found or s["name"] == name
         if new != text:
-            with open(p, "w", encoding="utf-8", newline="\n") as f:
-                f.write(new)
+            _backup(book_dir, p, "改預設結構前")
+            project.write_atomic(p, new)
     if name and not found:
         raise SharedError("這本書沒有「%s」這個結構" % name)
 
@@ -584,9 +584,10 @@ def set_chapter_structure(book_dir, no, name):
     if name and not os.path.isfile(os.path.join(book_dir, BOOK_STRUCT_DIR, _name_ok(name) + ".md")):
         raise SharedError("這本書沒有「%s」這個結構，請先從共用庫套用" % name)
     p = os.path.join(book_dir, card_path)
+    from . import tracking
     text = set_fm(project.read_text(p), "結構", name or None)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    tracking.backup(book_dir, p, "章綱結構前")
+    project.write_atomic(p, text)
 
 
 def structure_for(book_dir, no=None):

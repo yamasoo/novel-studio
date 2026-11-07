@@ -211,8 +211,26 @@ class View:
 
 
 # ── 端點 ──
-VIEWS = {}                      # 只放「執行中」的任務
+VIEWS = {}                      # 執行中的任務＋最近幾份已結束的（要回收，不然每個 View 都釘住一個 Job）
 VIEWS_LOCK = threading.Lock()
+VIEW_KEEP = 30                  # 已結束的任務保留幾份 View
+
+
+def forget(job_ids):
+    """任務被 Runner 回收時，把它的 View 一起放掉（不然 Job 會被 View 釘住回收不掉）。"""
+    with VIEWS_LOCK:
+        for jid in job_ids:
+            VIEWS.pop(jid, None)
+
+
+def prune_views(keep=None):
+    """只留最近 keep 份「已結束」的 View；執行中的不動。"""
+    keep = VIEW_KEEP if keep is None else int(keep)
+    with VIEWS_LOCK:
+        done = sorted((view._get("started") or 0, jid)
+                      for jid, view in VIEWS.items() if view.terminal())
+        for _, jid in done[:max(0, len(done) - keep)]:
+            VIEWS.pop(jid, None)
 
 
 def job_id_of(job):
@@ -232,13 +250,17 @@ def view_of(job):
     key = job_id_of(job)
     with VIEWS_LOCK:
         view = VIEWS.get(key)
-        if view is None:
+        created = view is None
+        if created:
             view = VIEWS[key] = View(job, saved=False)
+    if created:
+        prune_views()       # 順手回收舊的：注意要在放掉 VIEWS_LOCK 之後呼叫
     view.sync()
     return view
 
 
 def install(app, runner, book_dir, load_history, load_job_file, launch_reply):
+    runner.on_forget = forget      # Runner 回收任務時，View 跟著放掉
     @app.get("/api/fe/books/{book_id}/jobs")
     def fe_list(book_id: str, status: str = "", limit: int = 20):
         book_dir(book_id)

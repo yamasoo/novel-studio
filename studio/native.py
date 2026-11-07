@@ -220,8 +220,7 @@ def _save_candidate(c, no, title, text):
         os.remove(os.path.join(d, old))
     fixed, n = c.checker.fix_punct(text)
     name = "第%03d章_%s.md" % (no, title)
-    with open(os.path.join(d, name), "w", encoding="utf-8", newline="\n") as f:
-        f.write(fixed)
+    project.write_atomic(os.path.join(d, name), fixed)
     return "候選/" + name, n
 
 
@@ -258,8 +257,7 @@ def _fix_simplified(c, rel, res):
         return res, ""
     for k, v in mapping.items():
         text = text.replace(k, v)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    project.write_atomic(p, text)
     pairs = "、".join("%s→%s" % kv for kv in list(mapping.items())[:6])
     return c.checker.check_file(p, c.checker.load_whitelist(c.book)), "簡體字自動轉繁 %d 處（%s）" % (hits, pairs)
 
@@ -901,9 +899,10 @@ def save_card_result(book, p, data):
     if not card["tags"] and not card["description"]:
         raise NativeError("模型沒有回傳視覺卡內容")
     card = illust.sanitize_card(card, f.split("/")[1] if f.count("/") >= 2 else "")
-    with open(path, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(illust.write_card(text, card))
-    return "**視覺卡已寫入 %s**\n- 標籤：%s\n- 描述：%s" % (f, illust.normalize_tags(card["tags"]), card["description"])
+    body, note = textguard.guard_text(book, illust.write_card(text, card))
+    project.write_atomic(path, body)
+    return "**視覺卡已寫入 %s**%s\n- 標籤：%s\n- 描述：%s" % (f, ("（%s）" % note) if note else "",
+                                                        illust.normalize_tags(card["tags"]), card["description"])
 
 
 def act_visual_card(c, p):
@@ -981,11 +980,11 @@ def _zh(c, data, label):
 
 
 def _lang_check(c, msgs, out, data, label, max_tokens=None):
-    """英文、日文書：自由文字大多是中文時，請模型用書的語言重寫一次；還是不符就照寫，但標上待核對。"""
+    """自由文字的語言不對時（英文、日文書寫成中文；繁體書寫成簡體），請模型重寫一次；還是不符就照寫，但標上待核對。"""
     bad, n, total = textguard.lang_mismatch(data, c.lang)
     if not bad:
         return data
-    c.job.emit("log", text="%s：輸出的文字大多不是書的語言（%d／%d 段），請模型重寫一次……" % (label, n, total))
+    c.job.emit("log", text="%s：輸出的文字語言不對（%d／%d 段不是這本書的語言），請模型重寫一次……" % (label, n, total))
     retry = msgs + [{"role": "assistant", "content": out}, {"role": "user", "content": _P()["lang_retry"]}]
     try:
         out2 = c.call(retry, json_mode=True, max_tokens=max_tokens or _out_tokens(c), label=label + "（語言重試）", stage="structured")

@@ -18,7 +18,7 @@ import os
 import re
 import time
 
-from . import project, volume
+from . import project, textguard, volume
 
 REL = "設定/續寫合約.md"
 KEEP_MARK = "## 作者補充"
@@ -242,7 +242,7 @@ def keep_of(existing):
     return existing.split(KEEP_MARK, 1)[1].strip()
 
 
-def ensure(book_dir, force=False):
+def ensure(book_dir, force=False, notes=None):
     """需要時產生／更新合約；回傳寫入的相對路徑，沒動就回傳 None。"""
     p = path(book_dir)
     existing = _read(p)
@@ -252,6 +252,11 @@ def ensure(book_dir, force=False):
         if (fm.get("更新至") or "").strip() == "第%03d章" % no:
             return None                     # 章數沒變：作者可能改過，不動它
     content = build(book_dir, keep_of(existing))
+    content, note = textguard.guard_text(book_dir, content)
+    if note:
+        textguard.notify(note)
+        if notes is not None:
+            notes.append(note)
     try:
         os.makedirs(os.path.dirname(p), exist_ok=True)
         # 暫存檔名帶 pid：上一次中斷留下的 .tmp 不會擋住這次（也避免兩個流程互踩）

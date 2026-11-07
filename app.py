@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.join(HERE, "vendor", "fekit", "py"))
 from fekit import install as fekit_install  # noqa: E402
 import ns_jobs  # noqa: E402  舊任務事件 → fekit 任務增量的轉接層（repo 根）
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -451,8 +451,7 @@ def recovery_to_candidate(book_id: str, rid: str):
         os.remove(os.path.join(cand, old))
     name = "第%03d章_%s.md" % (no, title)
     fixed, _ = check_text.fix_punct(text)
-    with open(os.path.join(cand, name), "w", encoding="utf-8", newline="\n") as f:
-        f.write(fixed)
+    project.write_atomic(os.path.join(cand, name), fixed)
     recovery.discard(d, rid)
     return {"path": "候選/" + name, "chapter": no}
 
@@ -1311,8 +1310,9 @@ async def book_card_save(book_id: str, req: Request):
     p = wrap(lambda: project.safe_path(d, f))
     text = project.read_text(p)
     native.tracking.backup(d, p, "視覺卡")
-    with open(p, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
+    card, note = textguard.guard_text(d, illust.write_card(text, {"tags": body.get("tags") or "", "description": body.get("description") or ""}))
+    textguard.notify(note)
+    project.write_atomic(p, card)
     return {"card": illust.read_card(project.read_text(p))}
 
 
@@ -1688,8 +1688,10 @@ async def drift_plan(book_id: str, req: Request):
         return {"plan_md": "", "draft": "", "volume_file": drift.volume_rel(d, b),
                 "error": res["error"]}
     text = drift.plan_md(res, a, b)
-    rel = drift.save_plan(d, a, b, text)
-    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b), "error": ""}
+    notes = []
+    rel = drift.save_plan(d, a, b, text, notes=notes)
+    return {"plan_md": text, "draft": rel, "volume_file": drift.volume_rel(d, b), "error": "",
+            "warnings": notes}
 
 
 @app.post("/api/books/{book_id}/drift/apply")
@@ -1704,8 +1706,9 @@ async def drift_apply(book_id: str, req: Request):
     p = wrap(lambda: project.safe_path(d, draft))
     if not os.path.isfile(p) or not draft.startswith(("候選/", "大綱/草稿/")):
         raise HTTPException(400, "草稿路徑不對：%s" % draft)
-    rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b))
-    return {"volume_file": rel, "backup": os.path.basename(bak or "")}
+    notes = []
+    rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b, notes))
+    return {"volume_file": rel, "backup": os.path.basename(bak or ""), "warnings": notes}
 
 
 # ---------------------------------------------------------------------------
@@ -1981,8 +1984,9 @@ async def contract_build(book_id: str, req: Request):
         body = await req.json() if (req.headers.get("content-type") or "").startswith("application/json") else {}
     except ValueError:
         body = {}
-    rel = wrap(lambda: contract.ensure(d, force=bool((body or {}).get("force"))))
-    return {"path": contract.REL, "changed": bool(rel), "text": contract.text(d)}
+    notes = []
+    rel = wrap(lambda: contract.ensure(d, force=bool((body or {}).get("force")), notes=notes))
+    return {"path": contract.REL, "changed": bool(rel), "text": contract.text(d), "warnings": notes}
 
 
 @app.get("/api/books/{book_id}/search")
@@ -2049,8 +2053,7 @@ async def write_file(book_id: str, req: Request):
     if os.path.isfile(p) and body.get("mtime") and abs(os.path.getmtime(p) - float(body["mtime"])) > 0.001:
         raise HTTPException(409, "檔案在你編輯期間被修改過了。請複製你的修改，重新載入後再存。")
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(body.get("text", ""))
+    project.write_atomic(p, body.get("text", ""))
     return {"ok": True, "mtime": os.path.getmtime(p)}
 
 
@@ -2115,8 +2118,8 @@ async def bible_set_category(book_id: str, req: Request):
             text = project.set_frontmatter_field(text, "分類", cat)
         if status is not None:
             text = project.set_frontmatter_field(text, "狀態", status)
-        with open(p, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
+        native.tracking.backup(d, p, "改分類前")
+        project.write_atomic(p, text)
     return {"ok": True, "updated": len(targets)}
 
 
@@ -2572,8 +2575,15 @@ def serve():
 
 
 def preflight():
-    """啟動時的自我檢查：書庫寫不寫得進去。寫不進去時給能動的解法，而不是等按下快照才炸。"""
+    """啟動時的自我檢查：書庫寫不寫得進去。寫不進去時給能動的解法，而不是等按下快照才炸。
+
+    三種情況要分開講，混在一起會誤導：
+    沒設書庫＝第一次啟動的正常狀態；權限不足才是 .venv／工作區限制；其他 OSError 是路徑本身有問題。
+    """
     lib = CONFIG.get("library") or ""
+    if not lib:
+        print("書庫還沒指定：啟動後在書架頁選一個資料夾（第一次啟動的正常狀態）。")
+        return False
     try:
         os.makedirs(lib, exist_ok=True)
         probe = os.path.join(lib, ".ns-write-test-%d" % os.getpid())
@@ -2581,9 +2591,9 @@ def preflight():
             f.write("ok")
         os.remove(probe)
         return True
-    except OSError as e:
+    except PermissionError as e:
         print("\n" + "=" * 70)
-        print("警告：這個 python 寫不進書庫，寫稿／存設定會失敗。")
+        print("警告：這個 python 沒有權限寫入書庫，寫稿／存設定會失敗。")
         print("  書庫：%s" % lib)
         print("  原因：%s" % e)
         print("  目前用的 python：%s" % sys.executable)
@@ -2591,6 +2601,15 @@ def preflight():
         print("  解法：改用外部虛擬環境啟動——")
         print("    set NS_VENV=C:\\Users\\你\\venvs\\novel-studio")
         print("    start.bat")
+        print("=" * 70 + "\n")
+        return False
+    except OSError as e:
+        print("\n" + "=" * 70)
+        print("警告：書庫路徑不能用，寫稿／存設定會失敗。")
+        print("  書庫：%s" % lib)
+        print("  原因：%s" % e)
+        print("  怎麼查：這個資料夾存不存在？磁碟機或網路磁碟有沒有連上？")
+        print("  解法：在書架頁重新選一個資料夾，或直接改 config.json 的 library。")
         print("=" * 70 + "\n")
         return False
 

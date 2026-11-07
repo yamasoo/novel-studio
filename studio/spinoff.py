@@ -194,9 +194,7 @@ def show(data):
 # 新書「用骨架直接開書」：把骨架寫成正式專案（跳過開書訪談）
 # ---------------------------------------------------------------------------
 def _write(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text if text.endswith("\n") else text + "\n")
+    project.write_atomic(path, text if text.endswith("\n") else text + "\n")
 
 
 def _load_json(path):

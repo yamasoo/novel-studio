@@ -138,7 +138,8 @@
   GitHub Actions 在 PR 與 `main` push 都綠（`checks.yml`）。
 - 介面字串：`tools/i18n_keys.json` 1,628 鍵；en／ja 各 1,622 條（其餘是 `==` 同形標記）。
 - `i18n/glossary.tsv`：36 條術語，`check_parity` 會抓「禁用譯法」與「表跟介面不一致」。
-- 三份 README 標題分佈 1／8／17；三本示範書 `_範本/` 都是 18 個檔。
+- 三份 README 標題分佈 **1／9／8**（2026-11-07 改成使用者導向：安裝→寫完一本書，含三張 `docs/images/*.svg` 示意圖）；
+  技術內容（功能細節、各執行者、運作方式、檔案結構、貢獻者工具）搬到 `docs/開發者.md`。三本示範書 `_範本/` 都是 18 個檔。
 - `tools/i18n_fill.py`：翻譯缺口 → 初翻 patch → 人工核可 → `--apply`。
 - `studio/contract.py`：`設定/續寫合約.md`，priority 0 注入每章上下文（見 `docs/續寫合約.md`）。
 - 書架統計有快取：`<專案>/.cache/books.json`（用「檔案數／大小／最新 mtime」的 stat 指紋失效，不讀內容）；
@@ -226,13 +227,21 @@
 
 **還沒做，依優先序**：
 
-1. **S4 任務與事件回收**：`Runner.jobs` 只增不減、`Job.events` 無上限；pipeline `_wait` 沒有逾時。
-   長跑的工作台記憶體會單調成長（報告 §2.4）。
-2. **S3 原子寫檔收尾**：仍有 52 處直接 `open(..., "w")`（只有 16 處 `os.replace`）；`.studio/備份` 沒有上限。
+1. ~~**S4 任務與事件回收**~~ **已完成（2026-11-07）**：`Runner.jobs` 與 `ns_jobs.VIEWS` 各留最近 30 個
+   **已結束**的任務（執行中的永遠保留；任務結束已寫進 `.studio/jobs/`，三個讀取端本來就會 fallback 讀檔，
+   所以回收不掉資料）；`pipeline._wait` 加**總時長 30 分鐘＋閒置 10 分鐘**逾時，卡住時取消任務並讓那一步失敗、
+   可以從那一步繼續。**刻意沒做**（2026-11-07 決策）：`Job.events` 執行中不截斷（要改 `View` 的游標契約，
+   風險大於收益；單一任務的事件數有界）；`.studio/jobs/*.json` 不刪（書的 `.studio/` 是使用者資料，
+   實測約 50 KB／任務，要清請自行決定）。
+2. ~~**S3 原子寫檔收尾**~~ **已完成（2026-11-07）**：抽出 `project.write_atomic`（暫存檔＋`os.replace`），
+   26 處會覆寫稿子／設定集／章綱／卷綱／合約的寫入點全部換掉；`.studio/備份` 每組（標籤_原檔名）留最新 30 份
+   （`tracking.prune_backups`，共用庫與匯入備份也走同一套）。**還沒換的**：`.studio/` 內部紀錄（保真、
+   回寫檢查、索引快取、步驟快照…）、書庫共用資產（`app.py` 共用庫存檔、`shared.py` 的文風／結構、
+   `style_design.py`）、以及 `tools/` 的離線腳本；前兩批壞了影響較小但可再收。
 3. **卷綱狀態語意**：舊書 32 份「正式路徑＋狀態草稿」已用 `tools/volume_status.py --apply` 轉正
    （備份在該書 `.studio/備份/`）；閘門與續寫合約**仍不看狀態**，依 2026-10-30 決策暫不收緊。
-4. **自動化測試**：`tests/` 不存在，CI 只跑 i18n 檢查＋假 provider 冒煙；
-   卷綱／章綱閘門、`safe_path`、權杖都只有手動驗證過。
+4. **自動化測試**：`tests/` 已有 4 支 unittest（`write_atomic` 的中斷保護、備份上限、繁簡守門、`ns_jobs`），
+   **CI 會跑**（`checks.yml` 第一步，推 `main` 與 `dev` 都觸發）；仍缺卷綱／章綱閘門、`safe_path`、權杖的覆蓋，目前只有手動驗證。
 5. **小缺口**：A6 語言檔重複鍵偵測、`tools/i18n_status.py`（T4 配套）、`contract_audit` 的「未登記角色」、
    P7 待辦檔與檢查點趨勢圖、漂移的卷末自動提示、P6 的「僅公有領域／自有作品」提示。
 6. **刻意暫緩**：T7 產生式外掛、T8 穩定鍵重構（理由見「已定決策」）。
@@ -271,6 +280,13 @@
 - **`start.bat` 必須是 UTF-8（無 BOM）＋ CRLF**（2026-10-29 實測）。改成 LF 行尾時，cmd 會把
   多行 `if ( … )` 區塊接錯行，跑起來是一堆「不是內部或外部命令」的亂碼錯誤；存成 CP950 或 UTF-16 也會壞。
   改這個檔案請用會保留 CRLF 的編輯器（VS Code 右下角確認「CRLF」）。
+- **任務紀錄會累積（2026-11-07 決策）**：`.studio/jobs/` 每個任務一個 json（實測約 50 KB，事件佔多數），
+  記憶體只留最近 30 個已結束的任務，磁碟**不自動清理**。長期大量跑自動流程的書，這個資料夾會慢慢長大；
+  要清就自己決定（先確認任務紀錄不再是需要的歷史）。
+- **產出的繁體保護（2026-11-07）**：繁體書的模型產出在落檔前會過 `textguard.guard_text`／`guard_data`
+  （設定集、追蹤、續寫合約、卷綱、骨架、視覺卡）：少量簡體字逐字轉繁、台灣用語對照、全形標點；
+  整段偏簡體（>20 字）**不轉**，只回報「建議重跑」。說明走原本的回報通道（任務結果／warnings／後端視窗）。
+  結構化 JSON 另外在 `lang_mismatch` 判簡體，會先請模型重寫一次。轉換需要 OpenCC（`requirements.txt` 有）。
 - 舊的 clone 在 `<舊的 clone>`（OneDrive 底下，`.git` 同步容易衝突）；以 `<專案資料夾>` 為準。
 - 不要直接把 AI 初翻 merge 進語言檔：先出 patch、人工核可（見報告 T4）。
 - **repo 目前是 public**（2026-10-30 確認）。`main` 已用 squash 保持乾淨，但 PR `#1` 頁面與 `dev` 歷史仍看得到
@@ -280,6 +296,7 @@
 
 ```powershell
 cd <專案資料夾>
+python -m unittest discover -s tests -p "test_*.py"   # 單元測試（CI 也會跑）
 python tools/check_i18n.py               # 應印「全部通過」
 python tools/check_parity.py --strict    # 應印 FAIL 0、WARN 0（--strict：WARN 也擋）
 python tools/prompt_lang_audit.py        # en／ja 送出的訊息沒有中文句子

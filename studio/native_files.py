@@ -15,7 +15,7 @@ import shutil
 import time
 import urllib.request
 
-from . import contract, context, project, prompts, shared, tracking, volume
+from . import contract, context, project, prompts, shared, textguard, tracking, volume
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -161,11 +161,11 @@ def apply_appends(book_dir, appends):
             skipped.append("追加名詞：沒有新名稱" + ("（已存在：%s）" % "、".join(dup) if dup else ""))
             continue
         tracking.backup(book_dir, full, "追加前")
-        with open(full, "a", encoding="utf-8", newline="\n") as f:
-            if not cur.endswith("\n"):
-                f.write("\n")
-            f.write("\n".join(new_rows) + "\n")
-        done.append("追加名詞 %d 筆：%s" % (len(new_rows), "、".join(r.split("|")[1].strip() for r in new_rows)))
+        added = ("\n" if not cur.endswith("\n") else "") + "\n".join(new_rows) + "\n"
+        added, note = textguard.guard_text(book_dir, added)
+        project.write_atomic(full, cur + added)
+        done.append("追加名詞 %d 筆：%s%s" % (len(new_rows), "、".join(r.split("|")[1].strip() for r in new_rows),
+                                            ("（%s）" % note) if note else ""))
         if dup:
             skipped.append("已存在、略過：%s" % "、".join(dup))
     return done, skipped
@@ -190,10 +190,9 @@ def apply_blocks(book_dir, files, dels, appends=None):
             verb = "更新"
         else:
             verb = "新增"
-        os.makedirs(os.path.dirname(full), exist_ok=True)
-        with open(full, "w", encoding="utf-8", newline="\n") as f:
-            f.write(content.strip() + "\n")
-        done.append("%s %s" % (verb, rel))
+        text, note = textguard.guard_text(book_dir, content.strip() + "\n")
+        project.write_atomic(full, text)
+        done.append("%s %s%s" % (verb, rel, ("（%s）" % note) if note else ""))
     for rel in dels:
         try:
             full = project.safe_path(book_dir, rel)
@@ -329,8 +328,7 @@ def _style_metrics_after(c, m, done):
         return
     fp = os.path.join(c.book, "設定", "文風.md")
     t = shared.put_metrics(project.read_text(fp), m)
-    with open(fp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(t)
+    project.write_atomic(fp, t)
 
 
 def spec_preference(c, p):

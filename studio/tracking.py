@@ -8,7 +8,7 @@ import re
 import subprocess
 import time
 
-from . import project, prompts
+from . import project, prompts, textguard
 
 STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
@@ -20,6 +20,7 @@ RP_TYPES = ("已知", "懸念", "誤認")
 RP_FILE = "追蹤/讀者認知.md"
 RP_DRAFT = "追蹤/讀者認知_草稿.md"
 RP_NEW_BOOK_ROWS = 15   # 時間線超過這麼多列又沒有帳本，視為舊書，不自動建立
+BACKUP_KEEP = 30        # 每組（標籤_原檔名）保留最新幾份
 
 # 給 AI 看的回寫格式說明（放進提示詞）
 WRITEBACK_SCHEMA = """請只輸出一個 JSON 物件，格式如下（只列出有變化的項目；沒有就給空陣列）：
@@ -173,9 +174,7 @@ def upsert_table(path, default_headers, items, prefix, title, ftype, chapter_lab
 
 # ---------------------------------------------------------------------------
 def _write(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    project.write_atomic(path, text)
 
 
 def _lines(v):
@@ -194,6 +193,9 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     """回寫一章的追蹤資料。回傳變更摘要（給匯報用）。"""
     label = chapter_label(no)
     log = []
+    data, note = textguard.guard_data(book_dir, data)
+    if note:
+        log.append(note)
 
     # 1. 章節摘要
     s = data.get("summary") or {}
@@ -400,6 +402,43 @@ def discard_reader_draft(book_dir):
         os.remove(src)
 
 
+BACKUP_NAME_RE = re.compile(r"^(.*)\.(\d{9,})\.md$")
+
+
+def prune_backups(d, name, keep=None):
+    """只修剪與這份新備份同一組（標籤_原檔名）的舊檔，留下 epoch 最大的 keep 份（預設 BACKUP_KEEP）。
+
+    檔名樣式由 tracking.backup 決定；其他也寫 .studio/備份 的地方（共用庫備份、匯入備份）
+    沿用同一個樣式並呼叫這裡，備份目錄的總量才有上限。
+    """
+    keep = BACKUP_KEEP if keep is None else keep
+    m = BACKUP_NAME_RE.match(name)
+    if not m:
+        return
+    key = m.group(1)
+    try:
+        names = os.listdir(d)
+    except OSError:
+        return
+    group = []
+    for fn in names:
+        mm = BACKUP_NAME_RE.match(fn)
+        if not mm or mm.group(1) != key:
+            continue
+        p = os.path.join(d, fn)
+        try:
+            if os.path.isfile(p):
+                group.append((int(mm.group(2)), os.path.getmtime(p), p))
+        except OSError:
+            continue
+    group.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    for _, _, p in group[keep:]:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
 def backup(book_dir, path, tag):
     if not os.path.isfile(path):
         return None
@@ -408,4 +447,5 @@ def backup(book_dir, path, tag):
     dst = os.path.join(d, "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time())))
     with open(path, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as g:
         g.write(f.read())
+    prune_backups(d, os.path.basename(dst))
     return dst

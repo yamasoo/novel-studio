@@ -9,7 +9,7 @@ import difflib
 import os
 import re
 
-from . import project
+from . import project, textguard
 
 DIRS = ("大綱", "大綱/卷綱")
 DRAFT_DIR = "大綱/草稿"      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的 卷綱*.md
@@ -220,11 +220,12 @@ def _write_outline(book_dir, p, lines):
         tracking.backup(book_dir, p, "全書大綱同步前")
     except Exception:
         pass
+    text, note = textguard.guard_text(book_dir, "\n".join(lines).rstrip() + "\n")
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines).rstrip() + "\n")
+        f.write(text)
     os.replace(tmp, p)
-    return []
+    return [note] if note else []
 
 
 def sync_outline(book_dir, no):
@@ -260,7 +261,7 @@ def adopt(book_dir, no):
     dst = project.safe_path(book_dir, dst_rel)
     if os.path.isfile(dst):
         raise project.ProjectError("正式的 %s 已經存在，先確認是不是已經採用過。" % dst_rel)
-    new_text = project.set_frontmatter_field(text, "狀態", "已確認")
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "狀態", "已確認"))
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
@@ -270,8 +271,9 @@ def adopt(book_dir, no):
         os.remove(src)
     except OSError:
         pass
+    warnings = [note] if note else []
     return {"rel": dst_rel,
-            "warnings": _sync_book_outline(book_dir, no, fm, contract_bullets(text))}
+            "warnings": warnings + list(_sync_book_outline(book_dir, no, fm, contract_bullets(text)) or [])}
 
 
 REVISION_PREFIX = "卷綱修訂"
@@ -346,7 +348,7 @@ def apply_revision(book_dir, no):
         tracking.backup(book_dir, dst, "卷綱修訂前")
     except Exception:
         pass
-    new_text = project.set_frontmatter_field(text, "狀態", "已確認")
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "狀態", "已確認"))
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(new_text if new_text.endswith("\n") else new_text + "\n")
@@ -355,8 +357,9 @@ def apply_revision(book_dir, no):
         os.remove(src)
     except OSError:
         pass
+    warnings = [note] if note else []
     return {"rel": v["rel"],
-            "warnings": _sync_book_outline(book_dir, int(no), fm, contract_bullets(text))}
+            "warnings": warnings + list(_sync_book_outline(book_dir, int(no), fm, contract_bullets(text)) or [])}
 
 
 def brief(missing, limit=3):

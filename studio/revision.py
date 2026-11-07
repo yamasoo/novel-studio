@@ -335,8 +335,7 @@ def apply_revision(book_dir, no, choices, checker):
         # 去 AI 味不改劇情事實：寫回原本那份（正文或候選稿），原檔先備份；正文不用重跑回寫追蹤
         full = os.path.join(book_dir, rec["base_path"])
         bak = tracking.backup(book_dir, full, "去AI味前")
-        with open(full, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
+        project.write_atomic(full, text)
         discard_revision(book_dir, no)
         from . import fidelity
         fid = fidelity.run(book_dir, no, rec["base_path"], rec["base_text"], text)
@@ -352,8 +351,7 @@ def apply_revision(book_dir, no, choices, checker):
     title = re.sub(r'[\\/:*?"<>|]', "", rec.get("new_title") or "") or \
         project.chapter_title_from_filename(os.path.basename(rec["base_path"])) or "未命名"
     name = "第%03d章_%s.md" % (no, title)
-    with open(os.path.join(cand_dir, name), "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    project.write_atomic(os.path.join(cand_dir, name), text)
     discard_revision(book_dir, no)
     return {"path": "候選/" + name, "used_new": used_new, "kept_old": kept_old,
             "from_text": rec["base_path"].startswith("正文")}

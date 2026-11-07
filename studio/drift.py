@@ -13,7 +13,7 @@
 import os
 import re
 
-from . import contract, project, prompts, recall, shared, style_loop, volume
+from . import contract, project, prompts, recall, shared, style_loop, textguard, volume
 
 IDLE_CHARS = 20      # 幾章沒登場算「消失」
 THREAD_AGE = 30      # 伏筆埋設後幾章還沒回收算「欠帳」
@@ -353,19 +353,24 @@ def plan_md(res, a, b):
     return "\n".join(L)
 
 
-def save_plan(book_dir, a, b, text):
+def save_plan(book_dir, a, b, text, notes=None):
     """把草稿寫到 大綱/草稿/卷綱更新_第a-b章.md（跟新卷草稿同一個資料夾，但不會被當成新卷）。"""
     rel = "大綱/草稿/卷綱更新_第%d-%d章.md" % (a, b)
     p = project.safe_path(book_dir, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text if text.endswith("\n") else text + "\n")
+    text, note = textguard.guard_text(book_dir, text if text.endswith("\n") else text + "\n")
+    if note and notes is not None:
+        notes.append(note)
+    project.write_atomic(p, text)
     return rel
 
 
-def apply_plan(book_dir, no, text, a=None, b=None):
+def apply_plan(book_dir, no, text, a=None, b=None, notes=None):
     """把草稿「附加」到卷綱檔尾（原檔先備份），回傳 (卷綱相對路徑, 備份路徑)。"""
     from . import tracking
+    text, note = textguard.guard_text(book_dir, text)
+    if note and notes is not None:
+        notes.append(note)
     rel = volume_rel(book_dir, no)
     if not rel:
         raise project.ProjectError(
@@ -378,6 +383,5 @@ def apply_plan(book_dir, no, text, a=None, b=None):
     # 草稿裡的第一個 # 標題會和卷綱標題打架，去掉它
     if body.startswith("# "):
         body = body.split("\n", 1)[1].lstrip()
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(old.rstrip() + head + body + "\n")
+    project.write_atomic(p, old.rstrip() + head + body + "\n")
     return rel, bak

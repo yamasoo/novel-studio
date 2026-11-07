@@ -627,7 +627,7 @@
     body.replaceChildren(o.items.length
       ? h("div", { class: "ill-overview" }, o.items.map((it) => h("a", { class: "ill-ov", href: link(it) },
         h("img", { loading: "lazy", src: imgUrl(it.main), alt: "" }),
-        h("div", {}, h("b", {}, it.label), " ", h("span", { class: "muted small" }, it.count + " 張")))))
+        h("div", {}, h("b", {}, it.label), " ", h("span", { class: "muted small" }, `${it.count} 張`)))))
       : h("div", { class: "card empty" },
         h("div", { class: "big" }, "✎"),
         "還沒有任何插圖。",

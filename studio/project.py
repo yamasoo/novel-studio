@@ -27,6 +27,32 @@ def read_text(path):
         return f.read()
 
 
+def write_atomic(path, text, newline="\n"):
+    """寫檔：先寫同目錄的暫存檔，再 os.replace 換上去。
+
+    寫到一半失敗（磁碟滿、被同步程式鎖住、行程被砍）時原檔維持舊內容，
+    不會留下半個檔。暫存檔名帶 pid：上次中斷留下的 .tmp 不會擋住這次，
+    兩個流程也不會互踩同一個暫存檔。呼叫端原本在處理的 OSError 照樣往上拋。
+    """
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    tmp = "%s.%d.tmp" % (path, os.getpid())
+    try:
+        with open(tmp, "w", encoding="utf-8", newline=newline) as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+    return path
+
+
 def _read_maybe(path):
     """讀檔；檔案剛好被搬走或刪掉時（例如自動流程正在把候選稿移到正文）回傳 None。"""
     try:

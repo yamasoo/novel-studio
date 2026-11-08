@@ -776,6 +776,21 @@ def _read_rel(book_dir, rel):
     return project.read_text(p) if os.path.isfile(p) else ""
 
 
+def chapter_cards(book_dir):
+    """已採用的反推章綱（大綱/章綱/反推/），給大綱頁的唯讀對照清單。"""
+    root = os.path.join(book_dir, *CHAPTER_DRAFT_DIR.split("/"))
+    out = []
+    if os.path.isdir(root):
+        for f in sorted(os.listdir(root)):
+            if not f.endswith(".md"):
+                continue
+            no = project.chapter_no(f)
+            out.append({"rel": "%s/%s" % (CHAPTER_DRAFT_DIR, f), "no": no or 0,
+                        "name": project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
+    out.sort(key=lambda x: (x["no"] or 10 ** 9, x["rel"]))
+    return out
+
+
 def plan_group(book_dir, group):
     """每份草稿的採用決策資料（給前端畫新舊對照；相似度只在後端算）。"""
     if group not in GROUPS:

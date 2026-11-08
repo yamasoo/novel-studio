@@ -1984,6 +1984,12 @@ def reverse_diff(book_id: str, group: str = "", rel: str = ""):
     return wrap(lambda: reverse.diff_group(d, group, rel))
 
 
+@app.get("/api/books/{book_id}/reverse/cards")
+def reverse_cards(book_id: str):
+    """已採用的反推章綱清單（大綱頁唯讀對照用）。"""
+    return {"cards": reverse.chapter_cards(book_dir(book_id))}
+
+
 @app.post("/api/books/{book_id}/reverse/{op}")
 async def reverse_op(book_id: str, op: str, req: Request):
     d = book_dir(book_id)

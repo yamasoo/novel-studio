@@ -94,7 +94,7 @@ To move machines, copy the folder. To keep versions, use git or any sync tool.
 - **Export.** EPUB 3 or plain text, optional chapter range, can include outlines, chapter cards, the story bible and tracking.
 - **Illustrations.** Connect Stable Diffusion WebUI Forge Neo or ComfyUI for covers, chapter and setting images, with style presets and prompt management.
 - **Import a manuscript.** TXT, Markdown or Word; encoding is detected and chapters are split, with optional Simplified-to-Traditional conversion.
-- **Build settings from the text.** For a finished book, the AI works backwards to characters, factions, world, outlines and tracking. Drafts wait for review: reverse-engineered chapter cards go to `大綱/章綱/反推/` and never touch the real ones, every other file is kept, replaced or merged per file, and anything overwritten is backed up first.
+- **Build settings from the text.** For a finished book, the AI works backwards to characters, factions, world, outlines and tracking. Drafts wait for review: reverse-engineered chapter cards go to `大綱/章綱/反推/` and never touch the real ones, every other file is kept, replaced or merged per file, and anything overwritten is backed up first. Adopted cards can be reviewed read-only from the “Reverse chapter cards” card on the Outline page.
 - **Shared library.** Build a style or a chapter structure once and apply it to every book.
 - **Reader knowledge ledger and relationship table.** What the reader knows so far and who relates to whom, fed into context when continuing.
 - **Drift check.** At the end of a volume, compare what the outline promised with what was written, and draft an outline update.

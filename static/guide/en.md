@@ -7,7 +7,7 @@
 
 | I want to… | Go to |
 |---|---|
-| Start a brand-new book | Workflow 1: a new book from scratch |
+| Write a whole book from scratch | Workflow 1: writing a whole book from scratch |
 | Turn an existing manuscript into a project | Workflow 2 A: import an old manuscript |
 | Start a new book from an old book's skeleton | Workflow 2 B: spin off a new book |
 | Generate characters, factions, worldview | How the settings bible grows |
@@ -23,80 +23,123 @@
 
 ---
 
-## Workflow 1: a new book from scratch
+## Workflow 1: writing a whole book from scratch
 
-### Step 0: create the book
+> One line in three layers: the **setup layer** (once) → the **volume layer** (once per volume) → the **wrap-up layer** (after the last chapter).
+> At any moment the overview page has exactly one primary button, "**next step**". Press it. Everything else is secondary.
 
-Shelf → "＋ 開新書" (New book):
+### Setup layer (once)
+
+#### Step 0: create a new book
+
+Bookshelf → "New book":
 
 | Field | Advice |
 |---|---|
-| Book name | Also the folder name; renaming later means renaming the folder yourself |
-| Writing language | Chooses the language of prompts and model output, independent of the interface language |
-| Initial idea | One sentence is enough; the setup interview will ask more |
-| Reference book (optional) | Only reuses its **style metrics and chapter structure** (numbers), never names or plot |
-| Generate story skeleton | Costs about 1–2 minutes and a few model calls; the draft goes to `候選/新書草稿/` |
+| Title | Also the folder name; renaming later means renaming the folder yourself |
+| One-line premise | One line is enough — the interview asks the rest |
+| Writing language | Sets the language of prompts and model output; unrelated to the interface language |
+| Advanced: reference book (optional) | Only its **style metrics and chapter structure** (numbers) are borrowed — no names, no plot |
+| Advanced: also generate a story skeleton | Costs about 1–2 minutes and a few model calls; drafts land in `候選/新書草稿/` |
 
-Creating the book starts the **setup interview** automatically. The questions appear in the right panel; answer them in the reply box.
-The interview writes into `CLAUDE.md`, `設定/故事核心.md`, `設定/文風.md`, and so on.
+Pressing "Start setup" opens the **setup interview**: questions appear in the right-hand panel, one button per question. You can also type freely, or press "Skip, you decide" to let the model use a default (the report marks it "(default)"). After three rounds it writes, in one pass:
 
-### Step 1: story core → whole-book outline
+- `CLAUDE.md` — the book's writing charter, read by the AI on every task
+- `設定/故事核心.md` and `設定/文風.md`
+- a **setup report** in the panel: which files actually exist, what is still empty, and which step comes next
 
-1. Settings → "核心" (Core): check whether `設定/故事核心.md` makes sense; you can ask the AI to "分析／調整文風" (analyze/adjust style) or "記錄偏好" (record preferences)
-2. Outline page → "全書大綱" (Whole-book outline): first ask for a **volume overview** (theme, chapter count, and end state of each volume)
-3. If it is not right, say so and iterate; when satisfied, it writes `大綱/全書大綱.md`
+**If it gets stuck:** an interrupted interview (no `CLAUDE.md`) shows "setup interview unfinished" on the overview — press "Continue setup interview". With the Claude Code executor there are no option buttons; the panel tells you to switch to an API executor.
 
-### Step 2: open volume 1 (volume status → volume-outline draft → adopt)
+#### Step 1: story core
 
-The Outline page has a "卷況" (Volume status) card:
+Overview → "Next step: story core" → "Start story-core diagnosis". About a minute: what the protagonist wants, what blocks it.
 
-1. Press "開新卷" (Open a new volume): give the volume number and chapter range (20 chapters is fine to start; you can change it later)
-2. It creates a **draft**: `大綱/草稿/卷綱_第1卷.md`, which you can edit directly
-3. When happy, press "**採用**" (Adopt): it moves to the official volume outline with status "已確認" (confirmed), and appends the volume to `大綱/全書大綱.md`
-4. The volume outline contains a "volume contract" (what this volume promises and where it must end); continuation prompts inject it first
+Output: `設定/故事核心.md` (≥ 120 characters, and the `<!--` template comment must be filled in).
 
-> To change a confirmed volume: volume-status card → "修訂" (Revise) on that volume → a draft is written to `大綱/草稿/卷綱修訂_第N卷.md` → "看差異" (View diff) → "套用修訂" (Apply revision).
-> The official outline is only ever written by "採用" (Adopt) or "套用修訂" (Apply revision); both back up first.
+#### Step 2: whole-book outline
 
-### Step 3: chapter cards for the whole volume + health check
+"Next step: whole-book outline" → it first gives a **per-volume overview** (theme, chapter count, end-of-volume state). Reply with changes until you like it; files are written only after you confirm.
 
-1. Volume-status card → "排這一卷的章綱" (Lay out this volume's chapter cards): first get a **one-line-per-chapter overview**, not full detail for 20 chapters at once
-2. Review the overview; reply "確認" (confirm) to write the actual card files (`大綱/章綱/第NNN章_*.md`)
-3. Press "章綱體檢" (Chapter-card health check). It catches two problems:
-   - **Early appearance / spoiler**: a character or setting that should appear much later is written into a card too early
-   - **Too long absent**: a character disappears for too many chapters
-4. Fix the cards before writing
+Output: `大綱/全書大綱.md` (≥ 500 characters).
 
-> Whichever entry you press (Overview, Chapters, Outline or the volume-status card), the form comes with the range prefilled; an empty range is rejected and never falls back to chapter 1.
+#### Step 3: first volume outline
 
-### Step 4: writing
+The **volume card** at the top of the Outline page → "New volume" → fill the volume number and its **chapter range** (this range is what decides "which chapters belong to this volume"; 20 chapters is fine to start, it can change later).
 
-| Method | Good for |
-|---|---|
-| Overview → "寫第 N 章" (Write chapter N) | One chapter at a time, with you watching |
-| "⚡ 整章自動" (Auto whole chapter) | Running the whole pipeline |
+1. What you get is a **draft**: `大綱/草稿/卷綱_第1卷.md`, editable by hand
+2. Happy with it, press "**Adopt**": it becomes the real outline `大綱/卷綱_第1卷.md`, status "confirmed", and is appended to `大綱/全書大綱.md`
+3. The "volume contract" inside is this volume's promise to the reader and is injected first when writing
 
-The auto pipeline: chapter card → draft text → outline check → de-AI pass → style pass → review → tick issues → revise → apply → finalize.
-The pipeline has **gates** and refuses with an explanation when:
+**If it gets stuck:** the real outline is only written by "Adopt" or "Apply revision". If the volume card is missing, the book usually has no `大綱/全書大綱.md` yet.
 
-- the chapter number is outside any **confirmed** volume outline
-- the chapter has no chapter card yet
-- the chapter card contains an early-appearance spoiler
+#### Step 4: chapter cards for the first 10 chapters (+ card health check)
 
-Being blocked is not a bug; it means you should fix the volume outline or chapter cards first.
+1. Volume card → "Plan this volume's chapter cards": it first gives a **one-line-per-chapter overview**
+2. Reply "confirm" and only then are the card files written: `大綱/章綱/第NNN章_*.md`
+3. Volume card → "Card check": catches **early appearance / spoilers** and **characters missing for too long**. Fix the cards before writing.
 
-### Step 5: after each chapter
+10–12 chapters at a time is enough; you do not have to plan the whole volume before writing.
 
-- **Candidate draft**: new text lands in `候選/`; review it from the Chapters page or the single-chapter page and finalize when happy
-- **Review / revision**: the single-chapter page can run a review, show a revision diff, and apply items one by one
-- **Tracking**: after finalizing, it writes summaries, foreshadowing, timeline, and character state back to the "Foreshadowing & timeline" page
-- **Jobs**: every run, its token usage and cost are listed under "Jobs"
+#### Step 5: initial settings (before writing)
 
-### Step 6: end of a volume → next volume
+Characters, factions and the world need substance, or the whole volume gets written against an empty bible. **Passing test:** at least 3 real files in `設定/角色/` plus at least one in `設定/勢力/` or `設定/世界觀/` — **drafts do not count**.
 
-1. Overview → "卷末體檢" (End-of-volume check): compares the settings against the text and lists chapters that missed their cards, characters absent too long, unpaid foreshadowing, and style drift
-2. If the volume outline needs updating, the check page can "產生卷綱更新草稿" (generate a volume-outline update draft); review it before appending
-3. Next volume: volume-status "開新卷" → volume-outline draft (it reads the previous volume's end-of-volume draft) → adopt → lay out cards → write
+1. Overview → "Next step: initial settings" → "Start initial settings" (this is the bible page's "Grow settings from the outline")
+2. Tick characters / factions / world; optionally add a reference direction and URLs. It reads the whole-book outline, volume outlines and the card list
+3. Everything lands in `設定/草稿/`
+4. Once you have read them, press "**Promote drafts**" (the secondary button on the next-step card) to move them into `設定/角色/`, `設定/勢力/`, `設定/世界觀/`
+
+**If it gets stuck:** with fewer than 3 characters, run "Grow settings from the outline" again or add them by hand on the bible page. Left as drafts, the next step never becomes writing.
+
+### Volume layer (repeat per volume)
+
+#### Step 6: write the volume
+
+- **Manual** (watch every paragraph): chapter page "Write this chapter" → candidate draft → "De-AI" → "Review" → "Revise per ticked notes" → "Accept"
+- **Automatic** (run it through in one go): "⚡ Full chapter" in the page header, or the volume card's "**Run the rest of this volume automatically**" (range pre-filled to the rest of this volume)
+
+The full-chapter pipeline: chapter card → write → card check → de-AI → style → review → tick issues → revise → apply → accept and write back tracking. These cases are stopped by **gates** (not a bug — go fix the data first):
+
+- the chapter number is outside every "confirmed" volume outline range
+- the chapter has no card yet
+- the card has an early-appearance spoiler
+
+Output: the draft sits in `候選/`; only "Accept" moves it into `正文/` and writes back tracking (summary, foreshadowing, timeline, character state, glossary).
+
+**If it gets stuck:** a failing step stops right there and can be continued from that step; a step over 30 minutes, or 10 minutes without output, is stopped automatically and the partial text is kept as a **recovery draft**; every write is backed up under `.studio/備份/`.
+
+#### Step 7: after each chapter
+
+- **Candidate draft**: review it on the chapter page or single-chapter page, accept only when happy
+- **Review / revision**: compare "original" and "suggestion" paragraph by paragraph; paragraphs you keep stay untouched
+- **Tracking**: written back to the Foreshadowing & Timeline page on accept
+- **Job log**: what ran, how many tokens, how much it cost
+
+#### Step 8: end-of-volume check
+
+Once the volume is full (every chapter in the range has text), the overview's next step becomes "**End-of-volume check**", and the check page already has this volume's range filled in.
+
+1. Press "Start check": it compares the bible against the manuscript and lists chapters that missed their card, characters absent too long, unpaid foreshadowing and style drift — computed locally, free
+2. To change the outline, press "Produce volume-outline update draft", read it, then "Append to volume outline" (appended at the end of the file; the original text is untouched)
+
+**If it gets stuck:** the next step staying on the check usually means the check has not run or no draft was written yet. This step deliberately has no "skip".
+
+#### Step 9: backfill this volume's settings
+
+Volume card → "**Derive settings from the manuscript (this volume)**". On the reverse page, "extract up to chapter N" is already set to this volume's last chapter.
+
+1. Read the estimate first (chapters, batches, cost), then run it
+2. Everything it produces is a draft, in four groups: settings, outlines, chapter cards, tracking
+3. Per file choose "keep existing / use the derived version / merge missing paragraphs"; only "Adopt" touches real files. **Chapter cards are always saved aside** under `大綱/章綱/反推/` — the real cards are never touched
+4. Every overwrite is backed up first
+
+#### Step 10: open the next volume
+
+When the check is done, the next step becomes "**Volume 2 outline**" → new volume → adopt → plan cards → write → end-of-volume check → next volume, repeating until the book is finished.
+
+### Wrap-up layer
+
+The last volume gets the same end-of-volume check and settings backfill, which leaves the bible in its finished state. To deliver, use the Export page for EPUB or plain text. Illustration (Forge / ComfyUI) and covers are separate features running alongside, not part of this flow.
 
 ### Where the files are
 
@@ -111,6 +154,7 @@ Being blocked is not a bug; it means you should fix the volume outline or chapte
 | Tracking | `追蹤/狀態卡.md`, `追蹤/伏筆.md`, `追蹤/章節摘要/` |
 | Jobs and backups | `.studio/` (job records, backups, recoveries) |
 
+---
 ---
 
 ## Workflow 2: starting from an old book

@@ -257,7 +257,9 @@ def test_gate_confirm_writes_the_files(tmp_path):
     job = _Job(["確認，寫進檔案"])
     ctx = _Ctx(job, d, ["提案：分三卷", FILE_BLOCK])
     native_files.run_spec(ctx, {}, _spec, "sys")
-    assert job.asked and job.asked[0]["options"][0] == prompts.pack("zh-TW")["gate_option_confirm"]
+    P = prompts.pack("zh-TW")
+    assert job.asked and job.asked[0]["options"] == [P["gate_option_confirm"], P["gate_option_skip"]]
+    assert job.asked[0]["allow_text"] is True       # 要改就直接打字，不再多一顆「我要改」按鈕
     assert os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
     assert "已建立" in ctx.job.result or "全書大綱" in ctx.job.result
     assert ctx.calls == 2          # 先提案，確認後才輸出檔案
@@ -309,7 +311,6 @@ def test_plain_text_answer_is_treated_as_edit(tmp_path):
     P = prompts.pack("zh-TW")
     assert native_files._gate_verdict(P["gate_option_confirm"], P) == "ok"
     assert native_files._gate_verdict(P["gate_option_skip"], P) == "skip"
-    assert native_files._gate_verdict(P["gate_option_edit"], P) == "edit"
     assert native_files._gate_verdict("確認", P) == "ok"
     assert native_files._gate_verdict("跳過", P) == "skip"
     assert native_files._gate_verdict("第三卷太短，拉長一點", P) == "edit"

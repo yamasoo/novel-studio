@@ -676,14 +676,12 @@ GATE_MAX_ROUNDS = 2          # 作者說「我要改」時最多再改幾輪，�
 
 
 def _gate_verdict(text, P):
-    """作者的閘門回覆 → ok／edit／skip。選項、自由輸入、英文都認得。"""
+    """作者的閘門回覆 → ok（寫入）／skip（不寫）／edit（其餘一律當成要改的說明）。"""
     t = (text or "").strip()
     if not t or t == P["gate_option_skip"]:
         return "skip"
     if t == P["gate_option_confirm"]:
         return "ok"
-    if t == P["gate_option_edit"]:
-        return "edit"
     low = t.lower()
     if low in ("ok", "yes", "y", "confirm") or t in ("確認", "确认", "寫入", "写入"):
         return "ok"
@@ -699,8 +697,8 @@ def _gate_ask(c, label, files):
     P = prompts.cur()
     names = "、".join(sorted({r for r, _ in files}))
     prompt = P["gate_ask"].format(label=label, files=names) if names else P["gate_ask_none"].format(label=label)
+    # 只有兩顆按鈕：要改就直接在下面的框打字送出（打字＝要改，不必先按一顆「我要改」）
     return c.job.ask(prompt, options=[{"label": P["gate_option_confirm"], "value": P["gate_option_confirm"]},
-                                      {"label": P["gate_option_edit"], "value": P["gate_option_edit"]},
                                       {"label": P["gate_option_skip"], "value": P["gate_option_skip"]}],
                      allow_text=True)
 

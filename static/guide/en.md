@@ -28,6 +28,10 @@
 > One line in three layers: the **setup layer** (once) → the **volume layer** (once per volume) → the **wrap-up layer** (after the last chapter).
 > At any moment the overview page has exactly one primary button, "**next step**". Press it. Everything else is secondary.
 
+![Three layers: setup → volume → wrap-up](/static/images/01-三層流程.svg)
+
+*Above: a book in three layers — setup once, the volume layer per volume, the wrap-up layer after the last chapter. Diagrams and screenshots show the Traditional Chinese interface; the text gives the labels.*
+
 ### Setup layer (once)
 
 #### Step 0: create a new book
@@ -98,6 +102,10 @@ Characters, factions and the world need substance, or the whole volume gets writ
 - **Manual** (watch every paragraph): chapter page "Write this chapter" → candidate draft → "De-AI" → "Review" → "Revise per ticked notes" → "Accept"
 - **Automatic** (run it through in one go): "⚡ Full chapter" in the page header, or the volume card's "**Run the rest of this volume automatically**" (range pre-filled to the rest of this volume)
 
+![Candidate draft to final draft](/static/images/02-候選稿到定稿.svg)
+
+*Above: the five manual actions. The candidate draft always stays aside; only "Accept" moves it into the manuscript.*
+
 The full-chapter pipeline: chapter card → write → card check → de-AI → style → review → tick issues → revise → apply → accept and write back tracking. These cases are stopped by **gates** (not a bug — go fix the data first):
 
 - the chapter number is outside every "confirmed" volume outline range
@@ -119,6 +127,14 @@ Output: the draft sits in `候選/`; only "Accept" moves it into `正文/` and w
 
 Once the volume is full (every chapter in the range has text), the overview's next step becomes "**End-of-volume check**", and the check page already has this volume's range filled in.
 
+![Next step and volume card on the overview](/static/images/guide-下一步與卷卡.png)
+
+*Above: when the volume is full the next step becomes the end-of-volume check; below it sits this volume's card.*
+
+![End-of-volume check](/static/images/guide-卷末體檢.png)
+
+*Above: the check page already has this volume's range filled in.*
+
 1. Press "Start check": it compares the bible against the manuscript and lists chapters that missed their card, characters absent too long, unpaid foreshadowing and style drift — computed locally, free
 2. To change the outline, press "Produce volume-outline update draft", read it, then "Append to volume outline" (appended at the end of the file; the original text is untouched)
 
@@ -127,6 +143,10 @@ Once the volume is full (every chapter in the range has text), the overview's ne
 #### Step 9: backfill this volume's settings
 
 Volume card → "**Derive settings from the manuscript (this volume)**". On the reverse page, "extract up to chapter N" is already set to this volume's last chapter.
+
+![Derive settings for this volume](/static/images/guide-反推補這一卷.png)
+
+*Above: "extract up to chapter N" is already set to this volume's last chapter, with a cost estimate first.*
 
 1. Read the estimate first (chapters, batches, cost), then run it
 2. Everything it produces is a draft, in four groups: settings, outlines, chapter cards, tracking
@@ -142,6 +162,8 @@ When the check is done, the next step becomes "**Volume 2 outline**" → new vol
 The last volume gets the same end-of-volume check and settings backfill, which leaves the bible in its finished state. To deliver, use the Export page for EPUB or plain text. Illustration (Forge / ComfyUI) and covers are separate features running alongside, not part of this flow.
 
 ### Where the files are
+
+![A book's folder structure](/static/images/03-一本書的資料夾.svg)
 
 | Content | Location |
 |---|---|

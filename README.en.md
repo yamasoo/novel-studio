@@ -6,7 +6,7 @@ A **local** workbench for writing long-form serial novels with AI. You decide wh
 
 This page goes from installation all the way to a finished book. To see the screens first, download the [tutorial slides](demo/小說工作台_新手教學.pptx) (Chinese only) or press "Add sample book" on the bookshelf.
 
-![From a new book to a finished one](docs/images/01-從開書到定稿.svg)
+![From a new book to a finished one](static/images/01-三層流程.svg)
 
 ## What this workbench does
 
@@ -68,7 +68,7 @@ After the last chapter, the final volume still gets its end-of-volume check and 
 
 ## Writing a chapter
 
-![Candidate draft to final draft](docs/images/02-候選稿到定稿.svg)
+![Candidate draft to final draft](static/images/02-候選稿到定稿.svg)
 
 ### Candidate drafts: the AI's draft stays aside
 
@@ -96,7 +96,7 @@ Full-chapter automation chains the steps: plan the card → write the chapter �
 
 ## What a book looks like on disk
 
-![A book's folders](docs/images/03-一本書的資料夾.svg)
+![A book's folders](static/images/03-一本書的資料夾.svg)
 
 A book is one folder with six subfolders: `設定/` (settings), `大綱/` (outlines), `正文/` (manuscript), `候選/` (candidates), `追蹤/` (tracking) and `.studio/`. Pure text throughout: open it, edit it directly, refresh the page (the workbench always reads the files). Folder and file names stay Chinese in every language — that is why the diagram labels are Chinese. The story text, summaries, chapter titles and the exported table of contents follow the book's language; the interface language is a separate setting (bottom right).
 

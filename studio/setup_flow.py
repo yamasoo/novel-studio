@@ -105,10 +105,21 @@ def _volume_step_done(book_dir):
 
 
 def _cards_step_done(book_dir):
+    """前 10 章章綱：≥ 10 個章綱檔，或**第一卷的章節範圍已經排滿章綱**。
+
+    第二個條件是給「第一卷不到 10 章」的書：不然 6 章一卷的書永遠過不了這一步，
+    卡在「排第 1–10 章章綱」而寫不了第 1 章。
+    """
     d = os.path.join(book_dir, *CARD_DIR.split("/"))
-    if not os.path.isdir(d):
+    have = {c["no"] for c in project.scan_chapters(book_dir) if c.get("card_file")}
+    if os.path.isdir(d) and len([f for f in os.listdir(d) if f.endswith(".md")]) >= 10:
+        return True
+    if not have:
         return False
-    return len([f for f in os.listdir(d) if f.endswith(".md")]) >= 10
+    vol = volume.find(book_dir, 1) or volume.find(book_dir, min(have))
+    if vol and vol.get("lo") and vol.get("hi") and vol["lo"] <= 1 <= vol["hi"]:
+        return all(n in have for n in range(vol["lo"], vol["hi"] + 1))
+    return False
 
 
 def _step_done(book_dir, step_id):

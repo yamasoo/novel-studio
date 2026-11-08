@@ -399,6 +399,24 @@ def test_volume_state_full_volume_then_reverse_then_next_volume(tmp_path):
     assert nxt["id"] == "write" and nxt["prefill"] == {"from": 13, "to": 13}
 
 
+def test_short_first_volume_passes_the_cards_step(tmp_path):
+    """第一卷只有 6 章：章節範圍排滿就算過「前 10 章章綱」，不會卡在排 10 章。"""
+    d = _book(tmp_path)
+    _write(d, "CLAUDE.md", CLAUDE_MD)
+    _write(d, "設定/故事核心.md", CORE)
+    _write(d, "大綱/全書大綱.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "大綱/卷綱_第1卷.md",
+           "---\n類型: 卷綱\n卷名: 短卷\n章節範圍: 第1章～第6章\n狀態: 已確認\n---\n" + ("卷" * 300))
+    for n in range(1, 6):
+        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+    assert setup_flow.steps(d)[4]["done"] is False        # 還差第 6 章
+    _write(d, "大綱/章綱/第006章.md", "---\n狀態: 已確認\n---\n章綱")
+    assert setup_flow.steps(d)[4]["done"] is True
+    _settings(d)
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "write" and nxt["prefill"] == {"from": 1, "to": 1}
+
+
 def test_check_marked_when_volume_outline_already_updated(tmp_path):
     d = _book(tmp_path)
     _full_setup(d)

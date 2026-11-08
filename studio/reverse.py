@@ -736,21 +736,34 @@ def draft_groups(book_dir):
 
 
 def adopt(book_dir, group):
+    """採用這組草稿。同名檔案已存在時走 project.merge_entry（只補空白，不覆蓋作者寫的內容）。
+
+    回傳 adopted（全部）、merged（併進既有檔的份數）、backed_up、conflicts（未併入的段落數）。
+    """
     if group not in GROUPS:
         raise project.ProjectError("不認得的分組：%s" % group)
     items = draft_groups(book_dir)[group]
     if not items:
         raise project.ProjectError("「%s」沒有草稿" % group)
-    n_bak = 0
+    # 只有「設定」是作者會改的內容，採用時併進既有檔；大綱／章綱／追蹤是機器產生的快照，整份取代。
+    merge = group == "設定"
+    n_bak = n_merged = n_conf = 0
     for it in items:
+        src = _p(book_dir, "草稿", *it["rel"].split("/"))
         dst = os.path.join(book_dir, *it["rel"].split("/"))
-        if os.path.isfile(dst):
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.isfile(dst) and merge:
             tracking.backup(book_dir, dst, "反推前")
             n_bak += 1
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.move(_p(book_dir, "草稿", *it["rel"].split("/")), dst)
+            merged, conflicts = project.merge_entry(project.read_text(dst), project.read_text(src))
+            project.write_atomic(dst, merged)
+            os.remove(src)
+            n_merged += 1
+            n_conf += len(conflicts)
+            continue
+        shutil.move(src, dst)
     tracking.git_commit(book_dir, "從正文建立設定：採用%s" % group)
-    return {"adopted": len(items), "backed_up": n_bak}
+    return {"adopted": len(items), "merged": n_merged, "backed_up": n_bak, "conflicts": n_conf}
 
 
 def discard(book_dir, group):

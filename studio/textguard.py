@@ -242,14 +242,30 @@ def term_map(module):
     return out
 
 
+def _split_fm_raw(text):
+    """把開頭的 frontmatter 原文與後面的正文分開（不解析 YAML，壞掉也切得開）。"""
+    if not text.startswith("---"):
+        return "", text
+    lines = text.split("\n")
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "\n".join(lines[:i + 1]) + "\n", "\n".join(lines[i + 1:])
+    return "", text
+
+
 def _guard_one(book_dir, text):
-    """回傳 (文字, 計數)。計數是 {"simp": 轉繁處數, "term": 用語處數, "punct": 標點處數, "left": 沒轉的簡體字數}。"""
+    """回傳 (文字, 計數)。計數是 {"simp": 轉繁處數, "term": 用語處數, "punct": 標點處數, "left": 沒轉的簡體字數}。
+
+    frontmatter 不進這道：標點轉換會把「類型: 角色」的半形冒號改成全形，整份 frontmatter 就解析不了
+    （名稱、定位、狀態全部讀不到）。跟 check_file 一樣，只處理正文。
+    """
     zero = {"simp": 0, "term": 0, "punct": 0, "left": 0}
     if not text or not isinstance(text, str) or _book_lang(book_dir) != "zh-TW":
         return text, zero
     m = _zh_module()
     if not m:
         return text, zero
+    head, text = _split_fm_raw(text)
     simp = simp_count(text)
     if simp > SIMP_MAX:        # 整段漂移：不硬轉，交給作者重跑
         return text, dict(zero, left=simp)
@@ -270,7 +286,7 @@ def _guard_one(book_dir, text):
         masked, done["punct"] = m.fix_punct(masked)
     for ph, term in table.items():
         masked = masked.replace(ph, term)
-    return masked, done
+    return head + masked, done
 
 
 def _note_of(done):

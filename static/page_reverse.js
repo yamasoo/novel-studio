@@ -19,10 +19,15 @@
   }
 
   async function adoptGroup(g, signal) {
-    if (!(await FE.confirm("採用「" + g + "」的草稿？已有的同名檔案會先備份再覆蓋。"))) return;
+    const how = g === "設定"
+      ? "同名檔案會先備份，草稿只補原檔空白的欄位與段落，不會蓋掉你已經寫的內容。"
+      : "同名檔案會先備份，然後整份取代（這一組是機器產生的快照）。";
+    if (!(await FE.confirm("採用「" + g + "」的草稿？" + how))) return;
     try {
       const res = await FE.api(B("/reverse/adopt"), { method: "POST", body: { group: g }, signal });
-      FE.toast("已採用 " + res.adopted + " 份" + (res.backed_up ? "（備份 " + res.backed_up + " 份原檔）" : ""));
+      FE.toast("已採用 " + res.adopted + " 份"
+        + (res.merged ? "（其中 " + res.merged + " 份併入既有檔" + (res.conflicts ? "，" + res.conflicts + " 段沒併入，請看檔案最後的「從正文反推」" : "") + "）" : "")
+        + (res.backed_up ? "（備份 " + res.backed_up + " 份原檔）" : ""));
       await FE.route();
     } catch (e) { FE.fail(e); }
   }
@@ -48,7 +53,7 @@
         onclick: open,
         onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } },
       }, x.rel),
-      x.exists ? [" ", h("span", { class: "badge b-warn" }, "覆蓋")] : null);
+      x.exists ? [" ", h("span", { class: "badge" }, "併入")] : null);
   }
 
   function groupCard([g, desc], items, docEl, signal) {
@@ -57,7 +62,8 @@
       h("div", { class: "row" },
         h("b", {}, g),
         h("span", { class: "muted small", style: "margin-left:8px" },
-          desc + "　·　" + items.length + " 份" + (exists ? "，其中 " + exists + " 份會覆蓋現有檔案（先備份）" : "")),
+          desc + "　·　" + items.length + " 份"
+          + (exists ? "，其中 " + exists + " 份會" + (g === "設定" ? "併入現有檔案" : "取代現有檔案") + "（先備份）" : "")),
         h("span", { class: "grow" }),
         h("button", { class: "sm primary", "data-adopt": g, onclick: () => adoptGroup(g, signal) }, "採用" + g),
         h("button", { class: "sm danger", "data-discard": g, onclick: () => discardGroup(g, signal) }, "捨棄")),
@@ -95,7 +101,7 @@
           h("div", { class: "sub" }, "已經寫好的書，不用開書訪談：AI 照章節順序分批讀正文，反推出設定、大綱、章綱與追蹤資料。全部先存成草稿，你核對後再分組採用。"))),
       r.has_settings
         ? h("div", { class: "alert warn", style: "margin-bottom:12px" },
-          h("span", { class: "t" }, "這本書已經有角色或伏筆資料。採用草稿時，同名檔案會先備份再覆蓋。"))
+          h("span", { class: "t" }, "這本書已經有角色或伏筆資料。採用「設定」組時同名檔案會先備份、草稿只補空白欄位與新段落（有衝突的段落收在檔案最後的「從正文反推（未併入，請核對）」）；大綱／章綱／追蹤是快照，整份取代。"))
         : null,
       h("div", { class: "card", style: "margin-bottom:14px" },
         h("div", { class: "card-title" },

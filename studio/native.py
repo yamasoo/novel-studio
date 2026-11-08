@@ -1089,10 +1089,14 @@ HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "des
             "reverse": lambda c, p: act_reverse(c, p),
             "glossary_org": lambda c, p: act_glossary_org(c, p)}
 for _k, _spec in native_files.SPECS.items():
+    if _k == "setup_new":
+        continue          # 開書訪談要先把題目問完（面板 ask 迴圈），不是一次呼叫
     HANDLERS[_k] = (lambda s: (lambda c, p: native_files.run_spec(c, p, s, c.sys())))(_spec)
+HANDLERS["setup_new"] = lambda c, p: native_files.run_setup_new(c, p, c.sys())
 
 
 def run(job, prov, home, plugin_dir, checker, opts=None):
+    from . import runner as runner_mod
     c = Ctx(job, prov, home, plugin_dir, checker, opts)
     context.set_ratio(providers.cjk_ratio(prov))   # 這個任務的執行緒裡，估 token 用這個供應商的比例
     prompts.set_lang(c.lang)                        # 這個任務的執行緒裡，提示詞用這本書的語言
@@ -1116,6 +1120,10 @@ def run(job, prov, home, plugin_dir, checker, opts=None):
             job.emit("result", text=job.result, cost=job.cost,
                      usage=c.usage, turns=None)
     except providers.Cancelled:
+        job.status = "cancelled"
+        job.emit("cancelled", text="已停止")
+    except runner_mod.JobStopped:
+        # 停在「等作者回覆」的步驟被停止：不是錯誤
         job.status = "cancelled"
         job.emit("cancelled", text="已停止")
     except (NativeError, providers.ProviderError, project.ProjectError) as e:

@@ -155,9 +155,20 @@ class View:
         return self.ended and STATUS_MAP.get(self._status(), self._status()) in TERMINAL
 
     def ask(self):
+        # 執行中的任務有真的提問（開書訪談）：直接把那一題給面板畫成選項。
+        job = self.job
+        if not isinstance(job, dict) and not self.terminal():
+            pending = getattr(job, "pending_ask", None)
+            got = pending() if pending else None
+            if got:
+                return got
         if not self.terminal():
             return None
-        return {"id": "reply", "prompt": "要接著做什麼？", "allow_text": True}
+        # 任務結束後的「補充需求」框：不是正式流程的入口。
+        title = self._get("title") or "這個任務"
+        return {"id": "reply",
+                "prompt": "補充需求…（對「%s」再補一句；正式步驟請用上面的「下一步」或面板的動作按鈕）" % title,
+                "allow_text": True}
 
     def fields(self):
         raw = self._status()
@@ -350,9 +361,24 @@ def install(app, runner, book_dir, load_history, load_job_file, launch_reply):
         ask_id = body.get("ask_id") or ""
         if not text:
             raise HTTPException(400, "請先輸入回覆")
-        job = runner.get(job_id) or load_job_file(book_dir(book_id), job_id)
+        live = runner.get(job_id)          # 執行中的任務物件（有真的提問時用它）
+        if live is not None and ask_id and ask_id not in ("reply", job_id):
+            deliver = getattr(live, "deliver_reply", None)
+            if deliver is not None and not isinstance(live, dict):
+                if deliver(ask_id, text) != "ok":
+                    raise HTTPException(409, "這個提問已經失效，請重新整理後再回覆。")
+                # 回的是同一個任務：面板會把 ask 收起來，繼續顯示串流
+                data = view_of(live).fields()
+                data.pop("stream", None)
+                data.pop("log", None)
+                return data
+        job = live or load_job_file(book_dir(book_id), job_id)
         if not job:
             raise HTTPException(404, "找不到任務")
+        status = job.get("status") if isinstance(job, dict) else job.status
+        if status == "running":
+            # 這一輪沒有提問在等（有提問的話上面就送進去了）
+            raise HTTPException(409, "任務還在執行，但目前沒有提問在等回覆。")
         if ask_id not in ("reply", job_id) and ask_id != (job.get("id") if isinstance(job, dict) else job.id):
             raise HTTPException(409, "這個提問已經失效")
         new_job = launch_reply(book_id, job, text)

@@ -288,8 +288,76 @@ Pick severity and category from the listed options. Rules: every item needs grou
     "reconcile_conflict_mark": "[CONFLICT] ",
     "reconcile_tail": "For events marked [CONFLICT], write them the way described above and tell the author about the conflict in your report.",
     "goal_ending": "Chapter ends on: {t}",
-    "task_setup_new": "You are running the new-book interview for the new book \"{book}\". The folders and blank templates are already set up.\nThe author's initial idea: {idea}\nFollow the interview process round by round, at most 4 questions per round, and skip what the author has already answered. Ask round one now.\nOnly after round two (mandatory) has been asked and answered, output three files: CLAUDE.md (follow the template, replace {{…}} with the interview results, and do not output the template's start/end markers), 設定/故事核心.md and 設定/文風.md (follow the templates, fill in what is known, keep the template comments for what is unknown, do not invent anything). Put `語言: en` in the frontmatter of 設定/故事核心.md. When the author says \"skip\" or \"you decide\", offer 2-3 options or take a sensible default and label it.",
+    "task_setup_new": "You are assembling the opening material for the new book \"{book}\". The folders and blank templates are already set up, and the author has finished the interview on the panel; do not ask any further questions.\nThe author's initial idea: {idea}\n\n{answers}\n\n[Task] Output three files in one go (in the workbench's file-block format):\n- CLAUDE.md: follow the CLAUDE.md template and replace the {{…}} placeholders with the interview answers; do not output the template's start/end markers.\n- 設定/故事核心.md: follow the template; write what the author said, use the most sensible default for any field where they chose \"Skip, you decide\" and mark it \"(default)\", keep the template comments for anything uncertain, and do not make anything up.\n- 設定/文風.md: follow the template; fill in what is known and keep the template comments where it is not.\nDo not output any other file. In your report list what went into each of the three files, which fields are defaults and which are still empty, and end with the sentence \"Next: story core diagnosis\".",
     "idea_blank": "(none yet — please guide the author)",
+    # ── Book interview (question set for the panel; three rounds of 4/4/4, the third one skippable) ──
+    # Every question has options; the program appends \"Skip, you decide\" as the last option.
+    "setup_rounds": [
+        {"round": 1, "title": "Round 1: What the story is", "optional": False, "questions": [
+            {"key": "genre", "q": "What genre do you want to write?", "options": [
+                {"id": "A", "label": "Science fiction / space opera", "recommended": True},
+                {"id": "B", "label": "Fantasy / cultivation"},
+                {"id": "C", "label": "Contemporary / mystery"},
+                {"id": "D", "label": "I will describe it myself"}]},
+            {"key": "audience", "q": "Who is it for, and where will you publish it?", "options": [
+                {"id": "A", "label": "Web novel, male readership (Qidian, Fanqie)", "recommended": True},
+                {"id": "B", "label": "Web novel, female readership (Jinjiang)"},
+                {"id": "C", "label": "My own blog or e-book"},
+                {"id": "D", "label": "I am just writing it for myself"}]},
+            {"key": "length", "q": "How long do you expect it to be?", "options": [
+                {"id": "A", "label": "Short: under 30,000 words"},
+                {"id": "B", "label": "Mid-length: 100,000 to 300,000 words", "recommended": True},
+                {"id": "C", "label": "Long: 500,000 words or more"},
+                {"id": "D", "label": "Not sure yet"}]},
+            {"key": "title", "q": "Keep the folder name as the title, or pick another one?", "options": [
+                {"id": "A", "label": "Keep the name it has now", "recommended": True},
+                {"id": "B", "label": "I will think about it, leave it blank for now"},
+                {"id": "C", "label": "I will describe it myself"}]}]},
+        {"round": 2, "title": "Round 2: How it gets written", "optional": False, "questions": [
+            {"key": "pov", "q": "Which point of view?", "options": [
+                {"id": "A", "label": "First person"},
+                {"id": "B", "label": "Third person, following the protagonist", "recommended": True},
+                {"id": "C", "label": "Multiple points of view / omniscient"},
+                {"id": "D", "label": "I will describe it myself"}]},
+            {"key": "chapter_size", "q": "Roughly how many words per chapter?", "options": [
+                {"id": "A", "label": "2,000 to 4,000 (common for web novels)"},
+                {"id": "B", "label": "2,500 to 3,500", "recommended": True},
+                {"id": "C", "label": "4,000 or more"},
+                {"id": "D", "label": "Not sure yet"}]},
+            {"key": "style", "q": "What prose style do you want?", "options": [
+                {"id": "A", "label": "Light and quick-witted"},
+                {"id": "B", "label": "Hard-edged and spare", "recommended": True},
+                {"id": "C", "label": "Lyrical and detailed"},
+                {"id": "D", "label": "I will describe it myself"}]},
+            {"key": "sample", "q": "Do you have a sample of your own writing I can work from?", "options": [
+                {"id": "A", "label": "No, the choices above are enough", "recommended": True},
+                {"id": "B", "label": "Yes, I will paste it later under Analyze / tune style"}]}]},
+        {"round": 3, "title": "Round 3: Rules and taboos (skippable)", "optional": True, "questions": [
+            {"key": "must", "q": "What must the book have?", "options": [
+                {"id": "A", "label": "A romance line"},
+                {"id": "B", "label": "A clear rhythm of satisfying payoffs"},
+                {"id": "C", "label": "A particular ending (I will describe it)"}]},
+            {"key": "must_not", "q": "What must it never have?", "options": [
+                {"id": "A", "label": "Tormenting the protagonist"},
+                {"id": "B", "label": "A harem"},
+                {"id": "C", "label": "I will describe it"}]},
+            {"key": "promise", "q": "What do you want to promise the reader?", "options": [
+                {"id": "A", "label": "The protagonist is not a saint"},
+                {"id": "B", "label": "One-to-one romance"},
+                {"id": "C", "label": "No botched ending"}]},
+            {"key": "habit", "q": "How do you want to work together?", "options": [
+                {"id": "A", "label": "Show me each chapter before moving on", "recommended": True},
+                {"id": "B", "label": "Just write; do not keep asking me"},
+                {"id": "C", "label": "Run a consistency check on every chapter automatically"}]}]},
+    ],
+    "setup_ask": "Book interview · {round_title}\nQuestion {n}/{total}: {q}{hint}",
+    "setup_round_hint": "\n({total} questions this round; just keep picking options. If you are unsure, choose \"Skip, you decide\" and let the model take a sensible default.)",
+    "setup_round_skip": "\n(This round is optional and can be skipped whole: on the first question just choose \"Skip, you decide\".)",
+    "setup_skip_option": "Skip, you decide",
+    "setup_answers_head": "[Interview answers the author gave in the panel]",
+    "setup_answers_default": "(The author chose \"Skip, you decide\": take the most sensible default, mark that field \"(default)\" after it, and do not invent details.)",
+    "setup_answers_empty": "(The author did not answer any of the interview questions)",
+    "setup_claude_note": "This mode has no option buttons; switching to an API runner is recommended",
     "task_style": "Analyze, design or adjust this book's prose style (設定/文風.md; output the complete file and keep what the author already wrote). What the author provided:\n{text}\n\nDecide what the author gave you: a writing sample → distill its features into rules, prefer excerpts from the sample as example paragraphs, and add \"what I like about it\"; a description of a genre or feel → design from the thirteen dimensions and the genre cues; revision notes → change only the relevant entries.\nPrinciples: a rule must be concrete enough to check a paragraph against; give ranges, not fixed numbers; write only the five to eight points that really set the style apart; attach an alternative to every taboo; separate recommended practice / this book's taboos / allowed exceptions; learn only features from reference works, never copy their text or proper nouns; at least three example paragraphs with a scene label; 900-1,800 words in total. The style describes English prose (sentence rhythm, diction, dialogue tags, tense and point of view, punctuation habits). Do not write the section \"## 文字指標（程式統計）\" yourself (the program adds it). Do not ask questions; list anything uncertain in your report. In your report, list what you changed.",
     "task_preference": "Record the author's standing preference in 設定/作者偏好.md (output the complete file, add one table row, continue the numbering, record the date {date}):\n{text}\nRules: one preference per row, keeping the limits and exceptions of the original wording; do not record one-off requests or plot facts; when it conflicts with an old preference, do not write the file — ask the author in your report which one to replace; when the author says \"forget it\", delete the whole row.",
     "task_concept": "Run a story-core diagnosis and show it to the author in your report, in the format of section six of the method (minimal skeleton, selling points, story engine, suggested length, gaps and suggestions).{note}\nAlso update 設定/故事核心.md (output the complete file): write only what the author has already said or confirmed; put your own proposals in the report, not in the file.",

@@ -52,8 +52,37 @@
       btn);
   }
 
-  // 資料夾還不是小說專案（沒有 CLAUDE.md）
-  async function renderNonBook(ctx) {
+  // 開書進度的步驟條：完成的加 ✓、進行中的用 ●、其餘用 ─。
+  const STEP_NO = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+
+  function stepsBar(steps) {
+    if (!steps || !steps.length) return null;
+    const kids = [];
+    steps.forEach((s, i) => {
+      if (i) kids.push(h("span", { class: "muted small" }, "───"));
+      kids.push(h("span", { class: s.current ? "badge" : "muted small" },
+        STEP_NO[i] || String(i + 1), " ", s.label, " ", s.done ? "✓" : (s.current ? "●" : "─")));
+    });
+    return h("div", { class: "row", style: "margin-top:6px" }, kids);
+  }
+
+  // 「下一步」卡：新書（還沒寫正文）時這顆 #ov-next 是頁面上唯一的 primary；
+  // 舊書的 primary 仍然留在 page-head，所以這裡降為次要。
+  function nextStepCard(ns, isPrimary) {
+    if (!ns) return null;
+    return h("div", { class: "card", style: "margin-top:14px" },
+      h("div", { class: "card-title" }, h("h2", {}, "下一步：" + ns.label)),
+      h("p", { class: "muted small" }, ns.desc || ""),
+      h("div", { class: "row" },
+        h("button", {
+          id: "ov-next",
+          class: isPrimary ? "primary" : null,
+          onclick: () => Panel.openForm(ns.action, ns.prefill || {}),
+        }, ns.action === "write" ? ns.label : "開始" + ns.label)));
+  }
+
+  // 資料夾還不是小說專案（沒有 CLAUDE.md）：依 ov.setup.state 分「訪談進行中／訪談中斷／真的不是小說專案」三態。
+  async function renderNonBook(ctx, ov) {
     const draftPath = "候選/新書草稿/骨架.md";
     let hasDraft = false;
     try {
@@ -62,6 +91,9 @@
     } catch (e) {
       if (e && e.name === "AbortError") throw e;
     }
+
+    const setup = (ov && ov.setup) || {};
+    const state = setup.state || "none";
 
     const draftBody = h("div", { id: "ov-draft-body" });
     const draftCard = h("div", { class: "card", id: "ov-draft-card", style: "display:none" },
@@ -79,28 +111,63 @@
       },
     }, "查看參考書骨架草稿");
 
+    let title, desc, note = null, buttons;
+    if (state === "interviewing") {
+      title = "開書訪談正在進行";
+      desc = "題目在右側面板，點選項就好。已經回答 " + (setup.answered || 0) + " 題。";
+      if (setup.provider_type === "claude_code") {
+        note = h("p", { class: "muted small" },
+          "這個模式沒有選項按鈕，建議切到 API 執行者；也可以直接在下方回覆框用文字回答。");
+      }
+      buttons = [
+        h("button", { class: "primary", onclick: () => Panel.toggle(true) }, "打開右側面板"),
+        h("button", {
+          onclick: async () => {
+            const ok = await FE.confirm("重新開始訪談會蓋掉目前答過的題目，要繼續嗎？");
+            if (ok) Panel.openForm("setup_new");
+          },
+        }, "重新開始訪談"),
+      ];
+    } else if (state === "interrupted") {
+      title = "開書訪談還沒完成";
+      desc = "訪談開始過但沒有做完，所以還沒產生 CLAUDE.md。把剩下的問題答完就會有進度與資料。";
+      buttons = [h("button", { class: "primary", onclick: () => Panel.openForm("setup_new") }, "繼續開書訪談")];
+    } else {
+      title = "這個資料夾還不是小說專案";
+      desc = "還沒有 CLAUDE.md。開書訪談完成後，這裡就會出現進度與資料。";
+      buttons = [
+        h("button", { class: "primary", onclick: () => Panel.openForm("setup_new") }, "開始開書訪談"),
+        h("button", { id: "ov-spin", onclick: () => spinoffDialog() }, "用參考書產生故事骨架"),
+        hasDraft ? draftBtn : null,
+      ];
+    }
+
+    // 標題下的小字要說實話：訪談正在跑的時候不能寫「還不是小說專案」
+    const subText = state === "interviewing" ? "開書訪談進行中"
+      : state === "interrupted" ? "開書訪談還沒完成" : "這個資料夾還不是小說專案";
     ctx.view(
       h("div", { class: "page-head" },
-        h("div", {}, h("h1", {}, S.book), h("div", { class: "sub" }, "這個資料夾還不是小說專案"))),
+        h("div", {}, h("h1", {}, S.book), h("div", { class: "sub" }, subText))),
       h("div", { class: "card" },
-        h("p", {}, "還沒有 CLAUDE.md。開書訪談完成後，這裡就會出現進度與資料。"),
-        h("div", { class: "row" },
-          h("button", { class: "primary", onclick: () => Panel.openForm("setup_new") }, "開始開書訪談"),
-          h("button", { id: "ov-spin", onclick: () => spinoffDialog() }, "用參考書產生故事骨架"),
-          hasDraft ? draftBtn : null)),
+        h("h2", {}, title),
+        h("p", {}, desc),
+        note,
+        h("div", { class: "row" }, buttons)),
       hasDraft ? draftCard : null);
   }
 
   async function render(ctx) {
     const ov = await FE.api(B("/overview"), { signal: ctx.signal });
     if (!S.books.length) S.books = (await FE.api("/api/books", { signal: ctx.signal })).books;
-    if (!ov.is_book) return renderNonBook(ctx);
+    if (!ov.is_book) return renderNonBook(ctx, ov);
 
     const sc = ov.status_count, total = Math.max(ov.chapters, 1);
     const seg = (n, cls) => (n ? h("div", { class: cls, style: "width:" + (n / total) * 100 + "%" }) : null);
     S.bookLang = ov.lang || S.bookLang;
     const [, stateBody] = splitFM(ov.state_card || "");
     const next = ov.next;
+    // 還沒有正文的新書：頁面上唯一的 primary 由「下一步」卡決定，page-head 那排一律降為次要。
+    const newBook = (ov.written || 0) === 0;
     // 整章自動流程的進度條由 app.js 的 renderPipe 畫進 .pipe-box（換頁後不要再畫到新頁上）。
     setTimeout(() => { if (ctx.active()) renderPipe(); }, 0);
 
@@ -124,16 +191,19 @@
         h("div", {},
           h("h1", {}, S.book),
           h("div", { class: "sub" }, ov.hook || ""),
-          h("div", { class: "sub small" }, h("label", {}, "寫作語言：", langSel))),
+          h("div", { class: "sub small" }, h("label", {}, "寫作語言：", langSel)),
+          // 舊書（已經有正文）的總覽行為完全不變：不加開書進度步驟條
+          newBook ? stepsBar(ov.steps) : null),
         h("div", { class: "row" },
           next.has_card
-            ? h("button", { class: "primary", onclick: () => Panel.openForm("write", { from: next.no, to: next.no }) },
+            ? h("button", { class: newBook ? null : "primary", onclick: () => Panel.openForm("write", { from: next.no, to: next.no }) },
               "寫第" + next.no + "章" + (next.title ? "《" + next.title + "》" : ""))
-            : h("button", { class: "primary", onclick: () => Panel.openForm("chapter_cards", { from: next.no, to: next.no + 9 }) },
+            : h("button", { class: newBook ? null : "primary", onclick: () => Panel.openForm("chapter_cards", { from: next.no, to: next.no + 9 }) },
               "排第" + next.no + "–" + (next.no + 9) + "章的章綱"),
           h("button", { onclick: () => pipeModal(next.no) }, "⚡ 整章自動"),
           h("button", { onclick: () => Panel.openForm("review", { from: Math.max(1, ov.latest - 4), to: Math.max(1, ov.latest) }) }, "審查最近章節"),
           h("button", { onclick: () => FE.go(bookPath("/drift")) }, "卷末體檢"))),
+      newBook ? nextStepCard(ov.next_step, true) : null,
       h("div", { class: "pipe-box" }),
       h("div", { class: "grid g4" },
         h("div", { class: "card stat" }, h("div", { class: "num" }, ov.written), h("div", { class: "lbl" }, "已寫章數")),

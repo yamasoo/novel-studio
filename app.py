@@ -28,7 +28,7 @@ import uvicorn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, setup_flow, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
 # vendor/fekit/py 不是 site-packages，先加進 sys.path；要在 from fekit 之前
 sys.path.insert(0, os.path.join(HERE, "vendor", "fekit", "py"))
 from fekit import install as fekit_install  # noqa: E402
@@ -1571,7 +1571,9 @@ async def new_book(req: Request):
     if mode != "skeleton" and body.get("start_setup", True):
         params = {"idea": body.get("idea", "")}
         title, prompt = actions.build("setup_new", params, name, lang=lang_mod.book_lang(d))
-        job = RUNNER.start(runner_mod.Job(name, d, title, prompt, meta={"action": "setup_new", "params": params},
+        job = RUNNER.start(runner_mod.Job(name, d, title, prompt,
+                                          meta={"action": "setup_new", "params": params,
+                                                "provider_type": prov.get("type")},
                                           provider=prov))
     return {"id": name, "job": job.to_dict() if job else None, "seeded": seeded, "mode": mode}
 
@@ -1785,7 +1787,26 @@ def book_overview(book_id: str):
                                         "text": "第%s章有修訂等你逐段確認。" % m.group(1), "chapter": int(m.group(1)), "tab": "revision"})
     run = RUNNER.running_for(book_id)
     ov["running"] = run.to_dict() if run else None
+    # 開書前段：五步進度、下一步、訪談狀態（判定在 studio/setup_flow.py，總覽與面板共用）
+    ov["steps"] = setup_flow.steps(d)
+    ov["next_step"] = setup_flow.next_step(d)
+    ov["setup"] = setup_flow.interview_state(d, run)
     return ov
+
+
+@app.get("/api/books/{book_id}/setup_report")
+def setup_report(book_id: str, job: str = ""):
+    """開書報告：三份核心檔案是程式實際檢查的結果，不是模型自述。"""
+    d = book_dir(book_id)
+    meta = {}
+    if job:
+        found = RUNNER.get(job) or runner_mod.load_job_file(d, job)
+        if found is not None:
+            meta = (found.get("meta") if isinstance(found, dict) else found.meta) or {}
+    rep = setup_flow.report(d, meta)
+    rep["claude_mode"] = ((meta.get("provider_type") or "") == "claude_code")
+    rep["job"] = job
+    return rep
 
 
 @app.post("/api/books/{book_id}/lang")
@@ -2084,16 +2105,19 @@ async def bible_merge(book_id: str, req: Request):
 
 @app.post("/api/books/{book_id}/bible/category")
 async def bible_set_category(book_id: str, req: Request):
-    """批次把世界觀檔的「分類」改成固定清單中的一項。先全部檢查，通過才寫入。"""
+    """批次改設定檔的「分類」（世界觀）、「定位」（角色）、「狀態」。先全部檢查，通過才寫入。"""
     d = book_dir(book_id)
     body = await req.json()
     cat = body.get("category")
+    role = body.get("role")
     status = body.get("status")
     files = body.get("files") or []
-    if cat is None and status is None:
+    if cat is None and role is None and status is None:
         raise HTTPException(400, "沒有要改的內容")
     if cat is not None and cat not in project.WORLD_CATS:
         raise HTTPException(400, "分類不在固定清單內")
+    if role is not None and role not in project.CHAR_ROLES:
+        raise HTTPException(400, "定位不在固定清單內")
     if status is not None and status not in ("正式", "草稿"):
         raise HTTPException(400, "狀態只能是 正式 或 草稿")
     if not isinstance(files, list) or not files:
@@ -2111,11 +2135,15 @@ async def bible_set_category(book_id: str, req: Request):
             raise HTTPException(400, "只能改 設定/角色、設定/勢力、設定/世界觀 裡的 .md 檔：" + rel)
         if cat is not None and not norm.startswith("設定/世界觀/"):
             raise HTTPException(400, "只有世界觀可以改分類：" + rel)
+        if role is not None and not norm.startswith("設定/角色/"):
+            raise HTTPException(400, "只有角色可以改定位：" + rel)
         targets.append(p)
     for p in targets:
         text = project.read_text(p)
         if cat is not None:
             text = project.set_frontmatter_field(text, "分類", cat)
+        if role is not None:
+            text = project.set_frontmatter_field(text, "定位", role)
         if status is not None:
             text = project.set_frontmatter_field(text, "狀態", status)
         native.tracking.backup(d, p, "改分類前")
@@ -2238,7 +2266,8 @@ def launch_job(book_id, d, action, params, prov, resume=None, text=None):
         if action in CLAUDE_SPECIAL and prov.get("type") == "claude_code":
             return RUNNER.start(CLAUDE_SPECIAL[action](book_id, d, prov, params or {}))
         return RUNNER.start(attach_wb_check(runner_mod.Job(book_id, d, title, prompt, resume=resume, provider=prov,
-                                                           meta={"action": action, "params": params or {}}),
+                                                           meta={"action": action, "params": params or {},
+                                                                 "provider_type": prov.get("type")}),
                                             d, action, params or {}, prov))
     except RuntimeError as e:
         raise HTTPException(409, str(e))
@@ -2492,7 +2521,8 @@ def fe_launch_reply(book_id, job, text):
         data = job.to_dict(True)
     meta = data.get("meta") or {}
     if data.get("status") == "running":
-        raise HTTPException(409, "還在執行，請等這一輪結束")
+        # 有提問在等回覆的狀況已經在 ns_jobs.fe_reply 處理掉了，走到這裡代表沒有 ask 在等
+        raise HTTPException(409, "任務還在執行，但目前沒有提問在等回覆。")
     if meta.get("action") == "style_design":
         body = {
             "mode": "revise",

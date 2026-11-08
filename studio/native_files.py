@@ -15,7 +15,7 @@ import shutil
 import time
 import urllib.request
 
-from . import contract, context, project, prompts, shared, textguard, tracking, volume
+from . import contract, context, project, prompts, setup_flow, shared, textguard, tracking, volume
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -191,6 +191,8 @@ def apply_blocks(book_dir, files, dels, appends=None):
         else:
             verb = "新增"
         text, note = textguard.guard_text(book_dir, content.strip() + "\n")
+        text = project.normalize_frontmatter(text)   # 舊檔的「欄名：」寫回半形
+        text = project.ensure_role(text)             # 模型漏寫「定位」時補預設，不要留下空白的角色
         project.write_atomic(full, text)
         done.append("%s %s%s" % (verb, rel, ("（%s）" % note) if note else ""))
     for rel in dels:
@@ -287,6 +289,76 @@ def outline_files_text(c):
 # ---------------------------------------------------------------------------
 # 各動作：回傳 (標題, 任務說明, Pack, 是否先提案)
 # ---------------------------------------------------------------------------
+def answers_md(c, answers):
+    """把面板訪談的答案寫成模型看得懂的一段（沒有答案時給空集合的說明）。"""
+    P = prompts.cur()
+    if not answers:
+        return P["setup_answers_empty"]
+    lines = [P["setup_answers_head"]]
+    for key, v in answers.items():
+        if not isinstance(v, dict):
+            continue
+        q = v.get("q") or key
+        a = (v.get("a") or "").strip()
+        lines.append("- %s：%s" % (q, P["setup_answers_default"] if (v.get("default") or not a) else a))
+    return "\n".join(lines)
+
+
+def setup_interview(c, p):
+    """面板問答：一輪最多 4 題，作者一路點選項就好。答案存回 job.meta.params.answers，
+    任務重跑或換執行者時直接重用，不會重問。"""
+    from . import runner as runner_mod
+    P = prompts.cur()
+    rounds = P.get("setup_rounds") or []
+    answers = dict(p.get("answers") or {})
+    skip = P.get("setup_skip_option") or "跳過"
+    for rnd in rounds:
+        qs = rnd.get("questions") or []
+        if not qs:
+            continue
+        skipped = False
+        for i, q in enumerate(qs):
+            key = q.get("key") or ("q%d" % i)
+            if answers.get(key):
+                continue                      # 已經回答過（重跑時沿用）
+            if c.job.status != "running":
+                raise runner_mod.JobStopped()
+            hint = ""
+            if i == 0:
+                hint = (P["setup_round_skip"] if rnd.get("optional") else P["setup_round_hint"]).format(total=len(qs))
+            text = c.job.ask(P["setup_ask"].format(round_title=rnd.get("title") or "", n=i + 1,
+                                                   total=len(qs), q=q.get("q") or "", hint=hint),
+                             options=[{"label": "%s. %s" % (o.get("id") or "", o.get("label") or ""),
+                                       "value": "%s. %s" % (o.get("id") or "", o.get("label") or "")}
+                                      for o in q.get("options") or []] + [{"label": skip, "value": skip}],
+                             allow_text=True)
+            raw = (text or "").strip()
+            default = (not raw) or raw == skip or raw.startswith("跳過") or raw.startswith("跳过")
+            answers[key] = {"q": q.get("q") or "", "a": "" if default else raw, "default": default}
+            p["answers"] = answers
+            c.job.meta["params"] = p
+            try:
+                c.job.save()
+            except Exception:
+                pass
+            if rnd.get("optional") and i == 0 and default:
+                skipped = True
+                break
+        c.job.emit("log", text="訪談進度：%s 完成（%s）" % (rnd.get("title") or "", "跳過" if skipped else "已回答"))
+    return answers
+
+
+def run_setup_new(c, p, system):
+    """開書訪談（API 執行者）：先問完三輪（面板按鈕），再一次呼叫模型產出三個檔案。"""
+    params = dict(p or {})
+    if c.prov.get("type") != "claude_code":
+        params["answers"] = setup_interview(c, params)
+        c.job.meta["params"] = params
+    run_spec(c, params, spec_setup_new, system)
+    report = setup_flow.report_md(c.book, c.job.meta)
+    c.job.result = ((c.job.result or "").rstrip() + "\n\n" + report).strip()
+
+
 def spec_setup_new(c, p):
     created = ensure_skeleton(c.book, c.plugin_dir)
     if created:
@@ -297,7 +369,8 @@ def spec_setup_new(c, p):
     pk.add(1, "故事核心範本（設定/故事核心.md）", tpl(c, "故事核心.md"))
     pk.add(1, "文風範本（設定/文風.md）", tpl(c, "文風.md"))
     idea = (p.get("idea") or "").strip() or prompts.cur()["idea_blank"]
-    task = prompts.cur()["task_setup_new"].format(book=c.job.book_id, idea=idea)
+    task = prompts.cur()["task_setup_new"].format(book=c.job.book_id, idea=idea,
+                                                  answers=answers_md(c, p.get("answers") or {}))
     return "開書訪談", task, pk, False
 
 

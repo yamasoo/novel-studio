@@ -48,29 +48,29 @@
     const nameInput = h("input", { type: "text", id: "nb-name", placeholder: "例如：退婚之後" });
     const langSel = h("select", { id: "nb-lang" },
       h("option", { value: "zh-TW" }, "繁體中文"), h("option", { value: "en" }, "English"), h("option", { value: "ja" }, "日本語"));
-    const ideaArea = h("textarea", { id: "nb-idea", rows: "4", placeholder: "一句話、一段簡介，或幾個關鍵字" });
+    const ideaArea = h("textarea", { id: "nb-idea", rows: "2", placeholder: "一句話就好，訪談會接著問" });
     const refSel = h("select", { id: "nb-ref" }, h("option", { value: "" }, "（不參考）"), others);
     const genBox = h("input", { type: "checkbox", id: "nb-gen" });
     const hint = h("p", { class: "muted small", id: "nb-mode-hint" });
     const genRow = h("label", { class: "f", id: "nb-gen-row" }, genBox, " 順便產生故事骨架草稿（用上面的參考書，1–2 分鐘；不會自動套用）");
-    const goBtn = h("button", { class: "primary", id: "nb-go" }, "建立並開始訪談");
+    const goBtn = h("button", { class: "primary", id: "nb-go" }, "開始開書");
 
     const close = FE.modal({
       title: "開新書",
       body: [
-        h("p", { class: "muted small" }, "先在書庫建立資料夾，再選開書方式。開書訪談會先問兩輪再建立專案；用參考書骨架直接開書會先產生骨架，然後直接寫入設定與大綱，跳過訪談。執行者可以在右側面板上方切換。"),
         h("label", { class: "f" }, h("span", {}, "書名（也是資料夾名稱）"), nameInput),
+        h("label", { class: "f" }, h("span", {}, "一句話構想（選填）"), ideaArea),
         h("label", { class: "f" }, h("span", {}, "寫作語言"), langSel),
-        h("p", { class: "muted small" }, "決定這本書的提示詞和模型輸出的語言。介面語言是另外的設定（右下角）。"),
-        h("label", { class: "f" }, h("span", {}, "初步構想（選填）"), ideaArea),
-        h("label", { class: "f" }, h("span", {}, "參考書（選填；用骨架直接開書時必選）"), refSel),
-        h("p", { class: "muted small" }, "只沿用它的", h("b", {}, "文風指標"), "與", h("b", {}, "章節結構"), "（數字），不會帶入任何名字或情節。"),
-        h("label", { class: "f" }, h("span", {}, "開書方式")),
-        h("div", { class: "seg compact", id: "nb-mode" },
-          h("label", {}, h("input", { type: "radio", name: "nb-mode", value: "interview", checked: true }), h("span", {}, "開書訪談（推薦）")),
-          h("label", {}, h("input", { type: "radio", name: "nb-mode", value: "skeleton" }), h("span", {}, "用參考書骨架直接開書"))),
-        hint,
-        genRow,
+        h("details", { id: "nb-adv" },
+          h("summary", {}, "進階選項"),
+          h("label", { class: "f" }, h("span", {}, "參考書（選填；用骨架直接開書時必選）"), refSel),
+          h("p", { class: "muted small" }, "只沿用參考書的文風指標與章節結構（數字），不會帶入名字或情節。"),
+          genRow,
+          h("label", { class: "f" }, h("span", {}, "開書方式")),
+          h("div", { class: "seg compact", id: "nb-mode" },
+            h("label", {}, h("input", { type: "radio", name: "nb-mode", value: "interview", checked: true }), h("span", {}, "開書訪談（推薦）")),
+            h("label", {}, h("input", { type: "radio", name: "nb-mode", value: "skeleton" }), h("span", {}, "用參考書骨架直接開書"))),
+          hint),
       ],
       foot: (done) => [
         h("span", { class: "grow" }),
@@ -89,8 +89,8 @@
       genRow.style.display = skeleton ? "none" : "";
       hint.textContent = skeleton
         ? FE.t("需要選一本參考書。會先產生骨架（約 1–2 分鐘），然後直接寫入 CLAUDE.md、故事核心、全書大綱與卷綱，跳過開書訪談；骨架沒提到的欄位會標「待補」。")
-        : FE.t("先問兩輪再建立專案。下面可以順便產生一份骨架草稿，但草稿不會自動套用。");
-      goBtn.textContent = skeleton ? FE.t("建立並用骨架開書") : FE.t("建立並開始訪談");
+        : FE.t("建立後直接在右側面板問兩輪（題目有選項，點就好）。上面也可以順便產生一份骨架草稿，但草稿不會自動套用。");
+      goBtn.textContent = skeleton ? FE.t("建立並用骨架開書") : "開始開書";
     };
     close.el.querySelectorAll('input[name="nb-mode"]').forEach((r) => { r.onchange = syncMode; });
     syncMode();
@@ -121,6 +121,9 @@
         busy();
         FE.go("#/b/" + enc(r.id));
         if (r.job) Panel.attach(r.job);
+        Panel.toggle(true);
+        S.justCreated = r.id;
+        S.setupJob = r.job ? r.job.id : null;
         if (r.seeded && r.seeded.length) FE.toast("已沿用參考書的文風指標與章節結構");
         if (gen && ref) spinoffGenerate(r.id, ref, idea);
         else if (gen && !ref) FE.toast("要先選一本參考書", "err");

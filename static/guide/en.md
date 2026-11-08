@@ -237,6 +237,9 @@ Settings → "生成設定" (Generate settings) → "我已經有大綱或卷綱
 | **卷契約 (volume contract)** | What this volume promises the reader (what will and will not happen); injected first during continuation |
 | **章綱 (chapter card)** | The plan for one chapter: scenes, events, who appears, closing hook |
 | **章綱體檢 (chapter-card health check)** | Checks cards for early appearance / spoilers and for characters absent too long |
+| **初始設定 (initial settings)** | The last setup-layer step: at least 3 real files in `設定/角色/` plus one in `設定/勢力/` or `設定/世界觀/`; drafts do not count |
+| **卷末體檢 (end-of-volume check)** | After a volume is full, compares the bible against the manuscript: missed cards, characters absent too long, unpaid foreshadowing, style drift; can produce a volume-outline update draft |
+| **下一步 (next step)** | The single primary button on the overview page; pressing it does the next thing in the flow |
 | **續寫合約 (continuation contract)** | `設定/續寫合約.md`: immutable facts and volume-end promises; outranks outline and style |
 | **狀態卡 (state card)** | Where characters are now, injuries, what they know; written back after each finalized chapter |
 | **伏筆 (foreshadowing)** | Threads planted but not yet paid off; the app warns when they go quiet or miss their due chapter |

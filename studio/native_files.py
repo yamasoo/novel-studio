@@ -418,7 +418,7 @@ def spec_concept(c, p):
     add_book_core(pk, c, light=True)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_concept"].format(note=prompts.cur()["note_inline_files"].format(note=note) if note else "")
-    return "故事核心診斷", task, pk, False
+    return "故事核心診斷", task, pk, True
 
 
 def spec_master_outline(c, p):
@@ -502,7 +502,7 @@ def spec_volume_draft(c, p):
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_volume_draft"].format(
         v=v, a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
-    return "第%s卷卷綱草稿" % v, task + "\n\n" + prompts.cur()["contract_rule"], pk, False
+    return "第%s卷卷綱草稿" % v, task + "\n\n" + prompts.cur()["contract_rule"], pk, True
 
 
 def spec_volume_revise(c, p):
@@ -672,6 +672,39 @@ SPECS = {"setup_new": spec_setup_new, "style": spec_style, "preference": spec_pr
          "intake": spec_intake, "promote_drafts": spec_promote}
 
 
+GATE_MAX_ROUNDS = 2          # 作者說「我要改」時最多再改幾輪，避免無限迴圈
+
+
+def _gate_verdict(text, P):
+    """作者的閘門回覆 → ok／edit／skip。選項、自由輸入、英文都認得。"""
+    t = (text or "").strip()
+    if not t or t == P["gate_option_skip"]:
+        return "skip"
+    if t == P["gate_option_confirm"]:
+        return "ok"
+    if t == P["gate_option_edit"]:
+        return "edit"
+    low = t.lower()
+    if low in ("ok", "yes", "y", "confirm") or t in ("確認", "确认", "寫入", "写入"):
+        return "ok"
+    if low in ("skip", "no", "n") or t.startswith("跳過") or t.startswith("跳过"):
+        return "skip"
+    return "edit"
+
+
+def _gate_ask(c, label, files):
+    """寫檔前問一次（面板按鈕）。Claude Code 模式沒有 ask，回傳 None 讓呼叫端維持文字說明。"""
+    if c.prov.get("type") == "claude_code" or not hasattr(c.job, "ask"):
+        return None
+    P = prompts.cur()
+    names = "、".join(sorted({r for r, _ in files}))
+    prompt = P["gate_ask"].format(label=label, files=names) if names else P["gate_ask_none"].format(label=label)
+    return c.job.ask(prompt, options=[{"label": P["gate_option_confirm"], "value": P["gate_option_confirm"]},
+                                      {"label": P["gate_option_edit"], "value": P["gate_option_edit"]},
+                                      {"label": P["gate_option_skip"], "value": P["gate_option_skip"]}],
+                     allow_text=True)
+
+
 def run_spec(c, p, spec, system, draft_only=False):
     label, task, pk, confirm = spec(c, p)
     ctx_text, used, dropped = pk.build()
@@ -693,6 +726,41 @@ def run_spec(c, p, spec, system, draft_only=False):
         appends, dels = [], []
     if c.truncated:
         report += "\n\n⚠ 這次輸出被截斷，最後一個檔案可能沒寫完（沒寫完的檔案不會寫入）。請調高「最大輸出」後再執行一次。"
+    # 寫檔前的閘門：作者按「確認，寫進檔案」才落地；按「我要改」就照他的話再產一次（最多兩輪）。
+    gate_note = ""
+    if confirm and not draft_only:
+        rounds = 0
+        while True:
+            answer = _gate_ask(c, label, files)
+            if answer is None:          # Claude Code 模式沒有 ask：維持原本的文字說明
+                gate_note = P["gate_text_hint"]
+                break
+            verdict = _gate_verdict(answer, P)
+            if verdict == "skip":
+                files, dels, appends = [], [], []
+                gate_note = P["gate_skipped"]
+                break
+            if verdict == "edit":
+                if rounds >= GATE_MAX_ROUNDS:
+                    files, dels, appends = [], [], []
+                    gate_note = P["gate_give_up"].format(n=rounds)
+                    break
+                rounds += 1
+                instruction = P["gate_adjust"].format(note=(answer or "").strip())
+            else:
+                # 作者按確認，但這一輪本來就只提案（confirm_rule）：請模型把檔案吐出來
+                instruction = P["gate_write_now"]
+            msgs = msgs + [{"role": "assistant", "content": out},
+                           {"role": "user", "content": instruction}]
+            out = c.call(msgs, max_tokens=int(c.prov.get("max_output") or 8192),
+                         label=label + ("（依作者意見調整）" if verdict == "edit" else "（寫入）"), stage="plan")
+            files, dels, report = parse_blocks(out)
+            appends = parse_appends(out)
+            if verdict == "ok":
+                if not (files or dels or appends):
+                    gate_note = P["gate_no_files"]
+                break
+            c.job.emit("log", text="已依作者的意見重產一次（第 %d 輪）。" % rounds)
     done, skipped = apply_blocks(c.book, files, dels, appends) if (files or dels or appends) else ([], [])
     skipped = skipped + blocked
     hook = getattr(c, "after_files", None)
@@ -702,8 +770,8 @@ def run_spec(c, p, spec, system, draft_only=False):
     msgs.append({"role": "assistant", "content": out})
     c.save_messages(msgs, {"kind": "files", "stage": "plan"})
     c.job.result = result_text(report, done, skipped)
-    if confirm and not (files or dels):
-        c.job.result += "\n\n確認沒問題的話，在下方回覆「確認」（或寫下要調整的地方），就會寫入檔案。"
+    if gate_note:
+        c.job.result += "\n\n" + gate_note
 
 
 def reply_files(c, out):

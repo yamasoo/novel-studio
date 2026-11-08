@@ -192,3 +192,124 @@ def test_running_job_has_no_fake_reply_ask(tmp_path):
     assert ask and ask["prompt"] == "題材？"
     job.deliver_reply(ask["id"], "A")
     th.join(5)
+
+# ---------------------------------------------------------------------------
+# 寫檔前的閘門（大綱／卷綱／章綱／故事核心：按確認才落地）
+# ---------------------------------------------------------------------------
+from studio import native_files, prompts  # noqa: E402
+
+FILE_BLOCK = "<<<檔案 大綱/全書大綱.md>>>\n---\n類型: 全書大綱\n---\n" + ("卷" * 600) + "\n<<<結束>>>"
+
+
+class _Pack:
+    def add(self, *a, **k):
+        pass
+
+    def build(self):
+        return "ctx", 0, []
+
+
+def _spec(c, p):
+    return "測試動作", "任務說明", _Pack(), True
+
+
+class _Job:
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.asked = []
+        self.status = "running"
+        self.result = ""
+
+    def ask(self, prompt, options=None, allow_text=True):
+        self.asked.append({"prompt": prompt, "options": [o["label"] for o in options or []], "allow_text": allow_text})
+        return self.answers.pop(0)
+
+    def emit(self, *a, **k):
+        pass
+
+    def save(self):
+        pass
+
+
+class _Ctx:
+    def __init__(self, job, book, outputs, prov_type="openai"):
+        self.job, self.book = job, book
+        self.prov = {"type": prov_type, "max_output": 4096}
+        self.truncated = False
+        self.outputs = list(outputs)
+        self.calls = 0
+        self.meta = None
+
+    def budget(self, n):
+        return 8000
+
+    def call(self, msgs, **kw):
+        self.calls += 1
+        self.last_msgs = msgs
+        return self.outputs.pop(0)
+
+    def save_messages(self, msgs, extra=None):
+        pass
+
+
+def test_gate_confirm_writes_the_files(tmp_path):
+    d = _book(tmp_path)
+    job = _Job(["確認，寫進檔案"])
+    ctx = _Ctx(job, d, ["提案：分三卷", FILE_BLOCK])
+    native_files.run_spec(ctx, {}, _spec, "sys")
+    assert job.asked and job.asked[0]["options"][0] == prompts.pack("zh-TW")["gate_option_confirm"]
+    assert os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+    assert "已建立" in ctx.job.result or "全書大綱" in ctx.job.result
+    assert ctx.calls == 2          # 先提案，確認後才輸出檔案
+
+
+def test_gate_skip_writes_nothing(tmp_path):
+    d = _book(tmp_path)
+    job = _Job([prompts.pack("zh-TW")["gate_option_skip"]])
+    ctx = _Ctx(job, d, ["提案：分三卷", FILE_BLOCK])
+    native_files.run_spec(ctx, {}, _spec, "sys")
+    assert ctx.calls == 1
+    assert not os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+    assert prompts.pack("zh-TW")["gate_skipped"] in ctx.job.result
+
+
+def test_gate_edit_round_then_confirm(tmp_path):
+    d = _book(tmp_path)
+    P = prompts.pack("zh-TW")
+    # 作者第一次直接打字（＝我要改），第二次按確認
+    job = _Job(["第二卷的對手要換人", P["gate_option_confirm"]])
+    ctx = _Ctx(job, d, ["提案一", "提案二", FILE_BLOCK])
+    native_files.run_spec(ctx, {}, _spec, "sys")
+    assert len(job.asked) == 2
+    assert ctx.calls == 3          # 提案 → 依意見重產 → 確認後輸出檔案
+    assert any("第二卷的對手要換人" in m["content"] for m in ctx.last_msgs)
+    assert os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+
+
+def test_gate_confirm_without_files_is_reported(tmp_path):
+    d = _book(tmp_path)
+    job = _Job([prompts.pack("zh-TW")["gate_option_confirm"]])
+    ctx = _Ctx(job, d, ["只有提案", "還是只有提案"])
+    native_files.run_spec(ctx, {}, _spec, "sys")
+    assert prompts.pack("zh-TW")["gate_no_files"] in ctx.job.result
+    assert not os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+
+
+def test_gate_is_text_only_for_claude_code(tmp_path):
+    """Claude Code 沒有 ask：不問，結果尾巴給原本的文字說明。"""
+    d = _book(tmp_path)
+    job = _Job([])
+    ctx = _Ctx(job, d, ["提案：分三卷"], prov_type="claude_code")
+    native_files.run_spec(ctx, {}, _spec, "sys")
+    assert job.asked == []
+    assert prompts.pack("zh-TW")["gate_text_hint"] in ctx.job.result
+
+
+def test_plain_text_answer_is_treated_as_edit(tmp_path):
+    P = prompts.pack("zh-TW")
+    assert native_files._gate_verdict(P["gate_option_confirm"], P) == "ok"
+    assert native_files._gate_verdict(P["gate_option_skip"], P) == "skip"
+    assert native_files._gate_verdict(P["gate_option_edit"], P) == "edit"
+    assert native_files._gate_verdict("確認", P) == "ok"
+    assert native_files._gate_verdict("跳過", P) == "skip"
+    assert native_files._gate_verdict("第三卷太短，拉長一點", P) == "edit"

@@ -65,9 +65,17 @@ CORE = """---
 """
 
 
+def _settings(d, chars=3, factions=1):
+    """寫出初始設定：角色 chars 個正式檔、勢力 factions 個。"""
+    for i in range(chars):
+        _write(d, "設定/角色/角色%d.md" % i, "---\n類型: 角色\n---\n角色")
+    for i in range(factions):
+        _write(d, "設定/勢力/勢力%d.md" % i, "---\n類型: 勢力\n---\n勢力")
+
+
 def test_steps_and_next_follow_files(tmp_path):
     d = _book(tmp_path)
-    assert [s["done"] for s in setup_flow.steps(d)] == [False] * 5
+    assert [s["done"] for s in setup_flow.steps(d)] == [False] * 6
     assert setup_flow.next_step(d)["id"] == "setup"
 
     _write(d, "CLAUDE.md", CLAUDE_MD)
@@ -88,6 +96,11 @@ def test_steps_and_next_follow_files(tmp_path):
 
     for n in range(1, 11):
         _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+    # 排完章綱之後先做初始設定，才輪到寫第 1 章
+    assert setup_flow.next_step(d)["id"] == "settings"
+    _settings(d, chars=2)
+    assert setup_flow.next_step(d)["id"] == "settings"     # 只有 2 個角色：還不算完成
+    _settings(d, chars=3)
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "write" and nxt["action"] == "write" and nxt["prefill"] == {"from": 1, "to": 1}
 
@@ -314,3 +327,101 @@ def test_plain_text_answer_is_treated_as_edit(tmp_path):
     assert native_files._gate_verdict("確認", P) == "ok"
     assert native_files._gate_verdict("跳過", P) == "skip"
     assert native_files._gate_verdict("第三卷太短，拉長一點", P) == "edit"
+
+# ---------------------------------------------------------------------------
+# 初始設定這一步與卷層（計畫-整本書產出流程 §5 四題：全 A）
+# ---------------------------------------------------------------------------
+VOL1 = ("---\n類型: 卷綱\n卷名: 測試卷\n章節範圍: 第1章～第12章\n狀態: 已確認\n---\n" + ("卷" * 300))
+VOL2 = ("---\n類型: 卷綱\n卷名: 第二卷\n章節範圍: 第13章～第22章\n狀態: 已確認\n---\n" + ("卷" * 300))
+
+
+def _full_setup(d, volume="第1章～第12章"):
+    """六步都完成的一本書（章綱 1–12、初始設定齊、第一卷卷綱）。"""
+    _write(d, "CLAUDE.md", CLAUDE_MD)
+    _write(d, "設定/故事核心.md", CORE)
+    _write(d, "大綱/全書大綱.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "大綱/卷綱_第1卷.md",
+           "---\n類型: 卷綱\n卷名: 測試卷\n章節範圍: %s\n狀態: 已確認\n---\n" % volume + ("卷" * 300))
+    for n in range(1, 13):
+        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+    _settings(d)
+
+
+def _texts(d, a, b):
+    for n in range(a, b + 1):
+        _write(d, "正文/第%03d章_測試.md" % n, "正文內容")
+
+
+def test_settings_needs_characters_and_faction_or_world(tmp_path):
+    d = _book(tmp_path)
+    _settings(d, chars=3, factions=0)
+    assert setup_flow.settings_state(d)["done"] is False       # 只有角色，沒有勢力／世界觀
+    _write(d, "設定/世界觀/氧氣迴路.md", "---\n類型: 世界觀\n---\n世界觀")
+    st = setup_flow.settings_state(d)
+    assert st["done"] is True and st["characters"] == 3 and st["worlds"] == 1
+
+
+def test_settings_drafts_are_not_done(tmp_path):
+    d = _book(tmp_path)
+    for i in range(5):
+        _write(d, "設定/草稿/草稿%d.md" % i, "---\n狀態: 草稿\n---\n草稿")
+    st = setup_flow.settings_state(d)
+    assert st["done"] is False and st["drafts"] == 5
+
+
+def test_volume_state_full_volume_then_reverse_then_next_volume(tmp_path):
+    d = _book(tmp_path)
+    _full_setup(d)
+    vol = setup_flow.volume_state(d)
+    assert (vol["mode"], vol["lo"], vol["hi"], vol["full"]) == ("卷綱", 1, 12, False)
+    assert setup_flow.next_step(d)["id"] == "write"
+    assert setup_flow.next_step(d)["prefill"] == {"from": 1, "to": 1}
+
+    _texts(d, 1, 12)
+    vol = setup_flow.volume_state(d)
+    assert vol["full"] is True and vol["written"] == 12
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "volume_end" and nxt["go"] == "/drift?from=1&to=12"   # 體檢預設掃這一卷
+
+    # 卷末體檢的更新草稿落地（還沒套用）：算做過了，換下一卷
+    _write(d, "大綱/草稿/卷綱更新_第1-12章.md", "# 卷綱更新草稿（第1–12 章體檢）\n")
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "volume_next" and nxt["action"] == "volume_draft"
+    assert nxt["prefill"] == {"volume": "二", "from": 13, "to": 22}
+
+    # 第二卷卷綱落地 → 排第13–22章章綱 → 寫第13章
+    _write(d, "大綱/卷綱_第2卷.md", VOL2)
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "cards" and nxt["prefill"] == {"from": 13, "to": 22}
+    for n in range(13, 23):
+        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "write" and nxt["prefill"] == {"from": 13, "to": 13}
+
+
+def test_check_marked_when_volume_outline_already_updated(tmp_path):
+    d = _book(tmp_path)
+    _full_setup(d)
+    _texts(d, 1, 12)
+    _write(d, "大綱/卷綱_第1卷.md", VOL1 + "\n# 卷綱更新草稿（第1–12 章體檢）\n- 補一段\n")
+    assert setup_flow.next_step(d)["id"] == "volume_next"
+
+
+def test_gap_chapter_inside_volume_is_written_first(tmp_path):
+    d = _book(tmp_path)
+    _full_setup(d)
+    _texts(d, 1, 2)
+    _texts(d, 5, 6)
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "write" and nxt["prefill"] == {"from": 3, "to": 3}
+
+
+def test_old_book_without_range_keeps_plain_next_chapter(tmp_path):
+    """舊書的卷綱沒有「章節範圍」：不要冒出章綱／體檢步驟，沿用原本的寫第 N 章。"""
+    d = _book(tmp_path)
+    _full_setup(d, volume="（未填）")
+    _texts(d, 1, 2)
+    assert setup_flow.volume_state(d)["mode"] == "單卷"
+    nxt = setup_flow.next_step(d)
+    assert nxt["id"] == "write" and nxt["prefill"] == {"from": 3, "to": 3}
+

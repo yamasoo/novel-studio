@@ -220,7 +220,7 @@
     });
   }
 
-  async function pipeModal(no) {
+  async function pipeModal(no, to) {
     const [r, chs] = await Promise.all([FE.api(B("/pipeline")), FE.api(B("/chapters"))]);
     if (r.pipeline && r.pipeline.status === "running") return FE.toast("已經有整章自動流程在執行", "err");
     const firstOpen = (chs.find((c) => !c.text_file || c.candidate_file) || { no: (chs.length ? chs[chs.length - 1].no + 1 : 1) }).no;
@@ -228,7 +228,7 @@
     const lastCard = Math.max(no, ...chs.filter((c) => c.card_file).map((c) => c.no));
     const d = r.defaults;
     const fromInput = h("input", { type: "number", id: "pp-from", class: "num-in", value: String(no), min: "1" });
-    const toInput = h("input", { type: "number", id: "pp-to", class: "num-in", value: String(no), min: "1" });
+    const toInput = h("input", { type: "number", id: "pp-to", class: "num-in", value: String(to || no), min: "1" });
     const noteArea = h("textarea", { id: "pp-note", rows: "2", placeholder: "例如：這幾章節奏要快；不要新增角色" });
     const sevBoxes = r.severities.map((x) => h("label", { class: "cb" },
       h("input", { type: "checkbox", value: x, checked: d.severities.includes(x) }),

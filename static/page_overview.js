@@ -66,19 +66,70 @@
     return h("div", { class: "row", style: "margin-top:6px" }, kids);
   }
 
-  // 「下一步」卡：新書（還沒寫正文）時這顆 #ov-next 是頁面上唯一的 primary；
-  // 舊書的 primary 仍然留在 page-head，所以這裡降為次要。
-  function nextStepCard(ns, isPrimary) {
+  // 六步之後的「卷層轉折」：只有這幾種 id 會把 primary 從 page-head 搶到下一步卡。
+  // 單純「寫第 N 章」不算轉折：舊書的寫文 primary 留在 page-head，行為與改版前一樣。
+  const VOLUME_STEPS = ["volume_end", "volume_next", "cards"];
+
+  function stepLabel(ns) {
+    return ns.cta || (ns.action === "write" ? ns.label : "開始" + ns.label);
+  }
+
+  function stepGo(ns) {
+    return ns.go ? () => FE.go(bookPath(ns.go)) : () => Panel.openForm(ns.action, ns.prefill || {});
+  }
+
+  // 「下一步」卡：新書（還沒寫正文）與進入卷層之後，這顆 #ov-next 是頁面上唯一的 primary；
+  // 其他舊書的 primary 仍然留在 page-head，所以這裡降為次要。
+  function nextStepCard(ns, isPrimary, ov) {
     if (!ns) return null;
+    const st = (ov && ov.initial_setup) || null;
+    const extra = [];
+    if (ns.id === "settings" && st) {
+      extra.push(h("button", { onclick: () => Panel.openForm("promote_drafts", {}) },
+        "草稿轉正式（" + st.drafts + " 份草稿）"));
+      extra.push(h("button", { onclick: () => FE.go(bookPath("/bible")) }, "去設定集看看"));
+    }
+    const now = ns.id === "settings" && st
+      ? "現在：角色 " + st.characters + " 個、勢力 " + st.factions + " 個、世界觀 " + st.worlds + " 個正式檔"
+        + "（門檻：角色 ≥ " + st.min_characters + "，且勢力或世界觀 ≥ 1）。"
+      : null;
     return h("div", { class: "card", style: "margin-top:14px" },
       h("div", { class: "card-title" }, h("h2", {}, "下一步：" + ns.label)),
       h("p", { class: "muted small" }, ns.desc || ""),
+      now ? h("p", { class: "muted small" }, now) : null,
       h("div", { class: "row" },
         h("button", {
           id: "ov-next",
           class: isPrimary ? "primary" : null,
-          onclick: () => Panel.openForm(ns.action, ns.prefill || {}),
-        }, ns.action === "write" ? ns.label : "開始" + ns.label)));
+          onclick: stepGo(ns),
+        }, stepLabel(ns)),
+        extra));
+  }
+
+  // 卷層狀態卡：第幾卷、範圍、已寫幾章、還缺幾章章綱，加上「這一卷用自動跑」與「反推補這一卷」。
+  // 只在有正式卷綱時出現（單卷書沒有界線，畫出來只是雜訊）。
+  function volumeCard(ov) {
+    const v = ov && ov.volume;
+    if (!v || v.mode !== "卷綱") return null;
+    const title = "第" + v.no + "卷" + (v.name ? "《" + v.name + "》" : "");
+    const bits = ["第" + v.lo + "–" + v.hi + "章",
+      "已寫 " + v.written + "/" + v.total + " 章",
+      "章綱 " + v.planned + "/" + v.total + " 章"];
+    if (v.missing_cards) bits.push("還缺 " + v.missing_cards + " 章章綱");
+    if (v.full) bits.push("這一卷寫滿了");
+    const from = Math.max(v.lo, (ov.next && ov.next.no) || v.lo);
+    return h("div", { class: "card", id: "ov-volume", style: "margin-top:14px" },
+      h("div", { class: "card-title" }, h("h2", {}, title),
+        h("span", { class: "muted small" }, v.rel || "")),
+      h("p", { class: "muted small" }, bits.join("　·　")),
+      h("div", { class: "row" },
+        !v.full
+          ? h("button", { onclick: () => pipeModal(from, v.hi) }, "這一卷剩下的用自動跑")
+          : null,
+        v.written
+          ? h("button", { onclick: () => FE.go(bookPath("/reverse?upto=" + v.hi)) }, "從正文反推設定（補這一卷）")
+          : null,
+        h("button", { onclick: () => FE.go(bookPath("/drift?from=" + v.lo + "&to=" + v.hi)) }, "卷末體檢")));
   }
 
   // 資料夾還不是小說專案（沒有 CLAUDE.md）：依 ov.setup.state 分「訪談進行中／訪談中斷／真的不是小說專案」三態。
@@ -166,8 +217,11 @@
     S.bookLang = ov.lang || S.bookLang;
     const [, stateBody] = splitFM(ov.state_card || "");
     const next = ov.next;
-    // 還沒有正文的新書：頁面上唯一的 primary 由「下一步」卡決定，page-head 那排一律降為次要。
+    // 還沒有正文的新書，以及六步完成後的卷層：頁面上唯一的 primary 由「下一步」卡決定，
+    // page-head 那排一律降為次要。
     const newBook = (ov.written || 0) === 0;
+    const volStep = VOLUME_STEPS.indexOf(ov.next_step && ov.next_step.id) >= 0;
+    const showNext = newBook || volStep;
     // 整章自動流程的進度條由 app.js 的 renderPipe 畫進 .pipe-box（換頁後不要再畫到新頁上）。
     setTimeout(() => { if (ctx.active()) renderPipe(); }, 0);
 
@@ -196,14 +250,15 @@
           newBook ? stepsBar(ov.steps) : null),
         h("div", { class: "row" },
           next.has_card
-            ? h("button", { class: newBook ? null : "primary", onclick: () => Panel.openForm("write", { from: next.no, to: next.no }) },
+            ? h("button", { class: showNext ? null : "primary", onclick: () => Panel.openForm("write", { from: next.no, to: next.no }) },
               "寫第" + next.no + "章" + (next.title ? "《" + next.title + "》" : ""))
-            : h("button", { class: newBook ? null : "primary", onclick: () => Panel.openForm("chapter_cards", { from: next.no, to: next.no + 9 }) },
+            : h("button", { class: showNext ? null : "primary", onclick: () => Panel.openForm("chapter_cards", { from: next.no, to: next.no + 9 }) },
               "排第" + next.no + "–" + (next.no + 9) + "章的章綱"),
           h("button", { onclick: () => pipeModal(next.no) }, "⚡ 整章自動"),
           h("button", { onclick: () => Panel.openForm("review", { from: Math.max(1, ov.latest - 4), to: Math.max(1, ov.latest) }) }, "審查最近章節"),
           h("button", { onclick: () => FE.go(bookPath("/drift")) }, "卷末體檢"))),
-      newBook ? nextStepCard(ov.next_step, true) : null,
+      showNext ? nextStepCard(ov.next_step, true, ov) : null,
+      volumeCard(ov),
       h("div", { class: "pipe-box" }),
       h("div", { class: "grid g4" },
         h("div", { class: "card stat" }, h("div", { class: "num" }, ov.written), h("div", { class: "lbl" }, "已寫章數")),

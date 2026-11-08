@@ -1787,9 +1787,12 @@ def book_overview(book_id: str):
                                         "text": "第%s章有修訂等你逐段確認。" % m.group(1), "chapter": int(m.group(1)), "tab": "revision"})
     run = RUNNER.running_for(book_id)
     ov["running"] = run.to_dict() if run else None
-    # 開書前段：五步進度、下一步、訪談狀態（判定在 studio/setup_flow.py，總覽與面板共用）
+    # 開書前段與卷層：六步進度、下一步、卷進度、初始設定、訪談狀態
+    # （判定在 studio/setup_flow.py，總覽與面板共用）
     ov["steps"] = setup_flow.steps(d)
     ov["next_step"] = setup_flow.next_step(d)
+    ov["volume"] = setup_flow.volume_state(d)
+    ov["initial_setup"] = setup_flow.settings_state(d)
     ov["setup"] = setup_flow.interview_state(d, run)
     return ov
 

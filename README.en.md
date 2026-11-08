@@ -43,13 +43,28 @@ For backend setup (DeepSeek keys, a llama.cpp endpoint), see **[Install and sett
 
 ## Start a new book
 
+A book runs in three layers: the **setup layer** (once) → the **volume layer** (once per volume) → the **wrap-up layer** (after the last chapter).
+At any moment the overview page shows exactly one primary button — "next step". Everything else is secondary, so you never have to hunt for the right action.
+
+### 1. Setup layer (once)
+
 1. **Create the book.** On the bookshelf press "New book". Three ways to start: an interview (the workbench asks a round of questions and produces the skeleton), a skeleton borrowed from a reference book, or importing an existing manuscript.
-2. **Story bible.** Character cards, factions, world, story core. Write them by hand or let the AI draft and edit.
-3. **Volume outline.** What this volume promises the reader, and which chapters it covers.
-4. **Chapter cards.** One card per chapter saying what that chapter must achieve. "Plan the cards for this volume" does a whole volume at once.
-5. **Write.** Write chapter one, or let Full-chapter automation run all the way to the final draft.
+2. **Four steps to a usable skeleton:** story core → whole-book outline → first volume outline → chapter cards for the first 10 chapters. The step bar on the overview page shows where you are; pressing "next step" is exactly the next thing to do.
+3. **Initial settings.** Before writing, give characters, factions and the world some substance (at least 3 real character files, plus at least one faction or world file). Press "Grow settings from the outline" to draft them, then "Promote drafts" to make them official; drafts alone do not count.
 
 The setup interview also writes a `CLAUDE.md` — the book's writing charter, read by the AI on every task.
+
+### 2. Volume layer (repeat for every volume)
+
+1. **Plan this volume's chapter cards.** 10–12 at a time. The overview tells you which chapter the volume is planned up to and how many cards are still missing.
+2. **Write the volume.** Manually that is five actions per chapter (write → de-AI → review → revise → accept) and you can stop between paragraphs; the volume card also offers "Run the rest of this volume automatically", which hands over to Full-chapter automation.
+3. **End-of-volume check.** When the volume is full, the next step becomes "End-of-volume check": it compares the volume outline with the manuscript, reports unpaid foreshadowing and style drift, and can produce a volume-outline update draft.
+4. **Backfill this volume's settings.** The same card offers "Derive settings from the manuscript (this volume)", bringing character state, new terms and tracking data back up to date so the next volume does not write from stale material.
+5. **Open the next volume.** After the check, the next step becomes "Volume 2 outline", then chapter cards and writing again — repeating until the book is finished.
+
+### 3. Wrap-up layer
+
+After the last chapter, the final volume still gets its end-of-volume check and settings backfill, which leaves the story bible in its finished state. Illustration, EPUB and covers are separate features running alongside, not part of this flow.
 
 ## Writing a chapter
 

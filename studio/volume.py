@@ -32,6 +32,21 @@ def _cn_int(s):
     return total or None
 
 
+def cn_no(n):
+    """卷號轉中文寫法：1→一、10→十、11→十一、20→二十；0 或 100 以上退回數字。"""
+    digits = "〇一二三四五六七八九"
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        return str(n)
+    if n <= 0 or n >= 100:
+        return str(n)
+    if n < 10:
+        return digits[n]
+    tens, ones = divmod(n, 10)
+    return ("" if tens == 1 else digits[tens]) + "十" + (digits[ones] if ones else "")
+
+
 def _num_from_name(name):
     m = re.search(r"第([〇零一二兩三四五六七八九十百\d]+)[卷幕]", name)
     if not m:

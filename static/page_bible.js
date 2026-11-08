@@ -465,7 +465,15 @@
             e.role ? h("span", { class: "badge" }, e.role) : null,
             e.status === "草稿" ? statusBadgeNode("草稿") : null),
           e.summary ? h("div", { class: "ds" }, e.summary) : null))
-        : h("div", { class: "muted" }, "這裡還是空的。");
+        : (t === "草稿" && b.reverse_drafts
+          ? h("div", { class: "card", style: "margin:0;padding:12px 14px" },
+            h("div", { class: "muted small" }, "這裡是「設定/草稿」（草稿轉正式用）。"),
+            h("div", { style: "margin-top:6px" }, "從正文反推的草稿有 " + b.reverse_drafts + " 份，在〈從正文建立設定〉核對。"),
+            h("button", {
+              class: "sm primary", style: "margin-top:8px",
+              onclick: () => FE.go("#/b/" + enc(S.book) + "/reverse"),
+            }, "去核對 →"))
+          : h("div", { class: "muted" }, "這裡還是空的。"));
     }
 
     const splitNode = h("div", { class: "split" },

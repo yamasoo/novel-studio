@@ -1825,7 +1825,11 @@ def book_chapters(book_id: str):
 
 @app.get("/api/books/{book_id}/bible")
 def book_bible(book_id: str):
-    return project.bible(book_dir(book_id))
+    d = book_dir(book_id)
+    data = project.bible(d)
+    # 反推草稿不併進「設定/草稿」清單（語意不同），只給張數讓草稿分頁顯示提示卡。
+    data["reverse_drafts"] = sum(len(v) for v in reverse.draft_groups(d).values())
+    return data
 
 
 @app.post("/api/books/{book_id}/bible/delete")
@@ -1973,6 +1977,13 @@ def reverse_info(book_id: str, provider: str = None, upto: int = 0):
             "has_settings": bool(project.list_entries(d, "設定/角色")) or bool(project.read_table(d, "追蹤/伏筆.md")["rows"])}
 
 
+@app.get("/api/books/{book_id}/reverse/diff")
+def reverse_diff(book_id: str, group: str = "", rel: str = ""):
+    """一份反推草稿和它會動到的正式檔的逐段差異（採用前的對照視窗）。"""
+    d = book_dir(book_id)
+    return wrap(lambda: reverse.diff_group(d, group, rel))
+
+
 @app.post("/api/books/{book_id}/reverse/{op}")
 async def reverse_op(book_id: str, op: str, req: Request):
     d = book_dir(book_id)
@@ -1980,7 +1991,7 @@ async def reverse_op(book_id: str, op: str, req: Request):
     if RUNNER.running_for(book_id):
         raise HTTPException(409, "還有任務在執行，請等它結束。")
     if op == "adopt":
-        r = wrap(lambda: reverse.adopt(d, body.get("group")))
+        r = wrap(lambda: reverse.adopt(d, body.get("group"), body.get("mode"), body.get("files")))
         wrap(lambda: contract.ensure(d))      # 拆書採用之後就有資料可以立續寫合約了（已存在且章數沒變就不動）
         return r
     if op == "discard":

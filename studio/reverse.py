@@ -10,6 +10,7 @@
 全部先存成草稿（.studio/反推/草稿/），分「設定／大綱／章綱／追蹤」四組讓作者採用或捨棄。
 推不出來的欄位寫「（正文未明確）」或「待補」，不編造。
 """
+import difflib
 import json
 import os
 import re
@@ -116,7 +117,12 @@ def state(book_dir):
     st = _load(_p(book_dir, "state.json"), {})
     acc = _load(_p(book_dir, "累積.json"), {})
     st["processed"] = sorted(int(k) for k in (acc.get("summaries") or {}))
-    st["drafts"] = draft_groups(book_dir)
+    drafts = draft_groups(book_dir)
+    for g, items in drafts.items():
+        plan = {x["rel"]: x for x in plan_group(book_dir, g)}
+        for it in items:
+            it.update(plan.get(it["rel"]) or {})
+    st["drafts"] = drafts
     return st
 
 
@@ -549,7 +555,7 @@ def render_outline(book, vols, arcs):
             nm, a, b, nm, unknown(), _v(v.get("本卷目標")), _v(v.get("主要對手")), _v(v.get("卷末大高潮")), _v(v.get("卷末新鉤子")),
             "\n\n".join(x.get("段落摘要", "") for x in arcs_in) or unknown(), ut,
             "\n".join("- " + _v(x) for x in (v.get("人物弧線") or [])) or "- " + unknown())
-        files.append(("大綱/卷綱_%s.md" % vn, vt))
+        files.append(("大綱/卷綱_第%d卷.md" % (i + 1), vt))
     if _flag(book):
         lines += ["", "## 備註" + _flag(book)]
     return "\n".join(lines) + "\n", files
@@ -735,35 +741,138 @@ def draft_groups(book_dir):
     return out
 
 
-def adopt(book_dir, group):
-    """採用這組草稿。同名檔案已存在時走 project.merge_entry（只補空白，不覆蓋作者寫的內容）。
+DEFAULT_MODE = {"設定": "merge", "大綱": "keep", "章綱": "copy", "追蹤": "keep"}
+ALLOWED_MODES = {"設定": ("merge", "replace", "keep"), "大綱": ("merge", "replace", "keep"),
+                 "章綱": ("copy",), "追蹤": ("replace", "keep")}
+CHAPTER_DRAFT_DIR = "大綱/章綱/反推"
 
-    回傳 adopted（全部）、merged（併進既有檔的份數）、backed_up、conflicts（未併入的段落數）。
+
+def _canon_rel(group, rel):
+    """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 大綱/章綱/反推/。"""
+    if group == "章綱":
+        return "%s/%s" % (CHAPTER_DRAFT_DIR, os.path.basename(rel))
+    if group == "大綱" and rel.startswith("大綱/卷綱_第"):
+        no = project._vol_order(os.path.basename(rel))
+        if no != 99:
+            return "大綱/卷綱_第%d卷.md" % no
+    return rel
+
+
+def _existing_rel(book_dir, group, rel):
+    """這份草稿和哪個正式檔比對。章綱看章號對應的正式章綱，其餘看落點本身。"""
+    if group != "章綱":
+        return _canon_rel(group, rel)
+    no = project.chapter_no(os.path.basename(rel))
+    if no is None:
+        return None
+    f = project._scan_dir(os.path.join(book_dir, "大綱", "章綱")).get(no)
+    return "大綱/章綱/" + f if f else None
+
+
+def _read_rel(book_dir, rel):
+    if not rel:
+        return ""
+    p = os.path.join(book_dir, *rel.split("/"))
+    return project.read_text(p) if os.path.isfile(p) else ""
+
+
+def plan_group(book_dir, group):
+    """每份草稿的採用決策資料（給前端畫新舊對照；相似度只在後端算）。"""
+    if group not in GROUPS:
+        raise project.ProjectError("不認得的分組：%s" % group)
+    out = []
+    for it in draft_groups(book_dir)[group]:
+        rel = it["rel"]
+        new = project.read_text(_p(book_dir, "草稿", *rel.split("/")))
+        old_rel = _existing_rel(book_dir, group, rel)
+        old = _read_rel(book_dir, old_rel)
+        out.append({
+            "rel": rel,
+            "target": _canon_rel(group, rel),
+            "exists": bool(old_rel and os.path.isfile(os.path.join(book_dir, *old_rel.split("/")))),
+            "chars_new": len(new),
+            "chars_old": len(old),
+            "lines_new": len(new.splitlines()),
+            "lines_old": len(old.splitlines()),
+            "similarity": round(difflib.SequenceMatcher(None, old.splitlines(), new.splitlines()).ratio(), 3) if old else 0.0,
+            "default_mode": DEFAULT_MODE[group],
+        })
+    return out
+
+
+def diff_group(book_dir, group, rel):
+    """一份草稿和它會動到的正式檔的逐段差異（給對照視窗）。"""
+    if group not in GROUPS:
+        raise project.ProjectError("不認得的分組：%s" % group)
+    if not any(x["rel"] == rel for x in draft_groups(book_dir)[group]):
+        raise project.ProjectError("「%s」沒有這份草稿：%s" % (group, rel))
+    old_rel = _existing_rel(book_dir, group, rel)
+    new = project.read_text(_p(book_dir, "草稿", *rel.split("/")))
+    old = _read_rel(book_dir, old_rel)
+    from . import revision
+    return {"group": group, "rel": rel, "target": _canon_rel(group, rel), "old_rel": old_rel or "",
+            "chars_new": len(new), "chars_old": len(old),
+            "blocks": revision.diff_blocks(old, new)}
+
+
+def adopt(book_dir, group, mode=None, files=None):
+    """採用這組草稿。
+
+    mode：keep（保留現有，什麼都不動）／replace（先備份再整份取代）／merge（先備份再併入，
+    只補空白與缺的段落）／copy（章綱專用：寫進 大綱/章綱/反推/，正式章綱不動）。
+    mode 省略時用各組預設（設定 merge、大綱／追蹤 keep、章綱 copy）。
+    files：只處理這幾個相對路徑（None＝全部）。舊呼叫 adopt(book_dir, group) 仍可用。
+
+    回傳 adopted（實際寫入份數）、merged、kept、backed_up、conflicts、backups（備份檔名）、targets。
     """
     if group not in GROUPS:
         raise project.ProjectError("不認得的分組：%s" % group)
     items = draft_groups(book_dir)[group]
     if not items:
         raise project.ProjectError("「%s」沒有草稿" % group)
-    # 只有「設定」是作者會改的內容，採用時併進既有檔；大綱／章綱／追蹤是機器產生的快照，整份取代。
-    merge = group == "設定"
-    n_bak = n_merged = n_conf = 0
+    if files is not None:
+        if isinstance(files, str):
+            files = [files]
+        if not isinstance(files, (list, tuple)):
+            raise project.ProjectError("files 要是檔名清單")
+        wanted = {str(f).replace("\\", "/") for f in files}
+        items = [it for it in items if it["rel"] in wanted]
+        if not items:
+            raise project.ProjectError("選的檔案不在「%s」的草稿裡" % group)
+    mode = mode or DEFAULT_MODE[group]
+    if mode not in ALLOWED_MODES[group]:
+        raise project.ProjectError("「%s」不支援「%s」模式" % (group, mode))
+    n_adopted = n_merged = n_kept = n_bak = n_conf = 0
+    backups, targets = [], []
     for it in items:
-        src = _p(book_dir, "草稿", *it["rel"].split("/"))
-        dst = os.path.join(book_dir, *it["rel"].split("/"))
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        if os.path.isfile(dst) and merge:
-            tracking.backup(book_dir, dst, "反推前")
-            n_bak += 1
-            merged, conflicts = project.merge_entry(project.read_text(dst), project.read_text(src))
-            project.write_atomic(dst, merged)
-            os.remove(src)
-            n_merged += 1
-            n_conf += len(conflicts)
+        rel = it["rel"]
+        src = _p(book_dir, "草稿", *rel.split("/"))
+        dst_rel = _canon_rel(group, rel)
+        dst = os.path.join(book_dir, *dst_rel.split("/"))
+        targets.append({"rel": rel, "mode": mode, "dst": dst_rel})
+        if mode == "keep":
+            n_kept += 1
             continue
-        shutil.move(src, dst)
+        new_text = project.read_text(src)
+        has_old = os.path.isfile(dst)
+        old_text = project.read_text(dst) if has_old else ""
+        if has_old:
+            bak = tracking.backup(book_dir, dst, "反推前")
+            if bak:
+                backups.append(os.path.basename(bak))
+                n_bak += 1
+        if mode == "merge" and has_old:
+            merged, conflicts = project.merge_entry(old_text, new_text)
+            project.write_atomic(dst, merged)
+            n_conf += len(conflicts)
+            n_merged += 1
+        else:
+            project.write_atomic(dst, new_text)
+        os.remove(src)
+        n_adopted += 1
     tracking.git_commit(book_dir, "從正文建立設定：採用%s" % group)
-    return {"adopted": len(items), "merged": n_merged, "backed_up": n_bak, "conflicts": n_conf}
+    return {"adopted": n_adopted, "merged": n_merged, "kept": n_kept, "backed_up": n_bak,
+            "conflicts": n_conf, "backups": backups, "targets": targets}
 
 
 def discard(book_dir, group):

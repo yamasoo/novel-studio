@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" width="1000" height="500" role="img" aria-label="從零到寫完一本書的三層流程">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b7c"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; fill: #1f2933; }
+    .t { font-size: 17px; font-weight: 700; }
+    .s { font-size: 12.5px; fill: #52606d; }
+    .l { font-size: 13px; fill: #5b6b7c; }
+    .band { font-size: 14px; font-weight: 700; fill: #3e4c59; }
+    .box { fill: #f5f7fa; stroke: #b6c2cf; stroke-width: 1.5; rx: 12; }
+    .key { fill: #e8f1fb; stroke: #6f9fd8; }
+    .ok  { fill: #eaf5ec; stroke: #6aa87b; }
+    .dash{ stroke: #5b6b7c; stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow); }
+    .line{ stroke: #5b6b7c; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  </style>
+  <text class="t" x="20" y="36" style="font-size:20px">從零到寫完一本書：開書層 → 卷層 → 收尾層</text>
+  <text class="s" x="20" y="60">總覽頁任何時刻只有一顆主要按鈕「下一步」；三層照順序走完，一本書就寫完了</text>
+  <text class="band" x="980" y="96" text-anchor="end">① 開書層（只有一次）</text>
+  <rect class="box " x="20" y="104" width="150" height="74"/>
+  <text class="t" x="95" y="135" text-anchor="middle">開書訪談</text>
+  <text class="s" x="95" y="155" text-anchor="middle">三份核心檔＋報告</text>
+  <path class="line" d="M172,141 L184,141"/>
+  <rect class="box " x="186" y="104" width="150" height="74"/>
+  <text class="t" x="261" y="135" text-anchor="middle">故事核心</text>
+  <text class="s" x="261" y="155" text-anchor="middle">主角要什麼</text>
+  <path class="line" d="M338,141 L350,141"/>
+  <rect class="box " x="352" y="104" width="150" height="74"/>
+  <text class="t" x="427" y="135" text-anchor="middle">全書大綱</text>
+  <text class="s" x="427" y="155" text-anchor="middle">分卷總覽</text>
+  <path class="line" d="M504,141 L516,141"/>
+  <rect class="box " x="518" y="104" width="150" height="74"/>
+  <text class="t" x="593" y="135" text-anchor="middle">第一卷卷綱</text>
+  <text class="s" x="593" y="155" text-anchor="middle">章節範圍・卷契約</text>
+  <path class="line" d="M670,141 L682,141"/>
+  <rect class="box " x="684" y="104" width="150" height="74"/>
+  <text class="t" x="759" y="135" text-anchor="middle">前 10 章章綱</text>
+  <text class="s" x="759" y="155" text-anchor="middle">一次 10–12 章</text>
+  <path class="line" d="M836,141 L848,141"/>
+  <rect class="box key" x="850" y="104" width="150" height="74"/>
+  <text class="t" x="925" y="135" text-anchor="middle">初始設定</text>
+  <text class="s" x="925" y="155" text-anchor="middle">角色 ≥ 3・勢力或世界觀</text>
+  <path class="line" d="M925,178 L925,186 L110,186 L110,240"/>
+  <text class="l" x="500" y="206" text-anchor="middle">開書層走完、初始設定補齊，才輪到寫文</text>
+  <text class="band" x="980" y="232" text-anchor="end">② 卷層（每一卷重複）</text>
+  <rect class="box " x="20" y="240" width="180" height="74"/>
+  <text class="t" x="110" y="271" text-anchor="middle">排這一卷的章綱</text>
+  <text class="s" x="110" y="291" text-anchor="middle">還缺幾章會顯示</text>
+  <path class="line" d="M202,277 L218,277"/>
+  <rect class="box " x="220" y="240" width="180" height="74"/>
+  <text class="t" x="310" y="271" text-anchor="middle">寫這一卷</text>
+  <text class="s" x="310" y="291" text-anchor="middle">手動五動作／整章自動</text>
+  <path class="line" d="M402,277 L418,277"/>
+  <rect class="box ok" x="420" y="240" width="180" height="74"/>
+  <text class="t" x="510" y="271" text-anchor="middle">卷末體檢</text>
+  <text class="s" x="510" y="291" text-anchor="middle">寫滿就自動接手</text>
+  <path class="line" d="M602,277 L618,277"/>
+  <rect class="box ok" x="620" y="240" width="180" height="74"/>
+  <text class="t" x="710" y="271" text-anchor="middle">反推補設定</text>
+  <text class="s" x="710" y="291" text-anchor="middle">只補這一卷的章</text>
+  <path class="line" d="M802,277 L818,277"/>
+  <rect class="box " x="820" y="240" width="180" height="74"/>
+  <text class="t" x="910" y="271" text-anchor="middle">下一卷卷綱</text>
+  <text class="s" x="910" y="291" text-anchor="middle">範圍接著往下</text>
+  <path class="dash" d="M910,314 L910,336 L110,336 L110,318"/>
+  <text class="l" x="500" y="358" text-anchor="middle">下一卷：回到「排這一卷的章綱」，再走一次</text>
+  <text class="band" x="980" y="380" text-anchor="end">③ 收尾層（全書寫完）</text>
+  <rect class="box ok" x="20" y="388" width="220" height="74"/>
+  <text class="t" x="130" y="419" text-anchor="middle">設定集定稿</text>
+  <text class="s" x="130" y="439" text-anchor="middle">最後一卷也體檢＋反推</text>
+  <path class="line" d="M244,425 L262,425"/>
+  <rect class="box ok" x="266" y="388" width="220" height="74"/>
+  <text class="t" x="376" y="419" text-anchor="middle">匯出</text>
+  <text class="s" x="376" y="439" text-anchor="middle">EPUB／純文字</text>
+  <text class="l" x="20" y="484">出圖（Forge／ComfyUI）、封面是並行的獨立功能，不在這條線上。</text>
+</svg>

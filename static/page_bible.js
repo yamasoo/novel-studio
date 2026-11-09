@@ -111,27 +111,56 @@
       e.summary ? h("div", { class: "ds" }, e.summary) : null);
   }
 
+  // 單一角色的「定位」：只改 frontmatter 那一行，走跟批次一樣的端點
+  function entityMetaNode(file, current, refresh) {
+    const sel = h("select", { id: "ent-role" },
+      ROLE_ORDER.map((r) => h("option", { value: r, selected: (current || "") === r }, r)));
+    return h("div", { class: "card", style: "padding:12px 14px" },
+      h("div", { class: "row" },
+        h("label", { class: "ef" }, h("span", {}, "定位"), sel),
+        h("button", {
+          class: "sm primary",
+          onclick: async () => {
+            try {
+              await FE.api(B("/bible/category"), { method: "POST", body: { files: [file], role: sel.value } });
+              FE.toast("定位改為 " + sel.value);
+              refresh();
+            } catch (e) { FE.fail(e); }
+          },
+        }, "套用"),
+        h("span", { class: "grow" })));
+  }
+
   // 批次工具列的按鈕（每次重畫都重建，事件直接綁在節點上）
   function bulkBar(t, refresh) {
     const apply = async (kind) => {
       const files = [...pickSet];
       if (!files.length) { FE.toast("請先勾選要處理的項目。", "err"); return; }
       const toSel = document.querySelector("#ef-to");
-      const body = kind === "promote" ? { files, status: "正式" } : { files, category: toSel ? toSel.value : "" };
+      const rolePick = document.querySelector("#ef-role");
+      const body = kind === "promote" ? { files, status: "正式" }
+        : kind === "role" ? { files, role: rolePick ? rolePick.value : "" }
+          : { files, category: toSel ? toSel.value : "" };
       if (kind === "promote" && !(await FE.confirm("把 " + files.length + " 項轉為正式？"))) return;
       try {
         await FE.api(B("/bible/category"), { method: "POST", body });
         pickSet = new Set();
-        FE.toast(kind === "promote" ? "已轉為正式 " + files.length + " 項" : "已移入 " + files.length + " 項");
+        FE.toast(kind === "promote" ? "已轉為正式 " + files.length + " 項"
+          : kind === "role" ? "已改定位 " + files.length + " 項" : "已移入 " + files.length + " 項");
         refresh();
       } catch (e) { FE.toast((e && e.message) || String(e), "err"); }
     };
+    const roleSel = t === "角色"
+      ? [h("select", { id: "ef-role" }, ROLE_ORDER.map((r) => h("option", { value: r }, r))),
+        h("button", { id: "ef-role-apply", onclick: () => apply("role") }, "改定位")]
+      : null;
     const catSel = t === "世界觀"
       ? [h("select", { id: "ef-to" }, WORLD_CATS.map((c) => h("option", { value: c }, c))),
         h("button", { id: "ef-apply", onclick: () => apply("category") }, "移入分類")]
       : null;
     return h("div", { class: "ef-bulk" },
       h("span", { id: "ef-n" }, "已選 " + pickSet.size + " 項"),
+      roleSel,
       catSel,
       h("button", {
         id: "ef-all",
@@ -418,6 +447,7 @@
       file ? null : h("div", { class: "card empty" }, h("div", { class: "big" }, "✦"), "選左邊的項目查看。"));
     const entCard = h("div", { id: "ent-card", style: "margin-top:14px" });
     const entIll = h("div", { id: "ent-ill", style: "margin-top:14px" });
+    const entMeta = h("div", { id: "ent-meta", style: "margin-top:14px" });
 
     let listNode, entList = null;
     if (isEnt) {
@@ -435,12 +465,20 @@
             e.role ? h("span", { class: "badge" }, e.role) : null,
             e.status === "草稿" ? statusBadgeNode("草稿") : null),
           e.summary ? h("div", { class: "ds" }, e.summary) : null))
-        : h("div", { class: "muted" }, "這裡還是空的。");
+        : (t === "草稿" && b.reverse_drafts
+          ? h("div", { class: "card", style: "margin:0;padding:12px 14px" },
+            h("div", { class: "muted small" }, "這裡是「設定/草稿」（草稿轉正式用）。"),
+            h("div", { style: "margin-top:6px" }, "從正文反推的草稿有 " + b.reverse_drafts + " 份，在〈從正文建立設定〉核對。"),
+            h("button", {
+              class: "sm primary", style: "margin-top:8px",
+              onclick: () => FE.go("#/b/" + enc(S.book) + "/reverse"),
+            }, "去核對 →"))
+          : h("div", { class: "muted" }, "這裡還是空的。"));
     }
 
     const splitNode = h("div", { class: "split" },
       h("div", { class: "list" }, dup, listNode),
-      h("div", {}, docEl, entCard, entIll));
+      h("div", {}, docEl, entMeta, entCard, entIll));
     ctx.view(head, tabsNode, splitNode);
 
     if (canDel) {
@@ -457,6 +495,10 @@
     }
     if (isEnt) bindEntryFilter(splitNode, entList, t, list, file, filt);
     if (file) await docView(docEl, file, { signal });
+    if (file && t === "角色") {
+      const ent = list.find((e) => e.file === file) || {};
+      entMeta.replaceChildren(entityMetaNode(file, ent.role, () => FE.route()));
+    }
     if (file && ENT_TABS.includes(t)) {
       try {
         const f = await FE.api(B("/file?path=" + enc(file)), { signal });

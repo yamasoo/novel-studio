@@ -46,6 +46,10 @@ class ClaudeOnceError(Exception):
     pass
 
 
+class JobStopped(Exception):
+    """任務被停止時，還在等作者回覆的 native 流程要能乾淨地結束（不算錯誤）。"""
+
+
 def claude_print(cfg, prompt, system="", cwd=None, should_stop=None, timeout=1800, model=None):
     """呼叫一次 claude -p（不用工具、不接續對話），回傳 (文字, usage)。
     用在工作台自己分批的長任務：每一批都是獨立的一次呼叫，不會把整本書塞進同一個對話。"""
@@ -144,6 +148,8 @@ class Job:
         self.lock = threading.Lock()
         self.after = None           # 完成後的回呼
         self.provider = provider or {"id": "claude_code", "type": "claude_code", "name": "Claude Code"}
+        self.asks = {}              # 面板提問（開書訪談用）：id -> {id, prompt, options, allow_text, event, text, answered}
+        self.ask_seq = 0
 
     # ------------------------------------------------------------------
     def emit(self, kind, **kw):
@@ -160,6 +166,63 @@ class Job:
         if with_events:
             d["events"] = list(self.events)
         return d
+
+    # ── 面板提問（ask）──────────────────────────────────────────────
+    # 為什麼要自己實作：Claude Code 是 claude -p（非互動），但 API 執行者可以在任務中途
+    # 停下來問作者問題，面板（vendor/fekit）已經會畫選項與輸入框，這裡只補「後端會等人」。
+    def pending_ask(self):
+        """目前等作者回答的那一題（沒有就 None）。只回傳給前端看的欄位。"""
+        if self.status != "running":
+            return None
+        with self.lock:
+            for ask in self.asks.values():
+                if not ask["answered"]:
+                    return {"id": ask["id"], "prompt": ask["prompt"],
+                            "options": ask["options"], "allow_text": ask["allow_text"]}
+        return None
+
+    def ask(self, prompt, options=None, allow_text=True):
+        """停下來問作者一題；他按選項或打字送出後回傳文字。任務被停止時丟 JobStopped。"""
+        if self.status != "running":
+            raise JobStopped()
+        clean = []
+        for o in options or []:
+            if isinstance(o, dict):
+                label = str(o.get("label") or "")
+                clean.append({"label": label, "value": str(o.get("value", label))})
+            else:
+                clean.append({"label": str(o), "value": str(o)})
+        with self.lock:
+            self.ask_seq += 1
+            ask_id = "a%d" % self.ask_seq
+            ask = {"id": ask_id, "prompt": str(prompt), "options": clean,
+                   "allow_text": bool(allow_text), "answered": False, "text": "", "event": threading.Event()}
+            self.asks[ask_id] = ask
+        self.emit("log", text="等待你的回覆：%s" % str(prompt).split("\n")[0][:80])
+        try:
+            self.save()      # 讓重新整理或換一台電腦打開時還看得到「在等什麼」
+        except Exception:
+            pass
+        while not ask["event"].wait(0.5):
+            if self.status != "running":
+                with self.lock:
+                    self.asks.pop(ask_id, None)
+                raise JobStopped()
+        if self.status != "running":
+            raise JobStopped()
+        return ask["text"]
+
+    def deliver_reply(self, ask_id, text):
+        """把面板的回覆送進等著的提問；提問不存在或已回答回傳 None（呼叫端轉 409）。"""
+        with self.lock:
+            ask = self.asks.get(ask_id)
+            if not ask or ask["answered"]:
+                return None
+            ask["answered"] = True
+            ask["text"] = str(text)
+        ask["event"].set()
+        self.emit("log", text="收到回覆：%s" % str(text)[:120])
+        return "ok"
 
     def save(self):
         from . import project

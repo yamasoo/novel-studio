@@ -6,7 +6,7 @@ A **local** workbench for writing long-form serial novels with AI. You decide wh
 
 This page goes from installation all the way to a finished book. To see the screens first, download the [tutorial slides](demo/小說工作台_新手教學.pptx) (Chinese only) or press "Add sample book" on the bookshelf.
 
-![From a new book to a finished one](docs/images/01-從開書到定稿.svg)
+![From a new book to a finished one](static/images/01-三層流程.svg)
 
 ## What this workbench does
 
@@ -43,17 +43,32 @@ For backend setup (DeepSeek keys, a llama.cpp endpoint), see **[Install and sett
 
 ## Start a new book
 
+A book runs in three layers: the **setup layer** (once) → the **volume layer** (once per volume) → the **wrap-up layer** (after the last chapter).
+At any moment the overview page shows exactly one primary button — "next step". Everything else is secondary, so you never have to hunt for the right action.
+
+### 1. Setup layer (once)
+
 1. **Create the book.** On the bookshelf press "New book". Three ways to start: an interview (the workbench asks a round of questions and produces the skeleton), a skeleton borrowed from a reference book, or importing an existing manuscript.
-2. **Story bible.** Character cards, factions, world, story core. Write them by hand or let the AI draft and edit.
-3. **Volume outline.** What this volume promises the reader, and which chapters it covers.
-4. **Chapter cards.** One card per chapter saying what that chapter must achieve. "Plan the cards for this volume" does a whole volume at once.
-5. **Write.** Write chapter one, or let Full-chapter automation run all the way to the final draft.
+2. **Four steps to a usable skeleton:** story core → whole-book outline → first volume outline → chapter cards for the first 10 chapters. The step bar on the overview page shows where you are; pressing "next step" is exactly the next thing to do.
+3. **Initial settings.** Before writing, give characters, factions and the world some substance (at least 3 real character files, plus at least one faction or world file). Press "Grow settings from the outline" to draft them, then "Promote drafts" to make them official; drafts alone do not count.
 
 The setup interview also writes a `CLAUDE.md` — the book's writing charter, read by the AI on every task.
 
+### 2. Volume layer (repeat for every volume)
+
+1. **Plan this volume's chapter cards.** 10–12 at a time. The overview tells you which chapter the volume is planned up to and how many cards are still missing.
+2. **Write the volume.** Manually that is five actions per chapter (write → de-AI → review → revise → accept) and you can stop between paragraphs; the volume card also offers "Run the rest of this volume automatically", which hands over to Full-chapter automation.
+3. **End-of-volume check.** When the volume is full, the next step becomes "End-of-volume check": it compares the volume outline with the manuscript, reports unpaid foreshadowing and style drift, and can produce a volume-outline update draft.
+4. **Backfill this volume's settings.** The same card offers "Derive settings from the manuscript (this volume)", bringing character state, new terms and tracking data back up to date so the next volume does not write from stale material.
+5. **Open the next volume.** After the check, the next step becomes "Volume 2 outline", then chapter cards and writing again — repeating until the book is finished.
+
+### 3. Wrap-up layer
+
+After the last chapter, the final volume still gets its end-of-volume check and settings backfill, which leaves the story bible in its finished state. Illustration, EPUB and covers are separate features running alongside, not part of this flow.
+
 ## Writing a chapter
 
-![Candidate draft to final draft](docs/images/02-候選稿到定稿.svg)
+![Candidate draft to final draft](static/images/02-候選稿到定稿.svg)
 
 ### Candidate drafts: the AI's draft stays aside
 
@@ -81,7 +96,7 @@ Full-chapter automation chains the steps: plan the card → write the chapter �
 
 ## What a book looks like on disk
 
-![A book's folders](docs/images/03-一本書的資料夾.svg)
+![A book's folders](static/images/03-一本書的資料夾.svg)
 
 A book is one folder with six subfolders: `設定/` (settings), `大綱/` (outlines), `正文/` (manuscript), `候選/` (candidates), `追蹤/` (tracking) and `.studio/`. Pure text throughout: open it, edit it directly, refresh the page (the workbench always reads the files). Folder and file names stay Chinese in every language — that is why the diagram labels are Chinese. The story text, summaries, chapter titles and the exported table of contents follow the book's language; the interface language is a separate setting (bottom right).
 
@@ -94,7 +109,7 @@ To move machines, copy the folder. To keep versions, use git or any sync tool.
 - **Export.** EPUB 3 or plain text, optional chapter range, can include outlines, chapter cards, the story bible and tracking.
 - **Illustrations.** Connect Stable Diffusion WebUI Forge Neo or ComfyUI for covers, chapter and setting images, with style presets and prompt management.
 - **Import a manuscript.** TXT, Markdown or Word; encoding is detected and chapters are split, with optional Simplified-to-Traditional conversion.
-- **Build settings from the text.** For a finished book, the AI works backwards to characters, factions, world, outlines and tracking.
+- **Build settings from the text.** For a finished book, the AI works backwards to characters, factions, world, outlines and tracking. Drafts wait for review: reverse-engineered chapter cards go to `大綱/章綱/反推/` and never touch the real ones, every other file is kept, replaced or merged per file, and anything overwritten is backed up first. Adopted cards can be reviewed read-only from the “Reverse chapter cards” card on the Outline page.
 - **Shared library.** Build a style or a chapter structure once and apply it to every book.
 - **Reader knowledge ledger and relationship table.** What the reader knows so far and who relates to whom, fed into context when continuing.
 - **Drift check.** At the end of a volume, compare what the outline promised with what was written, and draft an outline update.

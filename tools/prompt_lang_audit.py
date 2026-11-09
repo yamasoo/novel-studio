@@ -360,6 +360,15 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
                 reverse.adopt(book, g)
             except project.ProjectError:
                 pass
+        # 章綱採用的落點是 大綱/章綱/反推/（正式章綱不動，那條由 test_reverse_adopt 驗）；
+        # 這支只驗流程與提示詞組裝，所以把反推章綱複製成正式章綱，後面的章綱核對／寫下一章才跑得起來。
+        card = os.path.join(book, "大綱", "章綱")
+        alt = os.path.join(card, "反推")
+        if not project._scan_dir(card) and os.path.isdir(alt):
+            for _, f in sorted(project._scan_dir(alt).items()):
+                no = project.chapter_no(f)
+                if no:
+                    shutil.copyfile(os.path.join(alt, f), os.path.join(card, "第%03d章.md" % no))
         act("accept", {"chapter": 3})            # 一般回寫
         act("accept", {"chapter": 2})            # 修訂舊章（已追蹤到第3章）
         act("review_notes", {"chapter": 3})
@@ -373,9 +382,8 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
             pass
         act("reader_reconcile", {})
         act("goal_check", {"chapter": 3})
-        card = os.path.join(book, "大綱", "章綱")
         cards = sorted(project._scan_dir(card).items())
-        if cards:   # 用第 3 章的章綱當第 4 章，讓「寫下一章」跑得起來
+        if cards:   # 用最後一張章綱當第 4 章，讓「寫下一章」跑得起來
             t = project.read_text(os.path.join(card, cards[-1][1])).replace("章號: 3", "章號: 4").replace("第3章", "第4章")
             with open(os.path.join(card, "第004章_next.md"), "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(t)

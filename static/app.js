@@ -894,6 +894,46 @@ const Panel = {
       this.attach(job);
     } catch (e) { fail(e); }
   },
+  // 開書訪談完成後，在動作區下面放一張「開書報告」卡（檔案狀況全部來自後端實際檢查）。
+  async setupCard(job) {
+    let rep;
+    try {
+      rep = await api("GET", "/api/books/" + encodeURIComponent(job.book) + "/setup_report?job=" + encodeURIComponent(job.id));
+    } catch (e) { toast("開書報告讀取失敗", true); return; }
+    const el = $("#panel-form");
+    if (!el || !rep) return;
+    const next = rep.next || {};
+    const created = (rep.created || []).length
+      ? rep.created.map((p) => FE.h("div", { class: "row" }, FE.h("code", {}, p)))
+      : [FE.h("div", { class: "muted small" }, "（沒有檔案被寫入）")];
+    const pending = (rep.pending || []).length
+      ? [FE.h("div", { style: "margin-top:8px" }, FE.h("b", {}, "待補"))]
+        .concat(rep.pending.map((p) => FE.h("div", { class: "row" }, FE.h("span", { class: "badge b-bad" }, p))))
+      : [];
+    const defaults = (rep.defaults || []).length
+      ? [FE.h("div", { style: "margin-top:8px" }, FE.h("b", {}, "（預設）"))]
+        .concat(rep.defaults.map((d) => FE.h("div", { class: "row" }, FE.h("span", {}, d.q))))
+        .concat([FE.h("div", { class: "muted small" }, "這些是你在面板上按「跳過，你決定」的題目，由模型採用預設")])
+      : [];
+    const kids = [
+      FE.h("div", { class: "row" },
+        FE.h("b", {}, "開書完成"), FE.h("span", { class: "grow" }),
+        FE.h("button", { class: "ghost sm", onclick: () => Panel.closeForm() }, "✕")),
+      FE.h("div", { style: "margin-top:8px" }, FE.h("b", {}, "已建立")),
+    ].concat(created, pending, defaults);
+    if (rep.claude_mode) {
+      kids.push(FE.h("div", { class: "muted small", style: "margin-top:8px" }, "這個模式沒有選項按鈕，建議切到 API 執行者"));
+    }
+    const foot = [FE.h("span", { class: "grow" }), FE.h("button", { onclick: () => Panel.closeForm() }, "我自己逛逛")];
+    if (next.action) {
+      foot.push(FE.h("button", {
+        class: "primary",
+        onclick: () => { Panel.closeForm(); Panel.openForm(next.action, next.prefill || {}); },
+      }, "下一步：" + (next.label || "")));
+    }
+    kids.push(FE.h("div", { class: "row", style: "margin-top:8px" }, ...foot));
+    el.replaceChildren(FE.h("div", { class: "card" }, ...kids));
+  },
   async finish(job) {
     if (!job) return;
     S.books = (await api("GET", "/api/books").catch(() => ({ books: S.books }))).books;
@@ -907,6 +947,7 @@ const Panel = {
     if ((job.meta || {}).action === "volume_draft" && job.status === "done") {
       toast("卷綱草稿已產生：到大綱頁的「卷況」按「採用」才會變成正式卷綱。");
     }
+    if ((job.meta || {}).action === "setup_new" && job.status === "done") await this.setupCard(job);
   },
 };
 window.Panel = Panel;

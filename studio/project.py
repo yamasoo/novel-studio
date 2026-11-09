@@ -8,6 +8,8 @@ import threading
 
 import yaml
 
+from . import enums
+
 CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
 CH_NUM = re.compile(r"第0*(\d+)章")
 
@@ -61,21 +63,49 @@ def _read_maybe(path):
         return None
 
 
+# 「欄名：」被標點轉換寫成全形冒號的行（舊版把 frontmatter 也送進 textguard，見 normalize_frontmatter）
+FM_COLON = re.compile(r"^([^\s:：][^：:]{0,40})：(\s|$)")
+
+
+def _repair_fm_line(line):
+    return FM_COLON.sub(r"\1:\2", line)
+
+
+def normalize_frontmatter(text):
+    """把 frontmatter 裡寫成全形冒號的「欄名：」改回半形；正文一個字都不動。"""
+    if not text.startswith("---"):
+        return text
+    lines = text.split("\n")
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            fixed = [_repair_fm_line(x) for x in lines[1:i]]
+            if fixed == lines[1:i]:
+                return text
+            return "\n".join([lines[0]] + fixed + lines[i:])
+    return text
+
+
 def split_frontmatter(text):
-    """回傳 (dict, body)。frontmatter 格式錯誤時回傳空 dict。"""
+    """回傳 (dict, body)。frontmatter 格式錯誤時回傳空 dict。
+
+    欄名寫成全形冒號的舊檔（標點轉換吃進 frontmatter）先在這裡修好再解析，
+    不然名稱、定位、狀態會整份讀不到；寫回檔案由 normalize_frontmatter 負責。
+    """
     if text.startswith("---"):
         lines = text.split("\n")
         for i in range(1, len(lines)):
             if lines[i].strip() == "---":
                 raw = "\n".join(lines[1:i])
                 body = "\n".join(lines[i + 1:])
-                try:
-                    data = yaml.safe_load(raw) or {}
-                    if not isinstance(data, dict):
+                fixed = "\n".join(_repair_fm_line(x) for x in lines[1:i])
+                for cand in (raw, fixed):
+                    try:
+                        data = yaml.safe_load(cand) or {}
+                    except yaml.YAMLError:
                         data = {}
-                except yaml.YAMLError:
-                    data = {}
-                return data, body
+                    if isinstance(data, dict) and data:
+                        return data, body
+                return {}, body
     return {}, text
 
 
@@ -385,10 +415,15 @@ def read_table(book_dir, rel):
 # ---------------------------------------------------------------------------
 WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與政治", "經濟與物資", "宗教信仰",
               "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"]
+# 角色的「定位」固定詞（與 enums 同一份，介面與批次修改都從這裡取）
+CHAR_ROLES = [zh for zh, _ in enums.TABLES["role"]]
+DEFAULT_ROLE = "配角"
+REV_SECTION = "從正文反推（未併入，請核對）"
 
 
 def set_frontmatter_field(text, key, value):
     """只改 frontmatter 裡 key 那一行；沒有就插在「類型」後面；沒有 frontmatter 就補一段。其他內容不動。"""
+    text = normalize_frontmatter(text)
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
         return "---\n%s: %s\n---\n\n%s" % (key, value, text)
@@ -402,6 +437,92 @@ def set_frontmatter_field(text, key, value):
     pos = next((i + 1 for i in range(1, end) if lines[i].startswith("類型:")), 1)
     lines.insert(pos, "%s: %s" % (key, value))
     return "\n".join(lines)
+
+
+def ensure_role(text):
+    """類型: 角色 但「定位」空白的設定檔補上預設定位；其他內容不動。"""
+    fm, _ = split_frontmatter(text)
+    if fm.get("類型") != "角色":
+        return text
+    if str(fm.get("定位") or "").strip():
+        return text
+    return set_frontmatter_field(text, "定位", DEFAULT_ROLE)
+
+
+def _fm_text(v):
+    """frontmatter 的值 → 一行的寫法（清單寫成 [a, b]）。"""
+    if isinstance(v, list):
+        return "[%s]" % ", ".join(str(x) for x in v)
+    if v is None:
+        return ""
+    return str(v)
+
+
+def _sections(body):
+    """正文 → [["", 前言], ["標題", 內文], ...]；只在 ## 這一層切。內文含標題行後面的換行。"""
+    parts = re.split(r"(?m)^##[ \t]+(.+)$", body)
+    out = [["", parts[0]]]
+    for i in range(1, len(parts), 2):
+        out.append([parts[i].strip(), parts[i + 1]])
+    return out
+
+
+PLACEHOLDERS = ("待補", "正文未明確", "未明確", "tbd", "—", "-")
+
+
+def _section_blank(content):
+    """段落是不是空的：只剩空白、註解、沒填值的列點（- 想要：）或「待補」這種佔位字。"""
+    t = re.sub(r"<!--.*?-->", "", content, flags=re.S)
+    t = re.sub(r"^\s*[-*]?\s*$", "", t, flags=re.M)                  # 空行、空列點
+    t = re.sub(r"^\s*[-*]?\s*[^：:\n]{1,30}[：:]\s*$", "", t, flags=re.M)   # - 想要：
+    t = t.strip().strip("（）()")
+    return not t or t.lower() in PLACEHOLDERS
+
+
+def _squash(text):
+    """比對用：把空白差異抹平。"""
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def merge_entry(old, new):
+    """把 new（通常是從正文反推的草稿）併進既有設定檔 old，old 的內容一律不被覆蓋。
+
+    - frontmatter：只補 old 空白的欄位；狀態、來源不動。
+    - 正文：按「## 標題」對齊。old 沒有的段落接在最後；old 空白（只剩註解或空列點）就用 new 的內容；
+      old 已有不同內容時整段保留 old，new 的說法另收進「## 從正文反推（未併入，請核對）」。
+    回傳 (text, 未併入的段落標題清單)。
+    """
+    old, new = normalize_frontmatter(old), normalize_frontmatter(new)
+    ofm, _ = split_frontmatter(old)
+    nfm, nbody = split_frontmatter(new)
+    text = old
+    fill = [k for k, v in nfm.items()
+            if k not in ("狀態", "來源") and _fm_text(v).strip() and not str(ofm.get(k) or "").strip()]
+    for k in reversed(fill):            # set_frontmatter_field 插在「類型」後面，倒著補才會照 new 的順序
+        text = set_frontmatter_field(text, k, _fm_text(nfm[k]))
+    _, obody = split_frontmatter(text)
+    head = text[:len(text) - len(obody)]
+    osec = _sections(obody)
+    where = {s[0]: i for i, s in enumerate(osec) if s[0]}
+    conflicts, tail = [], []
+    for title, content in _sections(nbody)[1:]:
+        i = where.get(title)
+        if i is None:
+            tail.append([title, content])
+        elif _section_blank(osec[i][1]):
+            osec[i][1] = content
+        elif _squash(osec[i][1]) != _squash(content):
+            conflicts.append((title, content))
+    if conflicts:
+        block = "\n\n".join("### %s\n%s" % (t, c.strip()) for t, c in conflicts)
+        i = where.get(REV_SECTION)
+        if i is None:
+            tail.append([REV_SECTION, "\n" + block])
+        else:
+            osec[i][1] = osec[i][1].rstrip("\n") + "\n\n" + block
+    parts = [((("## %s" % t) + c) if t else c).strip("\n") for t, c in osec + tail]
+    body = "\n\n".join(p for p in parts if p) + "\n"
+    return head.rstrip("\n") + "\n\n" + body, [t for t, _ in conflicts]
 
 
 def list_entries(book_dir, rel_dir):

@@ -132,11 +132,39 @@
       revs.length ? h("div", { class: "muted small" }, FE.t("修訂會先產生草稿；看過差異按「套用修訂」才覆蓋正式卷綱（會先備份）。")) : null);
   }
 
+  function reverseCardsCard(cards, signal) {
+    const open = (c) => {
+      const box = h("div", { style: "max-height:70vh;overflow:auto" });
+      FE.modal({
+        title: "反推章綱：" + (c.no ? "第" + c.no + "章 " : "") + c.name,
+        wide: true,
+        body: box,
+        foot: (done) => [h("button", { class: "btn", type: "button", onclick: () => done(true) }, "關閉")],
+      });
+      docView(box, c.rel, { readonly: true, signal });
+    };
+    return h("div", { class: "card", id: "rv-cards-card" },
+      h("div", { class: "row" },
+        h("b", {}, "反推章綱"),
+        h("span", { class: "badge" }, cards.length + " 份"),
+        h("span", { class: "grow" }),
+        h("span", { class: "muted small" }, "唯讀對照；正式章綱不受影響")),
+      h("div", { class: "muted small", style: "margin-top:4px" },
+        "從正文反推的章綱存在 大綱/章綱/反推/。這裡只給你看，不會改到 大綱/章綱/第NNN章.md。"),
+      h("details", { style: "margin-top:8px" },
+        h("summary", { class: "small" }, "看清單"),
+        h("div", { style: "margin-top:6px" }, cards.map((c) => h("div", { class: "row", style: "padding:4px 0" },
+          h("span", {}, (c.no ? "第" + c.no + "章 " : "") + c.name),
+          h("span", { class: "grow" }),
+          h("button", { class: "sm", onclick: () => open(c) }, "看"))))));
+  }
+
   async function render(ctx) {
     const signal = ctx.signal;
     const files = await FE.api(B("/outline"), { signal });
     const vol = await soft(FE.api(B("/volumes"), { signal }), null);
     const chs = await soft(FE.api(B("/chapters"), { signal }), []);
+    const revCards = (await soft(FE.api(B("/reverse/cards"), { signal }), { cards: [] })).cards || [];
     const nextNo = chs.length ? Math.max(...chs.map((c) => c.no)) + 1 : 1;
     // 卷綱草稿／更新草稿也列進左邊的清單，點開就能看／改（存檔走 /file 的 PUT）
     const drafts = ((vol && vol.drafts) || []).map((x) => ({ name: x.name + "（" + FE.t("草稿") + "）", file: x.rel }));
@@ -147,13 +175,13 @@
 
     ctx.view(
       h("div", { class: "page-head" },
-        h("div", {}, h("h1", {}, "大綱"), h("div", { class: "sub" }, "全書大綱與卷綱。章綱在「章節」頁。")),
+        h("div", {}, h("h1", {}, "大綱"), h("div", { class: "sub" }, "全書大綱與卷綱。章綱在「章節」頁；從正文反推的章綱在下方唯讀對照。")),
         h("div", { class: "row" },
           h("button", { onclick: () => Panel.openForm("concept") }, "故事核心診斷"),
           h("button", { onclick: () => Panel.openForm("master_outline") }, "全書大綱"),
-          h("button", { onclick: () => spinoffDialog() }, "參考書骨架"),
-          h("button", { class: "primary", onclick: () => Panel.openForm("chapter_cards", { from: nextNo, to: nextNo + 9 }) }, "排接下來 10 章"))),
+          h("button", { onclick: () => spinoffDialog() }, "參考書骨架"))),
       vol ? volCard(vol, signal) : null,
+      revCards.length ? reverseCardsCard(revCards, signal) : null,
       h("div", { class: "split" },
         h("div", { class: "list" },
           all.length

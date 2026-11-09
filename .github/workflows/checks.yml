@@ -28,10 +28,23 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
 
+      # 0a) 測試相依（不是執行期相依）：pytest 必要；httpx／httpx2 是 starlette 的 TestClient 用的，
+      #     套件名稱隨 starlette 版本變動（0.x 要 httpx、1.x 要 httpx2），所以盡力安裝、
+      #     缺席時由測試檔自己 SkipTest，不會讓整個 job 變紅。
+      - name: 安裝測試相依
+        run: |
+          pip install pytest
+          pip install httpx || true
+          pip install httpx2 || true
+
       # 0) 單元測試：stdlib unittest，幾百毫秒；放最前面，壞了最快知道。
       #    requirements.txt 有 opencc，所以轉換類測試在 CI 也會真的跑到（本機系統 python 會 skip）。
       - name: 單元測試（tests/）
         run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      # 0b) pytest 形式的測試（tmp_path fixture 等；tests/test_setup_flow.py 的卷層／初始設定案例）。
+      - name: 單元測試（pytest）
+        run: python -m pytest tests -q
 
       # 1) 既有檢查：提示詞包的鍵／變數、語言檔的變數與空值、路徑不被翻譯
       - name: check_i18n

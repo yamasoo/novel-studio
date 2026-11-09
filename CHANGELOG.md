@@ -2,10 +2,11 @@
 
 ## 未發布
 
-- CI 把 pytest 形式的測試真的跑起來
-  - `.github/workflows/checks.yml` 在 unittest 之後多一步 `pip install pytest` ＋ `python -m pytest tests -q`（`requirements.txt` 是執行期相依，不含 pytest）
-  - `tests/test_setup_flow.py` 模組層加「沒有 pytest 就 `raise unittest.SkipTest`」守衛：沒有 pytest 的環境跑 `unittest discover` 不會再 ImportError，這一組整份算跳過
-  - 修掉 dev 自「開書前段改版」以來一直紅的 CI（`ModuleNotFoundError: No module named 'pytest'`）
+- CI 修紅燈：測試相依與 pytest 形式的測試
+  - 新增「安裝測試相依」步驟：`pip install pytest`（必要）＋ `pip install httpx`／`httpx2`（盡力，starlette 的 TestClient 用，套件名稱隨版本變動）
+  - unittest 之後多一步 `python -m pytest tests -q`：`tests/test_setup_flow.py` 的 20 個卷層／初始設定案例真的被 CI 跑到
+  - `tests/test_setup_flow.py`（缺 pytest）與 `tests/test_reverse_api.py`（缺 httpx／httpx2）在模組層加 `unittest.SkipTest` 守衛：相依缺席時整份跳過，不再讓 job 以 ImportError 變紅
+  - 修掉 dev 自「開書前段改版」以來一直紅的 CI（`ModuleNotFoundError: pytest`、`starlette.testclient 需要 httpx2`）
 - 使用說明加了圖（三語共用同一套）
   - 新增三層流程圖 `static/images/01-三層流程.svg`（開書層 → 卷層 → 收尾層），取代舊的線性流程圖
   - 三張實機截圖（總覽的「下一步」與卷卡、卷末體檢、反推補這一卷）放 `static/images/`，說明頁與 README 都用同一份

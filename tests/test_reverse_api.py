@@ -9,7 +9,10 @@ from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi.testclient import TestClient
+try:
+    from fastapi.testclient import TestClient
+except (ImportError, RuntimeError):   # starlette 的 TestClient 需要 httpx（新版本叫 httpx2）；沒有就整份跳過
+    raise unittest.SkipTest("TestClient 需要 httpx／httpx2，這個環境沒有")
 
 import app as app_mod
 

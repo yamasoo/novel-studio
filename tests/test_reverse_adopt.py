@@ -65,6 +65,19 @@ OLD_CARD = """---
 
 NEW_CARD = OLD_CARD.replace("作者定的鉤子", "反推的鉤子")
 
+OLD_TERMS = """---
+類型: 名詞表
+更新至: 第001章
+---
+
+# 名詞表
+
+| 名詞 | 類別 | 說明 | 注意 |
+|---|---|---|---|
+"""
+
+NEW_TERMS = OLD_TERMS + "| 周遠 | 人名 | 維修技師 | |\n| 晨星號 | 船艦 | 補給船 | |\n"
+
 OLD_FS = """---
 類型: 伏筆
 更新至: 第001章
@@ -202,6 +215,40 @@ class ReverseAdoptTest(unittest.TestCase):
         self.assertIn("從正文反推（未併入，請核對）", text)
         self.assertEqual(1, r["backed_up"])
         self.assertEqual(NEW_CORE, _read(self.book, "設定/故事核心.md"))
+
+    def test_glossary_table_is_replaced_not_merged(self):
+        """名詞表是表格、沒有 ## 段落：merge 一列都併不進去，所以當快照整份取代（先備份）。"""
+        _write(self.book, "設定/名詞表.md", OLD_TERMS)
+        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
+        r = reverse.adopt(self.book, "設定", files=["設定/名詞表.md"])
+        text = _read(self.book, "設定/名詞表.md")
+        self.assertIn("周遠", text)
+        self.assertIn("晨星號", text)
+        self.assertEqual(r["adopted"], 1)
+        self.assertEqual(r["merged"], 0)
+        self.assertEqual(r["backed_up"], 1)
+        self.assertEqual(OLD_TERMS, project.read_text(os.path.join(self.book, ".studio", "備份", r["backups"][0])))
+
+    def test_glossary_replace_even_when_merge_is_requested(self):
+        _write(self.book, "設定/名詞表.md", OLD_TERMS)
+        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
+        r = reverse.adopt(self.book, "設定", mode="merge", files=["設定/名詞表.md"])
+        self.assertEqual(r["targets"][0]["mode"], "replace")
+        self.assertIn("周遠", _read(self.book, "設定/名詞表.md"))
+
+    def test_glossary_keeps_when_keep_is_chosen(self):
+        _write(self.book, "設定/名詞表.md", OLD_TERMS)
+        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
+        r = reverse.adopt(self.book, "設定", mode="keep", files=["設定/名詞表.md"])
+        self.assertEqual(r["kept"], 1)
+        self.assertEqual(OLD_TERMS, _read(self.book, "設定/名詞表.md"))
+
+    def test_plan_defaults_glossary_to_replace_but_characters_to_merge(self):
+        _write(self.book, "設定/名詞表.md", OLD_TERMS)
+        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
+        plan = {x["rel"]: x["default_mode"] for x in reverse.plan_group(self.book, "設定")}
+        self.assertEqual(plan["設定/名詞表.md"], "replace")
+        self.assertEqual(plan["設定/角色/周遠.md"], "merge")
 
     def test_old_volume_draft_lands_on_numbered_filename(self):
         r = reverse.adopt(self.book, "大綱", mode="replace", files=["大綱/卷綱_第一卷.md"])

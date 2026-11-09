@@ -744,6 +744,19 @@ def draft_groups(book_dir):
 DEFAULT_MODE = {"設定": "merge", "大綱": "keep", "章綱": "copy", "追蹤": "keep"}
 ALLOWED_MODES = {"設定": ("merge", "replace", "keep"), "大綱": ("merge", "replace", "keep"),
                  "章綱": ("copy",), "追蹤": ("replace", "keep")}
+# 表格類設定檔：沒有「## 段落」，merge_entry 併不進任何一列（整份反推內容會被丟掉），
+# 所以當機器快照處理——預設／被要求 merge 時一律整份取代，一樣先備份；「保留現有」照舊可用。
+SNAPSHOT_RELS = ("設定/名詞表.md",)
+
+
+def _mode_for(group, rel, mode=None):
+    """這一組／這一份草稿實際要用的模式（表格類只允許 replace／keep）。"""
+    m = mode or DEFAULT_MODE[group]
+    if _canon_rel(group, rel) in SNAPSHOT_RELS:
+        m = "keep" if m == "keep" else "replace"
+    if m not in ALLOWED_MODES[group]:
+        raise project.ProjectError("「%s」不支援「%s」模式" % (group, m))
+    return m
 CHAPTER_DRAFT_DIR = "大綱/章綱/反推"
 
 
@@ -810,7 +823,7 @@ def plan_group(book_dir, group):
             "lines_new": len(new.splitlines()),
             "lines_old": len(old.splitlines()),
             "similarity": round(difflib.SequenceMatcher(None, old.splitlines(), new.splitlines()).ratio(), 3) if old else 0.0,
-            "default_mode": DEFAULT_MODE[group],
+            "default_mode": _mode_for(group, rel),
         })
     return out
 
@@ -836,6 +849,7 @@ def adopt(book_dir, group, mode=None, files=None):
     mode：keep（保留現有，什麼都不動）／replace（先備份再整份取代）／merge（先備份再併入，
     只補空白與缺的段落）／copy（章綱專用：寫進 大綱/章綱/反推/，正式章綱不動）。
     mode 省略時用各組預設（設定 merge、大綱／追蹤 keep、章綱 copy）。
+    例外：名詞表是表格、沒有「## 段落」，merge 併不進去，一律當快照整份取代（除非選 keep）。
     files：只處理這幾個相對路徑（None＝全部）。舊呼叫 adopt(book_dir, group) 仍可用。
 
     回傳 adopted（實際寫入份數）、merged、kept、backed_up、conflicts、backups（備份檔名）、targets。
@@ -861,11 +875,12 @@ def adopt(book_dir, group, mode=None, files=None):
     backups, targets = [], []
     for it in items:
         rel = it["rel"]
+        m = _mode_for(group, rel, mode)
         src = _p(book_dir, "草稿", *rel.split("/"))
         dst_rel = _canon_rel(group, rel)
         dst = os.path.join(book_dir, *dst_rel.split("/"))
-        targets.append({"rel": rel, "mode": mode, "dst": dst_rel})
-        if mode == "keep":
+        targets.append({"rel": rel, "mode": m, "dst": dst_rel})
+        if m == "keep":
             n_kept += 1
             continue
         new_text = project.read_text(src)
@@ -876,7 +891,7 @@ def adopt(book_dir, group, mode=None, files=None):
             if bak:
                 backups.append(os.path.basename(bak))
                 n_bak += 1
-        if mode == "merge" and has_old:
+        if m == "merge" and has_old:
             merged, conflicts = project.merge_entry(old_text, new_text)
             project.write_atomic(dst, merged)
             n_conf += len(conflicts)

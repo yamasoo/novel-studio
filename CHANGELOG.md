@@ -2,6 +2,12 @@
 
 ## 未發布
 
+- 修正：反推採用在「名詞表」會靜默丟掉整份內容
+  - 名詞表是表格、沒有 `##` 段落，`project.merge_entry` 一列都併不進去，反推出來的名詞表整份消失（既有空名詞表維持空的）
+  - `reverse.adopt()` 改走新的 `reverse._mode_for()`：`設定/名詞表.md`（`SNAPSHOT_RELS`）當機器快照，預設整份取代、先備份；使用者硬要 merge 也降級成 replace，只有明確選 keep 才不動
+  - `reverse.plan_group()` 的 `default_mode` 同步（介面預設就顯示「用反推版」）
+  - `tools/prompt_lang_audit.py` 跟上章綱新落點：章綱採用只寫 `大綱/章綱/反推/`，稽核書把它複製成正式章綱，後面的章綱核對／寫下一章才跑得起來
+  - 測試：`tests/test_reverse_adopt.py` 新增 4 條（表格整份取代、要求 merge 時降級、選 keep 不動、plan 的預設值）
 - CI 修紅燈：測試相依與 pytest 形式的測試
   - 新增「安裝測試相依」步驟：`pip install pytest`（必要）＋ `pip install httpx`／`httpx2`（盡力，starlette 的 TestClient 用，套件名稱隨版本變動）
   - unittest 之後多一步 `python -m pytest tests -q`：`tests/test_setup_flow.py` 的 20 個卷層／初始設定案例真的被 CI 跑到

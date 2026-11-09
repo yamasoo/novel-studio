@@ -33,6 +33,13 @@ jobs:
       - name: 單元測試（tests/）
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
+      # 0b) pytest 形式的測試（tmp_path fixture 等；tests/test_setup_flow.py 的卷層／初始設定案例）。
+      #     requirements.txt 是執行期相依，不含 pytest，所以在這裡單獨裝。
+      - name: 單元測試（pytest）
+        run: |
+          pip install pytest
+          python -m pytest tests -q
+
       # 1) 既有檢查：提示詞包的鍵／變數、語言檔的變數與空值、路徑不被翻譯
       - name: check_i18n
         run: python tools/check_i18n.py

@@ -3,8 +3,12 @@
 import os
 import threading
 import time
+import unittest
 
-import pytest
+try:
+    import pytest
+except ImportError:      # 沒有 pytest 的環境（stdlib unittest）：整份跳過，不要讓匯入就炸
+    raise unittest.SkipTest("這一組測試需要 pytest（tmp_path fixture）")
 
 from studio import project, setup_flow
 from studio.runner import Job, JobStopped

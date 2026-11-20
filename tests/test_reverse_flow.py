@@ -170,8 +170,7 @@ class RevCtx(FakeCtx):
             self.job.status = "cancelled"
         if k == "extract":
             self.n_extract += 1
-            nos = [int(a or b) for a, b in CH_RE.findall(text.split("\n\n\n")[-1] if False else text)]
-            nos = sorted(set(nos))
+            nos = sorted({int(a or b) for a, b in CH_RE.findall(text)})
             d = extract(nos, self.en, wrong_no=(self.n_extract == self.wrong_no_batch))
             return json.dumps(to_en(d) if self.en else d, ensure_ascii=False)
         return json.dumps(self.ans[k], ensure_ascii=False)
@@ -291,7 +290,7 @@ class ReverseFlowTest(unittest.TestCase):
             for step in ("chars", "world", "arc", "book", "state", "cls", "fac", "topic", "own"):
                 self.assertIn(step, got[k]["steps"], (k, step))
             self.assertTrue(any("角色狀態" in p for p in d), k)
-            self.assertTrue(any(p.endswith("卷綱_第2卷.md") or "第2卷" in p or "02" in p for p in d if "卷" in p), (k, sorted(d)))
+            self.assertTrue(any("第2卷" in p for p in d), (k, sorted(d)))
         zd = got["zh"]["drafts"]
         fs = next(v for p, v in zd.items() if p.endswith("伏筆.md"))
         self.assertIn("已回收", fs)
@@ -309,13 +308,12 @@ class ReverseFlowTest(unittest.TestCase):
         self.assertIn("路人甲", gl)
         ef = got["en"]["drafts"]
         self.assertIn("已埋", next(v for p, v in ef.items() if p.endswith("伏筆.md")), "英文選項值要換回固定詞")
-        self.assertTrue(any("很重要" in x for x in got["zh"]["logs"]) or True)
         res = got["resume"]
-        self.assertIsNone(res["r1"]["result"] and None)
+        self.assertIn("已停止", res["r1"]["result"])
+        self.assertIn("已停止", res["r2"]["result"])
         self.assertEqual(["extract", "extract"], res["r1"]["steps"])
         self.assertNotIn("extract", res["r3"]["steps"])
         self.assertNotIn("chars", res["r3"]["steps"], "已整理的步驟要用快取")
-        self.assertEqual(res["r3"]["drafts"], got["zh"]["drafts"] if False else res["r3"]["drafts"])
         for stage in ("after_extract", "after_chars"):
             self.assertEqual(res["r3"]["drafts"], got["v2cache_" + stage]["drafts"], stage)
 

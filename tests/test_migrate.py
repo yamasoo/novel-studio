@@ -143,7 +143,7 @@ class MigrateTest(unittest.TestCase):
         self.assertEqual("rolled_back", r["status"])
         self.assertIn("章數", r["message"])
         after = _snapshot(b)
-        self.assertEqual({k: v for k, v in before.items()}, {k: v for k, v in after.items() if not k.startswith(layout.STUDIO_BACKUP + "/")})
+        self.assertEqual({k: v for k, v in before.items()}, {k: v for k, v in after.items() if not k.startswith(layout.MIGRATE_DIR + "/")})
 
     def test_step_error_rolls_back(self):
         b = os.path.join(self.lib, DEMOS[2])
@@ -158,7 +158,7 @@ class MigrateTest(unittest.TestCase):
             r = migrate.migrate(b)
         self.assertEqual("rolled_back", r["status"])
         self.assertIn("壞掉", r["message"])
-        after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.STUDIO_BACKUP + "/")}
+        after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
         self.assertEqual(before, after)
 
     def test_rollback_restores_and_keeps_git(self):
@@ -171,7 +171,7 @@ class MigrateTest(unittest.TestCase):
         with open(layout.path(b, layout.MANUSCRIPT, "後來加的.md"), "w") as f:
             f.write("x")
         migrate.rollback(b)
-        after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.STUDIO_BACKUP + "/")}
+        after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
         self.assertEqual(before, after)
         with zipfile_names(migrate.backups(b)[-1]) as names:
             self.assertFalse(any(n.startswith(".git/") for n in names), "備份不含 .git")
@@ -203,3 +203,151 @@ class zipfile_names:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RenameStepTest(unittest.TestCase):
+    """第二步：資料夾與系統檔名換成英文（工作台換成 v3 名稱之前預設關閉，這裡強制開啟測試）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.lib = os.path.join(self.tmp, "lib")
+        os.makedirs(self.lib)
+        self.book = os.path.join(self.lib, "退婚之後")
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)
+        b = self.book
+
+        def w(rel, text):
+            p = os.path.join(b, *rel.split("/"))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        # 各種會被搬動或改寫的東西
+        w(".studio/修訂/第001章.json", json.dumps({"path": "正文/第001章_退婚當天.md", "base_path": "候選/第003章_x.md",
+                                                  "note": "設定/那個不是路徑", "n": 3}, ensure_ascii=False))
+        w(".studio/反推/累積.json", "{}")
+        w(".studio/反推/state.json", "{}")
+        w(".studio/反推/草稿/設定/角色/甲.md", "# 甲\n")
+        w(".studio/反推/草稿/設定/名詞表.md", "| 名詞 | 類別 | 說明 | 注意 |\n|---|---|---|---|\n| a | 物品 | b | 詳見 設定/世界觀/兵器.md |\n")
+        w(".studio/流程/目前.json", json.dumps({"wait": {"path": "候選/第003章_x.md"}}, ensure_ascii=False))
+        w(".studio/備份/插圖/舊.png", "x")
+        w(".studio/jobs/1.json", json.dumps({"prompt": "請寫到 設定/故事核心.md"}, ensure_ascii=False))
+        w("插圖/_插圖.json", json.dumps({"設定/角色/林晚.md": {"main": "插圖/林晚/1.png"}}, ensure_ascii=False))
+        w("插圖/畫風.json", "{}")
+        w("設定/自訂資料夾/筆記.md", "作者自己的資料夾\n")
+        w("候選/新書草稿/骨架.json", "{}")
+        gl = project.read_text(layout.path(b, layout.GLOSSARY)).rstrip("\n") + "\n| 青雲劍 | 物品 | 佩劍 | 詳見 設定/世界觀/兵器.md；見 追蹤/時間線.md |\n"
+        w("設定/名詞表.md", gl)
+        w("正文/第003章_路徑字樣.md", "# 第三章\n\n她在設定/世界觀/兵器.md 這幾個字前停住，又看了看正文/第001章.md。\n")
+        os.makedirs(os.path.join(b, "匯出"), exist_ok=True)       # 空資料夾
+        claude = project.read_text(os.path.join(b, "CLAUDE.md"))
+        w("CLAUDE.md", claude + "\n- 角色檔放在 `設定/角色/`，正文在 正文/。\n")
+        self.before = _snapshot(b)
+        self.p = mock.patch.object(migrate, "rename_enabled", lambda: True)
+        self.p.start()
+
+    def tearDown(self):
+        self.p.stop()
+        shutil.rmtree(self.tmp)
+
+    def test_plan(self):
+        r = migrate.migrate(self.book, dry_run=True)
+        steps = {s["key"]: s["changes"] for s in r["steps"]}
+        self.assertIn("rename", steps)
+        self.assertTrue(any(c.startswith("設定/ → bible/") for c in steps["rename"]), steps["rename"])
+        self.assertIn("匯出/ → export/（空資料夾）", steps["rename"])
+        self.assertEqual(self.before, _snapshot(self.book))
+
+    def test_migrate(self):
+        r = migrate.migrate(self.book)
+        self.assertEqual("done", r["status"], r.get("message"))
+        after = _snapshot(self.book)
+        rewritten = {"CLAUDE.md", "bible/glossary.md", ".studio/revisions/第001章.json", ".studio/pipeline/current.json",
+                     ".studio/reverse/drafts/bible/glossary.md", "illust/_illustrations.json"}
+        for rel, data in self.before.items():
+            new = migrate.map_rel(rel)
+            if rel == ".studio/lang":
+                continue
+            self.assertIn(new, after, rel)
+            if new not in rewritten:
+                self.assertEqual(data, after[new], "內容不能變：%s" % rel)
+        for top in migrate.TOP_V2:
+            self.assertFalse(os.path.exists(os.path.join(self.book, top)), top)
+        self.assertTrue(os.path.isdir(os.path.join(self.book, "export")), "空資料夾也要換名稱")
+        self.assertEqual(r["stats"], migrate.stats(self.book))
+        rd = lambda rel: after[rel].decode("utf-8")
+        rec = json.loads(rd(".studio/revisions/第001章.json"))
+        self.assertEqual("manuscript/第001章_退婚當天.md", rec["path"])
+        self.assertEqual("candidates/第003章_x.md", rec["base_path"])
+        self.assertEqual("設定/那個不是路徑", rec["note"], "不是路徑的字串不動")
+        self.assertIn("詳見 bible/world/兵器.md；見 tracking/timeline.md", rd("bible/glossary.md"))
+        self.assertIn("詳見 bible/world/兵器.md", rd(".studio/reverse/drafts/bible/glossary.md"))
+        self.assertIn("`bible/characters/`，正文在 manuscript/。", rd("CLAUDE.md"))
+        self.assertIn("bible/characters/林晚.md", rd("illust/_illustrations.json"))
+        self.assertIn("illust/林晚/1.png", rd("illust/_illustrations.json"))
+        self.assertIn("設定/世界觀/兵器.md", rd("manuscript/第003章_路徑字樣.md"), "正文一個字都不能改")
+        self.assertIn("設定/故事核心.md", rd(".studio/jobs/1.json"), "長字串裡的路徑不動（任務紀錄是歷史）")
+        self.assertIn("bible/自訂資料夾/筆記.md", after)
+        self.assertIn(".studio/backup/illust/舊.png", after)
+        self.assertIn(".studio/reverse/drafts/bible/characters/甲.md", after)
+        self.assertIn("candidates/spinoff/skeleton.json", after)
+        self.assertEqual("skipped", migrate.migrate(self.book)["status"])
+        migrate.rollback(self.book)
+        restored = {k: v for k, v in _snapshot(self.book).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
+        self.assertEqual(self.before, restored)
+        self.assertTrue(os.path.isdir(os.path.join(self.book, "匯出")), "空資料夾也要還原")
+
+    def test_collision_rolls_back(self):
+        os.makedirs(os.path.join(self.book, "bible"))
+        with open(os.path.join(self.book, "bible", "style.md"), "w", encoding="utf-8") as f:
+            f.write("另一份\n")
+        before = _snapshot(self.book)
+        r = migrate.migrate(self.book)
+        self.assertEqual("rolled_back", r["status"])
+        self.assertIn("新位置已經有檔案：bible/style.md", r["message"])
+        self.assertEqual(before, {k: v for k, v in _snapshot(self.book).items() if not k.startswith(layout.MIGRATE_DIR + "/")})
+
+    def test_library_shared(self):
+        sh = os.path.join(self.lib, "_共用")
+        for rel in ("文風/冷硬派.md", "結構/三幕式.md", "作者偏好.md", ".備份/x.md", ".刪除/y.md"):
+            os.makedirs(os.path.dirname(os.path.join(sh, rel)), exist_ok=True)
+            with open(os.path.join(sh, rel), "w", encoding="utf-8") as f:
+                f.write(rel)
+        self.assertEqual(["_共用/ → _shared/（5 個檔）"], migrate.migrate_library(self.lib, dry_run=True))
+        self.assertTrue(os.path.isdir(sh))
+        self.assertEqual(0, migrate_v3.main([self.lib]))
+        self.assertFalse(os.path.exists(sh))
+        for rel in ("styles/冷硬派.md", "structures/三幕式.md", "author-prefs.md", ".backup/x.md", ".trash/y.md"):
+            self.assertTrue(os.path.isfile(os.path.join(self.lib, "_shared", *rel.split("/"))), rel)
+        self.assertTrue(os.path.isdir(os.path.join(self.book, "bible")))
+        self.assertEqual([], migrate.migrate_library(self.lib))
+
+    def test_disabled_by_default(self):
+        self.p.stop()
+        try:
+            self.assertFalse(migrate.rename_enabled(), "工作台還是 v2 名稱時不能啟用")
+            self.assertEqual(["book_meta"], [s.key for s in migrate.pending(self.book)])
+            self.assertEqual([], migrate.migrate_library(self.lib))
+        finally:
+            self.p.start()
+
+
+class PathTableTest(unittest.TestCase):
+    def test_table_covers_every_layout_path(self):
+        """layout 裡每一個 v2 路徑常數都要在對照表裡（漏了就會留在舊名稱）。"""
+        skip = {"STUDIO", "BOOK_META", "PROJECT_RULES", "TEMPLATES_IN_SKILLS", "MIGRATE_DIR", "MIGRATE_BACKUP_PREFIX",
+                "SPAWN_VOLUME_ONE", "VOLUME_PREFIX", "VOLUME_REVISION_PREFIX"}   # 範本檔名、卷綱檔名規則：之後的批次
+        names = set(migrate.PATHS) | set(migrate.NAMES) | set(migrate.SHARED_PATHS)
+        for k, v in layout.all_constants().items():
+            if not isinstance(v, str) or k in skip or k.startswith("TPL_"):
+                continue
+            self.assertIn(k, names, "%s = %s 沒有在 migrate 的對照表裡" % (k, v))
+
+    def test_v2_column_matches_current_layout(self):
+        """layout 還是 v2 名稱時，對照表的 v2 欄要跟它一樣（換成 v3 之後改成比 v3 欄）。"""
+        col = 1 if migrate.rename_enabled() else 0
+        for table in (migrate.PATHS, migrate.NAMES, migrate.SHARED_PATHS):
+            for k, v in table.items():
+                cur = getattr(layout, k)
+                if table is migrate.SHARED_PATHS and k != "SHARED":
+                    cur = layout.SHARED + "/" + cur
+                self.assertEqual(v[col], cur, k)

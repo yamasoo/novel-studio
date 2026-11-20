@@ -42,6 +42,13 @@ def main(argv=None):
         print("這個資料夾裡沒有書")
         return 2
     bad = 0
+    if not migrate.is_book(path):          # 書庫：共用資料夾也要轉
+        try:
+            for line in migrate.migrate_library(path, dry_run=a.dry_run):
+                print("== 書庫共用資料夾：%s" % line)
+        except project.ProjectError as e:
+            print("== 書庫共用資料夾：%s" % e)
+            bad += 1
     for b in books:
         r = migrate.migrate(b, dry_run=a.dry_run)
         print("== %s：%s" % (r["book"], {"skipped": "已是最新格式", "dry_run": "要轉換（試跑，沒有動檔案）",

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-"""v3 P2 驗收：舊快照套上「舊 ID → 新 ID」換算後，要跟現在的輸出完全一樣。
+"""v3 驗收：舊快照套上改名換算後，要跟現在的輸出完全一樣。
 
-P2 會改 API 回應的鍵（設定集分頁、反推分組、搜尋範圍），快照一定會變；
-這支工具確認「變的只有改名」，沒有夾帶其他行為改變。確認後再用 UPDATE_SNAPSHOT=1 重產快照。
+- P2：API 回應的鍵（設定集分頁、反推分組、搜尋範圍、追蹤表的欄位）
+- P3 第二批：資料夾與系統檔名（換算規則跟移轉工具相同，見 studio/migrate.py）
+快照一定會變；這支工具確認「變的只有改名」，沒有夾帶其他行為改變。確認後再用 UPDATE_SNAPSHOT=1 重產快照。
+
+  python tools/snapshot_rename_check.py            # 跟 git 裡的快照比（預設）
 
   python tools/snapshot_rename_check.py
 """
@@ -15,7 +18,30 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tests"))
 
-from studio import ids, tables  # noqa: E402
+from studio import ids, migrate, tables  # noqa: E402
+import re  # noqa: E402
+
+_TOK = re.compile(r"[^\s|，、。；：（）()「」『』【】\[\]<>\"'`*,\\{}・;:]+")
+_SHARED = sorted(migrate.SHARED_PATHS.values(), key=lambda p: -len(p[0]))
+
+
+def _path_tok(tok):
+    for old, new in _SHARED:
+        if tok == old or tok.startswith(old + "/"):
+            return new + tok[len(old):]
+    return migrate.map_ref(tok)
+
+
+def convert_paths(v):
+    """P3 第二批：快照裡的 v2 路徑（鍵、字串值、檔案內容裡的路徑）換成 v3。"""
+    if isinstance(v, dict):
+        return {(_path_tok(k) if "/" in k or k in dict(migrate.PAIRS) else k): convert_paths(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [convert_paths(x) for x in v]
+    if isinstance(v, str):
+        whole = _path_tok(v)               # 整個字串就是路徑（檔名可能有空白）
+        return whole if whole != v else _TOK.sub(lambda m: _path_tok(m.group(0)), v)
+    return v
 
 SNAP = os.path.join(ROOT, "tests", "snapshots", "demo_snapshot.json")
 
@@ -54,7 +80,7 @@ def transform(old):
                 s["scopes"] = [ids.norm("search_scope", x) for x in s["scopes"]]
             for x in s.get("results") or []:
                 x["scope"] = ids.norm("search_scope", x["scope"])
-    return old
+    return convert_paths(old)
 
 
 def diff(a, b, path="", out=None, limit=40):

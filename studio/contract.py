@@ -94,7 +94,7 @@ def last_chapter(book_dir):
 
 
 def characters(book_dir):
-    """[(名稱, 定位, 首次登場, 最後登場)]；資料來自 設定/角色/*.md 與 追蹤/角色狀態/。"""
+    """[(名稱, 定位, 首次登場, 最後登場)]；資料來自 bible/characters/*.md 與 tracking/characters/。"""
     out = []
     for e in project.list_entries(book_dir, layout.CHARACTERS):
         name = e.get("name") or ""
@@ -173,20 +173,20 @@ def build(book_dir, keep=""):
         names = ["%s（%s，首次登場 %s%s）" % (n, pos or "未標", first or "未標",
                                           "，最後登場 " + last if last else "")
                  for n, pos, first, last in chars[:20]]
-        more = "……另有 %d 位，見 `設定/角色/`" % (len(chars) - 20) if len(chars) > 20 else ""
+        more = "……另有 %d 位，見 `bible/characters/`" % (len(chars) - 20) if len(chars) > 20 else ""
         L.append("- 角色（%d 位）：%s%s" % (len(chars), "、".join(names), ("（%s）" % more) if more else ""))
     if known:
         L.append("- 讀者**已經知道**的事（不能再當成新資訊，也不能反過來推翻）：")
         for code, fact, at in known[:12]:
             L.append("  - %s（%s 揭示）：%s" % (code, at, fact))
         if len(known) > 12:
-            L.append("  - ……另有 %d 條，見 `追蹤/時間線.md`" % (len(known) - 12))
+            L.append("  - ……另有 %d 條，見 `tracking/timeline.md`" % (len(known) - 12))
     if hidden:
         L.append("- **還沒揭曉**的事（本章不能提前說破）：")
         for code, fact, _at in hidden[:12]:
             L.append("  - %s：%s" % (code, fact))
         if len(hidden) > 12:
-            L.append("  - ……另有 %d 條，見 `追蹤/時間線.md`" % (len(hidden) - 12))
+            L.append("  - ……另有 %d 條，見 `tracking/timeline.md`" % (len(hidden) - 12))
     if words:
         names = [r.get("term") or r.get("名稱") or r.get("詞") or "" for r in words][:20]   # 名稱、詞：作者自己取的表頭
         L.append("- 名詞表已登記 %d 條%s" % (len(words), ("（例：%s）" % "、".join(n for n in names if n)) if any(names) else ""))
@@ -196,14 +196,14 @@ def build(book_dir, keep=""):
     if banned:
         L += ["**本書禁忌（違反就是不合格）**", "", _clip(banned, 800), ""]
     if not (style_base or banned):
-        L += ["- 見 `設定/文風.md`（沒有填就沿用共用文風）。", ""]
+        L += ["- 見 `bible/style.md`（沒有填就沿用共用文風）。", ""]
     L += ["## 3. 必須承接的懸念", ""]
     if open_rows:
         for code, fact, plant, due, status, weight in open_rows[:20]:
             L.append("- %s %s（埋設 %s，預計回收 %s，狀態 %s，重要度 %s）"
                      % (code, fact, plant or "未標", due or "未標", status or "未標", weight or "未標"))
         if len(open_rows) > 20:
-            L.append("- ……另有 %d 條還沒回收，見 `追蹤/伏筆.md`" % (len(open_rows) - 20))
+            L.append("- ……另有 %d 條還沒回收，見 `tracking/foreshadowing.md`" % (len(open_rows) - 20))
     else:
         L.append("- 目前沒有未回收的伏筆。")
     L += ["", "## 4. 卷末承諾", ""]
@@ -216,12 +216,12 @@ def build(book_dir, keep=""):
         if volume.has_volumes(book_dir):
             last = max([v["hi"] for v in volume.list_volumes(book_dir) if v["hi"]] or [0])
             L.append("- 第 %d 章不在任何卷綱的章節範圍內（現有卷綱只到第 %d 章）；"
-                     "先補對應的 `大綱/卷綱_第N卷.md`，續寫才對得上整卷走向（見 `docs/卷先行.md`）。"
+                     "先補對應的 `outline/卷綱_第N卷.md`，續寫才對得上整卷走向（見 `docs/卷先行.md`）。"
                      % (no + 1, last))
         else:
-            L.append("- 還沒有卷綱；先寫 `大綱/卷綱_第N卷.md`，續寫才對得上整卷走向。")
+            L.append("- 還沒有卷綱；先寫 `outline/卷綱_第N卷.md`，續寫才對得上整卷走向。")
     L += ["", "## 5. 禁區", ""]
-    L.append("- 作者的硬性偏好（`設定/作者偏好.md`）與本書規則（`CLAUDE.md`）優先於任何寫作技法；違反就重寫。")
+    L.append("- 作者的硬性偏好（`bible/author-prefs.md`）與本書規則（`CLAUDE.md`）優先於任何寫作技法；違反就重寫。")
     if prefs:
         L += ["", _clip(_strip_h1(prefs), 500)]
     L += ["", KEEP_MARK, "", keep.strip() if keep.strip() else "（沒有；作者自己加的規則寫在這裡）", ""]

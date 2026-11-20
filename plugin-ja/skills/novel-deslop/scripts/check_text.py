@@ -12,14 +12,14 @@
   6. 文字数の統計（ルビ記法や空白・改行を除く）
 
 使い方：
-  python3 check_text.py 正文/第001章_題名.md
-  python3 check_text.py 正文/
-  python3 check_text.py 正文/第001章_題名.md --fix-punct
-  python3 check_text.py 正文/第001章_題名.md --json
-  python3 check_text.py 正文/第001章_題名.md --count
+  python3 check_text.py manuscript/第001章_題名.md
+  python3 check_text.py manuscript/
+  python3 check_text.py manuscript/第001章_題名.md --fix-punct
+  python3 check_text.py manuscript/第001章_題名.md --json
+  python3 check_text.py manuscript/第001章_題名.md --count
 
 ホワイトリスト：
-  書籍フォルダ（正文/ の一つ上）の `.去AI味白名單` に、原文の断片を一行ずつ書く。`#` で始まる行は注釈。
+  書籍フォルダ（manuscript/ の一つ上）の `.去AI味白名單` に、原文の断片を一行ずつ書く。`#` で始まる行は注釈。
   断片を含む行は、語彙と AI 臭のチェックを飛ばす（約物は引き続きチェックする）。
 
 標準ライブラリのみ、Python 3.8 以上。
@@ -159,7 +159,7 @@ def load_banned(book_root):
     if not book_root:
         return items
     for path, src in ((os.path.join(book_root, "設定", "作者偏好.md"), "この本の作者偏好"),
-                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_共用", "作者偏好.md"), "共通の作者偏好")):
+                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_shared", "作者偏好.md"), "共通の作者偏好")):
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as f:
                 items += parse_banned(f.read(), src)
@@ -167,7 +167,7 @@ def load_banned(book_root):
 
 
 def load_aliases(book_root):
-    """設定/角色/*.md の名前と別名。{名前: [名前, 別名…]} を返す。"""
+    """bible/characters/*.md の名前と別名。{名前: [名前, 別名…]} を返す。"""
     out = {}
     d = os.path.join(book_root or "", "設定", "角色")
     if not book_root or not os.path.isdir(d):
@@ -559,7 +559,7 @@ def main():
     ap.add_argument("--fix-punct", action="store_true", help="約物を自動修正（ファイルを直接書き換える）")
     ap.add_argument("--json", action="store_true", help="JSON で出力")
     ap.add_argument("--count", action="store_true", help="文字数だけを出力")
-    ap.add_argument("--book-root", help="書籍フォルダ（既定は 正文/ の一つ上を探す）")
+    ap.add_argument("--book-root", help="書籍フォルダ（既定は manuscript/ の一つ上を探す）")
     args = ap.parse_args()
 
     files = collect(args.paths)

@@ -17,7 +17,7 @@
      三語本來就同形的字串（路徑、檔名、語言名稱）填 "=="，執行期直接顯示原文，不算漏翻。
   6. 提示詞包：鍵與 {變數} 是否一致、英文包有沒有中文句子、長度比例離群（可能漏翻或整段改寫）。
   7. 翻譯新鮮度：tools/i18n.lock.json 記下每個檔案上次同步時的雜湊；繁中改了但 en／ja 沒動 → WARN「待更新翻譯」。
-  8. 示範書範本：demo/ 三語示範書的 `_範本/` 檔案集是否一致（新手照範本做，缺檔就是坑）。
+  8. 示範書範本：demo/ 三語示範書的 `_templates/` 檔案集是否一致（新手照範本做，缺檔就是坑）。
   9. 術語表 i18n/glossary.tsv：語言檔與 README 有沒有用到「禁用譯法」，以及介面譯法是否與表一致。
 
 為什麼要這支：check_i18n.py 驗的是「已存在的鍵彼此一致」，管不到「原始碼新增的字串根本沒進語言檔」，
@@ -396,7 +396,7 @@ def check_prompts():
                     % (n, k, a_s, n, b_s))
     # 英文包有沒有殘留中文句子，交給 check_i18n 判斷：它會先把路徑、第NNN章、JSON 鍵名、
     # 「」欄位名、表格列、<<<>>> 標記剝掉，只看真正的行文。這裡不重複驗，
-    # 免得資料格式（設定/故事核心.md、狀態：草稿、| 編號 | 內容 |）被當成漏翻。
+    # 免得資料格式（bible/story-core.md、狀態：草稿、| 編號 | 內容 |）被當成漏翻。
 
 
 # ---------------------------------------------------------------------------
@@ -509,18 +509,18 @@ def check_demo():
     if not books:
         add("WARN", "demo", "找不到 demo/ 的三語示範書（資料夾名 en_／ja_ 開頭），跳過範本檔案集比較")
         return
-    # 一本新書的 _範本/ ＝ 17 個範本＋專案規範.md（novel-setup 會把 references/project-layout.md
+    # 一本新書的 _templates/ ＝ 17 個範本＋專案規範.md（novel-setup 會把 references/project-layout.md
     # 複製成「專案規範.md」）。示範書就是要示範這件事，所以三本都該有這 18 個檔。
     want = set(templates()) | {"專案規範.md"}
     if not want - {"專案規範.md"}:
         add("WARN", "demo", "找不到 plugin/skills/novel-setup/templates/，跳過示範書範本比較")
         return
     for k in ("zh", "en", "ja"):
-        have = {p[len("_範本/"):] for p in walk(books[k]) if p.startswith("_範本/")}
+        have = {p[len("_templates/"):] for p in walk(books[k]) if p.startswith("_templates/")}
         for p in sorted(want - have):
-            add("WARN", "demo", "%s 示範書的 _範本/ 少了 %s（新手照範本做會缺檔）" % (k, p))
+            add("WARN", "demo", "%s 示範書的 _templates/ 少了 %s（新手照範本做會缺檔）" % (k, p))
         for p in sorted(have - want):
-            add("WARN", "demo", "%s 示範書的 _範本/ 多了 %s（不是 novel-setup 會建的檔，確認是不是舊版留下來的）" % (k, p))
+            add("WARN", "demo", "%s 示範書的 _templates/ 多了 %s（不是 novel-setup 會建的檔，確認是不是舊版留下來的）" % (k, p))
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ description: Consistency review for a novel: checks a chapter's plot logic, char
 
 Your job is to find the errors a reader would notice: contradictions, broken characters, lost state, setting conflicts, forgotten foreshadowing, early spoilers. You are the reviewer, not the writer: find the problem, give the grounds, give the fix.
 
-Folder names, file names and frontmatter keys stay in Chinese as in the project (設定/, 追蹤/, 正文/ …); write everything else in English.
+Folder names, file names and frontmatter keys stay in Chinese as in the project (bible/, tracking/, manuscript/ …); write everything else in English.
 
 ## Review with fresh eyes
 
@@ -29,10 +29,10 @@ For a whole-book check with many chapters, do not read all the text: work from t
 
 ## Steps
 
-1. Read the project's `CLAUDE.md`, `設定/文風.md`, `設定/故事核心.md` and the library's `_共用/作者偏好.md` (one level above the book folder, if it exists); check the "recurring faults" there especially.
+1. Read the project's `CLAUDE.md`, `bible/style.md`, `bible/story-core.md` and the library's `_shared/author-prefs.md` (one level above the book folder, if it exists); check the "recurring faults" there especially.
 2. Read [references/checklist.md](references/checklist.md).
 3. Read the chapter text under review and its cards.
-4. Read related material: settings and state of the characters on stage; if `追蹤/關係.md` exists, read it with its history (rows with an end chapter filled are old relationships); the foreshadowing table, timeline, glossary, the end of the previous chapter, and the next chapter's card if it exists.
+4. Read related material: settings and state of the characters on stage; if `tracking/relations.md` exists, read it with its history (rows with an end chapter filled are old relationships); the foreshadowing table, timeline, glossary, the end of the previous chapter, and the next chapter's card if it exists.
 5. Check item by item. For each problem record: location, problem, grounds (which setting or which passage in which chapter), severity, suggested fix.
 6. Decide the order of fixes and which skill owns them with [references/fix-routing.md](references/fix-routing.md).
 7. Output in the report format in fix-routing.md.
@@ -40,7 +40,7 @@ For a whole-book check with many chapters, do not read all the text: work from t
 ## Principles
 
 1. **Have grounds.** If you say "contradiction", point to what it contradicts. If you cannot find grounds, downgrade it to a note or leave it out.
-2. **Style is the author's choice.** Whatever `設定/文風.md` allows is not a problem, even if general rules advise against it. Genuine readability and causality problems are not skipped because the author likes the passage.
+2. **Style is the author's choice.** Whatever `bible/style.md` allows is not a problem, even if general rules advise against it. Genuine readability and causality problems are not skipped because the author likes the passage.
 3. **Do not pad.** If there is no problem, say it passes.
 4. **A plan is not a fact.** What the card says but the text does not is not an error in the text (though you may remind the author the card and text differ); when comparing facts, the text wins.
 5. **Tracking follows the text.** If tracking and text disagree, you may correct tracking directly and list that in the report.

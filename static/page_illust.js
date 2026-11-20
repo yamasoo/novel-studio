@@ -119,7 +119,7 @@
     if (copyBtn) copyBtn.onclick = () => { navigator.clipboard.writeText(img.prompt).then(() => FE.toast("已複製")); };
     if (reuseBtn) reuseBtn.onclick = () => { close(); reuse(img); };
     delBtn.onclick = async () => {
-      if (!(await FE.confirm("刪除這張圖？（會移到 .studio/備份/插圖）"))) return;
+      if (!(await FE.confirm("刪除這張圖？（會移到 .studio/backup/illust）"))) return;
       try {
         await FE.api(B("/illust/delete"), { method: "POST", body: { target, file: img.file } });
         close();
@@ -128,7 +128,7 @@
     };
   }
 
-  // 插圖區塊：target = cover | chapter:N | entity:設定/角色/X.md
+  // 插圖區塊：target = cover | chapter:N | entity:bible/characters/X.md
   async function renderIllust(el, target, opts = {}) {
     const cfgR = await illCfg();
     let info;

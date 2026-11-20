@@ -203,7 +203,7 @@ class GlossaryOrgFlowTest(unittest.TestCase):
         own = next(v for p, v in zd.items() if p.endswith("青雲劍.md"))
         self.assertIn("沈家祖傳名劍", own)
         self.assertIn("認主", own)
-        gl = next(v for p, v in zd.items() if p.endswith("名詞表.md"))
+        gl = next(v for p, v in zd.items() if p == layout.GLOSSARY)
         self.assertNotIn("廢詞", gl)
         self.assertIn("| 老王 | 人物 |", gl)
         self.assertIn("詳見", gl)

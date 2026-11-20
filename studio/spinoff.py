@@ -7,7 +7,7 @@
 硬約束（報告要求）：不得沿用來源的角色名、地名、專有名詞、事件順序。
 產出後會用 similarity.names_in 檢查，撞到就要求重寫一次。
 
-產出寫到 候選/新書草稿/，不直接改 設定/：先給人看，滿意再套用。
+產出寫到 candidates/spinoff/，不直接改 bible/：先給人看，滿意再套用。
 """
 import json
 import os
@@ -172,7 +172,7 @@ def show(data):
     if not data:
         return "（還沒有骨架草稿）"
     L = ["# 新書骨架草稿", "",
-         "> 由 P6「A 書→B 書」產生，來源骨架：%s。滿意再手動套用到 設定/ 與 大綱/。" % data.get("骨架來源", "—"), "",
+         "> 由 P6「A 書→B 書」產生，來源骨架：%s。滿意再手動套用到 bible/ 與 outline/。" % data.get("骨架來源", "—"), "",
          "## 書名建議", data.get("書名建議") or "—", "",
          "## 一句話前提", data.get("一句話前提") or "—", "",
          "## 賣點"]
@@ -271,7 +271,7 @@ def _story_core_md(data, title, lang, dna):
                  % (name, ("（%s）" % role) if role else "", motive, weak))
     if not prots:
         L.append("- （待補）")
-    L += ["", "## 世界觀", "- 見 `設定/世界觀/世界觀.md`（由骨架帶入）。", "",
+    L += ["", "## 世界觀", "- 見 `bible/world/世界觀.md`（由骨架帶入）。", "",
           "## 故事引擎", "（待補：骨架沒有這一段，請在設定頁補。）", "",
           "## 核心衝突", "- 主要對手：（待補）", "- 衝突根源：（待補）", "",
           "## 讀者契約", "- （待補）", "",
@@ -353,7 +353,7 @@ def _volume_md(row):
 def _claude_md(title, lang, fp, dna, source):
     text = spawn.claude_md(title, lang, fp, dna, source).rstrip()
     note = ("> 由「用參考書骨架直接開書」建立（未經開書訪談）。"
-            "目標讀者、平台、篇幅等可在 `設定/故事核心.md` 補；卷綱與章綱可在「大綱」頁調整。")
+            "目標讀者、平台、篇幅等可在 `bible/story-core.md` 補；卷綱與章綱可在「大綱」頁調整。")
     return text + "\n\n" + note + "\n"
 
 

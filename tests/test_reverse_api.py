@@ -15,6 +15,7 @@ except (ImportError, RuntimeError):   # starlette 的 TestClient 需要 httpx（
     raise unittest.SkipTest("TestClient 需要 httpx／httpx2，這個環境沒有")
 
 import app as app_mod
+from studio import layout  # noqa: E402
 
 OLD_OUTLINE = """---
 類型: 全書大綱
@@ -56,14 +57,14 @@ class ReverseApiTest(unittest.TestCase):
         self.lib = self.tmp.name
         self.book_id = "測試書"
         self.book = os.path.join(self.lib, self.book_id)
-        _write(self.book, "大綱/全書大綱.md", OLD_OUTLINE)
-        _write(self.book, "大綱/卷綱_第1卷.md", OLD_VOL)
-        _write(self.book, "大綱/章綱/第001章.md", OLD_CARD)
-        _write(self.book, "正文/第001章_大夜班.md", "第一章正文。\n")
-        _write(self.book, ".studio/反推/草稿/大綱/全書大綱.md", NEW_OUTLINE)
-        _write(self.book, ".studio/反推/草稿/大綱/卷綱_第一卷.md", NEW_VOL)
-        _write(self.book, ".studio/反推/草稿/大綱/章綱/第001章_大夜班.md", NEW_CARD)
-        _write(self.book, "大綱/章綱/反推/第002章_兩邊.md", NEW_CARD.replace("大夜班", "兩邊"))
+        _write(self.book, "outline/book.md", OLD_OUTLINE)
+        _write(self.book, "outline/卷綱_第1卷.md", OLD_VOL)
+        _write(self.book, "outline/chapters/第001章.md", OLD_CARD)
+        _write(self.book, "manuscript/第001章_大夜班.md", "第一章正文。\n")
+        _write(self.book, ".studio/reverse/drafts/outline/book.md", NEW_OUTLINE)
+        _write(self.book, ".studio/reverse/drafts/outline/卷綱_第一卷.md", NEW_VOL)
+        _write(self.book, ".studio/reverse/drafts/outline/chapters/第001章_大夜班.md", NEW_CARD)
+        _write(self.book, "outline/chapters/_reverse/第002章_兩邊.md", NEW_CARD.replace("大夜班", "兩邊"))
 
         self.patch = mock.patch.dict(app_mod.CONFIG, {"library": self.lib})
         self.patch.start()
@@ -83,22 +84,22 @@ class ReverseApiTest(unittest.TestCase):
         self.assertEqual(200, r.status_code, r.text)
         drafts = r.json()["state"]["drafts"]
         plan = {x["rel"]: x for x in drafts["outline"]}
-        outline = plan["大綱/全書大綱.md"]
+        outline = plan["outline/book.md"]
         self.assertEqual(len(OLD_OUTLINE), outline["chars_old"])
         self.assertEqual(len(NEW_OUTLINE), outline["chars_new"])
         self.assertTrue(outline["exists"])
         self.assertEqual("keep", outline["default_mode"])
         self.assertLess(outline["similarity"], 1.0)
-        self.assertEqual("大綱/卷綱_第1卷.md", plan["大綱/卷綱_第一卷.md"]["target"])
+        self.assertEqual("outline/卷綱_第1卷.md", plan["outline/卷綱_第一卷.md"]["target"])
         chapter = drafts["cards"][0]
         self.assertEqual("copy", chapter["default_mode"])
-        self.assertEqual("大綱/章綱/反推/第001章_大夜班.md", chapter["target"])
+        self.assertEqual("outline/chapters/_reverse/第001章_大夜班.md", chapter["target"])
 
     def test_reverse_diff_returns_blocks(self):
-        r = self.client.get(self.url("/reverse/diff"), params={"group": "outline", "rel": "大綱/全書大綱.md"})
+        r = self.client.get(self.url("/reverse/diff"), params={"group": "outline", "rel": "outline/book.md"})
         self.assertEqual(200, r.status_code, r.text)
         d = r.json()
-        self.assertEqual("大綱/全書大綱.md", d["old_rel"])
+        self.assertEqual("outline/book.md", d["old_rel"])
         self.assertTrue(any(b["type"] == "change" for b in d["blocks"]))
 
     def test_reverse_cards_lists_adopted_cards(self):
@@ -106,7 +107,7 @@ class ReverseApiTest(unittest.TestCase):
         self.assertEqual(200, r.status_code, r.text)
         cards = r.json()["cards"]
         self.assertEqual(1, len(cards))
-        self.assertEqual("大綱/章綱/反推/第002章_兩邊.md", cards[0]["rel"])
+        self.assertEqual("outline/chapters/_reverse/第002章_兩邊.md", cards[0]["rel"])
         self.assertEqual(2, cards[0]["no"])
         self.assertEqual("兩邊", cards[0]["name"])
 
@@ -119,23 +120,23 @@ class ReverseApiTest(unittest.TestCase):
 
     def test_adopt_route_honours_mode_and_files(self):
         r = self.client.post(self.url("/reverse/adopt"), headers=self.headers,
-                             json={"group": "大綱", "mode": "keep", "files": ["大綱/全書大綱.md", "大綱/卷綱_第一卷.md"]})
+                             json={"group": "大綱", "mode": "keep", "files": ["outline/book.md", "outline/卷綱_第一卷.md"]})
         self.assertEqual(200, r.status_code, r.text)
         self.assertEqual(2, r.json()["kept"])
         self.assertEqual(0, r.json()["adopted"])
-        self.assertEqual(OLD_OUTLINE, open(os.path.join(self.book, "大綱", "全書大綱.md"), encoding="utf-8").read())
+        self.assertEqual(OLD_OUTLINE, open(os.path.join(self.book, "outline", "book.md"), encoding="utf-8").read())
 
         r = self.client.post(self.url("/reverse/adopt"), headers=self.headers,
-                             json={"group": "大綱", "mode": "replace", "files": ["大綱/全書大綱.md"]})
+                             json={"group": "大綱", "mode": "replace", "files": ["outline/book.md"]})
         self.assertEqual(200, r.status_code, r.text)
         body = r.json()
         self.assertEqual(1, body["adopted"])
         self.assertEqual(1, body["backed_up"])
-        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "備份", body["backups"][0])))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, *layout.parts(layout.STUDIO_BACKUP), body["backups"][0])))
 
     def test_adopt_route_rejects_mode_not_allowed_for_group(self):
         r = self.client.post(self.url("/reverse/adopt"), headers=self.headers,
-                             json={"group": "大綱", "mode": "copy", "files": ["大綱/全書大綱.md"]})
+                             json={"group": "大綱", "mode": "copy", "files": ["outline/book.md"]})
         self.assertEqual(400, r.status_code)
         self.assertIn("不支援", r.json()["error"])
 

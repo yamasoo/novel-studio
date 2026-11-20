@@ -162,7 +162,7 @@ def translate(prov, lang, keys, counts):
     system = ("你是 Novel Studio 的介面翻譯。把繁體中文介面字串翻成 %s。\n"
               "規則：\n"
               "1. {0}、{1} 這類變數原樣保留，順序可以依語序調整，但不能增刪。\n"
-              "2. 資料夾／檔名（例如 設定/故事核心.md、第NNN章）原樣保留，不要翻譯。\n"
+              "2. 資料夾／檔名（例如 bible/story-core.md、第NNN章）原樣保留，不要翻譯。\n"
               "3. 術語一律照下面的術語表，不要自己換說法。\n"
               "4. 只輸出 JSON 物件：key 是中文原文，value 是 %s 譯文；不要加說明或程式碼圍欄。\n\n"
               "術語表（中文\\t英文\\t日文）：\n%s" % (LANG_NAME[lang], LANG_NAME[lang], gl))

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-共用庫：放在書庫資料夾的 _共用/ 底下，所有書都能用，不在工作台程式資料夾裡（不會進 git）。
+共用庫：放在書庫資料夾的 _shared/ 底下，所有書都能用，不在工作台程式資料夾裡（不會進 git）。
 
-_共用/
-├── 文風/<名稱>.md        可重複使用的文風（套用時複製到書的 設定/文風.md）
-├── 結構/<名稱>.md        章節結構（套用時複製到書的 設定/章節結構/）
+_shared/
+├── 文風/<名稱>.md        可重複使用的文風（套用時複製到書的 bible/style.md）
+├── 結構/<名稱>.md        章節結構（套用時複製到書的 bible/structure/）
 └── 作者偏好.md           跨書的長期偏好、常犯的毛病、禁用詞（直接生效，不複製）
 
 文風分析、結構套用、禁用詞比對都在本機完成，不呼叫 AI。
@@ -32,7 +32,7 @@ PREFS_TEMPLATE = """---
 # 共用作者偏好
 
 > 所有書都會套用。寫作、改稿、審查時 AI 會讀這份檔案；「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，不用呼叫 AI。
-> 某本書要例外，寫在那本書的 設定/作者偏好.md，以那本書為準。
+> 某本書要例外，寫在那本書的 bible/author-prefs.md，以那本書為準。
 
 ## 長期偏好
 <!-- 一條一行。例：對白後面少用「他說」「她說」，看得出是誰說的就省略 -->
@@ -200,7 +200,7 @@ def create_style(library, name, source=None, sample_text=None, exclude=(), lang=
     if source and source[0] == "book":
         src = layout.path(source[1], layout.STYLE)
         if not os.path.isfile(src):
-            raise SharedError("這本書還沒有 設定/文風.md")
+            raise SharedError("這本書還沒有 bible/style.md")
         text = project.read_text(src)
         lang = lang_mod.book_lang(source[1])
     else:
@@ -246,7 +246,7 @@ def save_style_from_book(library, name, book_dir, overwrite=False):
     name = _name_ok(name)
     src = layout.path(book_dir, layout.STYLE)
     if not os.path.isfile(src):
-        raise SharedError("這本書還沒有 設定/文風.md")
+        raise SharedError("這本書還沒有 bible/style.md")
     d = os.path.join(shared_dir(library, create=True), layout.SHARED_STYLES)
     dst = os.path.join(d, name + ".md")
     if os.path.exists(dst) and not overwrite:
@@ -440,7 +440,7 @@ def style_deviation_findings(book_dir, text):
         if r["偏離"] == "明顯" and r["指標"] != "每千字AI味信號":
             out.append({"等級": "提醒", "類型": "文風偏差", "行": 0,
                         "片段": "%s：本章 %s，文風設定 %s" % (r["指標"], r["實際"], r["目標"]),
-                        "建議": "和 設定/文風.md 的文字指標差很多；如果是刻意的（例如動作戲句子變短）可以忽略"})
+                        "建議": "和 bible/style.md 的文字指標差很多；如果是刻意的（例如動作戲句子變短）可以忽略"})
     return out
 
 
@@ -535,7 +535,7 @@ STRUCTURE_TEMPLATE = """---
 """
 
 
-# 書裡的結構：設定/章節結構/<名稱>.md，frontmatter「預設: 是」的是全書預設；章綱 frontmatter「結構: 名稱」可單章指定
+# 書裡的結構：bible/structure/<名稱>.md，frontmatter「預設: 是」的是全書預設；章綱 frontmatter「結構: 名稱」可單章指定
 BOOK_STRUCT_DIR = os.path.join(*layout.parts(layout.BIBLE_STRUCTURE))
 
 

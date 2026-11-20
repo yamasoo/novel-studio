@@ -8,11 +8,11 @@
 
 處理範圍
   正文／候選      依檔案第一行標題（去掉「# 第N章」）重新產生 第NNN章_<標題>.md
-  設定/角色、勢力、世界觀、草稿，追蹤/角色狀態
-                  依 frontmatter 的「名稱」重新產生 <名稱>.md（追蹤/角色狀態 是用角色名稱原樣找檔，所以也要一起修）
+  bible/characters、勢力、世界觀、草稿，tracking/characters
+                  依 frontmatter 的「名稱」重新產生 <名稱>.md（tracking/characters 是用角色名稱原樣找檔，所以也要一起修）
 新名已經存在、或兩個檔案會變成同一個新名時，跳過並列出。
 
-改名後：設定/名詞表.md 的「詳見」欄和 設定/_索引.md 引用的是舊路徑，請到設定集按「重建索引」。
+改名後：bible/glossary.md 的「詳見」欄和 bible/_index.md 引用的是舊路徑，請到設定集按「重建索引」。
 追蹤資料（伏筆、時間線…）引用的是章號，不受影響。"""
 import argparse
 import os
@@ -23,11 +23,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from studio import importer, project  # noqa: E402
+from studio import layout  # noqa: E402
 
 CH_FILE = re.compile(r"^第(\d+)章_.*\.md$")
 # 標題行開頭的章號：「# 第1章 」「# 第一章　」「# Chapter 3: 」「# CHAPTER III. 」「# 第3話 」
 HEAD_NO = re.compile(r"^#+\s*(?:第\s*[0-9一二三四五六七八九十百千零〇]+\s*[章話话回]|chapter\s+[0-9ivxlc]+)\s*[:：.、\-—–]*\s*", re.I)
-NAME_DIRS = ["設定/角色", "設定/勢力", "設定/世界觀", "設定/草稿", "追蹤/角色狀態"]
+NAME_DIRS = ["bible/characters", "bible/factions", "bible/world", "bible/drafts", "tracking/characters"]
 
 
 def first_heading(path):
@@ -80,7 +81,7 @@ def plan_names(book, sub):
 
 def build_plan(book):
     items = []
-    for sub in ("正文", "候選"):
+    for sub in (layout.MANUSCRIPT, layout.CANDIDATES):
         items += plan_chapters(book, sub)
     for sub in NAME_DIRS:
         items += plan_names(book, sub)
@@ -143,7 +144,7 @@ def main():
             print("改名失敗：%s/%s → %s（%s）" % (sub, f, new, e))
     print("已改名 %d 項%s。" % (done, "，失敗 %d 項" % failed if failed else ""))
     if done:
-        print("提醒：請到設定集按「重建索引」，更新 設定/名詞表.md 的「詳見」欄和 設定/_索引.md 引用的路徑。")
+        print("提醒：請到設定集按「重建索引」，更新 bible/glossary.md 的「詳見」欄和 bible/_index.md 引用的路徑。")
     return 1 if failed else 0
 
 

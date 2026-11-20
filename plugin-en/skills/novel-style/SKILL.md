@@ -1,6 +1,6 @@
 ---
 name: novel-style
-description: Design, analyse and revise the style file (設定/文風.md, or a shared style in the library's _共用/文風/) of an English-language novel. Use when the author says "design a style for a detective novel", "I want the feel of such-and-such work", "analyse my style", "change the style to …", "the style is too thin, flesh it out", or "write a trial passage in this style". Also used to turn a pasted sample into style rules and to compute text metrics.
+description: Design, analyse and revise the style file (bible/style.md, or a shared style in the library's _shared/styles/) of an English-language novel. Use when the author says "design a style for a detective novel", "I want the feel of such-and-such work", "analyse my style", "change the style to …", "the style is too thin, flesh it out", or "write a trial passage in this style". Also used to turn a pasted sample into style rules and to compute text metrics.
 ---
 
 # novel-style: style design and analysis
@@ -13,10 +13,10 @@ The file's section headings (the ones in the template) and the two headings "## 
 
 1. Read [references/style-dimensions.md](references/style-dimensions.md) in full: the thirteen dimensions, requirements for example passages, length advice.
 2. When the author mentions a genre, read the matching part of [references/genre-cues.md](references/genre-cues.md).
-3. The template is `../novel-setup/templates/文風.md` (in a project it is `_範本/文風.md`). Write a new file in the template's section order; keep an old file's sections as the author wrote them and fill in what is missing.
+3. The template is `../novel-setup/templates/文風.md` (in a project it is `_templates/文風.md`). Write a new file in the template's section order; keep an old file's sections as the author wrote them and fill in what is missing.
 4. Decide where the file lives:
-   - Inside a book → `設定/文風.md`
-   - The author says "shared", "put it in the library", "other books will use it too" → the library's `_共用/文風/<name>.md` (one level above the book folder), with `名稱: <name>` added to the frontmatter and the heading `# 文風：<name>`
+   - Inside a book → `bible/style.md`
+   - The author says "shared", "put it in the library", "other books will use it too" → the library's `_shared/styles/<name>.md` (one level above the book folder), with `名稱: <name>` added to the frontmatter and the heading `# 文風：<name>`
    - Unsure → ask one question
 
 ## Principles for writing rules

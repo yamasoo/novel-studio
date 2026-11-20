@@ -8,6 +8,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from studio import project, reverse
+from studio import layout  # noqa: E402
 
 OLD_OUTLINE = """---
 類型: 全書大綱
@@ -148,155 +149,155 @@ def _read(root, rel):
 
 
 def _draft(root, rel, text):
-    _write(os.path.join(root, ".studio", "反推", "草稿"), rel, text)
+    _write(os.path.join(root, ".studio", "reverse", "drafts"), rel, text)
 
 
 class ReverseAdoptTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.book = os.path.join(self.tmp.name, "test-book")
-        _write(self.book, "大綱/全書大綱.md", OLD_OUTLINE)
-        _write(self.book, "大綱/卷綱_第1卷.md", OLD_VOL)
-        _write(self.book, "大綱/章綱/第001章.md", OLD_CARD)
-        _write(self.book, "追蹤/伏筆.md", OLD_FS)
-        _write(self.book, "設定/角色/周遠.md", OLD_CHAR)
-        _draft(self.book, "大綱/全書大綱.md", NEW_OUTLINE)
-        _draft(self.book, "大綱/卷綱_第一卷.md", NEW_VOL)   # 舊版中文檔名也要落到「第1卷」
-        _draft(self.book, "大綱/章綱/第001章_大夜班.md", NEW_CARD)
-        _draft(self.book, "追蹤/伏筆.md", NEW_FS)
-        _draft(self.book, "設定/角色/周遠.md", NEW_CHAR)
-        _draft(self.book, "設定/故事核心.md", NEW_CORE)
+        _write(self.book, "outline/book.md", OLD_OUTLINE)
+        _write(self.book, "outline/卷綱_第1卷.md", OLD_VOL)
+        _write(self.book, "outline/chapters/第001章.md", OLD_CARD)
+        _write(self.book, "tracking/foreshadowing.md", OLD_FS)
+        _write(self.book, "bible/characters/周遠.md", OLD_CHAR)
+        _draft(self.book, "outline/book.md", NEW_OUTLINE)
+        _draft(self.book, "outline/卷綱_第一卷.md", NEW_VOL)   # 舊版中文檔名也要落到「第1卷」
+        _draft(self.book, "outline/chapters/第001章_大夜班.md", NEW_CARD)
+        _draft(self.book, "tracking/foreshadowing.md", NEW_FS)
+        _draft(self.book, "bible/characters/周遠.md", NEW_CHAR)
+        _draft(self.book, "bible/story-core.md", NEW_CORE)
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def test_chapter_cards_never_overwrite_formal(self):
-        before = _read(self.book, "大綱/章綱/第001章.md")
-        mtime = os.path.getmtime(os.path.join(self.book, "大綱", "章綱", "第001章.md"))
+        before = _read(self.book, "outline/chapters/第001章.md")
+        mtime = os.path.getmtime(os.path.join(self.book, "outline", "chapters", "第001章.md"))
         r = reverse.adopt(self.book, "章綱")
-        self.assertEqual(before, _read(self.book, "大綱/章綱/第001章.md"))
-        self.assertEqual(mtime, os.path.getmtime(os.path.join(self.book, "大綱", "章綱", "第001章.md")))
+        self.assertEqual(before, _read(self.book, "outline/chapters/第001章.md"))
+        self.assertEqual(mtime, os.path.getmtime(os.path.join(self.book, "outline", "chapters", "第001章.md")))
         self.assertEqual(r["adopted"], 1)
-        self.assertTrue(os.path.isfile(os.path.join(self.book, "大綱", "章綱", "反推", "第001章_大夜班.md")))
-        self.assertFalse(os.path.isfile(os.path.join(self.book, ".studio", "反推", "草稿", "大綱", "章綱", "第001章_大夜班.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, "outline", "chapters", "_reverse", "第001章_大夜班.md")))
+        self.assertFalse(os.path.isfile(os.path.join(self.book, ".studio", "reverse", "drafts", "outline", "chapters", "第001章_大夜班.md")))
 
     def test_outline_default_keeps_everything(self):
-        old = _read(self.book, "大綱/全書大綱.md")
-        vol = _read(self.book, "大綱/卷綱_第1卷.md")
-        mt = os.path.getmtime(os.path.join(self.book, "大綱", "全書大綱.md"))
+        old = _read(self.book, "outline/book.md")
+        vol = _read(self.book, "outline/卷綱_第1卷.md")
+        mt = os.path.getmtime(os.path.join(self.book, "outline", "book.md"))
         r = reverse.adopt(self.book, "大綱")
         self.assertEqual(r["kept"], 2)
         self.assertEqual(r["adopted"], 0)
-        self.assertEqual(old, _read(self.book, "大綱/全書大綱.md"))
-        self.assertEqual(vol, _read(self.book, "大綱/卷綱_第1卷.md"))
-        self.assertEqual(mt, os.path.getmtime(os.path.join(self.book, "大綱", "全書大綱.md")))
+        self.assertEqual(old, _read(self.book, "outline/book.md"))
+        self.assertEqual(vol, _read(self.book, "outline/卷綱_第1卷.md"))
+        self.assertEqual(mt, os.path.getmtime(os.path.join(self.book, "outline", "book.md")))
         # 保留現有時草稿留著，之後還能改選
-        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "反推", "草稿", "大綱", "全書大綱.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "reverse", "drafts", "outline", "book.md")))
 
     def test_replace_backs_up_before_overwriting(self):
-        r = reverse.adopt(self.book, "大綱", mode="replace", files=["大綱/全書大綱.md"])
+        r = reverse.adopt(self.book, "大綱", mode="replace", files=["outline/book.md"])
         self.assertEqual(r["adopted"], 1)
         self.assertEqual(r["backed_up"], 1)
         self.assertEqual(len(r["backups"]), 1)
-        bak = os.path.join(self.book, ".studio", "備份", r["backups"][0])
+        bak = os.path.join(self.book, *layout.parts(layout.STUDIO_BACKUP), r["backups"][0])
         self.assertTrue(os.path.isfile(bak))
         self.assertEqual(OLD_OUTLINE, project.read_text(bak))
-        self.assertEqual(NEW_OUTLINE, _read(self.book, "大綱/全書大綱.md"))
+        self.assertEqual(NEW_OUTLINE, _read(self.book, "outline/book.md"))
         # 只處理指定的那一份
-        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "反推", "草稿", "大綱", "卷綱_第一卷.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "reverse", "drafts", "outline", "卷綱_第一卷.md")))
 
     def test_settings_merge_never_drops_author_text(self):
         r = reverse.adopt(self.book, "設定")
-        text = _read(self.book, "設定/角色/周遠.md")
+        text = _read(self.book, "bible/characters/周遠.md")
         self.assertIn("作者寫的設定。", text)
         self.assertIn("只有作者知道的事。", text)
         self.assertEqual(r["merged"], 1)
         self.assertGreater(r["conflicts"], 0)
         self.assertIn("從正文反推（未併入，請核對）", text)
         self.assertEqual(1, r["backed_up"])
-        self.assertEqual(NEW_CORE, _read(self.book, "設定/故事核心.md"))
+        self.assertEqual(NEW_CORE, _read(self.book, "bible/story-core.md"))
 
     def test_glossary_table_is_replaced_not_merged(self):
         """名詞表是表格、沒有 ## 段落：merge 一列都併不進去，所以當快照整份取代（先備份）。"""
-        _write(self.book, "設定/名詞表.md", OLD_TERMS)
-        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
-        r = reverse.adopt(self.book, "設定", files=["設定/名詞表.md"])
-        text = _read(self.book, "設定/名詞表.md")
+        _write(self.book, "bible/glossary.md", OLD_TERMS)
+        _draft(self.book, "bible/glossary.md", NEW_TERMS)
+        r = reverse.adopt(self.book, "設定", files=["bible/glossary.md"])
+        text = _read(self.book, "bible/glossary.md")
         self.assertIn("周遠", text)
         self.assertIn("晨星號", text)
         self.assertEqual(r["adopted"], 1)
         self.assertEqual(r["merged"], 0)
         self.assertEqual(r["backed_up"], 1)
-        self.assertEqual(OLD_TERMS, project.read_text(os.path.join(self.book, ".studio", "備份", r["backups"][0])))
+        self.assertEqual(OLD_TERMS, project.read_text(os.path.join(self.book, *layout.parts(layout.STUDIO_BACKUP), r["backups"][0])))
 
     def test_glossary_replace_even_when_merge_is_requested(self):
-        _write(self.book, "設定/名詞表.md", OLD_TERMS)
-        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
-        r = reverse.adopt(self.book, "設定", mode="merge", files=["設定/名詞表.md"])
+        _write(self.book, "bible/glossary.md", OLD_TERMS)
+        _draft(self.book, "bible/glossary.md", NEW_TERMS)
+        r = reverse.adopt(self.book, "設定", mode="merge", files=["bible/glossary.md"])
         self.assertEqual(r["targets"][0]["mode"], "replace")
-        self.assertIn("周遠", _read(self.book, "設定/名詞表.md"))
+        self.assertIn("周遠", _read(self.book, "bible/glossary.md"))
 
     def test_glossary_keeps_when_keep_is_chosen(self):
-        _write(self.book, "設定/名詞表.md", OLD_TERMS)
-        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
-        r = reverse.adopt(self.book, "設定", mode="keep", files=["設定/名詞表.md"])
+        _write(self.book, "bible/glossary.md", OLD_TERMS)
+        _draft(self.book, "bible/glossary.md", NEW_TERMS)
+        r = reverse.adopt(self.book, "設定", mode="keep", files=["bible/glossary.md"])
         self.assertEqual(r["kept"], 1)
-        self.assertEqual(OLD_TERMS, _read(self.book, "設定/名詞表.md"))
+        self.assertEqual(OLD_TERMS, _read(self.book, "bible/glossary.md"))
 
     def test_plan_defaults_glossary_to_replace_but_characters_to_merge(self):
-        _write(self.book, "設定/名詞表.md", OLD_TERMS)
-        _draft(self.book, "設定/名詞表.md", NEW_TERMS)
+        _write(self.book, "bible/glossary.md", OLD_TERMS)
+        _draft(self.book, "bible/glossary.md", NEW_TERMS)
         plan = {x["rel"]: x["default_mode"] for x in reverse.plan_group(self.book, "設定")}
-        self.assertEqual(plan["設定/名詞表.md"], "replace")
-        self.assertEqual(plan["設定/角色/周遠.md"], "merge")
+        self.assertEqual(plan["bible/glossary.md"], "replace")
+        self.assertEqual(plan["bible/characters/周遠.md"], "merge")
 
     def test_old_volume_draft_lands_on_numbered_filename(self):
-        r = reverse.adopt(self.book, "大綱", mode="replace", files=["大綱/卷綱_第一卷.md"])
+        r = reverse.adopt(self.book, "大綱", mode="replace", files=["outline/卷綱_第一卷.md"])
         self.assertEqual(r["adopted"], 1)
-        self.assertTrue(os.path.isfile(os.path.join(self.book, "大綱", "卷綱_第1卷.md")))
-        self.assertEqual(NEW_VOL, _read(self.book, "大綱/卷綱_第1卷.md"))
-        self.assertFalse(os.path.exists(os.path.join(self.book, "大綱", "卷綱_第一卷.md")))
-        self.assertEqual(r["targets"][0]["dst"], "大綱/卷綱_第1卷.md")
+        self.assertTrue(os.path.isfile(os.path.join(self.book, "outline", "卷綱_第1卷.md")))
+        self.assertEqual(NEW_VOL, _read(self.book, "outline/卷綱_第1卷.md"))
+        self.assertFalse(os.path.exists(os.path.join(self.book, "outline", "卷綱_第一卷.md")))
+        self.assertEqual(r["targets"][0]["dst"], "outline/卷綱_第1卷.md")
 
     def test_render_outline_uses_numbered_volume_file(self):
         _outline, vfiles = reverse.render_outline({}, [{"卷名": "開場", "起": 1, "訖": 10}], [])
-        self.assertEqual(["大綱/卷綱_第1卷.md"], [rel for rel, _ in vfiles])
+        self.assertEqual(["outline/卷綱_第1卷.md"], [rel for rel, _ in vfiles])
 
     def test_plan_group_similarity_and_defaults(self):
         plan = {x["rel"]: x for x in reverse.plan_group(self.book, "大綱")}
-        vol = plan["大綱/卷綱_第一卷.md"]
-        self.assertEqual(vol["target"], "大綱/卷綱_第1卷.md")
+        vol = plan["outline/卷綱_第一卷.md"]
+        self.assertEqual(vol["target"], "outline/卷綱_第1卷.md")
         self.assertEqual(vol["default_mode"], "keep")
         self.assertEqual(vol["chars_old"], len(OLD_VOL))
         self.assertEqual(vol["chars_new"], len(NEW_VOL))
         self.assertLess(vol["similarity"], 1.0)
 
         # 完全相同 → 1.0；完全不同 → 接近 0
-        _draft(self.book, "大綱/卷綱_第一卷.md", OLD_VOL)
+        _draft(self.book, "outline/卷綱_第一卷.md", OLD_VOL)
         plan = {x["rel"]: x for x in reverse.plan_group(self.book, "大綱")}
-        self.assertEqual(plan["大綱/卷綱_第一卷.md"]["similarity"], 1.0)
-        _draft(self.book, "大綱/卷綱_第一卷.md", "\n".join("第%d行：完全不同的內容" % i for i in range(20)) + "\n")
+        self.assertEqual(plan["outline/卷綱_第一卷.md"]["similarity"], 1.0)
+        _draft(self.book, "outline/卷綱_第一卷.md", "\n".join("第%d行：完全不同的內容" % i for i in range(20)) + "\n")
         plan = {x["rel"]: x for x in reverse.plan_group(self.book, "大綱")}
-        self.assertLess(plan["大綱/卷綱_第一卷.md"]["similarity"], 0.2)
+        self.assertLess(plan["outline/卷綱_第一卷.md"]["similarity"], 0.2)
 
         chapter = reverse.plan_group(self.book, "章綱")[0]
         self.assertTrue(chapter["exists"])
-        self.assertEqual(chapter["target"], "大綱/章綱/反推/第001章_大夜班.md")
+        self.assertEqual(chapter["target"], "outline/chapters/_reverse/第001章_大夜班.md")
         self.assertEqual(chapter["default_mode"], "copy")
 
     def test_diff_group_compares_against_formal_card(self):
-        d = reverse.diff_group(self.book, "章綱", "大綱/章綱/第001章_大夜班.md")
-        self.assertEqual(d["old_rel"], "大綱/章綱/第001章.md")
+        d = reverse.diff_group(self.book, "章綱", "outline/chapters/第001章_大夜班.md")
+        self.assertEqual(d["old_rel"], "outline/chapters/第001章.md")
         self.assertTrue(any(b["type"] == "change" for b in d["blocks"]))
 
     def test_legacy_two_argument_call_and_bad_mode(self):
         r = reverse.adopt(self.book, "追蹤")          # 舊呼叫：只有兩個參數
         self.assertEqual(r["kept"], 1)
-        self.assertEqual(OLD_FS, _read(self.book, "追蹤/伏筆.md"))
+        self.assertEqual(OLD_FS, _read(self.book, "tracking/foreshadowing.md"))
         with self.assertRaises(project.ProjectError):
             reverse.adopt(self.book, "章綱", mode="replace")
         with self.assertRaises(project.ProjectError):
-            reverse.adopt(self.book, "大綱", mode="keep", files=["大綱/不存在.md"])
+            reverse.adopt(self.book, "大綱", mode="keep", files=["outline/不存在.md"])
 
 
 if __name__ == "__main__":

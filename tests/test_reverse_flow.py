@@ -221,10 +221,22 @@ def _copy_cache(src_book, dst):
 
 
 def _use_cache(book, cache):
+    """放進改之前的程式寫的反推快取。快取是 v2 的檔名（累積.json、批次/）；P3 起書要先經移轉工具轉換，
+    這裡照移轉工具的規則放到新位置、改寫裡面的路徑，等於「舊書轉換後續跑」。"""
+    from studio import migrate
     d = os.path.join(book, reverse.DIR)
     if os.path.isdir(d):
         shutil.rmtree(d)
-    shutil.copytree(cache, d)
+    old_dir = migrate.PATHS["STUDIO_REVERSE"][0]
+    for base, _, files in os.walk(cache):
+        for f in files:
+            rel = os.path.relpath(os.path.join(base, f), cache).replace(os.sep, "/")
+            dst = os.path.join(book, *migrate.map_rel(old_dir + "/" + rel).split("/"))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(os.path.join(base, f), encoding="utf-8") as fh:
+                data = json.load(fh)
+            with open(dst, "w", encoding="utf-8", newline="\n") as fh:
+                json.dump(migrate._rewrite_json(data), fh, ensure_ascii=False, indent=1)
 
 
 def scenario(write_fixture=False):
@@ -236,7 +248,7 @@ def scenario(write_fixture=False):
         # 中斷後續跑
         book = _book(tmp, "退婚之後", ZH_EXTRA)
         r1 = _run(book, False, stop_after=("extract", 2))
-        if write_fixture:     # 改之前的程式寫出的中途快取（只在產生預期結果時更新）
+        if write_fixture:     # 只在用 v2 的程式產生舊快取時用（P3 起不再重產：fixture 必須是舊程式寫的）
             if os.path.isdir(FIXTURE):
                 shutil.rmtree(FIXTURE)
             _copy_cache(book, os.path.join(FIXTURE, "after_extract"))
@@ -260,7 +272,7 @@ class ReverseFlowTest(unittest.TestCase):
     maxDiff = None
 
     def test_matches_golden(self):
-        got = scenario(write_fixture=UPDATE)
+        got = scenario()
         if UPDATE or not os.path.exists(GOLDEN):
             with open(GOLDEN, "w", encoding="utf-8", newline="\n") as f:
                 json.dump(got, f, ensure_ascii=False, indent=1, sort_keys=True)
@@ -289,25 +301,25 @@ class ReverseFlowTest(unittest.TestCase):
             self.assertEqual(3, got[k]["steps"].count("extract"), k)
             for step in ("chars", "world", "arc", "book", "state", "cls", "fac", "topic", "own"):
                 self.assertIn(step, got[k]["steps"], (k, step))
-            self.assertTrue(any("角色狀態" in p for p in d), k)
+            self.assertTrue(any(p.startswith(layout.CHARACTER_STATES + "/") for p in d), k)
             self.assertTrue(any("第2卷" in p for p in d), (k, sorted(d)))
         zd = got["zh"]["drafts"]
-        fs = next(v for p, v in zd.items() if p.endswith("伏筆.md"))
+        fs = next(v for p, v in zd.items() if p == layout.FORESHADOWING)
         self.assertIn("已回收", fs)
         self.assertIn("F002", fs)
-        rk = next(v for p, v in zd.items() if p.endswith("讀者認知.md"))
+        rk = next(v for p, v in zd.items() if p == layout.READER_KNOWLEDGE)
         self.assertIn("周叔拿走的", rk)
         self.assertIn("誤認", rk)
-        lin = next(v for p, v in zd.items() if p.endswith("林晚.md") and "角色狀態" not in p)
+        lin = next(v for p, v in zd.items() if p == layout.entry(layout.CHARACTERS, "林晚"))
         self.assertIn("晚丫頭", lin)
         self.assertIn("二小姐", lin)
         self.assertIn("沈既白：前未婚夫", lin)
-        card7 = next(v for p, v in zd.items() if "第007章" in p and "章綱" in p)
+        card7 = next(v for p, v in zd.items() if "第007章" in p and p.startswith(layout.CHAPTER_CARDS + "/"))
         self.assertIn("查清帳本", card7, "章號寫錯但數量對：照順序對應")
-        gl = next(v for p, v in zd.items() if p.endswith("名詞表.md"))
+        gl = next(v for p, v in zd.items() if p == layout.GLOSSARY)
         self.assertIn("路人甲", gl)
         ef = got["en"]["drafts"]
-        self.assertIn("已埋", next(v for p, v in ef.items() if p.endswith("伏筆.md")), "英文選項值要換回固定詞")
+        self.assertIn("已埋", next(v for p, v in ef.items() if p == layout.FORESHADOWING), "英文選項值要換回固定詞")
         res = got["resume"]
         self.assertIn("已停止", res["r1"]["result"])
         self.assertIn("已停止", res["r2"]["result"])

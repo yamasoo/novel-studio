@@ -8,15 +8,16 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from studio import importer, shared, tracking
+from studio import layout  # noqa: E402
 
 
 class BackupKeepTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.book = os.path.join(self.tmp.name, "書")
-        self.d = os.path.join(self.book, ".studio", "備份")
+        self.d = layout.path(self.book, layout.STUDIO_BACKUP)
         os.makedirs(self.d)
-        self.src = os.path.join(self.book, "設定", "角色", "周叔.md")
+        self.src = layout.path(self.book, layout.CHARACTERS, "周叔.md")
         os.makedirs(os.path.dirname(self.src))
         with open(self.src, "w", encoding="utf-8", newline="\n") as f:
             f.write("新版內容\n")
@@ -37,7 +38,7 @@ class BackupKeepTest(unittest.TestCase):
         self._write(self.d, "筆記.md", "別動我\n")
         self._write(self.d, "修改前_周叔.草稿.md", "別動我\n")
         self._write(self.d, "追加前_周叔.%d.md" % (base + 500), "別組\n")
-        sub = os.path.join(self.d, "_共用", ".備份")
+        sub = os.path.join(self.d, "_shared", ".備份")
         os.makedirs(sub)
         self._write(sub, "修改前_周叔.%d.md" % (base + 1), "子目錄\n")
 
@@ -66,16 +67,16 @@ class BackupKeepTest(unittest.TestCase):
 
 
     def test_共用庫備份走同一套上限(self):
-        src = os.path.join(self.book, "設定", "文風.md")
+        src = layout.path(self.book, layout.STYLE)
         self._write(os.path.dirname(src), os.path.basename(src), "新文風\n")
         base = 1700000000
         for i in range(31):
-            self._write(self.d, "文風_文風.%d.md" % (base + i), "舊\n")
+            self._write(self.d, "文風_style.%d.md" % (base + i), "舊\n")
         shared._backup(self.book, src, "文風")
-        kept = [f for f in os.listdir(self.d) if f.startswith("文風_文風.") and f.endswith(".md")]
+        kept = [f for f in os.listdir(self.d) if f.startswith("文風_style.") and f.endswith(".md")]
         self.assertEqual(len(kept), tracking.BACKUP_KEEP)
-        self.assertNotIn("文風_文風.%d.md" % base, kept)      # 最舊的被修剪
-        self.assertNotIn("文風_文風.%d.md" % (base + 1), kept)
+        self.assertNotIn("文風_style.%d.md" % base, kept)      # 最舊的被修剪
+        self.assertNotIn("文風_style.%d.md" % (base + 1), kept)
 
     def test_匯入備份檔名會被上限認得(self):
         import re

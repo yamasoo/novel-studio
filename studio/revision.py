@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 審查意見與逐段對照修訂。
-- 審查：模型逐條列出意見（附正文原句），存在 .studio/審查/第NNN章.json
-- 修訂：模型依勾選的意見產生修訂稿，不直接覆蓋；存在 .studio/修訂/第NNN章.json，
+- 審查：模型逐條列出意見（附正文原句），存在 .studio/review/第NNN章.json
+- 修訂：模型依勾選的意見產生修訂稿，不直接覆蓋；存在 .studio/revisions/第NNN章.json，
   由作者逐段選擇保留原文或採用修訂，再套用成候選稿。
 """
 import difflib

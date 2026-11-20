@@ -3,7 +3,7 @@
 
 存放位置（依序找，找到就用）：
   1. book.json 的 lang（v3 起的唯一來源；工作台開書、改語言都寫這裡）
-  2. 設定/故事核心.md 開頭資料區的「語言: zh-TW | en | ja」（舊書；Claude Code 技能目前也寫這裡，P4 改）
+  2. bible/story-core.md 開頭資料區的「語言: zh-TW | en | ja」（舊書；Claude Code 技能目前也寫這裡，P4 改）
   3. .studio/lang（舊書）
   4. 都沒有 → zh-TW
 """
@@ -47,8 +47,9 @@ def normalize(value):
     return _ALIASES.get(str(value).strip().lower(), DEFAULT)
 
 
-def _fm_lang(book_dir):
-    p = layout.path(book_dir, layout.STORY_CORE)
+def _fm_lang(book_dir, rel=None):
+    """故事核心 frontmatter 的「語言」。rel：故事核心的相對路徑（移轉工具讀舊書時給 v2 的路徑）。"""
+    p = layout.path(book_dir, rel or layout.STORY_CORE)
     try:
         with open(p, encoding="utf-8") as f:
             head = f.read(2000)

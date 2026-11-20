@@ -156,7 +156,7 @@ _RANGE = re.compile(r"(\d[\d,]*)\s*[～~\-－–—到至]\s*(\d[\d,]*)")
 
 
 def _core_target(book_dir):
-    """設定/故事核心.md 開頭資料區的「每章字數: 2500-3500」（或單一數字）；沒有或看不懂回傳 None。
+    """bible/story-core.md 開頭資料區的「每章字數: 2500-3500」（或單一數字）；沒有或看不懂回傳 None。
     單位跟著書的語言：中日文是字數、英文是單詞數。"""
     core = context.read(book_dir, layout.STORY_CORE)
     v = project.split_frontmatter(core)[0].get("每章字數") if core else None
@@ -603,7 +603,7 @@ def act_review(c, p):
     with open(os.path.join(d, fn), "w", encoding="utf-8") as f:
         f.write(out)
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "chat"})
-    c.job.result = out + "\n\n（報告已存到 .studio/審查報告/%s）" % fn
+    c.job.result = out + "\n\n（報告已存到 .studio/reviews/%s）" % fn
 
 
 def act_free(c, p):
@@ -611,7 +611,7 @@ def act_free(c, p):
     if not q:
         raise NativeError("指令是空的")
     if native_files.is_design_request(q):
-        # 設定設計：直接把產出存成草稿（設定/草稿/），不用再手動貼
+        # 設定設計：直接把產出存成草稿（bible/drafts/），不用再手動貼
         native_files.run_spec(c, {"text": q}, native_files.spec_design_draft, c.sys(), draft_only=True)
         return
     ctx_text, used, dropped = context.for_chat(c.book, c.budget(4000))
@@ -921,7 +921,7 @@ def act_visual_card(c, p):
 
 
 def act_style_design(c, p):
-    """共用庫的文風設計／調整／試寫。c.book 是 書庫/_共用。"""
+    """共用庫的文風設計／調整／試寫。c.book 是 書庫/_shared。"""
     library = os.path.dirname(c.book)
     if p.get("lang"):           # 共用庫沒有「書的語言」：用作者在介面上選的語言（繁中維持原樣）
         prompts.set_lang(lang_mod.normalize(p["lang"]))

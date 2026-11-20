@@ -4,7 +4,7 @@
 查三件事：
   1. 提前登場：某章提到某角色，但設定裡他「首次登場」在更後面（＝劇透）
   2. 已退場又出現：設定寫「最後登場」在某章，之後的章節又提到他
-  3. 未登記角色：章節頁點名的人，在 設定/角色/ 裡沒有對應的檔案
+  3. 未登記角色：章節頁點名的人，在 bible/characters/ 裡沒有對應的檔案
 
 用法：python tools/contract_audit.py --book <書> [--from N --to M]
 """
@@ -17,6 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 from studio import project, upcheck  # noqa: E402
+from studio import layout  # noqa: E402
 
 # 「提前登場」：只是被提到（傳聞、對話）很正常，差 15 章以上才算真的劇透風險
 SPOILER_GAP = upcheck.SPOILER_GAP
@@ -31,7 +32,7 @@ def _num(v):
 
 
 def audit(book_dir, start=None, end=None):
-    ch = project._scan_dir(os.path.join(book_dir, "正文"))
+    ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
     if not ch:
         return []
     end = int(end or max(ch))

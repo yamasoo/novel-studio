@@ -2,8 +2,8 @@
 """卷綱的唯一解析入口：找某章屬於哪一卷、哪幾章沒有卷綱、下一個卷號。
 
 為什麼要集中：續寫合約與漂移工具原本各有一套（一個找不到退回第一卷、一個退回最後一卷），
-兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`大綱/`、`大綱/卷綱/` 的 `卷綱*.md`）；
-草稿放在 `大綱/草稿/`，不會被當成正式卷綱（見 `docs/卷先行.md`）。
+兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`outline/`、`outline/volumes/` 的 `卷綱*.md`）；
+草稿放在 `outline/drafts/`，不會被當成正式卷綱（見 `docs/卷先行.md`）。
 """
 import difflib
 import os
@@ -125,7 +125,7 @@ def draft_rel(no):
 
 
 def drafts(book_dir):
-    """`大綱/草稿/` 裡的**新卷**卷綱草稿（卷綱更新草稿不算）。每筆：rel/name/status/lo/hi/no。"""
+    """`outline/drafts/` 裡的**新卷**卷綱草稿（卷綱更新草稿不算）。每筆：rel/name/status/lo/hi/no。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):
@@ -146,7 +146,7 @@ def drafts(book_dir):
 
 
 def plan_drafts(book_dir):
-    """`大綱/草稿/` 裡的卷綱**更新**草稿（卷末體檢產生，不是新卷）。每筆：rel/name/lo/hi。"""
+    """`outline/drafts/` 裡的卷綱**更新**草稿（卷末體檢產生，不是新卷）。每筆：rel/name/lo/hi。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):
@@ -185,14 +185,14 @@ def _bullet_key(line):
 
 
 def _sync_book_outline(book_dir, no, fm, bullets=None):
-    """把這一卷補進 大綱/全書大綱.md 的「分卷」：缺的一節就追加，缺的卷契約就補上。
+    """把這一卷補進 outline/book.md 的「分卷」：缺的一節就追加，缺的卷契約就補上。
 
     只補不覆蓋：已有的句子不動，章節範圍對不上就只警告。
     """
     rel = layout.BOOK_OUTLINE
     p = os.path.join(book_dir, *rel.split("/"))
     if not os.path.isfile(p):
-        return ["沒有 大綱/全書大綱.md，這次沒有同步全書大綱。"]
+        return ["沒有 outline/book.md，這次沒有同步全書大綱。"]
     text = project.read_text(p)
     lines = text.splitlines()
     head = "## 分卷"
@@ -226,7 +226,7 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
 
     block = ["### 第 %d 卷：%s" % (no, name), "",
              "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0)] + bullets + \
-            ["- 卷綱：`大綱/卷綱_第%d卷.md`（已確認）" % no, ""]
+            ["- 卷綱：`outline/卷綱_第%d卷.md`（已確認）" % no, ""]
     return _write_outline(book_dir, p, lines[:end] + [""] + block + lines[end:])
 
 
@@ -257,7 +257,7 @@ def sync_outline(book_dir, no):
 
 
 def adopt(book_dir, no):
-    """把 `大綱/草稿/卷綱_第N卷.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
+    """把 `outline/drafts/卷綱_第N卷.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
 
     採用前只檢查最基本的東西（有 frontmatter、有章節範圍、正式檔不存在）：
     章節範圍要不要和前一卷接得起來、內容好不好，是作者看過才算的事，不在這裡自動判斷。
@@ -300,7 +300,7 @@ def revision_rel(no):
 
 
 def revisions(book_dir):
-    """`大綱/草稿/` 裡的「既有卷修訂」草稿。每筆：rel/name/status/lo/hi/no。"""
+    """`outline/drafts/` 裡的「既有卷修訂」草稿。每筆：rel/name/status/lo/hi/no。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):

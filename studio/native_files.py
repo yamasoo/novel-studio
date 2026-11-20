@@ -3,10 +3,10 @@
 非 Claude 模型的「規劃與設定」類動作。
 模型用檔案區塊輸出要建立或修改的檔案，由 Python 檢查路徑後寫入：
 
-    <<<檔案 設定/角色/周叔.md>>>
+    <<<檔案 bible/characters/周叔.md>>>
     （完整內容）
     <<<結束>>>
-    <<<刪除 設定/草稿/周叔.md>>>
+    <<<刪除 bible/drafts/周叔.md>>>
 """
 import html as html_mod
 import os
@@ -27,7 +27,7 @@ CLAIM_RE = re.compile(r"已(?:登錄|寫入|入庫|建立|新增|存入|更新|�
 WRITE_PREFIXES = (layout.BIBLE + "/", layout.OUTLINE + "/", layout.SAMPLES + "/")
 DELETE_PREFIXES = (layout.BIBLE_DRAFTS + "/",)
 DRAFT_PREFIX = layout.BIBLE_DRAFTS + "/"
-# 自由指令裡要求「設計設定」的句子：走草稿流程，產出直接存進 設定/草稿/
+# 自由指令裡要求「設計設定」的句子：走草稿流程，產出直接存進 bible/drafts/
 DESIGN_RE = re.compile(r"novel-bible|設計世界觀|設計勢力|設計力量體系|建角色|建立角色|生成設定|設定草稿|設計設定")
 
 FILE_RULE = prompts.pack("zh-TW")["file_rule"]       # 相容舊程式碼；實際用 prompts.cur()["file_rule"]
@@ -39,10 +39,9 @@ CONFIRM_RULE = prompts.pack("zh-TW")["confirm_rule"]
 # ---------------------------------------------------------------------------
 SKELETON_DIRS = [layout.WORLD, layout.CHARACTERS, layout.FACTIONS, layout.BIBLE_DRAFTS, layout.CHAPTER_CARDS, layout.MANUSCRIPT, layout.CANDIDATES,
                  layout.CHARACTER_STATES, layout.SUMMARIES, layout.SAMPLES, layout.TEMPLATES]
-SKELETON_FILES = {  # 目的地: 範本
-    layout.STORY_CORE: layout.TPL_STORY_CORE, layout.STYLE: layout.TPL_STYLE, layout.AUTHOR_PREFS: layout.TPL_AUTHOR_PREFS,
-    layout.GLOSSARY: layout.TPL_GLOSSARY, layout.BOOK_OUTLINE: layout.TPL_BOOK_OUTLINE, layout.STATE_CARD: layout.TPL_STATE_CARD,
-    layout.FORESHADOWING: layout.TPL_FORESHADOWING, layout.TIMELINE: layout.TPL_TIMELINE,
+SKELETON_FILES = {  # 目的地: 範本（開新書補骨架只建這八份）
+    rel: layout.LIVE_TEMPLATES[rel] for rel in (layout.STORY_CORE, layout.STYLE, layout.AUTHOR_PREFS, layout.GLOSSARY,
+                                                 layout.BOOK_OUTLINE, layout.STATE_CARD, layout.FORESHADOWING, layout.TIMELINE)
 }
 
 
@@ -130,7 +129,7 @@ def apply_appends(book_dir, appends):
     done, skipped = [], []
     for rel, body in appends:
         if rel != GLOSSARY_REL:
-            skipped.append("追加 %s（只能追加到 設定/名詞表.md）" % rel)
+            skipped.append("追加 %s（只能追加到 bible/glossary.md）" % rel)
             continue
         try:
             full = project.safe_path(book_dir, rel)
@@ -176,7 +175,7 @@ def apply_blocks(book_dir, files, dels, appends=None):
     done, skipped = [], []
     for rel, content in files:
         if rel in APPEND_TARGETS:
-            skipped.append("%s（名詞表不整份改寫，請用 <<<追加 設定/名詞表.md>>> 只列新增的列）" % rel)
+            skipped.append("%s（名詞表不整份改寫，請用 <<<追加 bible/glossary.md>>> 只列新增的列）" % rel)
             continue
         ok = (rel == "CLAUDE.md" or rel.startswith(WRITE_PREFIXES)) and rel.endswith(".md")
         try:
@@ -203,7 +202,7 @@ def apply_blocks(book_dir, files, dels, appends=None):
             skipped.append("刪除 %s（路徑不合法）" % rel)
             continue
         if not rel.startswith(DELETE_PREFIXES) or not os.path.isfile(full):
-            skipped.append("刪除 %s（只能刪除設定/草稿/裡存在的檔案）" % rel)
+            skipped.append("刪除 %s（只能刪除 bible/drafts/ 裡存在的檔案）" % rel)
             continue
         tracking.backup(book_dir, full, "刪除前")
         os.remove(full)
@@ -222,7 +221,7 @@ def result_text(report, done, skipped):
     if skipped:
         out += "\n\n**略過：**\n" + "\n".join("- " + x for x in skipped)
     if done:
-        out += "\n\n修改前的版本都備份在 .studio/備份/。"
+        out += "\n\n修改前的版本都備份在 .studio/backup/。"
     return out
 
 
@@ -250,7 +249,7 @@ def entity_index(book_dir):
 
 
 def contract_text(c, drop_volume_promise=False):
-    """續寫合約（設定/續寫合約.md）。卷綱草稿要把「卷末承諾」拿掉：那時新卷還不存在。
+    """續寫合約（bible/continuation-contract.md）。卷綱草稿要把「卷末承諾」拿掉：那時新卷還不存在。
 
     合約不存在或章數變了就先補一份（純本機計算，和整章自動流程開跑時做的事一樣）。
     """
@@ -367,8 +366,8 @@ def spec_setup_new(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "開書訪談流程", ref(c, "novel-setup/references/interview.md"))
     pk.add(0, "CLAUDE.md 範本", ref(c, "novel-setup/references/claude-md-template.md"))
-    pk.add(1, "故事核心範本（設定/故事核心.md）", tpl(c, layout.TPL_STORY_CORE))
-    pk.add(1, "文風範本（設定/文風.md）", tpl(c, layout.TPL_STYLE))
+    pk.add(1, "故事核心範本（bible/story-core.md）", tpl(c, layout.TPL_STORY_CORE))
+    pk.add(1, "文風範本（bible/style.md）", tpl(c, layout.TPL_STYLE))
     idea = (p.get("idea") or "").strip() or prompts.cur()["idea_blank"]
     task = prompts.cur()["task_setup_new"].format(book=c.job.book_id, idea=idea,
                                                   answers=answers_md(c, p.get("answers") or {}))
@@ -384,7 +383,7 @@ def spec_style(c, p):
         except shared.SharedError:
             m = None
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
-    pk.add(0, "目前的 設定/文風.md", context.read(c.book, layout.STYLE) or tpl(c, layout.TPL_STYLE))
+    pk.add(0, "目前的 bible/style.md", context.read(c.book, layout.STYLE) or tpl(c, layout.TPL_STYLE))
     pk.add(0, "文風範本（缺的章節照這個補）", tpl(c, layout.TPL_STYLE))
     pk.add(1, "文風的十三個面向", ref(c, "novel-style/references/style-dimensions.md"))
     pk.add(2, "類型線索表", ref(c, "novel-style/references/genre-cues.md"))
@@ -407,7 +406,7 @@ def _style_metrics_after(c, m, done):
 
 def spec_preference(c, p):
     pk = context.Pack(c.budget(4000))
-    pk.add(0, "目前的 設定/作者偏好.md", context.read(c.book, layout.AUTHOR_PREFS) or tpl(c, layout.TPL_AUTHOR_PREFS))
+    pk.add(0, "目前的 bible/author-prefs.md", context.read(c.book, layout.AUTHOR_PREFS) or tpl(c, layout.TPL_AUTHOR_PREFS))
     task = prompts.cur()["task_preference"].format(date=time.strftime("%Y-%m-%d"), text=p.get("text", ""))
     return "記錄偏好", task, pk, False
 
@@ -415,7 +414,7 @@ def spec_preference(c, p):
 def spec_concept(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "故事核心診斷方法", ref(c, "novel-outline/references/concept.md"))
-    pk.add(1, "目前的 設定/故事核心.md", context.read(c.book, layout.STORY_CORE) or tpl(c, layout.TPL_STORY_CORE))
+    pk.add(1, "目前的 bible/story-core.md", context.read(c.book, layout.STORY_CORE) or tpl(c, layout.TPL_STORY_CORE))
     add_book_core(pk, c, light=True)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_concept"].format(note=prompts.cur()["note_inline_files"].format(note=note) if note else "")
@@ -426,7 +425,7 @@ def spec_master_outline(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
     pk.add(1, "全書大綱範本", tpl(c, layout.TPL_BOOK_OUTLINE))
-    pk.add(0, "目前的 大綱/全書大綱.md", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
+    pk.add(0, "目前的 outline/book.md", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_master_outline"].format(note=prompts.cur()["note_line_files"].format(note=note) if note else "")
@@ -439,7 +438,7 @@ def spec_volume_outline(c, p):
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
     pk.add(0, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     pk.add(1, "卷綱範本", tpl(c, layout.TPL_VOLUME_OUTLINE))
-    pk.add(1, "目前的 大綱/卷綱_第%s卷.md" % v, context.body(context.read(c.book, layout.volume_file(v))))
+    pk.add(1, "目前的 outline/卷綱_第%s卷.md" % v, context.body(context.read(c.book, layout.volume_file(v))))
     pk.add(2, "其他卷綱", outline_files_text(c))
     pk.add(2, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
     add_book_core(pk, c)
@@ -456,7 +455,7 @@ def spec_chapter_cards(c, p):
     pk.add(0, "卷綱寫法", ref(c, "novel-outline/references/chapter-card.md"))
     if a <= 3:
         pk.add(1, "開篇與黃金三章", ref(c, "novel-outline/references/opening.md"))
-    pk.add(0, "章綱範本（大綱/章綱/第NNN章.md）", tpl(c, layout.TPL_CHAPTER_CARD))
+    pk.add(0, "章綱範本（outline/chapters/第NNN章.md）", tpl(c, layout.TPL_CHAPTER_CARD))
     pk.add(0, "卷綱", outline_files_text(c))
     ct = contract_text(c)
     if ct:
@@ -480,7 +479,7 @@ def spec_chapter_cards(c, p):
 
 
 def spec_volume_draft(c, p):
-    """卷先行：把新一卷的卷綱寫成草稿（大綱/草稿/），作者看過再採用。"""
+    """卷先行：把新一卷的卷綱寫成草稿（outline/drafts/），作者看過再採用。"""
     v = str(p.get("volume") or "1").strip()
     a = int(p.get("from") or 1)
     b = int(p.get("to") or a)
@@ -637,7 +636,7 @@ def is_design_request(text):
 
 
 def spec_design_draft(c, p):
-    """自由指令設計設定：只讀索引（不整份讀名詞表），產出寫進設定/草稿/。"""
+    """自由指令設計設定：只讀索引（不整份讀名詞表），產出寫進 bible/drafts/。"""
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
     pk.add(1, "世界觀設計方法", ref(c, "novel-bible/references/worldbuilding.md"))
@@ -659,7 +658,7 @@ def spec_promote(c, p):
     pk.add(1, "角色範本", tpl(c, layout.TPL_CHARACTER))
     pk.add(2, "勢力範本", tpl(c, layout.TPL_FACTION))
     pk.add(2, "世界觀範本", tpl(c, layout.TPL_WORLD))
-    pk.add(1, "目前的名詞表（設定/名詞表.md）", context.read(c.book, layout.GLOSSARY))
+    pk.add(1, "目前的名詞表（bible/glossary.md）", context.read(c.book, layout.GLOSSARY))
     add_book_core(pk, c)
     task = prompts.cur()["task_promote"].format(text=p.get("text") or prompts.cur()["promote_none"])
     return "草稿轉正式", task, pk, False
@@ -716,7 +715,7 @@ def run_spec(c, p, spec, system, draft_only=False):
     files, dels, report = parse_blocks(out)
     appends = parse_appends(out)
     blocked = []
-    if draft_only:   # 草稿模式：只允許寫進指定資料夾（預設 設定/草稿/），正式檔案一律不動
+    if draft_only:   # 草稿模式：只允許寫進指定資料夾（預設 bible/drafts/），正式檔案一律不動
         prefix = draft_only if isinstance(draft_only, str) else DRAFT_PREFIX
         blocked = ["%s（草稿模式：只能寫進 %s）" % (r, prefix) for r, _ in files if not r.startswith(prefix)]
         blocked += ["%s（草稿模式不追加、不刪檔）" % r for r, _ in appends]
@@ -833,4 +832,4 @@ def act_review_all(c, p, system):
     with open(os.path.join(d, fn), "w", encoding="utf-8") as f:
         f.write(out)
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "chat"})
-    c.job.result = out + "\n\n（報告已存到 .studio/審查報告/%s）" % fn
+    c.job.result = out + "\n\n（報告已存到 .studio/reviews/%s）" % fn

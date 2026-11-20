@@ -2,8 +2,8 @@
 """建專案（P6 Step 5）：用風格指紋與結構 DNA 建出一本新書的骨架。
 
 產出的是「可以馬上開始填」的書，不是成品：
-  資料夾骨架、18 份 _範本、CLAUDE.md、設定/文風.md（含文字指標）、
-  設定/章節結構/結構.md、指紋與 DNA 的副本、前三章章綱的空白模板。
+  資料夾骨架、18 份 _範本、CLAUDE.md、bible/style.md（含文字指標）、
+  bible/structure/structure.md、指紋與 DNA 的副本、前三章章綱的空白模板。
 
 不呼叫模型、不改任何既有檔案；目標資料夾不是空的就拒絕。
 """
@@ -168,11 +168,11 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
     # 18 份範本
     dst_tpl = layout.path(target, layout.TEMPLATES)
     shutil.copytree(tpl, dst_tpl)
-    created.append("_範本/（%d 份）" % len(os.listdir(dst_tpl)))
+    created.append("_templates/（%d 份）" % len(os.listdir(dst_tpl)))
 
-    # 空的「活檔」：從範本複製，狀態改成草稿（範本檔名不一定同名，這裡做對應）
+    # 空的「活檔」：從範本複製，狀態改成草稿（目的地與範本檔名的對應在 layout.LIVE_TEMPLATES）
     for rel in LIVE_FILES:
-        src_name = layout.TPL_VOLUME_OUTLINE if rel == layout.SPAWN_VOLUME_ONE else os.path.basename(rel)
+        src_name = layout.LIVE_TEMPLATES[rel]
         src = os.path.join(tpl, src_name)
         if not os.path.isfile(src):
             continue
@@ -211,8 +211,8 @@ def seed(book_dir, title, fp, dna, source=""):
     """把「從參考書量到的東西」補進一本**已經存在**的書（工作台開新書時用）。
 
     只寫這幾個檔，不動 CLAUDE.md 與其他內容：
-      設定/文風.md（原本是空範本才寫）、設定/章節結構/結構.md、
-      設定/風格指紋.json、設定/結構DNA.json
+      bible/style.md（原本是空範本才寫）、bible/structure/structure.md、
+      bible/style-fingerprint.json、bible/structure-dna.json
     """
     created = []
     p = layout.path(book_dir, layout.STYLE)
@@ -246,13 +246,13 @@ def claude_md(title, lang, fp, dna, source=""):
 - 對白比例：約 %s
 
 ## 資料夾
-- 設定／正文／候選／大綱／追蹤／範例，完整說明見 `_範本/專案規範.md`
-- `設定/文風.md` 有文字指標；寫稿時工作台會把這些數字放進上下文
+- bible／manuscript／candidates／outline／tracking／samples，完整說明見 `_templates/專案規範.md`
+- `bible/style.md` 有文字指標；寫稿時工作台會把這些數字放進上下文
 
 ## 寫作規則
-- 續寫時以 `大綱/章綱/` 的章綱為唯一劇情藍圖
+- 續寫時以 `outline/chapters/` 的章綱為唯一劇情藍圖
 - 章尾停在具體畫面，不寫感悟或預告
-- 每次改設定或追蹤，順手更新 `追蹤/`
+- 每次改設定或追蹤，順手更新 `tracking/`
 
 ## 這本書從哪裡來
 - 骨架參考：%s（只取風格指紋與結構 DNA，沒有沿用任何名字或事件）

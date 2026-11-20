@@ -18,7 +18,7 @@ description: 日本語の小説から AI 臭を取り除き、約物と文字数
 
 ## はじめに
 
-1. 小説プロジェクトでは `設定/文風.md`（特に「許す例外」）と `設定/作者偏好.md`、あれば書庫共通の `_共用/作者偏好.md` を読む。作者が明示的に許したものは問題ではない。作者の禁用語は検査スクリプトが自動で拾う。
+1. 小説プロジェクトでは `bible/style.md`（特に「許す例外」）と `bible/author-prefs.md`、あれば書庫共通の `_shared/author-prefs.md` を読む。作者が明示的に許したものは問題ではない。作者の禁用語は検査スクリプトが自動で拾う。
 2. [references/ai-signals.md](references/ai-signals.md) を読む。
 3. 書き直しの見本が要るときは [references/rewrite-examples.md](references/rewrite-examples.md) を読む。
 
@@ -27,10 +27,10 @@ description: 日本語の小説から AI 臭を取り除き、約物と文字数
 `scripts/check_text.py` は、約物の統一、工房の言葉、AI 臭の密度、章末の昇華、文末・文頭の重複、短文の連続、文の長さの揃いすぎ、ダッシュの密度、表記ゆれ、括弧の対応を調べ、文字数を数えます。標準ライブラリのみ。
 
 ```bash
-python3 {このスキルのフォルダ}/scripts/check_text.py 正文/第001章_題名.md          # 一章
-python3 {このスキルのフォルダ}/scripts/check_text.py 正文/                          # フォルダ全体
-python3 {このスキルのフォルダ}/scripts/check_text.py 正文/第001章_題名.md --fix-punct   # 約物を自動修正
-python3 {このスキルのフォルダ}/scripts/check_text.py 正文/第001章_題名.md --count       # 文字数だけ
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/第001章_題名.md          # 一章
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/                          # フォルダ全体
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/第001章_題名.md --fix-punct   # 約物を自動修正
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/第001章_題名.md --count       # 文字数だけ
 ```
 
 Windows では `python3` が無ければ `python` か `py -3` を使う。

@@ -18,7 +18,7 @@ Fix in this order: plot logic and characters → transitions, dialogue, chapter 
 
 ## Before you start
 
-1. In a novel project, read `設定/文風.md` (especially its list of allowed exceptions) and `設定/作者偏好.md`, plus the library-level `_共用/作者偏好.md` if it exists. Anything the author explicitly allows is not a problem. The checker flags the author's banned words automatically.
+1. In a novel project, read `bible/style.md` (especially its list of allowed exceptions) and `bible/author-prefs.md`, plus the library-level `_shared/author-prefs.md` if it exists. Anything the author explicitly allows is not a problem. The checker flags the author's banned words automatically.
 2. Read [references/ai-signals.md](references/ai-signals.md).
 3. When you need rewrite models, read [references/rewrite-examples.md](references/rewrite-examples.md).
 
@@ -27,10 +27,10 @@ Fix in this order: plot logic and characters → transitions, dialogue, chapter 
 `scripts/check_text.py` checks quote and dash consistency, engineering words, AI-tell density, chapter-ending reflections and rhythm, and counts words. Standard library only.
 
 ```bash
-python3 {this skill's directory}/scripts/check_text.py 正文/第001章_章名.md          # one chapter
-python3 {this skill's directory}/scripts/check_text.py 正文/                        # the whole folder
-python3 {this skill's directory}/scripts/check_text.py 正文/第001章_章名.md --fix-punct   # normalize punctuation
-python3 {this skill's directory}/scripts/check_text.py 正文/第001章_章名.md --count       # word count only
+python3 {this skill's directory}/scripts/check_text.py manuscript/第001章_章名.md          # one chapter
+python3 {this skill's directory}/scripts/check_text.py manuscript/                        # the whole folder
+python3 {this skill's directory}/scripts/check_text.py manuscript/第001章_章名.md --fix-punct   # normalize punctuation
+python3 {this skill's directory}/scripts/check_text.py manuscript/第001章_章名.md --count       # word count only
 ```
 
 On Windows use `python` or `py -3` if `python3` is unavailable.

@@ -26,6 +26,7 @@ from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from studio import layout
+from studio import migrate
 from studio import ids
 from studio import tables
 
@@ -155,13 +156,15 @@ app = FastAPI(title="小說工作台")
 # ---------------------------------------------------------------------------
 # 共用
 # ---------------------------------------------------------------------------
-def book_dir(book_id):
+def book_dir(book_id, allow_old=False):
     lib = CONFIG.get("library")
     if not lib or not os.path.isdir(lib):
         raise HTTPException(400, "書庫資料夾不存在，請先在設定中指定。")
     d = os.path.normpath(os.path.join(lib, book_id))
     if os.path.dirname(d) != os.path.normpath(lib) or not os.path.isdir(d):
         raise HTTPException(404, "找不到這本書")
+    if not allow_old and migrate.needs_migration(d):
+        raise HTTPException(409, "「%s」是舊格式的書，要先轉換成新格式才能開啟。請回書架按「轉換」。" % book_id)
     return d
 
 
@@ -590,7 +593,7 @@ def restart_server():
 
 
 # ---------------------------------------------------------------------------
-# 共用庫（書庫/_共用/）：文風、章節結構、共用作者偏好
+# 共用庫（書庫/_shared/）：文風、章節結構、共用作者偏好
 # ---------------------------------------------------------------------------
 def library():
     lib = CONFIG.get("library")
@@ -734,7 +737,7 @@ async def shared_style_compare(name: str, req: Request):
 
 
 def start_shared_style(body):
-    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）；回傳啟動後的任務。"""
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _shared 底下）；回傳啟動後的任務。"""
     lib = library()
     params = {k: body.get(k) for k in ("mode", "name", "genre", "feel", "refs", "pov", "readers", "avoid", "note", "overwrite")}
     text, names = _sample_text(body)
@@ -774,7 +777,7 @@ def start_shared_style(body):
 
 @app.post("/api/shared/styles/design")
 async def shared_style_design(req: Request):
-    """請 AI 設計／調整／試寫共用文風（任務掛在 _共用 底下）。"""
+    """請 AI 設計／調整／試寫共用文風（任務掛在 _shared 底下）。"""
     return start_shared_style(await req.json()).to_dict()
 
 
@@ -840,7 +843,7 @@ async def chapter_structure(book_id: str, no: int, req: Request):
 
 @app.post("/api/books/{book_id}/style-compare")
 async def book_style_compare(book_id: str, req: Request):
-    """本書的 設定/文風.md 文字指標 vs 正文實際統計。"""
+    """本書的 bible/style.md 文字指標 vs 正文實際統計。"""
     body = await req.json()
     d = book_dir(book_id)
     sp = layout.path(d, layout.STYLE)
@@ -873,7 +876,7 @@ async def import_commit(req: Request):
         name = (body.get("new_book") or "").strip()
         wrap(lambda: importer.plan(body.get("payload") or {}, opts))  # 先確認拆得出章節，再建書
         d = wrap(lambda: project.create_book(lib, name))
-        importer.set_import_lang(d, opts.get("lang"))   # 先記語言，骨架（_範本/文風.md 等）、CLAUDE.md 與之後的提示詞才會用對的語言
+        importer.set_import_lang(d, opts.get("lang"))   # 先記語言，骨架（_templates/文風.md 等）、CLAUDE.md 與之後的提示詞才會用對的語言
         native_files.ensure_skeleton(d, PLUGIN_DIR)
         importer.make_claude_md(d, PLUGIN_DIR, name)
         book_id = os.path.basename(d)
@@ -1469,7 +1472,44 @@ SUGGESTED_LIBRARY = os.path.join(os.path.expanduser("~"), "Documents", "小說")
 def books():
     lib = CONFIG.get("library")
     return {"library": lib, "exists": os.path.isdir(lib or ""), "books": project.list_books(lib),
-            "suggested": SUGGESTED_LIBRARY, "suggested_exists": os.path.isdir(SUGGESTED_LIBRARY)}
+            "suggested": SUGGESTED_LIBRARY, "suggested_exists": os.path.isdir(SUGGESTED_LIBRARY),
+            "shared_needs_migration": migrate.library_needs_migration(lib)}
+
+
+# ---------------------------------------------------------------------------
+# 格式移轉（v3）：舊書要先轉換才能開；共用資料夾另外轉
+# ---------------------------------------------------------------------------
+def _migrate_view(d, r):
+    """移轉結果給前端：路徑改成書內相對路徑。"""
+    out = dict(r)
+    for k in ("backup", "report"):
+        if out.get(k):
+            out[k] = os.path.relpath(out[k], d).replace(os.sep, "/")
+    return out
+
+
+@app.post("/api/books/{book_id}/migrate")
+async def migrate_book(book_id: str, req: Request):
+    body = await req.json() if (await req.body()) else {}
+    dry = bool(body.get("dry_run"))
+    d = book_dir(book_id, allow_old=True)
+    if not dry:
+        _guard_book(book_id)
+    r = _migrate_view(d, wrap(lambda: migrate.migrate(d, dry_run=dry)))
+    try:
+        r["library"] = migrate.migrate_library(CONFIG.get("library"), dry_run=dry)
+    except project.ProjectError as e:
+        r["library_error"] = str(e)
+    return r
+
+
+@app.post("/api/library/migrate")
+async def migrate_shared(req: Request):
+    body = await req.json() if (await req.body()) else {}
+    lib = CONFIG.get("library")
+    if not lib or not os.path.isdir(lib):
+        raise HTTPException(400, "書庫資料夾不存在，請先在設定中指定。")
+    return {"library": wrap(lambda: migrate.migrate_library(lib, dry_run=bool(body.get("dry_run"))))}
 
 
 # ---------------------------------------------------------------------------
@@ -1833,14 +1873,14 @@ def book_chapters(book_id: str):
 def book_bible(book_id: str):
     d = book_dir(book_id)
     data = project.bible(d)
-    # 反推草稿不併進「設定/草稿」清單（語意不同），只給張數讓草稿分頁顯示提示卡。
+    # 反推草稿不併進「bible/drafts」清單（語意不同），只給張數讓草稿分頁顯示提示卡。
     data["reverse_drafts"] = sum(len(v) for v in reverse.draft_groups(d).values())
     return data
 
 
 @app.post("/api/books/{book_id}/bible/delete")
 async def book_bible_delete(book_id: str, req: Request):
-    """刪除設定集的一個檔案：不永久刪除，移到 .studio/刪除/，再重建索引。"""
+    """刪除設定集的一個檔案：不永久刪除，移到 .studio/trash/，再重建索引。"""
     d = book_dir(book_id)
     body = await req.json()
     rel = str(body.get("path") or "").strip().replace("\\", "/")
@@ -2109,14 +2149,14 @@ def bible_index_view(book_id: str):
 
 @app.post("/api/books/{book_id}/bible/index/rebuild")
 def bible_index_rebuild(book_id: str):
-    """重新產生 設定/_索引.md（給 novel-bible skill 先讀）。"""
+    """重新產生 bible/_index.md（給 novel-bible skill 先讀）。"""
     d = book_dir(book_id)
     return bible_index.rebuild(d)
 
 
 @app.post("/api/books/{book_id}/bible/merge")
 async def bible_merge(book_id: str, req: Request):
-    """把勾選的疑似重複併入保留的那一份。舊檔移到 設定/_已合併/，不刪除。"""
+    """把勾選的疑似重複併入保留的那一份。舊檔移到 bible/_merged/，不刪除。"""
     d = book_dir(book_id)
     body = await req.json()
     if RUNNER.running_for(book_id):
@@ -2155,7 +2195,7 @@ async def bible_set_category(book_id: str, req: Request):
         p = wrap(lambda: project.safe_path(d, norm))
         allowed = (layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")
         if not norm.startswith(allowed) or not p.endswith(".md") or not os.path.isfile(p):
-            raise HTTPException(400, "只能改 設定/角色、設定/勢力、設定/世界觀 裡的 .md 檔：" + rel)
+            raise HTTPException(400, "只能改 bible/characters、bible/factions、bible/world 裡的 .md 檔：" + rel)
         if cat is not None and not norm.startswith(layout.WORLD + "/"):
             raise HTTPException(400, "只有世界觀可以改分類：" + rel)
         if role is not None and not norm.startswith(layout.CHARACTERS + "/"):
@@ -2537,7 +2577,7 @@ async def job_events(job_id: str, request: Request, since: int = 0):
 # fekit 面板的任務端點（docs/02_API合約.md 第 4 節；轉接層在 ns_jobs.py）
 # ---------------------------------------------------------------------------
 def fe_launch_reply(book_id, job, text):
-    """Fekit 面板的 reply：一般任務接續同一本書；文風設計接 _共用。"""
+    """Fekit 面板的 reply：一般任務接續同一本書；文風設計接 _shared。"""
     if isinstance(job, dict):
         data = job
     else:

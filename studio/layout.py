@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """書的資料夾結構：所有系統定義的資料夾與檔名都集中在這裡。
 
-v3 結構英文化（見專案文件「15_v3結構英文化規格」）的第一步：
-程式其他地方不再直接寫 "設定/文風.md" 這類字串，一律引用這裡的常數。
-P1 階段「只搬位置、不改值」：常數的值仍是 v2 的中文名稱，行為完全不變；
-P3 改成英文名稱時，只要改這一個檔（加上移轉工具）。
+v3 結構英文化（見專案文件「15_v3結構英文化規格」）：
+程式其他地方不寫 "bible/style.md" 這類字串，一律引用這裡的常數。
+P3 第二批起，資料夾與系統檔名是英文（v2 的中文名稱對照在 studio/migrate.py，移轉工具靠它認舊書）。
+還沒換的：範本檔名（TPL_*）、卷綱與章節的檔名規則（第三、七批）。
 
 慣例
 - 常數一律是書資料夾底下的相對路徑，用 "/" 分隔（跟 project.rel_of 回傳的格式一致）。
@@ -17,13 +17,13 @@ import os
 # ---------------------------------------------------------------------------
 # 第一層資料夾
 # ---------------------------------------------------------------------------
-BIBLE = "設定"
-OUTLINE = "大綱"
-MANUSCRIPT = "正文"
-CANDIDATES = "候選"
-TRACKING = "追蹤"
-SAMPLES = "範例"
-TEMPLATES = "_範本"
+BIBLE = "bible"
+OUTLINE = "outline"
+MANUSCRIPT = "manuscript"
+CANDIDATES = "candidates"
+TRACKING = "tracking"
+SAMPLES = "samples"
+TEMPLATES = "_templates"
 STUDIO = ".studio"
 BOOK_META = "book.json"          # 書的身分證（格式版本、書名、語言）；各版都放在書的根目錄
 SCHEMA_VERSION = 2               # 這版程式寫出的書的格式。P3 把資料夾、檔名換成英文後改成 3
@@ -34,49 +34,49 @@ BROWSABLE = (BIBLE, OUTLINE, MANUSCRIPT, TRACKING, CANDIDATES, SAMPLES, TEMPLATE
 # ---------------------------------------------------------------------------
 # 設定集
 # ---------------------------------------------------------------------------
-CHARACTERS = BIBLE + "/角色"
-FACTIONS = BIBLE + "/勢力"
-WORLD = BIBLE + "/世界觀"
-BIBLE_DRAFTS = BIBLE + "/草稿"
-BIBLE_MERGED = BIBLE + "/_已合併"
-BIBLE_STRUCTURE = BIBLE + "/章節結構"
+CHARACTERS = BIBLE + "/characters"
+FACTIONS = BIBLE + "/factions"
+WORLD = BIBLE + "/world"
+BIBLE_DRAFTS = BIBLE + "/drafts"
+BIBLE_MERGED = BIBLE + "/_merged"
+BIBLE_STRUCTURE = BIBLE + "/structure"
 
-STORY_CORE = BIBLE + "/故事核心.md"
-STYLE = BIBLE + "/文風.md"
-GLOSSARY = BIBLE + "/名詞表.md"
-AUTHOR_PREFS = BIBLE + "/作者偏好.md"
-BIBLE_INDEX = BIBLE + "/_索引.md"
-STYLE_FINGERPRINT = BIBLE + "/風格指紋.json"
-STRUCTURE_DNA = BIBLE + "/結構DNA.json"
-CONTRACT = BIBLE + "/續寫合約.md"
-BOOK_STRUCTURE = BIBLE_STRUCTURE + "/結構.md"
+STORY_CORE = BIBLE + "/story-core.md"
+STYLE = BIBLE + "/style.md"
+GLOSSARY = BIBLE + "/glossary.md"
+AUTHOR_PREFS = BIBLE + "/author-prefs.md"
+BIBLE_INDEX = BIBLE + "/_index.md"
+STYLE_FINGERPRINT = BIBLE + "/style-fingerprint.json"
+STRUCTURE_DNA = BIBLE + "/structure-dna.json"
+CONTRACT = BIBLE + "/continuation-contract.md"
+BOOK_STRUCTURE = BIBLE_STRUCTURE + "/structure.md"
 
 # ---------------------------------------------------------------------------
 # 大綱
 # ---------------------------------------------------------------------------
-CHAPTER_CARDS = OUTLINE + "/章綱"
-REVERSE_CARDS = CHAPTER_CARDS + "/反推"
-VOLUME_DRAFTS = OUTLINE + "/草稿"
-VOLUMES_SUBDIR = OUTLINE + "/卷綱"          # spawn 建書時卷綱放這層（v2 另一種寫法是直接放在 大綱/）
-BOOK_OUTLINE = OUTLINE + "/全書大綱.md"
+CHAPTER_CARDS = OUTLINE + "/chapters"
+REVERSE_CARDS = CHAPTER_CARDS + "/_reverse"
+VOLUME_DRAFTS = OUTLINE + "/drafts"
+VOLUMES_SUBDIR = OUTLINE + "/volumes"          # spawn 建書時卷綱放這層（卷綱檔名規則在 P3 第三批統一）
+BOOK_OUTLINE = OUTLINE + "/book.md"
 
 # ---------------------------------------------------------------------------
 # 追蹤
 # ---------------------------------------------------------------------------
-SUMMARIES = TRACKING + "/章節摘要"
-CHARACTER_STATES = TRACKING + "/角色狀態"
-FORESHADOWING = TRACKING + "/伏筆.md"
-TIMELINE = TRACKING + "/時間線.md"
-STATE_CARD = TRACKING + "/狀態卡.md"
-READER_KNOWLEDGE = TRACKING + "/讀者認知.md"
-RELATIONS = TRACKING + "/關係.md"
-READER_KNOWLEDGE_DRAFT = TRACKING + "/讀者認知_草稿.md"
-RELATIONS_DRAFT = TRACKING + "/關係_草稿.md"
+SUMMARIES = TRACKING + "/summaries"
+CHARACTER_STATES = TRACKING + "/characters"
+FORESHADOWING = TRACKING + "/foreshadowing.md"
+TIMELINE = TRACKING + "/timeline.md"
+STATE_CARD = TRACKING + "/state-card.md"
+READER_KNOWLEDGE = TRACKING + "/reader-knowledge.md"
+RELATIONS = TRACKING + "/relations.md"
+READER_KNOWLEDGE_DRAFT = TRACKING + "/reader-knowledge.draft.md"
+RELATIONS_DRAFT = TRACKING + "/relations.draft.md"
 
 # ---------------------------------------------------------------------------
 # 候選
 # ---------------------------------------------------------------------------
-SPINOFF_DRAFTS = CANDIDATES + "/新書草稿"
+SPINOFF_DRAFTS = CANDIDATES + "/spinoff"
 
 # ---------------------------------------------------------------------------
 # 範本
@@ -86,35 +86,37 @@ PROJECT_RULES = TEMPLATES + "/專案規範.md"
 # ---------------------------------------------------------------------------
 # .studio（工作台內部資料）
 # ---------------------------------------------------------------------------
-STUDIO_BACKUP = STUDIO + "/備份"
-STUDIO_REVISIONS = STUDIO + "/修訂"
-STUDIO_PIPELINE = STUDIO + "/流程"
-STUDIO_PIPELINE_CURRENT = STUDIO_PIPELINE + "/目前.json"
-STUDIO_PIPELINE_SNAPSHOTS = STUDIO_PIPELINE + "/快照"
-STUDIO_REVIEWS = STUDIO + "/審查報告"
-STUDIO_REVIEW = STUDIO + "/審查"
-STUDIO_CHECK = STUDIO + "/核對"
-STUDIO_TRASH = STUDIO + "/刪除"
-STUDIO_RECALL_INDEX = STUDIO + "/索引/recall.json"
-STUDIO_REVERSE = STUDIO + "/反推"
-STUDIO_FIDELITY = STUDIO + "/保真"
-STUDIO_WRITEBACK_CHECK = STUDIO + "/回寫檢查"
-STUDIO_RECOVERY = STUDIO + "/恢復稿"
-STUDIO_EXPORT_PREFS = STUDIO + "/匯出設定.json"
+STUDIO_BACKUP = STUDIO + "/backup"
+STUDIO_REVISIONS = STUDIO + "/revisions"
+STUDIO_PIPELINE = STUDIO + "/pipeline"
+STUDIO_PIPELINE_CURRENT = STUDIO_PIPELINE + "/current.json"
+STUDIO_PIPELINE_SNAPSHOTS = STUDIO_PIPELINE + "/snapshots"
+STUDIO_REVIEWS = STUDIO + "/reviews"
+STUDIO_REVIEW = STUDIO + "/review"
+STUDIO_CHECK = STUDIO + "/goal-check"
+STUDIO_TRASH = STUDIO + "/trash"
+STUDIO_RECALL_INDEX = STUDIO + "/index/recall.json"
+STUDIO_REVERSE = STUDIO + "/reverse"
+STUDIO_FIDELITY = STUDIO + "/fidelity"
+STUDIO_WRITEBACK_CHECK = STUDIO + "/writeback-check"
+STUDIO_RECOVERY = STUDIO + "/recovery"
+STUDIO_EXPORT_PREFS = STUDIO + "/export-settings.json"
 MIGRATE_DIR = STUDIO + "/migrate"              # 移轉工具的備份與報告（各版同名，移轉時不搬動）
 MIGRATE_BACKUP_PREFIX = "pre-v3_"              # 移轉前的整本備份：.studio/migrate/pre-v3_YYYYMMDD-HHMMSS.zip
-PIPELINE_CURRENT_FILE = "目前.json"            # 流程狀態檔名（放在 STUDIO_PIPELINE 底下）
-REVERSE_CUMULATIVE = "累積.json"               # 反推的累積結果（放在 STUDIO_REVERSE 底下）
-REVERSE_DRAFTS = "草稿"                        # STUDIO_REVERSE 底下：反推出來、還沒採用的草稿
-REVERSE_BATCHES = "批次"                       # STUDIO_REVERSE 底下：逐批抽取結果
+PIPELINE_CURRENT_FILE = "current.json"            # 流程狀態檔名（放在 STUDIO_PIPELINE 底下）
+REVERSE_CUMULATIVE = "cumulative.json"               # 反推的累積結果（放在 STUDIO_REVERSE 底下）
+REVERSE_DRAFTS = "drafts"                        # STUDIO_REVERSE 底下：反推出來、還沒採用的草稿
+REVERSE_BATCHES = "batches"                       # STUDIO_REVERSE 底下：逐批抽取結果
 
 # ---------------------------------------------------------------------------
 # 書的第一層：插圖、匯出
 # ---------------------------------------------------------------------------
-ILLUST = "插圖"
-ILLUST_INDEX = "_插圖.json"                    # ILLUST 底下
-ART_STYLE = "畫風.json"                        # ILLUST 底下
-EXPORT = "匯出"
+ILLUST = "illust"
+ILLUST_COVER = "cover"                         # ILLUST 底下：封面
+ILLUST_CHAPTERS = "chapters"                   # ILLUST 底下：各章（裡面一章一個資料夾）
+ILLUST_INDEX = "_illustrations.json"                    # ILLUST 底下
+ART_STYLE = "art-style.json"                        # ILLUST 底下
+EXPORT = "export"
 
 # ---------------------------------------------------------------------------
 # 範本檔名（plugin*/skills/novel-setup/templates/ 與書內 _範本/ 共用同一組檔名）
@@ -133,16 +135,18 @@ TPL_TIMELINE = "時間線.md"
 TPL_CHARACTER = "角色.md"
 TPL_FACTION = "勢力.md"
 TPL_WORLD = "世界觀.md"
+TPL_READER_KNOWLEDGE = "讀者認知.md"
+TPL_RELATIONS = "關係.md"
 
 # ---------------------------------------------------------------------------
-# 書庫層級（_共用）
+# 書庫層級（_shared）
 # ---------------------------------------------------------------------------
-SHARED = "_共用"                # 書庫第一層的共用資料夾（不是書）
-SHARED_TRASH = ".刪除"          # _共用/ 底下刪除的項目
-SHARED_BACKUP = ".備份"         # _共用/ 底下被覆蓋的舊版
-SHARED_STYLES = "文風"          # _共用/ 底下的文風庫
-SHARED_STRUCTURES = "結構"      # _共用/ 底下的章節結構庫
-SHARED_PREFS = "作者偏好.md"    # _共用/ 底下的共用作者偏好
+SHARED = "_shared"                # 書庫第一層的共用資料夾（不是書）
+SHARED_TRASH = ".trash"          # _shared/ 底下刪除的項目
+SHARED_BACKUP = ".backup"         # _shared/ 底下被覆蓋的舊版
+SHARED_STYLES = "styles"          # _shared/ 底下的文風庫
+SHARED_STRUCTURES = "structures"      # _shared/ 底下的章節結構庫
+SHARED_PREFS = "author-prefs.md"    # _shared/ 底下的共用作者偏好
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +155,13 @@ SHARED_PREFS = "作者偏好.md"    # _共用/ 底下的共用作者偏好
 VOLUME_PREFIX = "卷綱_第"                     # 正式卷綱檔名的開頭（掃描、比對用）
 VOLUME_ONE_ALIASES = (OUTLINE + "/卷綱_第1卷.md", OUTLINE + "/卷一卷綱.md", OUTLINE + "/卷綱_第一卷.md")
 SPAWN_VOLUME_ONE = VOLUMES_SUBDIR + "/卷綱_第一卷.md"
+
+# 建書時「活檔」的範本：目的地 → 範本檔名（v3 起兩邊的檔名不一樣，不能再用同名對應）
+LIVE_TEMPLATES = {
+    STORY_CORE: TPL_STORY_CORE, STYLE: TPL_STYLE, AUTHOR_PREFS: TPL_AUTHOR_PREFS, GLOSSARY: TPL_GLOSSARY,
+    BOOK_OUTLINE: TPL_BOOK_OUTLINE, STATE_CARD: TPL_STATE_CARD, FORESHADOWING: TPL_FORESHADOWING, TIMELINE: TPL_TIMELINE,
+    READER_KNOWLEDGE: TPL_READER_KNOWLEDGE, RELATIONS: TPL_RELATIONS, SPAWN_VOLUME_ONE: TPL_VOLUME_OUTLINE,
+}
 VOLUME_REVISION_PREFIX = "卷綱修訂"
 
 
@@ -179,7 +190,7 @@ def chapter_range_json(a, b):
 
 
 def revision_draft(no):
-    """修訂稿：.studio/修訂/第001章.draft.md"""
+    """修訂稿：.studio/revisions/第001章.draft.md"""
     return STUDIO_REVISIONS + "/第%03d章.draft.md" % int(no)
 
 
@@ -211,7 +222,7 @@ def health_report_file(stamp):
 
 
 def backup_name(tag, stem, stamp, ext="md"):
-    """.studio/備份 裡的備份檔名：<tag>_<原檔名>.<時間>.md"""
+    """.studio/backup 裡的備份檔名：<tag>_<原檔名>.<時間>.md"""
     return "%s_%s.%d.%s" % (tag, stem, int(stamp), ext)
 
 
@@ -225,8 +236,8 @@ def rerun_backup_file(sub, stem, stamp):
     return "重跑前%s_%s.%d.json" % (sub, stem, int(stamp))
 
 
-SPINOFF_SKELETON_JSON = "骨架.json"     # SPINOFF_DRAFTS 底下
-SPINOFF_SKELETON_MD = "骨架.md"
+SPINOFF_SKELETON_JSON = "skeleton.json"     # SPINOFF_DRAFTS 底下
+SPINOFF_SKELETON_MD = "skeleton.md"
 
 
 def shared_style_file(name, stamp):

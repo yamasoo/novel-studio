@@ -12,7 +12,7 @@ from studio import drift, lang as lang_mod, prompts  # noqa: E402
 
 
 def write_plan(path, book, d, res):
-    """把「更新卷綱」草稿寫到指定檔案（預設放在候選/，不會蓋掉大綱）。"""
+    """把「更新卷綱」草稿寫到指定檔案（預設放在 candidates/，不會蓋掉大綱）。"""
     a, b = d["range"]
     L = ["# 卷綱更新草稿（第%d–%d 章漂移報告）" % (a, b), "",
          "> 由 `tools/drift.py --provider` 產生，請自己看過再貼回卷綱。", ""]
@@ -37,7 +37,7 @@ def write_plan(path, book, d, res):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--book", required=True, help="書的資料夾（含 正文/、設定/、大綱/）")
+    ap.add_argument("--book", required=True, help="書的資料夾（含 manuscript/、bible/、outline/）")
     ap.add_argument("--from", dest="start", type=int, help="從第幾章開始（預設：最後 10 章）")
     ap.add_argument("--to", dest="end", type=int, help="到第幾章（預設：最後一章）")
     ap.add_argument("--idle", type=int, default=drift.IDLE_CHARS, help="幾章沒登場算消失")

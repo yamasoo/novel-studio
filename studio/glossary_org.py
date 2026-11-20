@@ -1,7 +1,7 @@
 """把名詞表整理進設定集：細分類、依主題寫成世界觀檔、重要條目獨立成檔、合併勢力，名詞表留作索引。
 
 - 名詞表每一條都保留（垃圾條目除外），一條一行，「注意」欄指到詳細內容在哪一份設定檔。寫稿時篩名詞表照常運作。
-- 地點、物品、能力與技術、制度與習俗、生物依「主題」寫成 設定/世界觀/{主題}.md；出場 5 章以上的地點、物品、技術獨立成一份。
+- 地點、物品、能力與技術、制度與習俗、生物依「主題」寫成 bible/world/{主題}.md；出場 5 章以上的地點、物品、技術獨立成一份。
 - 組織交給 AI 合併重複（例如縮寫與全名）、把不是勢力的移走、同一政權不同階段的名稱寫成沿革，拿不準的標「需要作者確認」。
 - 事件留在名詞表，指到時間線；稱謂留在名詞表。
 - 每個名詞從正文抓前後幾句當參考（本機搜尋，不重讀整本）。
@@ -93,7 +93,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     raw_step = step or (lambda key, label, text: call(label, text))
 
     def step(key, label, text):
-        # 模型資料一律換成英文鍵：名詞整理自己呼叫的已經是英文鍵；反推的呼叫與 .studio/反推 的快取可能還是中文鍵
+        # 模型資料一律換成英文鍵：名詞整理自己呼叫的已經是英文鍵；反推的呼叫與 .studio/reverse 的快取可能還是中文鍵
         d = raw_step(key, label, text)
         return jsonkeys.to_keys(d, values=False) if d else d
     rows = [tables.row_to_keys("glossary", r) for r in rows]
@@ -207,7 +207,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
                 if firsts.get(n):
                     tail.append(_p("gl_first_seen", n="%03d" % firsts[n]))
                 if n in own_names:
-                    tail.append("詳見 設定/世界觀/%s.md" % _fname(n))
+                    tail.append("詳見 bible/world/%s.md" % _fname(n))
                 lines.append("- **%s**：%s%s" % (n, _clean(e.get("explanation")) or _u(), "（%s）" % "；".join(tail) if tail else ""))
             if lines:
                 secs.append("## %s\n%s" % (_clean(s.get("heading")) or "其他", "\n".join(lines)))
@@ -260,7 +260,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         if where.get(r["term"]):
             note.append("詳見 " + where[r["term"]])
         elif b == "事件":
-            note.append("見 追蹤/時間線.md")
+            note.append("見 tracking/timeline.md")
         out_rows.append({"term": r["term"], "kind": b + ("／" + sub if sub and sub != b else ""), "explanation": r["explanation"], "note": "；".join(note)})
     order = {b: i for i, b in enumerate(BIG)}
     out_rows.sort(key=lambda x: (order.get(x["kind"].split("／")[0], 99), x["kind"]))

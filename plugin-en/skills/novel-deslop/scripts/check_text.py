@@ -14,11 +14,11 @@ Same command line and result shape as the Chinese checker, so the workbench can 
 Level names (必須修/建議修/提醒) and JSON keys are fixed tokens shared by every language.
 
 Usage:
-  python3 check_text.py 正文/第001章_Title.md
-  python3 check_text.py 正文/
-  python3 check_text.py 正文/第001章_Title.md --fix-punct
-  python3 check_text.py 正文/第001章_Title.md --json
-  python3 check_text.py 正文/第001章_Title.md --count
+  python3 check_text.py manuscript/第001章_Title.md
+  python3 check_text.py manuscript/
+  python3 check_text.py manuscript/第001章_Title.md --fix-punct
+  python3 check_text.py manuscript/第001章_Title.md --json
+  python3 check_text.py manuscript/第001章_Title.md --count
 
 Whitelist: `.去AI味白名單` in the book folder, one fragment per line, `#` for comments.
 Lines containing a whitelisted fragment skip the wording and AI-tell checks (punctuation still checked).
@@ -157,7 +157,7 @@ def load_banned(book_root):
     if not book_root:
         return items
     for path, src in ((os.path.join(book_root, "設定", "作者偏好.md"), "book preferences"),
-                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_共用", "作者偏好.md"), "shared preferences")):
+                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_shared", "作者偏好.md"), "shared preferences")):
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as f:
                 items += parse_banned(f.read(), src)
@@ -165,7 +165,7 @@ def load_banned(book_root):
 
 
 def load_aliases(book_root):
-    """Names and aliases from 設定/角色/*.md frontmatter. Returns {name: [name, aliases...]}."""
+    """Names and aliases from bible/characters/*.md frontmatter. Returns {name: [name, aliases...]}."""
     out = {}
     d = os.path.join(book_root or "", "設定", "角色")
     if not book_root or not os.path.isdir(d):
@@ -452,7 +452,7 @@ def main():
     ap.add_argument("--fix-punct", action="store_true", help="fix punctuation in place")
     ap.add_argument("--json", action="store_true", help="JSON output")
     ap.add_argument("--count", action="store_true", help="word count only")
-    ap.add_argument("--book-root", help="book folder (default: the parent of 正文/)")
+    ap.add_argument("--book-root", help="book folder (default: the parent of manuscript/)")
     args = ap.parse_args()
 
     files = collect(args.paths)

@@ -25,18 +25,18 @@ description: 建立繁體中文小說寫作專案：開書訪談、建資料夾�
 
 依 project-layout.md 建立資料夾。然後：
 
-- 把本 skill 的 `templates/` 裡所有檔案複製到專案的 `_範本/`，再把 `references/project-layout.md` 複製成 `_範本/專案規範.md`。之後其他 skill 都從 `_範本/` 取範本與規範。
+- 把本 skill 的 `templates/` 裡所有檔案複製到專案的 `_templates/`，再把 `references/project-layout.md` 複製成 `_templates/專案規範.md`。之後其他 skill 都從 `_templates/` 取範本與規範。
 - 依範本建立以下空白檔案（frontmatter 填好，內容保留範本註解）：
-  - `設定/故事核心.md`、`設定/文風.md`、`設定/作者偏好.md`、`設定/名詞表.md`
-  - `大綱/全書大綱.md`
-  - `追蹤/狀態卡.md`、`追蹤/伏筆.md`、`追蹤/時間線.md`
-- 建立空資料夾：`設定/世界觀/`、`設定/角色/`、`設定/勢力/`、`設定/草稿/`、`大綱/章綱/`、`正文/`、`候選/`、`追蹤/角色狀態/`、`追蹤/章節摘要/`、`範例/`。空資料夾放一個 `.gitkeep`。
+  - `bible/story-core.md`、`bible/style.md`、`bible/author-prefs.md`、`bible/glossary.md`
+  - `outline/book.md`
+  - `tracking/state-card.md`、`tracking/foreshadowing.md`、`tracking/timeline.md`
+- 建立空資料夾：`bible/world/`、`bible/characters/`、`bible/factions/`、`bible/drafts/`、`outline/chapters/`、`manuscript/`、`candidates/`、`tracking/characters/`、`tracking/summaries/`、`samples/`。空資料夾放一個 `.gitkeep`。
 
 ### 步驟 3：填入訪談結果
 
 - 依 [references/claude-md-template.md](references/claude-md-template.md) 產生 `CLAUDE.md`。
-- 把已知資訊填進 `設定/故事核心.md`、`設定/文風.md`。不知道的欄位保留範本註解，不要自己編。
-- 作者提到的禁忌或長期要求，寫進 `CLAUDE.md` 的「本書特別規則」或 `設定/作者偏好.md`。
+- 把已知資訊填進 `bible/story-core.md`、`bible/style.md`。不知道的欄位保留範本註解，不要自己編。
+- 作者提到的禁忌或長期要求，寫進 `CLAUDE.md` 的「本書特別規則」或 `bible/author-prefs.md`。
 
 ### 步驟 4：版本控制（建議）
 
@@ -55,7 +55,7 @@ description: 建立繁體中文小說寫作專案：開書訪談、建資料夾�
 
 ## 檢查既有專案
 
-1. 依 project-layout.md 逐項檢查：缺哪些資料夾、哪些核心檔案還是空白範本、`_範本/` 是否存在且齊全（範本有更新時，把新版範本補進 `_範本/`，不動作者已寫的檔案）。
+1. 依 project-layout.md 逐項檢查：缺哪些資料夾、哪些核心檔案還是空白範本、`_templates/` 是否存在且齊全（範本有更新時，把新版範本補進 `_templates/`，不動作者已寫的檔案）。
 2. 用白話列出結果，例如：「專案結構完整。故事核心和文風已填；還沒有任何角色設定；第一卷還沒有卷綱。」
 3. 缺檔只補空白範本，不覆蓋既有內容。補之前告訴作者要補哪些。
 
@@ -67,7 +67,7 @@ description: 建立繁體中文小說寫作專案：開書訪談、建資料夾�
 
 作者說「以後都……」「記住……」「我習慣……」這類**長期、範圍清楚**的要求時：
 
-1. 判斷範圍：只限這本書 → 寫進本書 `設定/作者偏好.md`；作者明說所有作品都要 → 也寫進本書，並建議作者把它加到個人層級的 CLAUDE.md（`~/.claude/CLAUDE.md`），這樣其他專案也會套用。
+1. 判斷範圍：只限這本書 → 寫進本書 `bible/author-prefs.md`；作者明說所有作品都要 → 也寫進本書，並建議作者把它加到個人層級的 CLAUDE.md（`~/.claude/CLAUDE.md`），這樣其他專案也會套用。
 2. 一條偏好寫一行，保留原話的限定與例外，不要拆開（例：「破折號少用，對話裡不用，只在表示打斷時保留」寫成一行）。
 3. 下列情況**不記錄**：「這章先……」這類一次性要求；你從作者改稿行為猜出來的習慣；劇情、角色、世界觀事實（那些屬於設定或追蹤）。
 4. 新偏好和舊偏好衝突時，問作者要取代哪一條。

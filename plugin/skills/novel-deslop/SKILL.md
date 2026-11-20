@@ -18,7 +18,7 @@ description: 小說去 AI 味與台灣繁體中文校正：找出並改寫套話
 
 ## 開始前
 
-1. 若在小說專案中，讀 `設定/文風.md`（特別是「允許的例外」）與 `設定/作者偏好.md`，以及書庫的 `_共用/作者偏好.md`（書目錄的上一層；存在的話）。作者明確允許的寫法不是問題；作者列的禁用詞，檢查腳本會自動標出。
+1. 若在小說專案中，讀 `bible/style.md`（特別是「允許的例外」）與 `bible/author-prefs.md`，以及書庫的 `_shared/author-prefs.md`（書目錄的上一層；存在的話）。作者明確允許的寫法不是問題；作者列的禁用詞，檢查腳本會自動標出。
 2. 讀 [references/ai-signals.md](references/ai-signals.md)。
 3. 涉及用語或標點時，讀 [references/tw-terms.md](references/tw-terms.md)。
 4. 需要改寫示範時，讀 [references/rewrite-examples.md](references/rewrite-examples.md)。
@@ -28,10 +28,10 @@ description: 小說去 AI 味與台灣繁體中文校正：找出並改寫套話
 `scripts/check_text.py` 會檢查簡體字、標點、大陸用語、工程詞、AI 味信號密度、章尾昇華，並統計字數。只用 Python 標準函式庫。
 
 ```bash
-python3 {本 skill 目錄}/scripts/check_text.py 正文/第001章_章名.md          # 檢查一章
-python3 {本 skill 目錄}/scripts/check_text.py 正文/                        # 檢查整個資料夾
-python3 {本 skill 目錄}/scripts/check_text.py 正文/第001章_章名.md --fix-punct   # 自動修正標點
-python3 {本 skill 目錄}/scripts/check_text.py 正文/第001章_章名.md --count       # 只算字數
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/第001章_章名.md          # 檢查一章
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/                        # 檢查整個資料夾
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/第001章_章名.md --fix-punct   # 自動修正標點
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/第001章_章名.md --count       # 只算字數
 ```
 
 Windows 上 `python3` 不能用時改用 `python` 或 `py -3`。
@@ -85,7 +85,7 @@ Windows 上 `python3` 不能用時改用 `python` 或 `py -3`。
 - 不要把每個情緒都換成同一個微動作。
 - 不要為了「像人寫的」故意加錯字、髒話、口誤，或每句都換行。
 - 不要把長句全拆成短句。長短交錯才自然。
-- 不要改掉 `設定/文風.md` 明確允許的寫法。
+- 不要改掉 `bible/style.md` 明確允許的寫法。
 - 不要改動劇情、伏筆、人物決定。
 
 ## 注意

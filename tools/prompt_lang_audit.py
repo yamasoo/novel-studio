@@ -36,6 +36,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 from studio import enums, glossary_org, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, reverse, revision, runner, shared, textguard  # noqa: E402
+from studio import layout  # noqa: E402
 
 PLUGIN_DIR = os.path.join(ROOT, "plugin")
 FIXTURES = os.path.join(HERE, "audit_fixtures")
@@ -298,14 +299,14 @@ def make_book(library, lang, src=None):
     importer.set_import_lang(d, lang)
     native_files.ensure_skeleton(d, PLUGIN_DIR)
     importer.make_claude_md(d, PLUGIN_DIR, "audit-" + lang)
-    src_dir = os.path.join(src, "正文") if src else os.path.join(FIXTURES, lang)
+    src_dir = os.path.join(src, "manuscript") if src else os.path.join(FIXTURES, lang)
     files = sorted(project._scan_dir(src_dir).items())[:3]
     if len(files) < 3:
         raise SystemExit("測試書至少要 3 章：%s" % src_dir)
     for i, (no, f) in enumerate(files, 1):
         text = project.read_text(os.path.join(src_dir, f))
         name = "第%03d章_%s" % (i, f.split("_", 1)[1] if "_" in f else f)
-        with open(os.path.join(d, "正文", name), "w", encoding="utf-8", newline="\n") as fh:
+        with open(layout.path(d, layout.MANUSCRIPT, name), "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
     return d
 
@@ -347,7 +348,7 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
 
         act("reverse", {"upto": 3})
         if only == "reverse":
-            files = {k: v for k, v in snapshot(os.path.join(book, reverse.DIR, "草稿")).items()}
+            files = {k: v for k, v in snapshot(os.path.join(book, reverse.DIR, layout.REVERSE_DRAFTS)).items()}
             return rec.calls, errors, files
         for g in reverse.GROUPS:
             try:
@@ -360,10 +361,10 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
                 reverse.adopt(book, g)
             except project.ProjectError:
                 pass
-        # 章綱採用的落點是 大綱/章綱/反推/（正式章綱不動，那條由 test_reverse_adopt 驗）；
+        # 章綱採用的落點是 outline/chapters/_reverse/（正式章綱不動，那條由 test_reverse_adopt 驗）；
         # 這支只驗流程與提示詞組裝，所以把反推章綱複製成正式章綱，後面的章綱核對／寫下一章才跑得起來。
-        card = os.path.join(book, "大綱", "章綱")
-        alt = os.path.join(card, "反推")
+        card = layout.path(book, layout.CHAPTER_CARDS)
+        alt = os.path.join(card, layout.parts(layout.REVERSE_CARDS)[-1])
         if not project._scan_dir(card) and os.path.isdir(alt):
             for _, f in sorted(project._scan_dir(alt).items()):
                 no = project.chapter_no(f)
@@ -388,7 +389,7 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
             with open(os.path.join(card, "第004章_next.md"), "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(t)
         act("write", {"from": 4, "to": 4})
-        chars = project.list_entries(book, "設定/角色")
+        chars = project.list_entries(book, "bible/characters")
         if chars:
             act("visual_card", {"file": chars[0]["file"]})
             act("illust_prompt", {"target": "chapter:3", "passage": "...", "chars": [chars[0]["name"]], "places": []})
@@ -398,7 +399,7 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
                              "readers": "", "avoid": "", "note": "", "overwrite": True, "sample": "", "exclude": "", "lang": lang},
             book_dir=sd, book_id=shared.SHARED)
         files = snapshot(book)
-        files.update({"_共用/" + k: v for k, v in snapshot(sd).items()})
+        files.update({"_shared/" + k: v for k, v in snapshot(sd).items()})
     finally:
         providers.chat, native.Ctx.call = old_chat, old_call
         glossary_org.OWN_FILE_MIN = old_min
@@ -429,7 +430,7 @@ KANA = re.compile("[\u3041-\u3096\u30a1-\u30fa\u30fc]")
 # 只在繁體中文出現、日文不用的字（日文寫成新字體或根本不用）：日文書裡出現這些字，幾乎一定是中文句子
 ZH_ONLY = set("們這說處關讀應發對將會點與從麼裡寫認歷藝氣變區畫圖戰實讓錄體擇觀覺狀檔沒樣來經號該個嗎呢吧啊哪誰還麼於當並們對話時間書")
 ZH_ONLY -= set("認個時間書話當並於")     # 日文也常用的字不算
-_PATH = r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|_共用|\.studio)"
+_PATH = r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|_shared|\.studio)"
 STRIP = [
     re.compile(r"(?ms)^---\n.*?\n---\n"),                                    # 檔案的 frontmatter
     re.compile(r"(?m)^[ \t]*#{1,6} .*$"),                                     # 檔案裡的標題（## 一句話）
@@ -461,7 +462,7 @@ def allowed(lang):
     return _ALLOW[lang]
 
 
-# 程式靠它判斷的中文標記（名詞表「注意」欄的「詳見 設定/…」）
+# 程式靠它判斷的中文標記（名詞表「注意」欄的「詳見 bible/…」）
 EXTRA_OK = {"詳見"}
 
 
@@ -498,7 +499,7 @@ def bad_segments(text, lang):
 
 def _book_text(lang, src):
     """測試書正文：從檢查對象中扣掉（日文正文本來就有漢字）。"""
-    d = os.path.join(src, "正文") if src else os.path.join(FIXTURES, lang)
+    d = os.path.join(src, "manuscript") if src else os.path.join(FIXTURES, lang)
     return [project.read_text(os.path.join(d, f)) for _, f in sorted(project._scan_dir(d).items())[:3]]
 
 
@@ -655,7 +656,7 @@ def retry_test():
         labels = [c["label"] for c in calls]
         logs = [t for _, ls, _ in jobs for t in ls]
         result = "".join(r for _, _, r in jobs)
-        chars = {k: v for k, v in files.items() if k.startswith("設定/角色/")}
+        chars = {k: v for k, v in files.items() if k.startswith("bible/characters/")}
         name = "回錯 %d 次" % times
         if errors:
             probs.append("%s：任務失敗 %s" % (name, errors))

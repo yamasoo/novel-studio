@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """卷綱狀態轉正：把「正式路徑」裡狀態還是草稿的卷綱，備份後標成已確認。
 
-背景：舊的「卷綱」直寫入口會把 AI 產出的卷綱直接寫進 大綱/卷綱_第N卷.md，
+背景：舊的「卷綱」直寫入口會把 AI 產出的卷綱直接寫進 outline/卷綱_第N卷.md，
 但範本預設 `狀態: 草稿`。這些檔案一直被閘門與續寫合約當成正式（因為不看狀態），
 只是標籤說謊；新流程（開新卷→採用／修訂→套用）一律會寫「已確認」。
 
@@ -40,7 +40,7 @@ def findings(library, book=None, acts=True):
         return out
     for name in sorted(os.listdir(library)):
         d = os.path.join(library, name)
-        if not os.path.isdir(d) or name.startswith(".") or name == "_共用":
+        if not os.path.isdir(d) or name.startswith(".") or name == "_shared":
             continue
         if book and name != book:
             continue
@@ -108,7 +108,7 @@ def main(argv=None):
         return 0
     if not rows:
         return 0
-    print("\n開始轉正（每份都會先備份到該書的 .studio/備份/）…")
+    print("\n開始轉正（每份都會先備份到該書的 .studio/backup/）…")
     done, fails = apply(rows)
     print("\n完成：轉正 %d 份，失敗 %d 份。" % (done, len(fails)))
     return 1 if fails else 0

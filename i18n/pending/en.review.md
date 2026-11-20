@@ -180,19 +180,19 @@ python tools/check_i18n.py、python tools/check_parity.py --update-lock。
 | 173 | ，第一次在第 {0} 章 | , first in chapter {0} |
 | 174 | ，簡體字約 | , with Simplified Chinese in about  |
 | 175 | ；其他步驟用上面選的執行者。（設定 → 整章自動流程） | ; the other steps use the runner chosen above. (Settings → Full-chapter automation) |
-| 176 | 之後這幾步的結果會先備份到 .studio/備份/ 再清掉，然後重新執行： | The results of these steps are backed up to .studio/備份/ before they are cleared, then they run again:  |
-| 177 | 刪除「{0}」？{1}會移到 .studio/刪除，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。 | Delete “{0}”? {1} moves to .studio/刪除 and is not deleted for good, so places that reference it (relations, threads, the index) may break. |
-| 178 | 寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 設定/作者偏好.md 衝突時以書為準）。「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 | Claude Code and the other models read this file when writing, revising, doing De-AI polish, or reviewing (a book's own 設定/作者偏好.md wins on any conflict). The program compares the Banned words section word by word during Check wording and AI feel, and it currently has  |
+| 176 | 之後這幾步的結果會先備份到 .studio/backup/ 再清掉，然後重新執行： | The results of these steps are backed up to .studio/backup/ before they are cleared, then they run again:  |
+| 177 | 刪除「{0}」？{1}會移到 .studio/trash，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。 | Delete “{0}”? {1} moves to .studio/trash and is not deleted for good, so places that reference it (relations, threads, the index) may break. |
+| 178 | 寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 bible/author-prefs.md 衝突時以書為準）。「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 | Claude Code and the other models read this file when writing, revising, doing De-AI polish, or reviewing (a book's own bible/author-prefs.md wins on any conflict). The program compares the Banned words section word by word during Check wording and AI feel, and it currently has  |
 | 179 | 顯示 {0} / | Showing {0} / |
 
 同形（填 "=="，10 條）：
 - #/b/{0}/bible?t=核心&f=
 - /bible?t=草稿
-- 候選/新書草稿/骨架.md
+- candidates/spinoff/skeleton.md
 - 文風/{0}.md
 - 結構/{0}.md
-- 設定/{0}/
-- 追蹤/讀者認知.md
-- 追蹤/讀者認知_草稿.md
-- 追蹤/關係.md
-- 追蹤/關係_草稿.md
+- bible/{0}/
+- tracking/reader-knowledge.md
+- tracking/reader-knowledge.draft.md
+- tracking/relations.md
+- tracking/relations.draft.md

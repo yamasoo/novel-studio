@@ -1,6 +1,6 @@
 """回寫追蹤後的本機檢查：只看「有沒有寫到」，不判斷寫得對不對，不花 token。
 
-結果存在 .studio/回寫檢查/第NNN章.json；總覽「需要注意」會列出還有問題的章。重跑回寫通過後就會消失。
+結果存在 .studio/writeback-check/第NNN章.json；總覽「需要注意」會列出還有問題的章。重跑回寫通過後就會消失。
 """
 import json
 import os

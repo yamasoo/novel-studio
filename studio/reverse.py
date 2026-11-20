@@ -7,7 +7,7 @@
 3. 整理：請 AI 根據累積資料寫角色檔、勢力、世界觀、故事核心、全書大綱與卷綱、狀態卡、主要角色的目前狀態。
 4. 本機產生：名詞表、反向章綱、章節摘要、伏筆表、時間線、讀者認知帳本。
 
-全部先存成草稿（.studio/反推/草稿/），分「設定／大綱／章綱／追蹤」四組讓作者採用或捨棄。
+全部先存成草稿（.studio/reverse/drafts/），分「設定／大綱／章綱／追蹤」四組讓作者採用或捨棄。
 推不出來的欄位寫「（正文未明確）」或「待補」，不編造。
 """
 import difflib
@@ -110,7 +110,7 @@ def _save(path, data):
     os.replace(tmp, path)
 
 
-# 累積資料（.studio/反推/累積.json）的鍵：v3 起是英文鍵。舊版（中文鍵）的快取讀進來先換算，反推跑到一半升級的書可以續跑。
+# 累積資料（.studio/reverse/cumulative.json）的鍵：v3 起是英文鍵。舊版（中文鍵）的快取讀進來先換算，反推跑到一半升級的書可以續跑。
 CARD_KEYS = (("protagonist_goal", "主角想做什麼"), ("obstacle", "阻礙"), ("new_situation", "局面變成"), ("why_read_on", "讀者為什麼往下看"),
              ("function", "功能"), ("emotion", "情緒"), ("ending_hook", "章末鉤子"))
 _V2_CARD = dict([(zh, en) for en, zh in CARD_KEYS] + [("情節點", "plot_points"), ("出場", "on_stage"), ("伏筆操作", "foreshadow_ops")])
@@ -812,7 +812,7 @@ CHAPTER_DRAFT_DIR = layout.REVERSE_CARDS
 
 
 def _canon_rel(group, rel):
-    """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 大綱/章綱/反推/。"""
+    """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 outline/chapters/_reverse/。"""
     if group == "cards":
         return "%s/%s" % (CHAPTER_DRAFT_DIR, os.path.basename(rel))
     if group == "outline" and rel.startswith(layout.OUTLINE + "/" + layout.VOLUME_PREFIX):
@@ -841,7 +841,7 @@ def _read_rel(book_dir, rel):
 
 
 def chapter_cards(book_dir):
-    """已採用的反推章綱（大綱/章綱/反推/），給大綱頁的唯讀對照清單。"""
+    """已採用的反推章綱（outline/chapters/_reverse/），給大綱頁的唯讀對照清單。"""
     root = os.path.join(book_dir, *CHAPTER_DRAFT_DIR.split("/"))
     out = []
     if os.path.isdir(root):
@@ -896,7 +896,7 @@ def adopt(book_dir, group, mode=None, files=None):
     """採用這組草稿。
 
     mode：keep（保留現有，什麼都不動）／replace（先備份再整份取代）／merge（先備份再併入，
-    只補空白與缺的段落）／copy（章綱專用：寫進 大綱/章綱/反推/，正式章綱不動）。
+    只補空白與缺的段落）／copy（章綱專用：寫進 outline/chapters/_reverse/，正式章綱不動）。
     mode 省略時用各組預設（設定 merge、大綱／追蹤 keep、章綱 copy）。
     例外：名詞表是表格、沒有「## 段落」，merge 併不進去，一律當快照整份取代（除非選 keep）。
     files：只處理這幾個相對路徑（None＝全部）。舊呼叫 adopt(book_dir, group) 仍可用。

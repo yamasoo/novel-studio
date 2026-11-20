@@ -53,7 +53,7 @@ class FrontmatterTest(unittest.TestCase):
         self.assertIn("他說： 走吧。", out)          # 正文照樣轉標點
 
     def test_apply_blocks_keeps_frontmatter_and_fills_role(self):
-        rel = "設定/角色/丙.md"
+        rel = "bible/characters/丙.md"
         done, _ = native_files.apply_blocks(
             self.book, [(rel, "---\n類型: 角色\n名稱: 丙\n狀態: 草稿\n---\n\n# 丙\n\n## 一句話\n他說: 走吧。\n")], [], None)
         with open(os.path.join(self.book, *rel.split("/")), encoding="utf-8") as f:

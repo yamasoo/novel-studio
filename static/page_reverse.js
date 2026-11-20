@@ -1,7 +1,7 @@
 /* 反推設定頁（轉移計畫 §8.2.7）：從 app.js 的 viewReverse 搬過來（原本 181-241）。
    三個原生 confirm 改 await FE.confirm（文字一字不差）；動作做完一律 FE.route()（同一頁重載），
    不再自己遞迴呼叫 viewReverse；草稿清單不再用偽協定的假連結。
-   2026-11 採用安全：章綱一律另存 大綱/章綱/反推/；其餘三組逐檔三選（預設保留現有）；
+   2026-11 採用安全：章綱一律另存 outline/chapters/_reverse/；其餘三組逐檔三選（預設保留現有）；
    覆蓋先備份；採用前可看新舊字數、相似度與逐段差異。
    Panel／S／B() 仍是 app.js 全域。 */
 (function () {
@@ -27,7 +27,7 @@
   const pct = (x) => Math.round((Number(x) || 0) * 100) + "%";
 
   async function resetRun(signal) {
-    if (!(await FE.confirm("清掉已抽取的資料和草稿，重新開始？（會先移到 .studio/備份）"))) return;
+    if (!(await FE.confirm("清掉已抽取的資料和草稿，重新開始？（會先移到 .studio/backup）"))) return;
     try {
       await FE.api(B("/reverse/reset"), { method: "POST", body: {}, signal });
       await FE.route();
@@ -37,7 +37,7 @@
   function summary(g, t) {
     const parts = [];
     parts.push(g === "cards"
-      ? "已存 " + t.adopted + " 份反推章綱到 大綱/章綱/反推/"
+      ? "已存 " + t.adopted + " 份反推章綱到 outline/chapters/_reverse/"
       : "已採用 " + t.adopted + " 份");
     if (t.merged) {
       parts.push(t.merged + " 份併入既有檔"
@@ -54,7 +54,7 @@
 
   async function adoptGroup(g, items, picks, signal) {
     const how = g === "cards"
-      ? "反推的章綱會存到 大綱/章綱/反推/，正式章綱一個字都不動。"
+      ? "反推的章綱會存到 outline/chapters/_reverse/，正式章綱一個字都不動。"
       : g === "bible"
         ? "選「保留現有」的不會被動到；「用反推版」會先備份再整份取代；「併入缺的段落」只補原檔空白的欄位與段落，有衝突的收在檔尾「從正文反推（未併入，請核對）」。"
         : "預設不覆蓋；選「用反推版」的檔案才會先備份再取代"
@@ -164,7 +164,7 @@
     const picks = {};
     const existing = items.filter((x) => x.exists).length;
     const note = g === "cards"
-      ? items.length + " 份；一律存到 大綱/章綱/反推/，正式章綱不動"
+      ? items.length + " 份；一律存到 outline/chapters/_reverse/，正式章綱不動"
         + (existing ? "（其中 " + existing + " 份對得到正式章綱，可以看差異）" : "")
       : items.length + " 份" + (existing ? "，其中 " + existing + " 份有現有檔案" : "")
         + "；預設保留現有，要動的逐檔選";
@@ -209,7 +209,7 @@
           h("div", { class: "sub" }, "已經寫好的書，不用開書訪談：AI 照章節順序分批讀正文，反推出設定、大綱、章綱與追蹤資料。全部先存成草稿，你核對後再分組採用。"))),
       r.has_settings
         ? h("div", { class: "alert warn", style: "margin-bottom:12px" },
-          h("span", { class: "t" }, "這本書已經有角色或伏筆資料。採用「設定」組時同名檔案會先備份，選「併入缺的段落」只補空白欄位與新段落（有衝突的收在檔尾「從正文反推（未併入，請核對）」），選「用反推版」才整份取代；大綱／追蹤預設保留現有，逐檔選了才動；章綱一律另存 大綱/章綱/反推/，正式章綱不動。任何覆蓋都會先備份。"))
+          h("span", { class: "t" }, "這本書已經有角色或伏筆資料。採用「設定」組時同名檔案會先備份，選「併入缺的段落」只補空白欄位與新段落（有衝突的收在檔尾「從正文反推（未併入，請核對）」），選「用反推版」才整份取代；大綱／追蹤預設保留現有，逐檔選了才動；章綱一律另存 outline/chapters/_reverse/，正式章綱不動。任何覆蓋都會先備份。"))
         : null,
       h("div", { class: "card", style: "margin-bottom:14px" },
         h("div", { class: "card-title" },

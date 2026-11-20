@@ -257,6 +257,11 @@ def list_books(library):
             if not os.path.isdir(d) or name.startswith(".") or name == layout.SHARED:
                 continue
             info = {"id": name, "name": name, "is_book": is_book(d)}
+            from . import migrate
+            if info["is_book"] and migrate.needs_migration(d):
+                info["needs_migration"] = True      # 舊格式（v2）：要先轉換才能開，不算統計
+                books.append(info)
+                continue
             if info["is_book"]:
                 fp = _scan_fingerprint(d)
                 hit = cache.get(d)
@@ -612,8 +617,9 @@ def outline_files(book_dir):
             if not f.endswith(".md"):
                 continue
             name = os.path.splitext(f)[0]
-            if name == "全書大綱":
+            if layout.OUTLINE + "/" + f == layout.BOOK_OUTLINE:
                 key = (0, 0)
+                name = "全書大綱"   # literal-ok: 顯示名稱（v3 檔名是 book.md），介面文字在 P5 處理
             elif name.startswith("卷綱"):
                 key = (1, _vol_order(name))
             else:

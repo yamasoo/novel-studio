@@ -5,7 +5,7 @@
 每一步都是原本工作台就有的單一動作（各自一次 AI 呼叫，只帶那一步需要的資料），
 這裡只負責排順序、等它做完、檢查結果、在中間做不需要 AI 的事（自動勾選意見、套用修訂、搬正文）。
 
-任一步失敗就停在那一步，狀態存在 .studio/流程/目前.json；修正後可以從那一步繼續。
+任一步失敗就停在那一步，狀態存在 .studio/pipeline/current.json；修正後可以從那一步繼續。
 """
 import json
 import os
@@ -120,7 +120,7 @@ class Pipeline:
             missing = volume.cover(book_dir, start, end)
             if missing:
                 raise PipelineError(
-                    "%s不在任何卷綱的章節範圍內；先補對應的 大綱/卷綱_第N卷.md 再開流程"
+                    "%s不在任何卷綱的章節範圍內；先補對應的 outline/卷綱_第N卷.md 再開流程"
                     "（見 docs/卷先行.md）。" % volume.brief(missing))
             # 卷先行（第二段）：章綱要先排好，不然還是一章一章臨場接
             no_card = [n for n in range(int(start), int(end) + 1) if not context.card_text(book_dir, n)[1]]
@@ -367,7 +367,7 @@ class Pipeline:
             return json.load(f)
 
     def _shelve(self, path, tag):
-        """把檔案移到 .studio/備份/（不直接刪）。"""
+        """把檔案移到 .studio/backup/（不直接刪）。"""
         if path and os.path.isfile(path):
             tracking.backup(self.d, path, tag)
             os.remove(path)
@@ -446,7 +446,7 @@ class Pipeline:
             return ("skip", "已有章綱")
         self._wait("chapter_cards", {"from": no, "to": no, "auto": True, "note": self._note()})
         if not context.card_text(self.d, no)[1]:
-            raise StepFailed("AI 沒有寫出第%d章的章綱檔（大綱/章綱/第%03d章.md），請看面板上的回覆。" % (no, no))
+            raise StepFailed("AI 沒有寫出第%d章的章綱檔（outline/chapters/第%03d章.md），請看面板上的回覆。" % (no, no))
         return "已寫好章綱"
 
     def _s_write(self, no):
@@ -586,7 +586,7 @@ class Manager:
         return pipe
 
     def restore(self, book_id, book_dir, hooks):
-        """伺服器重開後，從 .studio/流程/目前.json 讀回（執行中的視為已停止）。"""
+        """伺服器重開後，從 .studio/pipeline/current.json 讀回（執行中的視為已停止）。"""
         p = self.pipes.get(book_id)
         if p:
             return p

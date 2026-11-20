@@ -154,7 +154,7 @@ window.recoverTo = async (id) => {
   try { const r = await api("POST", B(`/recoveries/${id}/candidate`)); toast("已存成候選稿"); go(`#/b/${enc(S.book)}/ch/${r.chapter}?tab=candidate`); } catch (e) { fail(e); }
 };
 window.recoverDiscard = async (id) => {
-  if (!confirm("捨棄這份恢復稿？（會移到 .studio/備份）")) return;
+  if (!confirm("捨棄這份恢復稿？（會移到 .studio/backup）")) return;
   try { await api("POST", B(`/recoveries/${id}/discard`)); toast("已捨棄"); refresh(); } catch (e) { fail(e); }
 };
 window.recoverView = async (id) => {

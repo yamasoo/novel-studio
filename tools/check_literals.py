@@ -2,7 +2,7 @@
 """v3 結構英文化：盯住程式裡還沒換成 studio.layout 常數的中文路徑字串。
 
 找的是「看起來像書裡的路徑」的字串常數（docstring、註解不算）：
-  - 含 "/" 且有中文的字串（"設定/文風.md"、"追蹤/角色狀態/%s.md"）
+  - 含 "/" 且有中文的字串（"bible/style.md"、"tracking/characters/%s.md"）
   - 有中文的 .md／.json 檔名（"文風.md"、"目前.json"）
   - 等於 layout 第一層資料夾名稱的字串（"正文"、"候選"…）——可能是路徑，也可能是顯示文字，一併列出待人工判斷
 不檢查：studio/layout.py、studio/ids.py、studio/migrate.py 本身、studio/prompts/（提示詞內文，P4 處理）、tests/、tools/。

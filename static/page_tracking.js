@@ -307,7 +307,7 @@
             } catch (e) { FE.fail(e); }
           };
           discardBtn.onclick = async () => {
-            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/備份）"))) return;
+            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/backup）"))) return;
             try {
               await FE.api(B("/tracking/reader/discard"), { method: "POST", signal });
               FE.route();
@@ -401,7 +401,7 @@
             } catch (e) { FE.fail(e); }
           };
           discardBtn.onclick = async () => {
-            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/備份）"))) return;
+            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/backup）"))) return;
             try {
               await FE.api(B("/tracking/relations/discard"), { method: "POST", signal });
               REL_NOTE = "";

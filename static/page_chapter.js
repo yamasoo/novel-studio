@@ -228,7 +228,7 @@
         draw();
       };
       discardBtn.onclick = async () => {
-        if (!(await FE.confirm("捨棄這份修訂？（會移到 .studio/備份）"))) return;
+        if (!(await FE.confirm("捨棄這份修訂？（會移到 .studio/backup）"))) return;
         try {
           await FE.api(B("/revision/" + no + "/discard"), { method: "POST", signal });
           FE.go("#/b/" + enc(S.book) + "/ch/" + no);
@@ -429,7 +429,7 @@
         });
       };
       discardBtn.onclick = async () => {
-        if (!(await FE.confirm("捨棄這份候選稿？（會移到 .studio/備份，不會永久刪除）"))) return;
+        if (!(await FE.confirm("捨棄這份候選稿？（會移到 .studio/backup，不會永久刪除）"))) return;
         try {
           await FE.api(B("/candidate/" + no + "/discard"), { method: "POST", signal });
           FE.toast("已捨棄");

@@ -10,7 +10,7 @@
 
 卷層（第二卷之後）：範圍一律以正式卷綱 frontmatter 的「章節範圍」為準（`volume.find`），
 沒有卷綱就當單卷、開放到最後一章；「卷末體檢做過了嗎」只看卷綱檔尾的更新草稿或
-`大綱/草稿/卷綱更新_第a-b章.md`，不另外存狀態檔。
+`outline/drafts/卷綱更新_第a-b章.md`，不另外存狀態檔。
 """
 import json
 import os
@@ -81,7 +81,7 @@ def _entries(book_dir, rel):
 def settings_state(book_dir):
     """初始設定：角色正式檔 ≥ 3，且勢力或世界觀至少一個非空檔。
 
-    草稿（設定/草稿/）不算完成——要按「草稿轉正式」才會變成角色／勢力／世界觀；
+    草稿（bible/drafts/）不算完成——要按「草稿轉正式」才會變成角色／勢力／世界觀；
     這裡同時回草稿數，讓下一步卡可以說「N 份草稿等你轉正式」。
     """
     chars = _entries(book_dir, CHAR_DIR)
@@ -197,7 +197,7 @@ def volume_state(book_dir):
 
 
 def _volume_checked(book_dir, vol):
-    """這一卷做過卷末體檢了嗎：卷綱檔尾已有更新草稿，或 大綱/草稿/ 裡有對應的更新草稿。"""
+    """這一卷做過卷末體檢了嗎：卷綱檔尾已有更新草稿，或 outline/drafts/ 裡有對應的更新草稿。"""
     text = _read(book_dir, vol["rel"]) if vol.get("rel") else None
     if text and "卷綱更新草稿" in text:
         return True

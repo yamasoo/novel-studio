@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""命令列版：重新產生 設定/_索引.md。
+"""命令列版：重新產生 bible/_index.md。
 和設定集的「重建索引」按鈕用同一套程式（studio/bible_index.py），結果一致，不呼叫 AI。
 
 用法（在工作台資料夾執行，建議用 .venv 的 Python）：
@@ -14,6 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 from studio import bible_index  # noqa: E402
+from studio import layout  # noqa: E402
 
 
 def main():
@@ -21,7 +22,7 @@ def main():
         print('用法：python tools/build_bible_index.py "書的資料夾"')
         return 1
     book = os.path.abspath(sys.argv[1])
-    if not os.path.isdir(os.path.join(book, "設定")):
+    if not os.path.isdir(layout.path(book, layout.BIBLE)):
         print("找不到「設定」資料夾：%s" % book)
         return 1
     data = bible_index.rebuild(book)

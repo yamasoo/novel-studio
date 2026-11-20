@@ -1,7 +1,7 @@
 /* 共用庫頁（轉移計畫 §8.2.12）：從 app.js 的 viewShared（原 1798-1947）搬過來，
    連同只有它在用的 styleAiModal／sampleSourceHtml／sampleSourceBind／sampleSourceValue／compareTable／STYLE_GENRES（原 1656-1796）。
    舊 route() 對 shared 沒有 setBook 也沒有 clearBook，所以 options 給 {}。
-   文風任務照舊 Panel.attach(job)（job 的 book 是 _共用，base 由 panelBase 決定）；
+   文風任務照舊 Panel.attach(job)（job 的 book 是 _shared，base 由 panelBase 決定）；
    S.onSharedJob 改成每次 render 設定、ctx.signal abort 時清掉，避免換頁後還指到舊頁。
    書名／執行者下拉直接用 app.js 的節點版 bookOptions／provOptions／provSelect。 */
 (function () {
@@ -14,7 +14,7 @@
 
   const SS_LABELS = {
     none: "不附樣本", book: "某本書的正文", text: "貼上文字",
-    files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 設定/文風.md", blank: "空白範本（自己填）",
+    files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 bible/style.md", blank: "空白範本（自己填）",
   };
   const STYLE_GENRES = ["本格推理", "冷硬派", "心理驚悚", "恐怖怪談", "仙俠修真", "武俠", "西式奇幻", "科幻", "現代言情", "古言宮鬥",
     "都市爽文", "歷史架空", "都市寫實", "輕小說", "黑色幽默", "鄉土地域", "太空歌劇"];
@@ -123,11 +123,11 @@
           h("div", { style: "margin-top:8px" }, sampleSourceNodes(books, ["none", "text", "files", "book"]))),
         h("label", { class: "cb" },
           h("input", { type: "checkbox", id: "sa-over" }),
-          " 同名文風已存在時覆蓋（舊版會備份到 _共用/.備份）"),
+          " 同名文風已存在時覆蓋（舊版會備份到 _shared/.backup）"),
       ];
     } else if (mode === "revise") {
       body = [
-        h("p", { class: "muted small" }, "只改和你意見相關的條目，其他原樣保留；完成後會列出「舊 → 新」。舊版會備份到 ", h("code", {}, "_共用/.備份"), "。"),
+        h("p", { class: "muted small" }, "只改和你意見相關的條目，其他原樣保留；完成後會列出「舊 → 新」。舊版會備份到 ", h("code", {}, "_shared/.backup"), "。"),
         h("label", { class: "f" }, h("span", {}, "要怎麼調整"),
           h("textarea", { id: "sa-note", rows: "5", placeholder: "例如：對白再口語一點；比喻太多，一場最多一個；補一段打鬥的範例；這份太簡單了，照十三個面向補完整" })),
         h("details", { style: "margin:6px 0 10px" },
@@ -236,7 +236,7 @@
       ctx.view(
         h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "共用庫"), h("div", { class: "sub" }, "所有書都能用的文風、章節結構與作者偏好"))),
         h("div", { class: "card" },
-          h("p", {}, "共用庫是書庫裡的 ", h("code", {}, "_共用"), " 資料夾，跟著你的小說資料走，不在工作台的程式資料夾裡，所以不會被推上 GitHub。"),
+          h("p", {}, "共用庫是書庫裡的 ", h("code", {}, "_shared"), " 資料夾，跟著你的小說資料走，不在工作台的程式資料夾裡，所以不會被推上 GitHub。"),
           h("ul", { class: "muted small" },
             h("li", {}, "文風：可以重複使用、從範例文字統計出文字指標"),
             h("li", {}, "章節結構：起承轉合、壓抑爆發等節拍範本，寫章節和排章綱時參考"),
@@ -295,7 +295,7 @@
     ctx.view(
       h("div", { class: "page-head" },
         h("div", {}, h("h1", {}, "共用庫"),
-          h("div", { class: "sub" }, "所有書都能用；放在書庫的 ", h("code", {}, "_共用"), " 資料夾，不會進 git")),
+          h("div", { class: "sub" }, "所有書都能用；放在書庫的 ", h("code", {}, "_shared"), " 資料夾，不會進 git")),
         h("div", { class: "row" }, headButtons[tab])),
       tabsNode,
       tab === "prefs"
@@ -303,9 +303,9 @@
           h("div", { class: "alert info", style: "margin-bottom:12px" },
             h("span", { class: "k" }, "怎麼生效"),
             h("span", { class: "t" },
-              "寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 設定/作者偏好.md 衝突時以書為準）。「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 ",
+              "寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 bible/author-prefs.md 衝突時以書為準）。「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 ",
               h("b", {}, String(o.prefs.banned)),
-              " 個。各書的 設定/作者偏好.md 也可以加「## 禁用詞」一節。")),
+              " 個。各書的 bible/author-prefs.md 也可以加「## 禁用詞」一節。")),
           docEl,
         ]
         : h("div", { class: "split" }, listNode, h("div", {}, actionsEl, docEl)));
@@ -369,7 +369,7 @@
           const close = FE.modal({
             title: "把「" + name + "」套用到書",
             body: [
-              h("p", { class: "muted small" }, "會複製成那本書的 ", h("code", {}, "設定/文風.md"), "。原本的文風檔會先備份到 ", h("code", {}, ".studio/備份"), "。之後在書裡修改不會影響共用庫。"),
+              h("p", { class: "muted small" }, "會複製成那本書的 ", h("code", {}, "bible/style.md"), "。原本的文風檔會先備份到 ", h("code", {}, ".studio/backup"), "。之後在書裡修改不會影響共用庫。"),
               h("label", { class: "f" }, h("span", {}, "套用到"), bookSel),
             ],
             foot: (done) => [
@@ -448,7 +448,7 @@
         };
 
         delBtn.onclick = async () => {
-          if (!(await FE.confirm("刪除文風「" + name + "」？（會移到 _共用/.刪除，不會永久刪除）"))) return;
+          if (!(await FE.confirm("刪除文風「" + name + "」？（會移到 _shared/.trash，不會永久刪除）"))) return;
           try {
             await FE.api("/api/shared/styles/" + enc(name), { method: "DELETE", signal });
             FE.go(BASE + "?t=styles");
@@ -504,7 +504,7 @@
           const close = FE.modal({
             title: "把「" + name + "」套用到書",
             body: [
-              h("p", { class: "muted small" }, "會複製到那本書的 ", h("code", {}, "設定/章節結構/"), "。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。"),
+              h("p", { class: "muted small" }, "會複製到那本書的 ", h("code", {}, "bible/structure/"), "。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。"),
               h("label", { class: "f" }, h("span", {}, "套用到"), bookSel),
               h("label", { class: "cb" }, defBox, " 設為全書預設"),
             ],
@@ -549,7 +549,7 @@
         }
         if (delBtn) {
           delBtn.onclick = async () => {
-            if (!(await FE.confirm("刪除結構「" + name + "」？（會移到 _共用/.刪除；已套用到書裡的複本不受影響）"))) return;
+            if (!(await FE.confirm("刪除結構「" + name + "」？（會移到 _shared/.trash；已套用到書裡的複本不受影響）"))) return;
             try {
               await FE.api("/api/shared/structures/" + enc(name), { method: "DELETE", signal });
               FE.go(BASE + "?t=structures");

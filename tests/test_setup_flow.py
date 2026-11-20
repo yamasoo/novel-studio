@@ -11,13 +11,14 @@ except ImportError:      # 沒有 pytest 的環境（stdlib unittest）：整份
     raise unittest.SkipTest("這一組測試需要 pytest（tmp_path fixture）")
 
 from studio import project, setup_flow
+from studio import layout  # noqa: E402
 from studio.runner import Job, JobStopped
 
 
 def _book(tmp_path):
     d = str(tmp_path)
-    os.makedirs(os.path.join(d, "設定"), exist_ok=True)
-    os.makedirs(os.path.join(d, "大綱", "章綱"), exist_ok=True)
+    os.makedirs(layout.path(d, layout.BIBLE), exist_ok=True)
+    os.makedirs(layout.path(d, layout.CHAPTER_CARDS), exist_ok=True)
     return d
 
 
@@ -72,9 +73,9 @@ CORE = """---
 def _settings(d, chars=3, factions=1):
     """寫出初始設定：角色 chars 個正式檔、勢力 factions 個。"""
     for i in range(chars):
-        _write(d, "設定/角色/角色%d.md" % i, "---\n類型: 角色\n---\n角色")
+        _write(d, "bible/characters/角色%d.md" % i, "---\n類型: 角色\n---\n角色")
     for i in range(factions):
-        _write(d, "設定/勢力/勢力%d.md" % i, "---\n類型: 勢力\n---\n勢力")
+        _write(d, "bible/factions/勢力%d.md" % i, "---\n類型: 勢力\n---\n勢力")
 
 
 def test_steps_and_next_follow_files(tmp_path):
@@ -85,21 +86,21 @@ def test_steps_and_next_follow_files(tmp_path):
     _write(d, "CLAUDE.md", CLAUDE_MD)
     assert setup_flow.next_step(d)["id"] == "concept"
 
-    _write(d, "設定/故事核心.md", CORE)
+    _write(d, "bible/story-core.md", CORE)
     assert setup_flow.next_step(d)["id"] == "master"
 
     # 不到 500 字不算完成
-    _write(d, "大綱/全書大綱.md", "短大綱")
+    _write(d, "outline/book.md", "短大綱")
     assert setup_flow.next_step(d)["id"] == "master"
 
-    _write(d, "大綱/全書大綱.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
     assert setup_flow.next_step(d)["id"] == "volume"
 
-    _write(d, "大綱/卷綱_第1卷.md", "---\n狀態: 已確認\n---\n" + ("章" * 200))
+    _write(d, "outline/卷綱_第1卷.md", "---\n狀態: 已確認\n---\n" + ("章" * 200))
     assert setup_flow.next_step(d)["id"] == "cards"
 
     for n in range(1, 11):
-        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
     # 排完章綱之後先做初始設定，才輪到寫第 1 章
     assert setup_flow.next_step(d)["id"] == "settings"
     _settings(d, chars=2)
@@ -112,18 +113,18 @@ def test_steps_and_next_follow_files(tmp_path):
 def test_unfilled_template_comments_are_not_done(tmp_path):
     d = _book(tmp_path)
     _write(d, "CLAUDE.md", "# 書\n")
-    _write(d, "設定/故事核心.md", "---\n類型: 故事核心\n---\n<!-- 還沒填 -->\n" + ("字" * 400))
+    _write(d, "bible/story-core.md", "---\n類型: 故事核心\n---\n<!-- 還沒填 -->\n" + ("字" * 400))
     assert setup_flow.steps(d)[1]["done"] is False
 
 
 def test_report_marks_created_pending_and_defaults(tmp_path):
     d = _book(tmp_path)
     _write(d, "CLAUDE.md", CLAUDE_MD)
-    _write(d, "設定/故事核心.md", CORE)
+    _write(d, "bible/story-core.md", CORE)
     meta = {"params": {"answers": {"genre": {"q": "題材？", "a": "", "default": True},
                                    "pov": {"q": "視角？", "a": "B. 第三人稱", "default": False}}}}
     rep = setup_flow.report(d, meta)
-    assert "CLAUDE.md" in rep["created"] and "設定/故事核心.md" in rep["created"]
+    assert "CLAUDE.md" in rep["created"] and "bible/story-core.md" in rep["created"]
     assert rep["pending"] == ["文風"]
     assert [x["key"] for x in rep["defaults"]] == ["genre"]
     assert rep["next"]["id"] == "master"
@@ -215,7 +216,7 @@ def test_running_job_has_no_fake_reply_ask(tmp_path):
 # ---------------------------------------------------------------------------
 from studio import native_files, prompts  # noqa: E402
 
-FILE_BLOCK = "<<<檔案 大綱/全書大綱.md>>>\n---\n類型: 全書大綱\n---\n" + ("卷" * 600) + "\n<<<結束>>>"
+FILE_BLOCK = "<<<檔案 outline/book.md>>>\n---\n類型: 全書大綱\n---\n" + ("卷" * 600) + "\n<<<結束>>>"
 
 
 class _Pack:
@@ -277,8 +278,8 @@ def test_gate_confirm_writes_the_files(tmp_path):
     P = prompts.pack("zh-TW")
     assert job.asked and job.asked[0]["options"] == [P["gate_option_confirm"], P["gate_option_skip"]]
     assert job.asked[0]["allow_text"] is True       # 要改就直接打字，不再多一顆「我要改」按鈕
-    assert os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
-    assert "已建立" in ctx.job.result or "全書大綱" in ctx.job.result
+    assert os.path.isfile(layout.path(d, layout.BOOK_OUTLINE))
+    assert "已建立" in ctx.job.result or layout.BOOK_OUTLINE in ctx.job.result
     assert ctx.calls == 2          # 先提案，確認後才輸出檔案
 
 
@@ -288,7 +289,7 @@ def test_gate_skip_writes_nothing(tmp_path):
     ctx = _Ctx(job, d, ["提案：分三卷", FILE_BLOCK])
     native_files.run_spec(ctx, {}, _spec, "sys")
     assert ctx.calls == 1
-    assert not os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+    assert not os.path.isfile(layout.path(d, layout.BOOK_OUTLINE))
     assert prompts.pack("zh-TW")["gate_skipped"] in ctx.job.result
 
 
@@ -302,7 +303,7 @@ def test_gate_edit_round_then_confirm(tmp_path):
     assert len(job.asked) == 2
     assert ctx.calls == 3          # 提案 → 依意見重產 → 確認後輸出檔案
     assert any("第二卷的對手要換人" in m["content"] for m in ctx.last_msgs)
-    assert os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+    assert os.path.isfile(layout.path(d, layout.BOOK_OUTLINE))
 
 
 def test_gate_confirm_without_files_is_reported(tmp_path):
@@ -311,7 +312,7 @@ def test_gate_confirm_without_files_is_reported(tmp_path):
     ctx = _Ctx(job, d, ["只有提案", "還是只有提案"])
     native_files.run_spec(ctx, {}, _spec, "sys")
     assert prompts.pack("zh-TW")["gate_no_files"] in ctx.job.result
-    assert not os.path.isfile(os.path.join(d, "大綱", "全書大綱.md"))
+    assert not os.path.isfile(layout.path(d, layout.BOOK_OUTLINE))
 
 
 def test_gate_is_text_only_for_claude_code(tmp_path):
@@ -342,25 +343,25 @@ VOL2 = ("---\n類型: 卷綱\n卷名: 第二卷\n章節範圍: 第13章～第22�
 def _full_setup(d, volume="第1章～第12章"):
     """六步都完成的一本書（章綱 1–12、初始設定齊、第一卷卷綱）。"""
     _write(d, "CLAUDE.md", CLAUDE_MD)
-    _write(d, "設定/故事核心.md", CORE)
-    _write(d, "大綱/全書大綱.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
-    _write(d, "大綱/卷綱_第1卷.md",
+    _write(d, "bible/story-core.md", CORE)
+    _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "outline/卷綱_第1卷.md",
            "---\n類型: 卷綱\n卷名: 測試卷\n章節範圍: %s\n狀態: 已確認\n---\n" % volume + ("卷" * 300))
     for n in range(1, 13):
-        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
     _settings(d)
 
 
 def _texts(d, a, b):
     for n in range(a, b + 1):
-        _write(d, "正文/第%03d章_測試.md" % n, "正文內容")
+        _write(d, "manuscript/第%03d章_測試.md" % n, "正文內容")
 
 
 def test_settings_needs_characters_and_faction_or_world(tmp_path):
     d = _book(tmp_path)
     _settings(d, chars=3, factions=0)
     assert setup_flow.settings_state(d)["done"] is False       # 只有角色，沒有勢力／世界觀
-    _write(d, "設定/世界觀/氧氣迴路.md", "---\n類型: 世界觀\n---\n世界觀")
+    _write(d, "bible/world/氧氣迴路.md", "---\n類型: 世界觀\n---\n世界觀")
     st = setup_flow.settings_state(d)
     assert st["done"] is True and st["characters"] == 3 and st["worlds"] == 1
 
@@ -368,7 +369,7 @@ def test_settings_needs_characters_and_faction_or_world(tmp_path):
 def test_settings_drafts_are_not_done(tmp_path):
     d = _book(tmp_path)
     for i in range(5):
-        _write(d, "設定/草稿/草稿%d.md" % i, "---\n狀態: 草稿\n---\n草稿")
+        _write(d, "bible/drafts/草稿%d.md" % i, "---\n狀態: 草稿\n---\n草稿")
     st = setup_flow.settings_state(d)
     assert st["done"] is False and st["drafts"] == 5
 
@@ -388,17 +389,17 @@ def test_volume_state_full_volume_then_reverse_then_next_volume(tmp_path):
     assert nxt["id"] == "volume_end" and nxt["go"] == "/drift?from=1&to=12"   # 體檢預設掃這一卷
 
     # 卷末體檢的更新草稿落地（還沒套用）：算做過了，換下一卷
-    _write(d, "大綱/草稿/卷綱更新_第1-12章.md", "# 卷綱更新草稿（第1–12 章體檢）\n")
+    _write(d, "outline/drafts/卷綱更新_第1-12章.md", "# 卷綱更新草稿（第1–12 章體檢）\n")
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "volume_next" and nxt["action"] == "volume_draft"
     assert nxt["prefill"] == {"volume": "二", "from": 13, "to": 22}
 
     # 第二卷卷綱落地 → 排第13–22章章綱 → 寫第13章
-    _write(d, "大綱/卷綱_第2卷.md", VOL2)
+    _write(d, "outline/卷綱_第2卷.md", VOL2)
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "cards" and nxt["prefill"] == {"from": 13, "to": 22}
     for n in range(13, 23):
-        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "write" and nxt["prefill"] == {"from": 13, "to": 13}
 
@@ -407,14 +408,14 @@ def test_short_first_volume_passes_the_cards_step(tmp_path):
     """第一卷只有 6 章：章節範圍排滿就算過「前 10 章章綱」，不會卡在排 10 章。"""
     d = _book(tmp_path)
     _write(d, "CLAUDE.md", CLAUDE_MD)
-    _write(d, "設定/故事核心.md", CORE)
-    _write(d, "大綱/全書大綱.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
-    _write(d, "大綱/卷綱_第1卷.md",
+    _write(d, "bible/story-core.md", CORE)
+    _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "outline/卷綱_第1卷.md",
            "---\n類型: 卷綱\n卷名: 短卷\n章節範圍: 第1章～第6章\n狀態: 已確認\n---\n" + ("卷" * 300))
     for n in range(1, 6):
-        _write(d, "大綱/章綱/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
     assert setup_flow.steps(d)[4]["done"] is False        # 還差第 6 章
-    _write(d, "大綱/章綱/第006章.md", "---\n狀態: 已確認\n---\n章綱")
+    _write(d, "outline/chapters/第006章.md", "---\n狀態: 已確認\n---\n章綱")
     assert setup_flow.steps(d)[4]["done"] is True
     _settings(d)
     nxt = setup_flow.next_step(d)
@@ -425,7 +426,7 @@ def test_check_marked_when_volume_outline_already_updated(tmp_path):
     d = _book(tmp_path)
     _full_setup(d)
     _texts(d, 1, 12)
-    _write(d, "大綱/卷綱_第1卷.md", VOL1 + "\n# 卷綱更新草稿（第1–12 章體檢）\n- 補一段\n")
+    _write(d, "outline/卷綱_第1卷.md", VOL1 + "\n# 卷綱更新草稿（第1–12 章體檢）\n- 補一段\n")
     assert setup_flow.next_step(d)["id"] == "volume_next"
 
 

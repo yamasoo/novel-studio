@@ -62,7 +62,7 @@ class DemoSnapshotTest(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.lib = cls.tmp.name
         cls.books = sorted(n for n in os.listdir(DEMO) if os.path.isdir(os.path.join(DEMO, n)))
-        # 書庫沒有 _共用 時 /api/shared 的回應也要固定
+        # 書庫沒有 _shared 時 /api/shared 的回應也要固定
         for n in cls.books:
             shutil.copytree(os.path.join(DEMO, n), os.path.join(cls.lib, n))
         cls.patch = mock.patch.dict(app_mod.CONFIG, {"library": cls.lib})

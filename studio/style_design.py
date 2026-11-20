@@ -3,7 +3,7 @@
 共用庫「請 AI 設計文風」：設計／調整／試寫。
 
 Claude Code 與 OpenAI 相容 API 共用同一份任務說明；模型把完整文風檔放在
-<<<文風>>> … <<<結束>>> 區塊裡，由 Python 寫入 _共用/文風/<名稱>.md（舊檔先備份），
+<<<文風>>> … <<<結束>>> 區塊裡，由 Python 寫入 _shared/styles/<名稱>.md（舊檔先備份），
 有樣本時用程式統計覆蓋「文字指標」一節。
 """
 import os
@@ -155,7 +155,7 @@ def finish(library, info, out, truncated=False):
         bname = layout.shared_style_file(info["name"], time.strftime("%Y%m%d-%H%M%S"))
         with open(os.path.join(bdir, bname), "w", encoding="utf-8", newline="\n") as f:
             f.write(info["current"])
-        backup = "（舊版備份在 _共用/.備份/%s）" % bname
+        backup = "（舊版備份在 _shared/.backup/%s）" % bname
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)

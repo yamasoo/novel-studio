@@ -194,7 +194,7 @@
       title: "↺ 從「" + st.label + "」重跑",
       body: [
         h("p", { class: "small" }, what + "。"),
-        h("p", { class: "small muted" }, "之後這幾步的結果會先備份到 .studio/備份/ 再清掉，然後重新執行：" + later.join(" → ")),
+        h("p", { class: "small muted" }, "之後這幾步的結果會先備份到 .studio/backup/ 再清掉，然後重新執行：" + later.join(" → ")),
         noteArea,
       ],
       foot: (done) => [

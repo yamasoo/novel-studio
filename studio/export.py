@@ -2,7 +2,7 @@
 """
 匯出全文：純文字（TXT）與電子書（EPUB 3）。
 只用 Python 標準函式庫，不需要額外套件。
-匯出檔存在書目錄的 匯出/ 資料夾。
+匯出檔存在書目錄的 export/ 資料夾。
 """
 import datetime
 import html
@@ -212,7 +212,7 @@ def gather(book_dir, opts):
             chapters.append({"no": r["no"], "image": img, "title": chapter_heading(r["no"], name, original, opts.get("title_style"), lang),
                              "paras": paras})
     if "outline" in items:
-        rels = [x for x in _md_files(book_dir, layout.OUTLINE) if os.path.basename(x).startswith("全書大綱")]
+        rels = [x for x in _md_files(book_dir, layout.OUTLINE) if x == layout.BOOK_OUTLINE]
         rels += [x for x in _md_files(book_dir, layout.OUTLINE) if x not in rels]
         groups.append((S["g_outline"], _docs(book_dir, rels)))
     if "cards" in items:
@@ -226,8 +226,8 @@ def gather(book_dir, opts):
         groups.append((S["g_cards"], docs))
     if "bible" in items:
         rels = [layout.STORY_CORE, layout.STYLE, layout.AUTHOR_PREFS, layout.GLOSSARY]
-        for sub in ("角色", "勢力", "世界觀"):
-            rels += _md_files(book_dir, layout.BIBLE + "/" + sub)
+        for rel_dir in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD):
+            rels += _md_files(book_dir, rel_dir)
         groups.append((S["g_bible"], _docs(book_dir, rels)))
     if "tracking" in items:
         rels = [layout.STATE_CARD, layout.FORESHADOWING, layout.TIMELINE]

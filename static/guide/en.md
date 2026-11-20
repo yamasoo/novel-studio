@@ -44,12 +44,12 @@ Bookshelf → "New book":
 | One-line premise | One line is enough — the interview asks the rest |
 | Writing language | Sets the language of prompts and model output; unrelated to the interface language |
 | Advanced: reference book (optional) | Only its **style metrics and chapter structure** (numbers) are borrowed — no names, no plot |
-| Advanced: also generate a story skeleton | Costs about 1–2 minutes and a few model calls; drafts land in `候選/新書草稿/` |
+| Advanced: also generate a story skeleton | Costs about 1–2 minutes and a few model calls; drafts land in `candidates/spinoff/` |
 
 Pressing "Start setup" opens the **setup interview**: questions appear in the right-hand panel, one button per question. You can also type freely, or press "Skip, you decide" to let the model use a default (the report marks it "(default)"). After three rounds it writes, in one pass:
 
 - `CLAUDE.md` — the book's writing charter, read by the AI on every task
-- `設定/故事核心.md` and `設定/文風.md`
+- `bible/story-core.md` and `bible/style.md`
 - a **setup report** in the panel: which files actually exist, what is still empty, and which step comes next
 
 **If it gets stuck:** an interrupted interview (no `CLAUDE.md`) shows "setup interview unfinished" on the overview — press "Continue setup interview". With the Claude Code executor there are no option buttons; the panel tells you to switch to an API executor.
@@ -58,40 +58,40 @@ Pressing "Start setup" opens the **setup interview**: questions appear in the ri
 
 Overview → "Next step: story core" → "Start story-core diagnosis". About a minute: what the protagonist wants, what blocks it.
 
-Output: `設定/故事核心.md` (≥ 120 characters, and the `<!--` template comment must be filled in).
+Output: `bible/story-core.md` (≥ 120 characters, and the `<!--` template comment must be filled in).
 
 #### Step 2: whole-book outline
 
 "Next step: whole-book outline" → it first gives a **per-volume overview** (theme, chapter count, end-of-volume state). Reply with changes until you like it; files are written only after you confirm.
 
-Output: `大綱/全書大綱.md` (≥ 500 characters).
+Output: `outline/book.md` (≥ 500 characters).
 
 #### Step 3: first volume outline
 
 The **volume card** at the top of the Outline page → "New volume" → fill the volume number and its **chapter range** (this range is what decides "which chapters belong to this volume"; 20 chapters is fine to start, it can change later).
 
-1. What you get is a **draft**: `大綱/草稿/卷綱_第1卷.md`, editable by hand
-2. Happy with it, press "**Adopt**": it becomes the real outline `大綱/卷綱_第1卷.md`, status "confirmed", and is appended to `大綱/全書大綱.md`
+1. What you get is a **draft**: `outline/drafts/卷綱_第1卷.md`, editable by hand
+2. Happy with it, press "**Adopt**": it becomes the real outline `outline/卷綱_第1卷.md`, status "confirmed", and is appended to `outline/book.md`
 3. The "volume contract" inside is this volume's promise to the reader and is injected first when writing
 
-**If it gets stuck:** the real outline is only written by "Adopt" or "Apply revision". If the volume card is missing, the book usually has no `大綱/全書大綱.md` yet.
+**If it gets stuck:** the real outline is only written by "Adopt" or "Apply revision". If the volume card is missing, the book usually has no `outline/book.md` yet.
 
 #### Step 4: chapter cards for the first 10 chapters (+ card health check)
 
 1. Volume card → "Plan this volume's chapter cards": it first gives a **one-line-per-chapter overview**
-2. Reply "confirm" and only then are the card files written: `大綱/章綱/第NNN章_*.md`
+2. Reply "confirm" and only then are the card files written: `outline/chapters/第NNN章_*.md`
 3. Volume card → "Card check": catches **early appearance / spoilers** and **characters missing for too long**. Fix the cards before writing.
 
 10–12 chapters at a time is enough; you do not have to plan the whole volume before writing.
 
 #### Step 5: initial settings (before writing)
 
-Characters, factions and the world need substance, or the whole volume gets written against an empty bible. **Passing test:** at least 3 real files in `設定/角色/` plus at least one in `設定/勢力/` or `設定/世界觀/` — **drafts do not count**.
+Characters, factions and the world need substance, or the whole volume gets written against an empty bible. **Passing test:** at least 3 real files in `bible/characters/` plus at least one in `bible/factions/` or `bible/world/` — **drafts do not count**.
 
 1. Overview → "Next step: initial settings" → "Start initial settings" (this is the bible page's "Grow settings from the outline")
 2. Tick characters / factions / world; optionally add a reference direction and URLs. It reads the whole-book outline, volume outlines and the card list
-3. Everything lands in `設定/草稿/`
-4. Once you have read them, press "**Promote drafts**" (the secondary button on the next-step card) to move them into `設定/角色/`, `設定/勢力/`, `設定/世界觀/`
+3. Everything lands in `bible/drafts/`
+4. Once you have read them, press "**Promote drafts**" (the secondary button on the next-step card) to move them into `bible/characters/`, `bible/factions/`, `bible/world/`
 
 **If it gets stuck:** with fewer than 3 characters, run "Grow settings from the outline" again or add them by hand on the bible page. Left as drafts, the next step never becomes writing.
 
@@ -112,9 +112,9 @@ The full-chapter pipeline: chapter card → write → card check → de-AI → s
 - the chapter has no card yet
 - the card has an early-appearance spoiler
 
-Output: the draft sits in `候選/`; only "Accept" moves it into `正文/` and writes back tracking (summary, foreshadowing, timeline, character state, glossary).
+Output: the draft sits in `candidates/`; only "Accept" moves it into `manuscript/` and writes back tracking (summary, foreshadowing, timeline, character state, glossary).
 
-**If it gets stuck:** a failing step stops right there and can be continued from that step; a step over 30 minutes, or 10 minutes without output, is stopped automatically and the partial text is kept as a **recovery draft**; every write is backed up under `.studio/備份/`.
+**If it gets stuck:** a failing step stops right there and can be continued from that step; a step over 30 minutes, or 10 minutes without output, is stopped automatically and the partial text is kept as a **recovery draft**; every write is backed up under `.studio/backup/`.
 
 #### Step 7: after each chapter
 
@@ -150,7 +150,7 @@ Volume card → "**Derive settings from the manuscript (this volume)**". On the 
 
 1. Read the estimate first (chapters, batches, cost), then run it
 2. Everything it produces is a draft, in four groups: settings, outlines, chapter cards, tracking
-3. Per file choose "keep existing / use the derived version / merge missing paragraphs"; only "Adopt" touches real files. **Chapter cards are always saved aside** under `大綱/章綱/反推/` — the real cards are never touched
+3. Per file choose "keep existing / use the derived version / merge missing paragraphs"; only "Adopt" touches real files. **Chapter cards are always saved aside** under `outline/chapters/_reverse/` — the real cards are never touched
 4. Every overwrite is backed up first
 
 #### Step 10: open the next volume
@@ -167,13 +167,13 @@ The last volume gets the same end-of-volume check and settings backfill, which l
 
 | Content | Location |
 |---|---|
-| Whole-book outline | `大綱/全書大綱.md` |
-| Volume outline | `大綱/卷綱_第N卷.md` (drafts in `大綱/草稿/`) |
-| Chapter cards | `大綱/章綱/第NNN章_*.md` |
-| Manuscript | `正文/第NNN章_*.md` |
-| Candidate drafts | `候選/` |
-| Settings | `設定/角色/`, `設定/勢力/`, `設定/世界觀/`; drafts in `設定/草稿/` |
-| Tracking | `追蹤/狀態卡.md`, `追蹤/伏筆.md`, `追蹤/章節摘要/` |
+| Whole-book outline | `outline/book.md` |
+| Volume outline | `outline/卷綱_第N卷.md` (drafts in `outline/drafts/`) |
+| Chapter cards | `outline/chapters/第NNN章_*.md` |
+| Manuscript | `manuscript/第NNN章_*.md` |
+| Candidate drafts | `candidates/` |
+| Settings | `bible/characters/`, `bible/factions/`, `bible/world/`; drafts in `bible/drafts/` |
+| Tracking | `tracking/state-card.md`, `tracking/foreshadowing.md`, `tracking/summaries/` |
 | Jobs and backups | `.studio/` (job records, backups, recoveries) |
 
 ---
@@ -188,7 +188,7 @@ Good for: you already have a docx/txt manuscript and want to continue or organiz
 1. Left rail → "匯入舊稿" (Import old manuscript) → pick a file → preview the chapter split → import (creates a new book or adds to an existing one)
 2. Open that book → Settings → "**從正文建立設定**" (Build settings from the text):
    - It reads the manuscript in batches and extracts characters, factions, worldview, and terms
-   - Everything first goes into `設定/草稿/` and a candidate area
+   - Everything first goes into `bible/drafts/` and a candidate area
    - Review group by group; press "採用" (Adopt) to promote into the official settings and glossary
 3. Run "卷末體檢" (End-of-volume check) when useful to see which chapters are not covered by settings
 4. Chapter cards can also be reverse-engineered from the text as part of the same flow, then you continue writing forward
@@ -200,8 +200,8 @@ Good for: keeping a book's voice and structure while writing a completely new st
 **When creating a new book:**
 
 1. Shelf → "＋ 開新書" → choose a "參考書" (Reference book) → optionally tick "順便產生故事骨架" (Also generate a story skeleton)
-2. Reference book only: the new book receives `設定/文風.md`, `設定/章節結構/結構.md`, `設定/風格指紋.json`, `設定/結構DNA.json` (computed locally, no model calls)
-3. With the skeleton: about 1–2 more minutes to generate a **new** skeleton draft (title ideas, premise, hooks, protagonist, worldview, volume outline), written to `候選/新書草稿/`
+2. Reference book only: the new book receives `bible/style.md`, `bible/structure/structure.md`, `bible/style-fingerprint.json`, `bible/structure-dna.json` (computed locally, no model calls)
+3. With the skeleton: about 1–2 more minutes to generate a **new** skeleton draft (title ideas, premise, hooks, protagonist, worldview, volume outline), written to `candidates/spinoff/`
 4. The skeleton is a draft and is never applied automatically; copy what you like into settings and outline
 
 **For a book that already exists:**
@@ -233,7 +233,7 @@ Press **"生成設定" (Generate settings)** at the top right of the settings bi
 | **生成設定 → only one item missing** (character / faction / worldview) | Only one item is missing | A single item |
 | **從正文建立設定** (Build settings from the text) | You have a manuscript and want to reverse-engineer | Drafts, adopted group by group |
 
-All drafts live in `設定/草稿/`. Review them, then use "**草稿轉正式**" (Promote drafts) to file them; the glossary is updated at that step.
+All drafts live in `bible/drafts/`. Review them, then use "**草稿轉正式**" (Promote drafts) to file them; the glossary is updated at that step.
 
 ### Grow settings from the outline (new)
 
@@ -254,15 +254,15 @@ Settings → "生成設定" (Generate settings) → "我已經有大綱或卷綱
 | Term | Meaning |
 |---|---|
 | **大綱 (outline)** | The overall plan, including the whole-book outline and each volume outline |
-| **全書大綱 (whole-book outline)** | Volume overview: theme, chapter count, and end state per volume; `大綱/全書大綱.md` |
+| **全書大綱 (whole-book outline)** | Volume overview: theme, chapter count, and end state per volume; `outline/book.md` |
 | **卷綱 (volume outline)** | The plan for one volume: main line, volume contract, required end state |
 | **卷契約 (volume contract)** | What this volume promises the reader (what will and will not happen); injected first during continuation |
 | **章綱 (chapter card)** | The plan for one chapter: scenes, events, who appears, closing hook |
 | **章綱體檢 (chapter-card health check)** | Checks cards for early appearance / spoilers and for characters absent too long |
-| **初始設定 (initial settings)** | The last setup-layer step: at least 3 real files in `設定/角色/` plus one in `設定/勢力/` or `設定/世界觀/`; drafts do not count |
+| **初始設定 (initial settings)** | The last setup-layer step: at least 3 real files in `bible/characters/` plus one in `bible/factions/` or `bible/world/`; drafts do not count |
 | **卷末體檢 (end-of-volume check)** | After a volume is full, compares the bible against the manuscript: missed cards, characters absent too long, unpaid foreshadowing, style drift; can produce a volume-outline update draft |
 | **下一步 (next step)** | The single primary button on the overview page; pressing it does the next thing in the flow |
-| **續寫合約 (continuation contract)** | `設定/續寫合約.md`: immutable facts and volume-end promises; outranks outline and style |
+| **續寫合約 (continuation contract)** | `bible/continuation-contract.md`: immutable facts and volume-end promises; outranks outline and style |
 | **狀態卡 (state card)** | Where characters are now, injuries, what they know; written back after each finalized chapter |
 | **伏筆 (foreshadowing)** | Threads planted but not yet paid off; the app warns when they go quiet or miss their due chapter |
 | **讀者認知 (reader knowledge)** | What the reader knows and does not know yet (prevents characters from revealing things the reader already knows) |
@@ -273,7 +273,7 @@ Settings → "生成設定" (Generate settings) → "我已經有大綱或卷綱
 | **回歸測試 (regression eval)** | `book_eval`: fixed samples to check whether prompt/model changes made quality worse |
 | **自動駕駛 (autopilot)** | Stops every K chapters to verify must-fix issues and style, then continues |
 | **檢索式記憶 (retrieval memory)** | Retrieves relevant earlier passages into the context when writing a new chapter |
-| **候選稿 (candidate draft)** | Not-yet-final text in `候選/`; it moves to `正文/` only after review |
+| **候選稿 (candidate draft)** | Not-yet-final text in `candidates/`; it moves to `manuscript/` only after review |
 
 ---
 
@@ -295,7 +295,7 @@ Skeletons need an API runner (for example DeepSeek). Switch it at the top of the
 The right panel is the live stream; finished runs are under "任務紀錄" (Jobs) with tokens and cost.
 
 **I broke something.**
-Every write is backed up first (`.studio/備份/`), and there are recovery drafts. The Jobs page shows which step failed.
+Every write is backed up first (`.studio/backup/`), and there are recovery drafts. The Jobs page shows which step failed.
 
 ---
 

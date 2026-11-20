@@ -5,7 +5,7 @@
   - `tools/contract_audit.py`（正文寫完之後掃）
   - `tools/card_audit.py` 與整章自動流程的前置檢查（章綱排好、正文還沒寫時先掃）
 
-「未登記角色」目前沒有實作（說明有寫，程式只比對 `設定/角色/` 已登記的角色），
+「未登記角色」目前沒有實作（說明有寫，程式只比對 `bible/characters/` 已登記的角色），
 所以這裡不會回報新名字。
 """
 import os
@@ -56,7 +56,7 @@ def conflicts(book_dir, no, text, chars=None):
 def findings(book_dir, start, end, cards=False):
     """掃一段章節的衝突。
 
-    cards=True：掃 大綱/章綱（正文還沒寫也能先檢查）；False：掃 正文。
+    cards=True：掃 outline/chapters（正文還沒寫也能先檢查）；False：掃 正文。
     回傳 [{chapter, name, kind, detail, source}]，source 是 章綱 或 正文。
     """
     start, end = int(start), int(end)

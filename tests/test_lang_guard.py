@@ -60,7 +60,7 @@ class LangMismatchZhtwTest(unittest.TestCase):
         self.assertEqual(textguard.lang_mismatch({"名": "这个"}, "zh-TW"), (False, 0, 0))
 
     def test_編號與路徑不算(self):
-        data = {"第1章": "这是简体", "路徑": "設定/角色/这是简体.md"}
+        data = {"第1章": "这是简体", "路徑": "bible/characters/这是简体.md"}
         self.assertEqual(textguard.lang_mismatch(data, "zh-TW"), (False, 0, 0))
 
     def test_英文書行為不變(self):

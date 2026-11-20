@@ -54,7 +54,7 @@ When the author says "generate N supporting characters":
 1. First confirm the use: where in the plot do they sit and what function do they carry? Ask if unclear.
 2. For each one write only "one-line function + wants + flaw + two or three voice-card lines + relation to the lead"; no long backstory.
 3. Deliberately make them differ from each other: pull apart their status, way of speaking and stance.
-4. Put them all in `設定/草稿/` for the author to pick.
+4. Put them all in `bible/drafts/` for the author to pick.
 5. Avoid names that sound or look alike, and names too like existing characters (check the glossary and the character folder). Avoid the stock names that language models over-produce.
 
 ## 7. Common faults

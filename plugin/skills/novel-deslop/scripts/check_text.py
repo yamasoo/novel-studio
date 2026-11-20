@@ -13,14 +13,14 @@
   7. 字數統計
 
 用法：
-  python3 check_text.py 正文/第001章_退婚.md
-  python3 check_text.py 正文/                     # 檢查整個資料夾
-  python3 check_text.py 正文/第001章_退婚.md --fix-punct   # 自動修正標點
-  python3 check_text.py 正文/第001章_退婚.md --json
-  python3 check_text.py 正文/第001章_退婚.md --count       # 只算字數
+  python3 check_text.py manuscript/第001章_退婚.md
+  python3 check_text.py manuscript/                     # 檢查整個資料夾
+  python3 check_text.py manuscript/第001章_退婚.md --fix-punct   # 自動修正標點
+  python3 check_text.py manuscript/第001章_退婚.md --json
+  python3 check_text.py manuscript/第001章_退婚.md --count       # 只算字數
 
 白名單：
-  書目錄（正文/ 的上一層）放一個 `.去AI味白名單` 檔，一行一個原文片段，
+  書目錄（manuscript/ 的上一層）放一個 `.去AI味白名單` 檔，一行一個原文片段，
   `#` 開頭為註解。含有白名單片段的行，跳過用語與 AI 味檢查（簡體字與標點照查）。
 
 只用 Python 標準函式庫，Python 3.8 以上。
@@ -240,12 +240,12 @@ def parse_banned(text, source=""):
 
 
 def load_banned(book_root):
-    """本書 設定/作者偏好.md 與書庫 _共用/作者偏好.md 的禁用詞。"""
+    """本書 bible/author-prefs.md 與書庫 _shared/author-prefs.md 的禁用詞。"""
     items = []
     if not book_root:
         return items
     for path, src in ((os.path.join(book_root, "設定", "作者偏好.md"), "本書作者偏好"),
-                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_共用", "作者偏好.md"), "共用作者偏好")):
+                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_shared", "作者偏好.md"), "共用作者偏好")):
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as f:
                 items += parse_banned(f.read(), src)
@@ -253,7 +253,7 @@ def load_banned(book_root):
 
 
 def load_aliases(book_root):
-    """設定/角色/*.md 的名稱與別名（只用標準函式庫讀 frontmatter）。回傳 {名稱: [名稱, 別名…]}。"""
+    """bible/characters/*.md 的名稱與別名（只用標準函式庫讀 frontmatter）。回傳 {名稱: [名稱, 別名…]}。"""
     out = {}
     d = os.path.join(book_root or "", "設定", "角色")
     if not book_root or not os.path.isdir(d):
@@ -357,7 +357,7 @@ def rhythm_findings(body_lines, aliases):
 def guess_book_root(path):
     p = os.path.abspath(path)
     d = p if os.path.isdir(p) else os.path.dirname(p)
-    # 正文/ 的上一層
+    # manuscript/ 的上一層
     while True:
         if os.path.basename(d) == "正文":
             return os.path.dirname(d)
@@ -565,7 +565,7 @@ def main():
     ap.add_argument("--fix-punct", action="store_true", help="自動修正標點（直接改寫檔案）")
     ap.add_argument("--json", action="store_true", help="輸出 JSON")
     ap.add_argument("--count", action="store_true", help="只輸出字數")
-    ap.add_argument("--book-root", help="書目錄（預設自動尋找 正文/ 的上一層）")
+    ap.add_argument("--book-root", help="書目錄（預設自動尋找 manuscript/ 的上一層）")
     args = ap.parse_args()
 
     files = collect(args.paths)

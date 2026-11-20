@@ -1,9 +1,9 @@
 """設定索引：只讀本機檔案，不呼叫 AI。
 
-- build(book_dir)：掃描 設定/（世界觀、角色、勢力）與 設定/名詞表.md，找出疑似重複的名稱。
-- rebuild(book_dir)：build 後寫入 設定/_索引.md（給 novel-bible skill 先讀）。
+- build(book_dir)：掃描 bible/（世界觀、角色、勢力）與 bible/glossary.md，找出疑似重複的名稱。
+- rebuild(book_dir)：build 後寫入 bible/_index.md（給 novel-bible skill 先讀）。
 - merge(book_dir, canonical, duplicates)：把疑似重複的設定檔併入保留的那一份。
-  不刪除任何內容：被併入的檔案移到 設定/_已合併/，內文併進保留檔的「併入」段落，
+  不刪除任何內容：被併入的檔案移到 bible/_merged/，內文併進保留檔的「併入」段落，
   名稱加進保留檔的「別名」，名詞表與其他設定裡指向舊檔的路徑改成保留檔。
 """
 
@@ -16,7 +16,8 @@ import shutil
 from . import project
 from . import layout
 
-SETTING_SUBDIRS = ("世界觀", "角色", "勢力")
+# （資料夾, 顯示用的類別名稱）；類別名稱會出現在 API（sub）與索引檔，介面文字在 P5 處理
+SETTING_SUBDIRS = ((layout.WORLD, "世界觀"), (layout.CHARACTERS, "角色"), (layout.FACTIONS, "勢力"))   # literal-ok: 顯示用的類別名稱
 MERGE_FOLDERS = (layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")
 INDEX_REL = layout.BIBLE_INDEX
 GLOSSARY_REL = layout.GLOSSARY
@@ -60,8 +61,8 @@ def loose_norm(name):
 
 def _setting_rows(book_dir):
     rows = []
-    for sub in SETTING_SUBDIRS:
-        folder = layout.path(book_dir, layout.BIBLE, sub)
+    for rel_dir, sub in SETTING_SUBDIRS:
+        folder = layout.path(book_dir, rel_dir)
         if not os.path.isdir(folder):
             continue
         for f in sorted(os.listdir(folder)):
@@ -223,7 +224,7 @@ def _check_setting_file(book_dir, rel):
         raise project.ProjectError("檔案路徑格式錯誤")
     norm_rel = rel.replace("\\", "/").lstrip("/")
     if not norm_rel.startswith(MERGE_FOLDERS) or not norm_rel.endswith(".md"):
-        raise project.ProjectError("只能合併 設定/角色、設定/勢力、設定/世界觀 裡的 .md 檔：" + rel)
+        raise project.ProjectError("只能合併 bible/characters、bible/factions、bible/world 裡的 .md 檔：" + rel)
     p = project.safe_path(book_dir, norm_rel)
     if not os.path.isfile(p):
         raise project.ProjectError("檔案不存在：" + rel)
@@ -331,7 +332,7 @@ def merge(book_dir, canonical, duplicates_rel):
             project.write_atomic(tp, new)
             refs_changed.append(os.path.relpath(tp, book_dir).replace("\\", "/"))
 
-    # 3) 舊檔移到 設定/_已合併/（不刪除）
+    # 3) 舊檔移到 bible/_merged/（不刪除）
     dest_dir = os.path.join(book_dir, MERGED_REL)
     os.makedirs(dest_dir, exist_ok=True)
     moved = []

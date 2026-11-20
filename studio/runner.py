@@ -319,7 +319,7 @@ class Runner:
             cmd += ["--plugin-dir", pdir, "--add-dir", pdir]
         sd = shared.shared_of_book(job.book_dir)
         if os.path.isdir(sd):
-            # 書庫的 _共用/（共用作者偏好），讓 Claude 讀得到
+            # 書庫的 _shared/（共用作者偏好），讓 Claude 讀得到
             cmd += ["--add-dir", sd]
         for d in cfg.get("add_dirs") or []:
             d = os.path.expandvars(os.path.expanduser(d))

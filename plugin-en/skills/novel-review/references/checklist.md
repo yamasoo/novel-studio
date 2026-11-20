@@ -33,10 +33,10 @@
 ## B. Cross-chapter and database (batch reviews, or when asked)
 
 ### 7. Setting consistency
-- Do abilities, rules, ranks, prices and geographic distances in the text agree with `設定/世界觀/`?
-- Do characters' looks, status, background and way of speaking agree with `設定/角色/`?
-- Do terms, forms of address and spellings agree with `設定/名詞表.md`? (One term spelled two ways, one person addressed wrongly.)
-- Does the text use unconfirmed content from `設定/草稿/`?
+- Do abilities, rules, ranks, prices and geographic distances in the text agree with `bible/world/`?
+- Do characters' looks, status, background and way of speaking agree with `bible/characters/`?
+- Do terms, forms of address and spellings agree with `bible/glossary.md`? (One term spelled two ways, one person addressed wrongly.)
+- Does the text use unconfirmed content from `bible/drafts/`?
 
 ### 8. Does tracking keep up with the text?
 - Do the `更新至` of the chapter summaries, state card, character state, foreshadowing and timeline reach the latest chapter?
@@ -50,15 +50,15 @@
 ### 10. Character health
 - Important characters whose last appearance is more than 10-15 chapters ago: list them and ask whether it is deliberate (some characters should leave).
 - Do main characters' lines still keep their own voices? Run a name-covered test on a passage or two.
-- If `追蹤/關係.md` exists: do forms of address, attitude and interaction between characters violate the currently valid (end chapter blank) relationship? Did a relationship change without a story reason, or slip back to a state already ended (look at end chapter and cause)?
+- If `tracking/relations.md` exists: do forms of address, attitude and interaction between characters violate the currently valid (end chapter blank) relationship? Did a relationship change without a story reason, or slip back to a state already ended (look at end chapter and cause)?
 
 ### 11. Boundaries of disclosure
-- Against `追蹤/時間線.md`: does the text give away what the reader should not yet know?
-- If `追蹤/讀者認知.md` exists: have suspense and misbelief rows whose resolving chapter is still empty been revealed when the card did not ask for it? Has a deliberately planted misbelief been pierced by careless narration?
+- Against `tracking/timeline.md`: does the text give away what the reader should not yet know?
+- If `tracking/reader-knowledge.md` exists: have suspense and misbelief rows whose resolving chapter is still empty been revealed when the card did not ask for it? Has a deliberately planted misbelief been pierced by careless narration?
 - Any "little did he know", "what she didn't realize was" or "years later" lines that cross the disclosure boundary?
 
 ### 12. Reader contract and pacing
-- Against the reader contract in `設定/故事核心.md`: any breach?
+- Against the reader contract in `bible/story-core.md`: any breach?
 - Emotion over the last few chapters: more than three chapters of suppression without release? Do several chapters in a row share the same function or hook type?
 - Is the lead's credit often taken at no cost?
 

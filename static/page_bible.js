@@ -258,7 +258,7 @@
         });
         if (!jobs.length) { FE.toast("請先選擇保留的檔案，並勾選要併入的項目。", "err"); return; }
         const total = jobs.reduce((n, j) => n + j.duplicates.length, 0);
-        if (!(await FE.confirm("要併入 " + total + " 個設定檔（" + jobs.length + " 組）嗎？舊檔會移到「設定/_已合併」，不會刪除。"))) return;
+        if (!(await FE.confirm("要併入 " + total + " 個設定檔（" + jobs.length + " 組）嗎？舊檔會移到「bible/_merged」，不會刪除。"))) return;
         try {
           for (const j of jobs) {
             await FE.api(B("/bible/merge"), { method: "POST", body: j });
@@ -275,7 +275,7 @@
     return h("div", { class: "card", id: "dup-box", style: "margin-bottom:12px" },
       h("div", { class: "row" }, h("b", {}, "疑似重複（" + groups.length + " 組）")),
       h("div", { class: "muted small", style: "margin:4px 0 8px" },
-        "選一份「保留」，勾選要「併入」的。被併入的內容會接在保留檔後面（標示待核對），舊檔移到 設定/_已合併，不會刪除。名稱會加進保留檔的別名。"),
+        "選一份「保留」，勾選要「併入」的。被併入的內容會接在保留檔後面（標示待核對），舊檔移到 bible/_merged，不會刪除。名稱會加進保留檔的別名。"),
       groups.map((g, gi) => h("div", { class: "dup-group", style: "border-top:1px solid var(--line,#ddd);padding:6px 0" },
         h("div", { class: "small muted" },
           g.key,
@@ -424,7 +424,7 @@
     if (t === "drafts") btns.push(h("button", { class: "primary", onclick: () => Panel.openForm("promote_drafts") }, "草稿轉正式"));
     if (t === "structure") btns.push(h("button", { onclick: () => FE.go("#/shared?t=structures") }, "到共用庫選結構"));
     if (canDel) btns.push(h("button", { class: "danger", id: "bible-del" }, FE.t("刪除這份")));
-    if (isEnt) btns.push(h("button", { onclick: () => rebuildBibleIndex(), title: "重新產生 設定/_索引.md，給 novel-bible 先讀" }, "重建索引"));
+    if (isEnt) btns.push(h("button", { onclick: () => rebuildBibleIndex(), title: "重新產生 bible/_index.md，給 novel-bible 先讀" }, "重建索引"));
     btns.push(h("button", { class: "primary", onclick: () => bibleGenDialog() }, "生成設定"));
     btns.push(h("button", {
       onclick: () => FE.go("#/b/" + enc(S.book) + "/reverse"),
@@ -475,7 +475,7 @@
           e.summary ? h("div", { class: "ds" }, e.summary) : null))
         : (t === "drafts" && b.reverse_drafts
           ? h("div", { class: "card", style: "margin:0;padding:12px 14px" },
-            h("div", { class: "muted small" }, "這裡是「設定/草稿」（草稿轉正式用）。"),
+            h("div", { class: "muted small" }, "這裡是「bible/drafts」（草稿轉正式用）。"),
             h("div", { style: "margin-top:6px" }, "從正文反推的草稿有 " + b.reverse_drafts + " 份，在〈從正文建立設定〉核對。"),
             h("button", {
               class: "sm primary", style: "margin-top:8px",
@@ -493,10 +493,10 @@
       document.querySelector("#bible-del").onclick = async () => {
         const ent = list.find((e) => e.file === file) || {};
         const nm = ent.name || file;
-        if (!(await FE.confirm("刪除「" + nm + "」？" + String.fromCharCode(10) + "會移到 .studio/刪除，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。"))) return;
+        if (!(await FE.confirm("刪除「" + nm + "」？" + String.fromCharCode(10) + "會移到 .studio/trash，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。"))) return;
         try {
           const r = await FE.api(B("/bible/delete"), { method: "POST", body: { path: file }, signal });
-          FE.toast(r.warning || "已移到 .studio/刪除", r.warning ? "err" : undefined);
+          FE.toast(r.warning || "已移到 .studio/trash", r.warning ? "err" : undefined);
           FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(t));
         } catch (e) { FE.fail(e); }
       };

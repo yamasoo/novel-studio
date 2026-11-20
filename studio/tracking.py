@@ -424,7 +424,7 @@ BACKUP_NAME_RE = re.compile(r"^(.*)\.(\d{9,})\.md$")
 def prune_backups(d, name, keep=None):
     """只修剪與這份新備份同一組（標籤_原檔名）的舊檔，留下 epoch 最大的 keep 份（預設 BACKUP_KEEP）。
 
-    檔名樣式由 tracking.backup 決定；其他也寫 .studio/備份 的地方（共用庫備份、匯入備份）
+    檔名樣式由 tracking.backup 決定；其他也寫 .studio/backup 的地方（共用庫備份、匯入備份）
     沿用同一個樣式並呼叫這裡，備份目錄的總量才有上限。
     """
     keep = BACKUP_KEEP if keep is None else keep

@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 import migrate_v3  # noqa: E402
 
 DEMOS = ("退婚之後", "en_TheLanternRoad", "ja_辺境の薬師と竜の約束")
+V2_DEMO = os.path.join(ROOT, "tests", "fixtures", "v2_demo")      # v2 格式的示範書（P3 第二批轉換前的樣子），測移轉用
 
 
 def _snapshot(d):
@@ -88,7 +89,7 @@ class MigrateTest(unittest.TestCase):
         self.lib = os.path.join(self.tmp, "lib")
         os.makedirs(self.lib)
         for n in DEMOS:
-            shutil.copytree(os.path.join(ROOT, "demo", n), os.path.join(self.lib, n))
+            shutil.copytree(os.path.join(V2_DEMO, n), os.path.join(self.lib, n))
         os.makedirs(os.path.join(self.lib, "_共用"))         # 共用庫不是書
 
     def tearDown(self):
@@ -104,7 +105,7 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename"], [s["key"] for s in r["steps"]])
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
 
@@ -119,9 +120,13 @@ class MigrateTest(unittest.TestCase):
             self.assertEqual(n, m["title"])
             self.assertEqual(layout.SCHEMA_VERSION, m["schema_version"])
             self.assertEqual(lang, lang_mod.book_lang(b))
-            after = _snapshot(b)
-            changed = {k for k in set(before) | set(after) if before.get(k) != after.get(k)}
-            self.assertTrue(all(k == "book.json" or k.startswith(layout.STUDIO + "/") for k in changed), changed)
+            after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
+            rewritten = {"CLAUDE.md", layout.GLOSSARY, layout.BIBLE_INDEX}    # 內容裡有路徑的系統檔
+            moved = {migrate.map_rel(k): v for k, v in before.items() if k != ".studio/lang"}
+            self.assertEqual(set(moved) | {"book.json"}, set(after), "只多 book.json，其他都是搬到新位置")
+            for k, v in moved.items():
+                if k not in rewritten:
+                    self.assertEqual(v, after[k], k)
             self.assertTrue(os.path.isfile(r["report"]))
             self.assertTrue(os.path.isfile(r["backup"]))
             self.assertEqual("skipped", migrate.migrate(b)["status"], "第二次直接跳過")
@@ -206,14 +211,14 @@ if __name__ == "__main__":
 
 
 class RenameStepTest(unittest.TestCase):
-    """第二步：資料夾與系統檔名換成英文（工作台換成 v3 名稱之前預設關閉，這裡強制開啟測試）。"""
+    """第二步：資料夾與系統檔名換成英文（工作台換成 v3 名稱後啟用）。"""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.lib = os.path.join(self.tmp, "lib")
         os.makedirs(self.lib)
         self.book = os.path.join(self.lib, "退婚之後")
-        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)
+        shutil.copytree(os.path.join(V2_DEMO, "退婚之後"), self.book)
         b = self.book
 
         def w(rel, text):
@@ -235,18 +240,15 @@ class RenameStepTest(unittest.TestCase):
         w("插圖/畫風.json", "{}")
         w("設定/自訂資料夾/筆記.md", "作者自己的資料夾\n")
         w("候選/新書草稿/骨架.json", "{}")
-        gl = project.read_text(layout.path(b, layout.GLOSSARY)).rstrip("\n") + "\n| 青雲劍 | 物品 | 佩劍 | 詳見 設定/世界觀/兵器.md；見 追蹤/時間線.md |\n"
+        gl = project.read_text(layout.path(b, migrate.v2_view()["GLOSSARY"])).rstrip("\n") + "\n| 青雲劍 | 物品 | 佩劍 | 詳見 設定/世界觀/兵器.md；見 追蹤/時間線.md |\n"
         w("設定/名詞表.md", gl)
         w("正文/第003章_路徑字樣.md", "# 第三章\n\n她在設定/世界觀/兵器.md 這幾個字前停住，又看了看正文/第001章.md。\n")
         os.makedirs(os.path.join(b, "匯出"), exist_ok=True)       # 空資料夾
         claude = project.read_text(os.path.join(b, "CLAUDE.md"))
         w("CLAUDE.md", claude + "\n- 角色檔放在 `設定/角色/`，正文在 正文/。\n")
         self.before = _snapshot(b)
-        self.p = mock.patch.object(migrate, "rename_enabled", lambda: True)
-        self.p.start()
 
     def tearDown(self):
-        self.p.stop()
         shutil.rmtree(self.tmp)
 
     def test_plan(self):
@@ -321,14 +323,11 @@ class RenameStepTest(unittest.TestCase):
         self.assertTrue(os.path.isdir(os.path.join(self.book, "bible")))
         self.assertEqual([], migrate.migrate_library(self.lib))
 
-    def test_disabled_by_default(self):
-        self.p.stop()
-        try:
-            self.assertFalse(migrate.rename_enabled(), "工作台還是 v2 名稱時不能啟用")
+    def test_enabled_only_when_workbench_uses_v3_names(self):
+        self.assertTrue(migrate.rename_enabled(), "工作台已經換成 v3 名稱")
+        with mock.patch.object(migrate, "rename_enabled", lambda: False):
             self.assertEqual(["book_meta"], [s.key for s in migrate.pending(self.book)])
             self.assertEqual([], migrate.migrate_library(self.lib))
-        finally:
-            self.p.start()
 
 
 class PathTableTest(unittest.TestCase):
@@ -342,12 +341,62 @@ class PathTableTest(unittest.TestCase):
                 continue
             self.assertIn(k, names, "%s = %s 沒有在 migrate 的對照表裡" % (k, v))
 
-    def test_v2_column_matches_current_layout(self):
-        """layout 還是 v2 名稱時，對照表的 v2 欄要跟它一樣（換成 v3 之後改成比 v3 欄）。"""
-        col = 1 if migrate.rename_enabled() else 0
+    def test_v3_column_matches_current_layout(self):
+        """對照表的 v3 欄要跟目前的 layout 一樣（v2 欄是凍結的舊值）。"""
+        col = 1
         for table in (migrate.PATHS, migrate.NAMES, migrate.SHARED_PATHS):
             for k, v in table.items():
                 cur = getattr(layout, k)
                 if table is migrate.SHARED_PATHS and k != "SHARED":
                     cur = layout.SHARED + "/" + cur
                 self.assertEqual(v[col], cur, k)
+
+
+class WorkbenchGateTest(unittest.TestCase):
+    """工作台遇到舊格式的書：書架標「需要轉換」、API 拒絕、轉換端點（v3 P3 第二批）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.lib = os.path.join(self.tmp, "lib")
+        os.makedirs(os.path.join(self.lib, "_共用", "文風"))
+        with open(os.path.join(self.lib, "_共用", "文風", "x.md"), "w", encoding="utf-8") as f:
+            f.write("# x\n")
+        shutil.copytree(os.path.join(V2_DEMO, "退婚之後"), os.path.join(self.lib, "舊書"))
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), os.path.join(self.lib, "新書"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_detection_and_shelf(self):
+        self.assertTrue(migrate.needs_migration(os.path.join(self.lib, "舊書")))
+        self.assertFalse(migrate.needs_migration(os.path.join(self.lib, "新書")))
+        self.assertTrue(migrate.library_needs_migration(self.lib))
+        books = {b["id"]: b for b in project.list_books(self.lib)}
+        self.assertTrue(books["舊書"].get("needs_migration"))
+        self.assertNotIn("chapters_written", books["舊書"], "舊書不算統計")
+        self.assertNotIn("needs_migration", books["新書"])
+        self.assertEqual(2, books["新書"]["chapters_written"])
+
+    def test_api(self):
+        try:
+            from fastapi.testclient import TestClient
+        except (ImportError, RuntimeError):
+            self.skipTest("TestClient 需要 httpx")
+        import app as app_mod
+        with mock.patch.dict(app_mod.CONFIG, {"library": self.lib}):
+            c = TestClient(app_mod.app, base_url="http://127.0.0.1:8765")
+            h = {"x-fe-token": app_mod.fe.token}
+            r = c.get("/api/books")
+            self.assertTrue(r.json()["shared_needs_migration"])
+            r = c.get("/api/books/" + "舊書" + "/chapters")
+            self.assertEqual(409, r.status_code)
+            self.assertIn("舊格式", r.json()["error"])
+            r = c.post("/api/books/舊書/migrate", json={"dry_run": True}, headers=h)
+            self.assertEqual("dry_run", r.json()["status"])
+            self.assertTrue(os.path.isdir(os.path.join(self.lib, "舊書", migrate.PATHS["BIBLE"][0])), "試跑不動檔案")
+            r = c.post("/api/books/舊書/migrate", json={}, headers=h).json()
+            self.assertEqual("done", r["status"], r)
+            self.assertTrue(r["backup"].startswith(layout.MIGRATE_DIR + "/"), "回傳書內相對路徑")
+            self.assertEqual(["_共用/ → _shared/（1 個檔）"], r["library"], "轉書時順便轉共用資料夾")
+            self.assertEqual(200, c.get("/api/books/舊書/chapters").status_code)
+            self.assertFalse(c.get("/api/books").json()["shared_needs_migration"])

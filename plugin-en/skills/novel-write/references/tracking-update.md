@@ -6,11 +6,11 @@ File names, folder names, frontmatter keys and table headers stay in Chinese exa
 
 ## 1. Chapter summary (new file)
 
-`追蹤/章節摘要/第NNN章.md`, from `_範本/章節摘要.md`. 100-250 words: what happened, how the situation changed, what and who newly appeared, where the chapter stops. Put the actual word count in the frontmatter.
+`tracking/summaries/第NNN章.md`, from `_templates/章節摘要.md`. 100-250 words: what happened, how the situation changed, what and who newly appeared, where the chapter stops. Put the actual word count in the frontmatter.
 
 ## 2. State card (overwrite to the latest)
 
-`追蹤/狀態卡.md` is a snapshot of "now":
+`tracking/state-card.md` is a snapshot of "now":
 - **1 Current position**: set to the volume/chapter, story time and scene at the end of this chapter.
 - **2 Main-line progress**: change it if it advanced.
 - **3 Characters on stage**: the characters at the centre of the story at the end of this chapter; remove those who have left.
@@ -24,15 +24,15 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 
 ## 3. Character state (only change on change)
 
-`追蹤/角色狀態/{character name}.md`:
+`tracking/characters/{character name}.md`:
 - Update only characters who **changed in this chapter**: location, goal, body, emotion, abilities and resources, relationships, secrets known, unfinished business.
-- A named important character appearing for the first time gets a new file from `_範本/角色狀態.md`.
+- A named important character appearing for the first time gets a new file from `_templates/角色狀態.md`.
 - For characters who appear in this chapter, set `最後登場` to this chapter; for any with an update, set `更新至` to this chapter.
 - "Secrets known" must be strict: write only what this character already knows **inside the story**, not what only the reader knows.
 
 ## 4. Foreshadowing table
 
-`追蹤/伏筆.md`:
+`tracking/foreshadowing.md`:
 - **Newly planted**: add a row with the next ID (F plus three digits), status 已埋.
 - **Advanced or lightly touched**: set `最後出現` to this chapter; set the status to 推進中.
 - **Paid off**: set the status to 已回收 and `最後出現` to this chapter.
@@ -40,14 +40,14 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 
 ## 5. Timeline
 
-`追蹤/時間線.md`:
+`tracking/timeline.md`:
 - Add a row (E plus three digits) for each important event in this chapter, or past event first mentioned in this chapter.
 - "What the reader knows now" records how much the reader knows after reading this chapter.
 - When this chapter reveals the truth about an old event, update that row's "what the reader knows now" and "revealing chapter".
 
 ### Reader-knowledge ledger
 
-`追蹤/讀者認知.md` (skip if none of the cases below apply. If the file does not exist: for a new book whose timeline has fewer than 15 rows, create it from `_範本/讀者認知.md`; for an older book with many chapters already written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the timeline"):
+`tracking/reader-knowledge.md` (skip if none of the cases below apply. If the file does not exist: for a new book whose timeline has fewer than 15 rows, create it from `_templates/讀者認知.md`; for an older book with many chapters already written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the timeline"):
 - What makes the reader start waiting for an answer (noticing something off, an open question): add a 懸念 row (R plus three digits) worded as the question the reader is asking.
 - What the chapter deliberately lets the reader get wrong: add a 誤認 row stating the version the reader believes.
 - Key information the reader knows but some characters do not: add a 已知 row saying who does not know. Ordinary events need not be registered as 已知.
@@ -56,7 +56,7 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 
 ### Character relationships
 
-`追蹤/關係.md` (skip if no relationship changed in this chapter. If the file does not exist: for a new book before chapter 15, create it from `_範本/關係.md`; for an older book with many chapters written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the character files"):
+`tracking/relations.md` (skip if no relationship changed in this chapter. If the file does not exist: for a new book before chapter 15, create it from `_templates/關係.md`; for an older book with many chapters written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the character files"):
 - One direction per row: "A toward B" and "B toward A" are separate; if only one side's view changes, only touch that row. "Relationship" records role or standing (master and pupil, allies, creditor); "attitude" records this person's feeling and warmth toward the other (trust, wariness, affection).
 - **A relationship first clearly established in this chapter**: add a row (ID L plus three digits), set the starting chapter to this chapter, and write in the reason-for-change column which event in this chapter did it.
 - **A relationship this chapter changed**: put this chapter in the old row's end chapter (do not edit its content), open a new row with the new relationship and attitude, set its starting chapter to this chapter, and note the cause. Do not overwrite the old row; keep the history.
@@ -65,10 +65,10 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 ## 6. Setting registration (new things at the "write it and report it" tier)
 
 Per novel-bible's intake rules (if novel-bible is installed, read section four of its references/intake-rules.md):
-- Named supporting character → `設定/角色/` (fill only what has appeared in the text)
-- New faction → `設定/勢力/`
-- New rule or demonstration of an ability → the matching `設定/世界觀/` file
-- New term or form of address → `設定/名詞表.md`
+- Named supporting character → `bible/characters/` (fill only what has appeared in the text)
+- New faction → `bible/factions/`
+- New rule or demonstration of an ability → the matching `bible/world/` file
+- New term or form of address → `bible/glossary.md`
 
 ## 7. Card status
 

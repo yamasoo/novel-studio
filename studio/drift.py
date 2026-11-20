@@ -355,7 +355,7 @@ def plan_md(res, a, b):
 
 
 def save_plan(book_dir, a, b, text, notes=None):
-    """把草稿寫到 大綱/草稿/卷綱更新_第a-b章.md（跟新卷草稿同一個資料夾，但不會被當成新卷）。"""
+    """把草稿寫到 outline/drafts/卷綱更新_第a-b章.md（跟新卷草稿同一個資料夾，但不會被當成新卷）。"""
     rel = layout.volume_update_draft(a, b)
     p = project.safe_path(book_dir, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)

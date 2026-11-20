@@ -463,7 +463,7 @@ STYLE_KEYS = ("對白比例", "平均句長", "短句比例", "平均段長", "�
 
 
 def style_targets(book_dir):
-    """本書文風的可量測目標：`設定/文風.md` 有填就用填的，沒填就量作者自己的正文。"""
+    """本書文風的可量測目標：`bible/style.md` 有填就用填的，沒填就量作者自己的正文。"""
     m = shared.parse_metrics(read(book_dir, layout.STYLE))
     if not m:
         sample = shared.book_sample(book_dir)

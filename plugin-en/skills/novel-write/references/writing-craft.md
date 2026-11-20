@@ -1,6 +1,6 @@
 # Craft for writing chapter text
 
-Read once before writing chapter text (no need to reread within the same conversation). This is general craft; where it conflicts with this book's `設定/文風.md`, the style file wins.
+Read once before writing chapter text (no need to reread within the same conversation). This is general craft; where it conflicts with this book's `bible/style.md`, the style file wins.
 
 ## 1. Scenes: every scene must change something
 
@@ -43,7 +43,7 @@ Five channels that let the reader see the gap between surface and truth:
 When the reader sees the gap between these channels, no narrator needs to explain. Subtext must be readable to the reader even if the other characters in the scene miss it.
 
 ### Everyone must sound different
-- Write to the character's voice card (the "way of speaking" in `設定/角色/`).
+- Write to the character's voice card (the "way of speaking" in `bible/characters/`).
 - Test: cover the speaker's name. Can the reader guess who is talking?
 - Not everyone is articulate: some fumble, some answer a different question, some say half a sentence.
 - Not every question gets answered: dodging, changing the subject and asking back all play better than a straight answer.
@@ -80,7 +80,7 @@ Quick cuts are fine, but never cut the causality, the character state or the rel
 
 ## 7. Boundaries of disclosure
 
-- Respect "what the reader knows now" in `追蹤/時間線.md`. The narrator cannot give away a truth that has not been revealed, nor sneak in a preview with "little did he know".
+- Respect "what the reader knows now" in `tracking/timeline.md`. The narrator cannot give away a truth that has not been revealed, nor sneak in a preview with "little did he know".
 - In limited viewpoint, write only what the viewpoint character can see, hear and think.
 - Respect the card's prohibitions.
 - Do not use an ability or trump card before it unlocks.

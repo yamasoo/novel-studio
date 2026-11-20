@@ -83,7 +83,9 @@ NAMES = {
     "REVERSE_CUMULATIVE":        ("累積.json",   "cumulative.json"),
     "REVERSE_DRAFTS":            ("草稿",        "drafts"),
     "REVERSE_BATCHES":           ("批次",        "batches"),
-    "ILLUST_INDEX":              ("_插圖.json",  "_illustrations.json"),
+    "ILLUST_INDEX":              ("_插圖.json",  "_illustrations.json"),    # 插圖資料夾裡每一層都可能有
+    "ILLUST_COVER":              ("封面",        "cover"),
+    "ILLUST_CHAPTERS":           ("章節",        "chapters"),
     "ART_STYLE":                 ("畫風.json",   "art-style.json"),
     "SPINOFF_SKELETON_JSON":     ("骨架.json",   "skeleton.json"),
     "SPINOFF_SKELETON_MD":       ("骨架.md",     "skeleton.md"),
@@ -118,12 +120,30 @@ _EXT = re.compile(r"\.[A-Za-z0-9]{1,5}$")
 _REV_DRAFTS = (PATHS["STUDIO_REVERSE"][1] + "/" + NAMES["REVERSE_DRAFTS"][1] + "/")
 
 
+# 插圖資料夾裡的第一層：封面、章節、各類設定（跟設定資料夾同名）
+_ILLUST_INNER = dict([NAMES["ILLUST_COVER"], NAMES["ILLUST_CHAPTERS"]] +
+                     [(PATHS[k][0].split("/")[-1], PATHS[k][1].split("/")[-1]) for k in ("CHARACTERS", "FACTIONS", "WORLD")])
+_ILLUST_ROOTS = (PATHS["ILLUST"][1] + "/", PATHS["STUDIO_BACKUP"][1] + "/" + PATHS["ILLUST"][1] + "/")
+
+
+def _map_illust(rel):
+    for root in _ILLUST_ROOTS:
+        if rel.startswith(root):
+            parts = rel[len(root):].split("/")
+            parts[0] = _ILLUST_INNER.get(parts[0], parts[0])
+            parts = [NAMES["ILLUST_INDEX"][1] if p == NAMES["ILLUST_INDEX"][0] else p for p in parts]
+            return root + "/".join(parts)
+    return rel
+
+
 def map_rel(rel):
-    """v2 的相對路徑 → v3。認不得的原樣。反推草稿資料夾裡放的是整本書的結構，裡面那一段也換。"""
+    """v2 的相對路徑 → v3。認不得的原樣。反推草稿資料夾裡放的是整本書的結構，裡面那一段也換；
+    插圖資料夾裡的分類資料夾與索引檔也換。"""
     for old, new in PAIRS:
         if rel == old or rel.startswith(old + "/"):
             rel = new + rel[len(old):]
             break
+    rel = _map_illust(rel)
     if rel.startswith(_REV_DRAFTS):
         inner = rel[len(_REV_DRAFTS):]
         rel = _REV_DRAFTS + map_rel(inner) if not inner.startswith(".studio") else rel
@@ -134,6 +154,8 @@ def map_ref(s):
     """文字或 JSON 裡出現的路徑：完整的已知路徑、已知資料夾底下的東西、或「第一層資料夾/…有副檔名的檔案」與「第一層資料夾/」才換。"""
     if not isinstance(s, str) or "/" not in s and s not in dict(PAIRS):
         return s
+    if s.startswith("entity:"):          # 插圖的對象（entity:設定/角色/X.md）
+        return "entity:" + map_ref(s[len("entity:"):])
     for old, _ in PAIRS:
         if (s == old or s.startswith(old + "/")) and old not in TOP_V2:
             return map_rel(s)
@@ -204,8 +226,10 @@ class Step:
 
 
 def _old_lang(book_dir):
+    """依舊規則取得語言。故事核心要用書目前的路徑去讀（這一步在改名之前，書還是 v2 的資料夾）。"""
     from . import lang
-    return lang.normalize(bookmeta.read(book_dir).get("lang") or lang._fm_lang(book_dir) or lang._file_lang(book_dir))
+    return lang.normalize(bookmeta.read(book_dir).get("lang") or lang._fm_lang(book_dir, view_of(book_dir)["STORY_CORE"])
+                          or lang._file_lang(book_dir))
 
 
 def _meta_needed(book_dir):
@@ -262,6 +286,18 @@ def _empty_dirs(book_dir):
         if not files and not dirs and map_rel(rel) != rel:
             out.append(rel)
     return out
+
+
+_V2_DIRS = tuple(TOP_V2) + tuple(v[0] for k, v in PATHS.items() if k.startswith("STUDIO_") and not v[0].endswith(".json"))
+
+
+def needs_migration(book_dir):
+    """工作台開不了、要先轉換的舊書：還有 v2 的資料夾。只看資料夾在不在（書架每次都會問，不能逐檔掃描）。"""
+    return rename_enabled() and any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
+
+
+def library_needs_migration(library):
+    return rename_enabled() and bool(library) and os.path.isdir(os.path.join(library, SHARED_PATHS["SHARED"][0]))
 
 
 def _rename_needed(book_dir):

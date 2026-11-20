@@ -26,13 +26,13 @@ SAME = "=="   # 同形標記：三語相同，執行期顯示原文（fekit 的 
 # ---- 英文包允許出現的中文：先把這些樣式從字串拿掉，再看還有沒有漢字 ----
 _PATH_HEAD = r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|\.studio)"
 ALLOW = [
-    re.compile(r"[^\s\"'`(\[]*" + _PATH_HEAD + r"/[^\s\"'`)\],;:]*"),   # 設定/故事核心.md、候選/{ch}_*.md、.studio/恢復稿/{rid}.json
+    re.compile(r"[^\s\"'`(\[]*" + _PATH_HEAD + r"/[^\s\"'`)\],;:]*"),   # bible/story-core.md、candidates/{ch}_*.md、.studio/recovery/{rid}.json
     re.compile(r"第\s*(?:N+|\{[A-Za-z_0-9]*\}|\d+)\s*章"),               # 第NNN章、第{n}章、第12章
     re.compile(r"\"[^\"\n]*[㐀-鿿][^\"\n]*\""),                  # "名稱"、"主角|主要配角"（JSON 鍵名與中文列舉值）
     re.compile(r"\\\"[^\"\n]*[㐀-鿿][^\"\n]*\\\""),              # \"知道的秘密\"
     re.compile(r"[「『][^」』\n]{1,12}[」』]"),                            # 「別名」「已知」：指到資料裡的欄位名／選項
     re.compile(r"\|[^\n]*\|"),                                          # 表頭列「| 編號 | 內容 |」：檔案裡的欄位名
-    re.compile(r"<<<[^>\n]*>>>|<<<[^>\n]*"),                            # <<<結束>>>、<<<追加 設定/名詞表.md>>>
+    re.compile(r"<<<[^>\n]*>>>|<<<[^>\n]*"),                            # <<<結束>>>、<<<追加 bible/glossary.md>>>
 ]
 # 剝掉後仍留下的漢字：連續超過這個長度就當成「中文句子」（欄位名、表頭、列舉值都不會這麼長）
 MAX_BARE_RUN = 5
@@ -113,14 +113,14 @@ def check_locales(errors):
 
 
 # 介面文字裡的資料夾路徑與檔名：實際資料夾叫中文名，翻譯時不能跟著翻
-PATH_RX = re.compile(r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|_共用|\.studio)(?:/[^\s\"'`()\[\]{}<>,;:、。，；：！？（）「」『』→＋+*]+)+")
+PATH_RX = re.compile(r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|_shared|\.studio)(?:/[^\s\"'`()\[\]{}<>,;:、。，；：！？（）「」『』→＋+*]+)+")
 MD_RX = re.compile(r"[^\s/\"'`()\[\]{}<>,;:、。，；：！？（）「」『』→＋+*]+\.md\b")
 
 
 def ui_paths(key):
     found = set(PATH_RX.findall(key)) | set(MD_RX.findall(key))
     found = {p.rstrip("/.") for p in found}
-    # 被更長的路徑包含的短路徑不用另外比（例如 .studio/備份 已包含在 .studio/備份/插圖 裡）
+    # 被更長的路徑包含的短路徑不用另外比（例如 .studio/backup 已包含在 .studio/backup/illust 裡）
     return sorted(p for p in found if not any(p != q and p in q for q in found))
 
 

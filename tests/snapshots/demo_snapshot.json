@@ -1102,11 +1102,71 @@
     },
     "latest": 2,
     "reader": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "type",
+       "label": "類型"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "author_truth",
+       "label": "作者真相"
+      },
+      {
+       "key": "planted_chapter",
+       "label": "種下章"
+      },
+      {
+       "key": "resolved_in",
+       "label": "回收章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
     },
     "reader_draft": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "type",
+       "label": "類型"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "author_truth",
+       "label": "作者真相"
+      },
+      {
+       "key": "planted_chapter",
+       "label": "種下章"
+      },
+      {
+       "key": "resolved_in",
+       "label": "回收章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
@@ -2997,11 +3057,71 @@
     },
     "latest": 2,
     "reader": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "type",
+       "label": "類型"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "author_truth",
+       "label": "作者真相"
+      },
+      {
+       "key": "planted_chapter",
+       "label": "種下章"
+      },
+      {
+       "key": "resolved_in",
+       "label": "回收章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
     },
     "reader_draft": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "type",
+       "label": "類型"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "author_truth",
+       "label": "作者真相"
+      },
+      {
+       "key": "planted_chapter",
+       "label": "種下章"
+      },
+      {
+       "key": "resolved_in",
+       "label": "回收章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
@@ -4230,11 +4350,71 @@
     },
     "latest": 2,
     "reader": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "type",
+       "label": "類型"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "author_truth",
+       "label": "作者真相"
+      },
+      {
+       "key": "planted_chapter",
+       "label": "種下章"
+      },
+      {
+       "key": "resolved_in",
+       "label": "回收章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
     },
     "reader_draft": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "type",
+       "label": "類型"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "author_truth",
+       "label": "作者真相"
+      },
+      {
+       "key": "planted_chapter",
+       "label": "種下章"
+      },
+      {
+       "key": "resolved_in",
+       "label": "回收章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []

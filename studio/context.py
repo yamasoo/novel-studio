@@ -315,10 +315,10 @@ def has_reader_ledger(book_dir):
 
 
 def _reader_open(r, a):
-    """還沒回收（回收章空白或在本章以後）的懸念／誤認。"""
-    if str(r.get("類型") or "").strip() == "已知":
+    """還沒回收（回收章空白或在本章以後）的懸念／誤認。r 是英文鍵的列。"""
+    if str(r.get("type") or "").strip() == "已知":
         return False
-    rec = _nums(r.get("回收章"))
+    rec = _nums(r.get("resolved_in"))
     return not rec or min(rec) >= a
 
 
@@ -328,11 +328,11 @@ def reader_for(book_dir, scope, a, b=None, pk=None):
     - 只列內容（不帶作者真相）：其他還沒回收的懸念與誤認
     - 不帶：已回收的、無關的已知"""
     b = b or a
-    tbl = project.read_table(book_dir, READER_FILE)
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "reader", READER_FILE)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows:
         return ""
-    full = table_md(hs, rows)
+    full = tables.md("reader", ks, rows)
     if est_tokens(full) <= FILTER_MIN_TOKENS:
         return full
     names = _entity_names(book_dir, scope)
@@ -341,35 +341,35 @@ def reader_for(book_dir, scope, a, b=None, pk=None):
     ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope))
     keep, idx = [], []
     for r, j in zip(rows, joined):
-        rid = str(r.get("編號") or "")
+        rid = str(r.get("id") or "")
         related = rid in ids or any(n in j for n in names)
         if _reader_open(r, a):
-            due = any(a <= n <= b for n in _nums(r.get("回收章")))
-            recent = any(a - RECENT_CHAPTERS <= n <= b for n in _nums(r.get("種下章")))
+            due = any(a <= n <= b for n in _nums(r.get("resolved_in")))
+            recent = any(a - RECENT_CHAPTERS <= n <= b for n in _nums(r.get("planted_chapter")))
             (keep if related or due or recent else idx).append(r)
-        elif str(r.get("類型") or "").strip() == "已知" and related:
+        elif str(r.get("type") or "").strip() == "已知" and related:
             keep.append(r)
     if pk is not None:
         pk.note("讀者認知 %d 條：整列帶 %d、只列內容 %d（已回收的不帶）" % (len(rows), len(keep), len(idx)))
-    out = table_md(hs, keep)
+    out = tables.md("reader", ks, keep)
     if idx:
         out += (prompts.cur()["reader_open_head"] +
-                "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("類型", ""), str(r.get("內容", "")).replace("|", "／"))
+                "\n".join("| %s | %s | %s |" % (r.get("id", ""), r.get("type", ""), str(r.get("content", "")).replace("|", "／"))
                           for r in idx))
     return out
 
 
 def reader_for_writeback(book_dir):
     """回寫用：還沒回收的整列帶（要能用原編號回收）；已知只列編號和內容（避免重複登記）。"""
-    tbl = project.read_table(book_dir, READER_FILE)
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "reader", READER_FILE)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows:
         return ""
     opens = [r for r in rows if _reader_open(r, 0)]
-    known = [r for r in rows if str(r.get("類型") or "").strip() == "已知"]
-    out = table_md(hs, opens)
+    known = [r for r in rows if str(r.get("type") or "").strip() == "已知"]
+    out = tables.md("reader", ks, opens)
     if known:
-        out += prompts.cur()["reader_known_head"] + "\n".join("- %s %s" % (r.get("編號", ""), r.get("內容", "")) for r in known)
+        out += prompts.cur()["reader_known_head"] + "\n".join("- %s %s" % (r.get("id", ""), r.get("content", "")) for r in known)
     return out
 
 

@@ -89,13 +89,13 @@ def check(book_dir, no, revision=False, data=None):
         issues.append("時間線沒有任何一列的揭示章是本章")
 
     # 讀者認知：章綱點名的
-    rp = {r.get("編號"): r for r in project.read_table(book_dir, tracking.RP_FILE)["rows"]}
+    rp = {r.get("id"): r for r in tables.read(book_dir, "reader", tracking.RP_FILE)["rows"]}
     if rp:
         for rid in _ids(card, "R"):
             r = rp.get(rid)
             if not r:
                 issues.append("章綱提到 %s，讀者認知帳本沒有這一條" % rid)
-            elif r.get("類型") != "已知" and not str(r.get("回收章") or "").strip():
+            elif r.get("type") != "已知" and not str(r.get("resolved_in") or "").strip():
                 issues.append("章綱提到 %s，回收章還空著（如果本章要揭曉，回寫漏了）" % rid)
 
     # 章綱狀態
@@ -160,13 +160,13 @@ def alerts(book_dir, latest):
             out.append({"level": "warn", "kind": "回寫檢查", "action": "rewriteback", "chapter_no": no, "path": path,
                         "text": "第%d章回寫有 %d 項可能沒寫到：%s%s" % (no, len(iss), iss[0], "……" if len(iss) > 1 else ""),
                         "details": iss})
-    rows = project.read_table(book_dir, tracking.RP_FILE)["rows"]
-    stale = [r for r in rows if r.get("類型") != "已知" and not str(r.get("回收章") or "").strip()
-             and _ch(r.get("種下章")) and latest - _ch(r.get("種下章")) > STALE_SUSPENSE]
+    rows = tables.read(book_dir, "reader", tracking.RP_FILE)["rows"]
+    stale = [r for r in rows if r.get("type") != "已知" and not str(r.get("resolved_in") or "").strip()
+             and _ch(r.get("planted_chapter")) and latest - _ch(r.get("planted_chapter")) > STALE_SUSPENSE]
     if stale:
-        stale.sort(key=lambda r: _ch(r.get("種下章")))
+        stale.sort(key=lambda r: _ch(r.get("planted_chapter")))
         out.append({"level": "info", "kind": "懸念久未回收",
                     "text": "%d 條懸念或誤認種下超過 %d 章還沒回收（最久：%s 第%d章）。" % (
-                        len(stale), STALE_SUSPENSE, stale[0].get("編號", ""), _ch(stale[0].get("種下章"))),
-                    "details": ["%s（第%d章）%s" % (r.get("編號", ""), _ch(r.get("種下章")), r.get("內容", "")) for r in stale]})
+                        len(stale), STALE_SUSPENSE, stale[0].get("id", ""), _ch(stale[0].get("planted_chapter"))),
+                    "details": ["%s（第%d章）%s" % (r.get("id", ""), _ch(r.get("planted_chapter")), r.get("content", "")) for r in stale]})
     return out

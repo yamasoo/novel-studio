@@ -373,12 +373,13 @@ def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=Fa
     note：附在表格後面的說明（回收比對的逐條紀錄），採用草稿時會拿掉。"""
     rows = []
     for i, it in enumerate(items, 1):
-        row = {h: _cell(it.get(h, "")) for h in RP_HEADERS}
-        if not (keep_ids and row["編號"]):
-            row["編號"] = "R%03d" % i
-        if row["類型"] not in RP_TYPES:
-            row["類型"] = "懸念"
-        rows.append(row)
+        it = tables.row_to_keys("reader", it)   # 表格的列（英文鍵）、模型的條目（中文鍵）都認
+        row = {k: _cell(it.get(k, "")) for k in tables.keys("reader")}
+        if not (keep_ids and row["id"]):
+            row["id"] = "R%03d" % i
+        if row["type"] not in RP_TYPES:
+            row["type"] = "懸念"
+        rows.append(tables.row_to_headers("reader", row))
     head = "---\n類型: 讀者認知\n更新至: %s\n%s---\n\n# 讀者認知%s\n\n" % (
         chapter_label_text, "狀態: 草稿\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
     _write(path, head + prompts.cur()["rp_intro"] + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))

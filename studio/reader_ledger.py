@@ -95,18 +95,18 @@ RECON_BATCH = 30
 def ledger_source(book_dir):
     """回收比對的來源：有草稿就比對草稿，沒有就比對正式帳本。"""
     for rel in (tracking.RP_DRAFT, tracking.RP_FILE):
-        t = project.read_table(book_dir, rel)
+        t = tables.read(book_dir, "reader", rel)   # 列是英文鍵（v3 P2）
         if t["rows"]:
             return rel, t["rows"]
     raise project.ProjectError("還沒有讀者認知帳本或草稿，請先「從時間線建立」")
 
 
 def _open_rows(rows):
-    return [r for r in rows if r.get("類型") != "已知" and not str(r.get("回收章") or "").strip()]
+    return [r for r in rows if r.get("type") != "已知" and not str(r.get("resolved_in") or "").strip()]
 
 
 def _index(rows):
-    return "\n".join("- %s〔%s〕%s" % (r.get("編號", ""), r.get("類型", ""), r.get("內容", "")) for r in rows)
+    return "\n".join("- %s〔%s〕%s" % (r.get("id", ""), r.get("type", ""), r.get("content", "")) for r in rows)
 
 
 def _timeline_after(book_dir, start):
@@ -132,10 +132,10 @@ def recon_packs(book_dir, budget):
     n = (len(opens) + RECON_BATCH - 1) // RECON_BATCH
     for i in range(0, len(opens), RECON_BATCH):
         part = opens[i:i + RECON_BATCH]
-        start = min(_first(r.get("種下章")) for r in part)
+        start = min(_first(r.get("planted_chapter")) for r in part)
         start = 1 if start == 99999 else start
         pk = context.Pack(budget)
-        pk.add(0, "要判斷的條目（還沒回收）", context.table_md(tracking.RP_HEADERS, part))
+        pk.add(0, "要判斷的條目（還沒回收）", tables.md("reader", tables.keys("reader"), part))
         pk.add(1, "帳本全部條目（合併時用）", _index(rows))
         pk.add(2, "時間線：各章讀者知道了什麼（第%d章以後）" % start, _timeline_after(book_dir, start))
         pk.add(3, "章節摘要（第%d章以後）" % start, _summaries_after(book_dir, start), keep="tail")
@@ -158,8 +158,8 @@ def apply_recon(book_dir, results):
     rel, rows = ledger_source(book_dir)
     to = tracking.tracked_to(book_dir) or 99999
     rows = [dict(r) for r in rows]
-    by_id = {r.get("編號"): r for r in rows}
-    open_ids = {r.get("編號") for r in _open_rows(rows)}
+    by_id = {r.get("id"): r for r in rows}
+    open_ids = {r.get("id") for r in _open_rows(rows)}
     done, part, merged, skipped, lines = 0, 0, 0, 0, []
     remove = set()
     for data in results:
@@ -176,15 +176,15 @@ def apply_recon(book_dir, results):
                 if no == 99999 or no > to:
                     skipped += 1
                     continue
-                r["回收章"] = tracking.chapter_label(no)
+                r["resolved_in"] = tracking.chapter_label(no)
                 done += 1
-                lines.append("- %s 回收（%s）：%s　理由：%s" % (rid, r["回收章"], r.get("內容", ""), why))
+                lines.append("- %s 回收（%s）：%s　理由：%s" % (rid, r["resolved_in"], r.get("content", ""), why))
             elif act == "部分" and str(ch.get("內容") or "").strip():
-                old = r.get("內容", "")
+                old = r.get("content", "")
                 src = re.findall(r"（([A-Z]\d+(?:[、,][A-Z]?\d+)*)）\s*$", old)
-                r["內容"] = str(ch["內容"]).strip() + ("（%s）" % src[0] if src and src[0] not in ch["內容"] else "")
+                r["content"] = str(ch["內容"]).strip() + ("（%s）" % src[0] if src and src[0] not in ch["內容"] else "")
                 part += 1
-                lines.append("- %s 部分揭曉：「%s」→「%s」　理由：%s" % (rid, old, r["內容"], why))
+                lines.append("- %s 部分揭曉：「%s」→「%s」　理由：%s" % (rid, old, r["content"], why))
             elif act == "合併":
                 to_id = str(ch.get("合併到") or "").strip()
                 if to_id == rid or to_id not in by_id or to_id in remove:
@@ -192,14 +192,14 @@ def apply_recon(book_dir, results):
                     continue
                 remove.add(rid)
                 merged += 1
-                lines.append("- %s 併入 %s：%s　理由：%s" % (rid, to_id, r.get("內容", ""), why))
+                lines.append("- %s 併入 %s：%s　理由：%s" % (rid, to_id, r.get("content", ""), why))
             else:
                 skipped += 1
     if not lines:
         return "**比對完成，沒有找到可以回收、部分揭曉或合併的條目**（%s 沒有變動）" % rel
     if rel == tracking.RP_DRAFT:
         tracking.backup(book_dir, os.path.join(book_dir, *rel.split("/")), "讀者認知草稿")
-    kept = [r for r in rows if r.get("編號") not in remove]
+    kept = [r for r in rows if r.get("id") not in remove]
     path = os.path.join(book_dir, *tracking.RP_DRAFT.split("/"))
     tracking.write_reader_table(path, kept, tracking.chapter_label(to) if to != 99999 else "", draft=True,
                                 keep_ids=True, note="\n".join(lines))

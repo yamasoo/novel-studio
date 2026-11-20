@@ -266,12 +266,13 @@
         : h("div", { class: "card empty" }, "還沒有時間線。");
     } else if (t === "reader") {
       const rd = d.reader_draft, rl = d.reader;
-      const isOpen = (r) => r["類型"] !== "已知" && !(chn(r["回收章"]) && chn(r["回收章"]) <= latest);
-      const readerTable = (x, id) => tableNode(id, x.headers, x.rows, {
+      // 列是英文鍵（studio/tables.py），表頭用 columns 的 label
+      const isOpen = (r) => r.type !== "已知" && !(chn(r.resolved_in) && chn(r.resolved_in) <= latest);
+      const readerTable = (x, id) => tableNode(id, x.columns, x.rows, {
         rowClass: (r) => (isOpen(r) ? "" : "dim done"),
-        cell: (r, xh) => (xh === "類型"
-          ? h("span", { class: "badge " + (r[xh] === "誤認" ? "b-warn" : r[xh] === "懸念" ? "b-ok" : "") }, r[xh])
-          : r[xh]),
+        cell: (r, c) => (c.key === "type"
+          ? h("span", { class: "badge " + (r.type === "誤認" ? "b-warn" : r.type === "懸念" ? "b-ok" : "") }, r.type)
+          : r[c.key]),
       });
       const intro = h("div", { class: "muted small", style: "margin-bottom:8px" },
         "讀者讀到目前的認知：", h("b", {}, "懸念"), "是讀者在等答案的問題，", h("b", {}, "誤認"), "是讀者誤以為的事，",

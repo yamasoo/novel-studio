@@ -382,7 +382,7 @@ def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=Fa
     note：附在表格後面的說明（回收比對的逐條紀錄），採用草稿時會拿掉。"""
     rows = []
     for i, it in enumerate(items, 1):
-        it = tables.row_to_keys("reader", it)   # 表格的列（英文鍵）、模型的條目（中文鍵）都認
+        it = tables.row_to_keys("reader", it)   # 英文鍵原樣；反推的條目還是中文鍵（反推那一批改完就只剩英文鍵）
         row = {k: _cell(it.get(k, "")) for k in tables.keys("reader")}
         if not (keep_ids and row["id"]):
             row["id"] = "R%03d" % i

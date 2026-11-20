@@ -69,14 +69,14 @@ def scenario():
                            {"編號": "新", "內容": ""}]}
         out["writeback"] = tracking.apply_writeback(book, 31, "對質", 2500, jsonkeys.to_keys(json.loads(json.dumps(data, ensure_ascii=False))))   # 和實際流程一樣先經 jsonkeys 換成英文鍵
         out["ledger_after_wb"] = rd(layout.READER_KNOWLEDGE)
-        # 從時間線轉換（模型條目是中文鍵；重複內容要去掉）
-        items = reader_ledger.merge([{"items": [
+        # 從時間線轉換（繁中提示詞的模型條目是中文鍵，和實際流程一樣先經 jsonkeys；重複內容要去掉）
+        items = reader_ledger.merge([jsonkeys.to_keys({"items": [
             {"類型": "懸念", "內容": "誰拿走了缺頁", "種下章": "第002章", "來源": "E001"},
             {"類型": "已知", "內容": "林晚被退婚", "種下章": "第001章"},
             {"類型": "懸念", "內容": "缺頁在誰手上", "種下章": "第004章"},
             {"類型": "誤認", "內容": "讀者以為大伯母是主謀", "種下章": "第003章", "作者真相": "其實是沈仲廉"},
-            {"類型": "懸念", "內容": "誰拿走了缺頁", "種下章": "第005章"}]}])
-        out["merge"] = items
+            {"類型": "懸念", "內容": "誰拿走了缺頁", "種下章": "第005章"}]})])
+        out["merge"] = jsonkeys.to_zh(items, values=False)   # 用中文鍵記錄，舊程式（中文鍵）與新程式（英文鍵）可以直接比
         out["save_draft"] = reader_ledger.save_draft(book, items)
         out["draft"] = rd(layout.READER_KNOWLEDGE_DRAFT)
         # 回收比對（比對草稿）
@@ -85,19 +85,19 @@ def scenario():
         draft_rows = reader_ledger.ledger_source(book)[1]
         ids = sorted(str(r.get("編號") or r.get("id") or "") for r in draft_rows)
         out["draft_ids"] = ids
-        out["apply_recon"] = reader_ledger.apply_recon(book, [{"changes": [
+        out["apply_recon"] = reader_ledger.apply_recon(book, [jsonkeys.to_keys({"changes": [
             {"編號": "R001", "動作": "回收", "回收章": "第002章", "理由": "第2章揭曉"},
             {"編號": "R003", "動作": "部分", "內容": "讀者知道大伯母有參與", "理由": "部分揭曉"},
             {"編號": "R002", "動作": "合併", "合併到": "R001", "理由": "重複"},
             {"編號": "R004", "動作": "回收", "回收章": "第001章", "理由": "已知的不比對"},
             {"編號": "R999", "動作": "回收", "回收章": "第020章"},
-            {"編號": "R003", "動作": "回收", "回收章": "第999章"}]}])
+            {"編號": "R003", "動作": "回收", "回收章": "第999章"}]})])
         out["draft_after_recon"] = rd(layout.READER_KNOWLEDGE_DRAFT)
         out["adopt"] = tracking.adopt_reader_draft(book)
         out["ledger_after_adopt"] = rd(layout.READER_KNOWLEDGE)
         # 正式帳本的回收比對（沒有草稿時）
-        out["recon_on_ledger"] = reader_ledger.apply_recon(book, [{"changes": [
-            {"編號": "R003", "動作": "回收", "回收章": "第002章", "理由": "x"}]}])
+        out["recon_on_ledger"] = reader_ledger.apply_recon(book, [jsonkeys.to_keys({"changes": [
+            {"編號": "R003", "動作": "回收", "回收章": "第002章", "理由": "x"}]})])
         out["draft_from_ledger"] = rd(layout.READER_KNOWLEDGE_DRAFT)
     finally:
         shutil.rmtree(tmp)

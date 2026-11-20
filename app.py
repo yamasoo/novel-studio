@@ -1384,7 +1384,7 @@ def claude_reader_job(book_id, d, prov, params):
             data = providers.parse_json(j.result or "")
         except providers.ProviderError as e:
             raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
-        j.result = reader_ledger.save_draft(d, reader_ledger.merge([jsonkeys.to_zh(data)]))
+        j.result = reader_ledger.save_draft(d, reader_ledger.merge([jsonkeys.to_keys(data)]))
         j.emit("result", text=j.result)
     job.after = after
     return job
@@ -1402,7 +1402,7 @@ def claude_reader_recon_job(book_id, d, prov, params):
             data = providers.parse_json(j.result or "")
         except providers.ProviderError as e:
             raise RuntimeError("無法解析 Claude 回傳的結果：%s" % e)
-        j.result = reader_ledger.apply_recon(d, [jsonkeys.to_zh(data)])
+        j.result = reader_ledger.apply_recon(d, [jsonkeys.to_keys(data)])
         j.emit("result", text=j.result)
     job.after = after
     return job

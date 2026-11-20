@@ -954,14 +954,14 @@ def act_reader_init(c, p):
         msgs = [{"role": "system", "content": c.sys("json")}, {"role": "user", "content": user}]
         out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label=label, stage="structured")
         try:
-            results.append(_lang_check(c, msgs, out, _zh(c, providers.parse_json(out), label), label))
+            results.append(_lang_check(c, msgs, out, _en(c, providers.parse_json(out), label), label, conv=_en))
         except providers.ProviderError:
             c.job.emit("log", text="JSON 格式有誤，請模型重新輸出一次……")
             out = c.call(msgs + [{"role": "assistant", "content": out},
                                  {"role": "user", "content": _P()["json_retry_short"]}],
                          json_mode=True, max_tokens=_out_tokens(c), label=label + "（重試）", stage="structured")
             try:
-                results.append(_zh(c, providers.parse_json(out), label))
+                results.append(_en(c, providers.parse_json(out), label))
             except providers.ProviderError as e:
                 raise NativeError("%s：%s" % (label, e))
     try:
@@ -1005,20 +1005,22 @@ def _lang_check(c, msgs, out, data, label, max_tokens=None, conv=None):
     return textguard.flag_mismatch(data2 if data2 is not None else data)
 
 
-def _json_call(c, msgs, label):
+def _json_call(c, msgs, label, conv=None):
+    """conv：模型資料的鍵名換算，_en（英文鍵，v3）或 _zh（舊的中文鍵；還沒改完的流程用）。"""
+    conv = conv or _zh
     out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label=label, stage="structured")
     try:
-        return _lang_check(c, msgs, out, _zh(c, providers.parse_json(out), label), label)
+        return _lang_check(c, msgs, out, conv(c, providers.parse_json(out), label), label, conv=conv)
     except providers.ProviderError:
         c.job.emit("log", text="JSON 格式有誤，請模型重新輸出一次……")
         out = c.call(msgs + [{"role": "assistant", "content": out},
                              {"role": "user", "content": _P()["json_retry_short"]}],
                      json_mode=True, max_tokens=_out_tokens(c), label=label + "（重試）", stage="structured")
         try:
-            data = _zh(c, providers.parse_json(out), label)
+            data = conv(c, providers.parse_json(out), label)
         except providers.ProviderError as e:
             raise NativeError("%s：%s" % (label, e))
-        return _lang_check(c, msgs, out, data, label)
+        return _lang_check(c, msgs, out, data, label, conv=conv)
 
 
 def act_reader_reconcile(c, p):
@@ -1032,7 +1034,7 @@ def act_reader_reconcile(c, p):
         if dropped:
             c.job.emit("log", text="上下文超出長度，略過：%s" % "、".join(dropped))
         msgs = [{"role": "system", "content": c.sys("json")}, {"role": "user", "content": user}]
-        results.append(_json_call(c, msgs, label))
+        results.append(_json_call(c, msgs, label, conv=_en))
     try:
         c.job.result = reader_ledger.apply_recon(c.book, results)
     except project.ProjectError as e:

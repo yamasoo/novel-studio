@@ -50,23 +50,23 @@ def _norm(s):
 
 
 def merge(results):
-    """把各批結果合併、去重。results 是 parse 後的 dict 清單。"""
+    """把各批結果合併、去重。results 是 parse 後、經 jsonkeys.to_keys 換成英文鍵的 dict 清單。"""
     items, seen = [], set()
     for data in results:
         for it in (data or {}).get("items") or []:
-            if not isinstance(it, dict) or not str(it.get("內容") or "").strip():
+            if not isinstance(it, dict) or not str(it.get("content") or "").strip():
                 continue
-            k = _norm(it.get("內容"))
+            k = _norm(it.get("content"))
             if k in seen:
                 continue
             seen.add(k)
-            src = str(it.get("來源") or "").strip()
-            if src and src not in str(it["內容"]):
+            src = str(it.get("source") or "").strip()
+            if src and src not in str(it["content"]):
                 # 來源編號附在內容後面，作者核對時好找回時間線
-                it = dict(it, 內容="%s（%s）" % (str(it["內容"]).strip(), src))
+                it = dict(it, content="%s（%s）" % (str(it["content"]).strip(), src))
             items.append(it)
     order = {"懸念": 0, "誤認": 1, "已知": 2}
-    items.sort(key=lambda x: (order.get(x.get("類型"), 0), _first(x.get("種下章"))))
+    items.sort(key=lambda x: (order.get(x.get("type"), 0), _first(x.get("planted_chapter"))))
     return items
 
 
@@ -81,8 +81,8 @@ def save_draft(book_dir, items):
     path = os.path.join(book_dir, *tracking.RP_DRAFT.split("/"))
     to = tracking.tracked_to(book_dir) or 0
     n = tracking.write_reader_table(path, items, tracking.chapter_label(to) if to else "", draft=True)
-    cnt = {t: sum(1 for x in items if x.get("類型") == t) for t in tracking.RP_TYPES}
-    opened = sum(1 for x in items if x.get("類型") != "已知" and not str(x.get("回收章") or "").strip())
+    cnt = {t: sum(1 for x in items if x.get("type") == t) for t in tracking.RP_TYPES}
+    opened = sum(1 for x in items if x.get("type") != "已知" and not str(x.get("resolved_in") or "").strip())
     return ("**讀者認知草稿已建立**（%s，共 %d 條：懸念 %d、誤認 %d、已知 %d；還沒回收的 %d 條）\n\n"
             "請到「追蹤」的「讀者認知」分頁核對：AI 可能把作者的底牌寫成懸念，或漏掉你埋的誤導。"
             "確認後按「採用草稿」才會生效；採用前不會影響寫稿。" % (tracking.RP_DRAFT, n, cnt["懸念"], cnt["誤認"], cnt["已知"], opened))
@@ -154,7 +154,7 @@ def recon_claude_prompt(book_dir):
 
 
 def apply_recon(book_dir, results):
-    """套用比對結果，存成草稿（保留原編號），回傳匯報文字。"""
+    """套用比對結果（英文鍵：id、action、grounds、resolved_in、content、merge_into），存成草稿（保留原編號），回傳匯報文字。"""
     rel, rows = ledger_source(book_dir)
     to = tracking.tracked_to(book_dir) or 99999
     rows = [dict(r) for r in rows]
@@ -166,27 +166,27 @@ def apply_recon(book_dir, results):
         for ch in (data or {}).get("changes") or []:
             if not isinstance(ch, dict):
                 continue
-            rid, act, why = str(ch.get("編號") or "").strip(), str(ch.get("動作") or "").strip(), str(ch.get("理由") or "").strip()
+            rid, act, why = str(ch.get("id") or "").strip(), str(ch.get("action") or "").strip(), str(ch.get("grounds") or "").strip()
             r = by_id.get(rid)
             if not r or rid not in open_ids or rid in remove:
                 skipped += 1
                 continue
             if act == "回收":
-                no = _first(ch.get("回收章"))
+                no = _first(ch.get("resolved_in"))
                 if no == 99999 or no > to:
                     skipped += 1
                     continue
                 r["resolved_in"] = tracking.chapter_label(no)
                 done += 1
                 lines.append("- %s 回收（%s）：%s　理由：%s" % (rid, r["resolved_in"], r.get("content", ""), why))
-            elif act == "部分" and str(ch.get("內容") or "").strip():
+            elif act == "部分" and str(ch.get("content") or "").strip():
                 old = r.get("content", "")
                 src = re.findall(r"（([A-Z]\d+(?:[、,][A-Z]?\d+)*)）\s*$", old)
-                r["content"] = str(ch["內容"]).strip() + ("（%s）" % src[0] if src and src[0] not in ch["內容"] else "")
+                r["content"] = str(ch["content"]).strip() + ("（%s）" % src[0] if src and src[0] not in ch["content"] else "")
                 part += 1
                 lines.append("- %s 部分揭曉：「%s」→「%s」　理由：%s" % (rid, old, r["content"], why))
             elif act == "合併":
-                to_id = str(ch.get("合併到") or "").strip()
+                to_id = str(ch.get("merge_into") or "").strip()
                 if to_id == rid or to_id not in by_id or to_id in remove:
                     skipped += 1
                     continue

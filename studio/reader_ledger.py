@@ -9,6 +9,7 @@ import re
 
 from . import context, project, tracking
 from . import prompts as _prompts   # 本模組有個函式也叫 prompts()
+from . import layout
 
 BATCH = 40   # 每次送給模型的時間線列數
 
@@ -24,7 +25,7 @@ def _rows_md(headers, rows):
 
 def prompts(book_dir):
     """回傳 [(標籤, 使用者訊息)]，每批一則。"""
-    tl = project.read_table(book_dir, "追蹤/時間線.md")
+    tl = project.read_table(book_dir, layout.TIMELINE)
     rows, hs = tl["rows"], tl["headers"]
     if not rows:
         raise project.ProjectError("這本書還沒有時間線，沒有東西可以轉換")
@@ -108,14 +109,14 @@ def _index(rows):
 
 
 def _timeline_after(book_dir, start):
-    tl = project.read_table(book_dir, "追蹤/時間線.md")
+    tl = project.read_table(book_dir, layout.TIMELINE)
     keep = [r for r in tl["rows"] if _first(r.get("揭示章")) >= start]
     return "\n".join(_t("rl_tl_line", id=r.get("編號", ""), ch=r.get("揭示章", ""), text=r.get("讀者目前知道", "")) for r in keep)
 
 
 def _summaries_after(book_dir, start):
-    sums = project._scan_dir(os.path.join(book_dir, "追蹤", "章節摘要"))
-    return "\n\n".join(_t("rl_sum_line", n=k, text=context.body(context.read(book_dir, "追蹤/章節摘要/" + sums[k])).strip())
+    sums = project._scan_dir(layout.path(book_dir, layout.SUMMARIES))
+    return "\n\n".join(_t("rl_sum_line", n=k, text=context.body(context.read(book_dir, layout.SUMMARIES + "/" + sums[k])).strip())
                        for k in sorted(sums) if k >= start)
 
 

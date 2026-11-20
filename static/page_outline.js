@@ -192,10 +192,10 @@
             : h("div", { class: "muted" }, "還沒有大綱。"),
           h("div", {
             class: "item",
-            onclick: () => FE.go("#/b/" + encodeURIComponent(S.book) + "/bible?t=" + encodeURIComponent("核心") + "&f=" + encodeURIComponent("設定/故事核心.md")),
+            onclick: () => FE.go("#/b/" + encodeURIComponent(S.book) + "/bible?t=" + encodeURIComponent("核心") + "&f=" + encodeURIComponent(LAYOUT.STORY_CORE)),
           },
             h("div", { class: "nm" }, "故事核心"),
-            h("div", { class: "ds" }, "設定/故事核心.md"))),
+            h("div", { class: "ds" }, LAYOUT.STORY_CORE))),
         file
           ? docEl
           : h("div", { class: "card empty" }, h("div", { class: "big" }, "⌘"), "還沒有大綱。可以先做「故事核心診斷」，再規劃全書大綱。")));

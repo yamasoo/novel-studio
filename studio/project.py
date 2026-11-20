@@ -9,12 +9,13 @@ import threading
 import yaml
 
 from . import enums
+from . import layout
 
 CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
 CH_NUM = re.compile(r"第0*(\d+)章")
 
 # 書目錄內允許瀏覽的資料夾
-BROWSABLE = ["設定", "大綱", "正文", "追蹤", "候選", "範例", "_範本"]
+BROWSABLE = [layout.BIBLE, layout.OUTLINE, layout.MANUSCRIPT, layout.TRACKING, layout.CANDIDATES, layout.SAMPLES, layout.TEMPLATES]
 
 
 class ProjectError(Exception):
@@ -226,7 +227,7 @@ def _scan_fingerprint(book_dir):
     """
     count = total = 0
     newest = 0.0
-    for sub in ("正文", "大綱", "追蹤", "設定", "候選"):
+    for sub in (layout.MANUSCRIPT, layout.OUTLINE, layout.TRACKING, layout.BIBLE, layout.CANDIDATES):
         for root, _dirs, files in os.walk(os.path.join(book_dir, sub)):
             for f in files:
                 if not f.endswith(".md"):
@@ -252,7 +253,7 @@ def list_books(library):
         dirty = False
         for name in sorted(os.listdir(library)):
             d = os.path.join(library, name)
-            if not os.path.isdir(d) or name.startswith(".") or name == "_共用":
+            if not os.path.isdir(d) or name.startswith(".") or name == layout.SHARED:
                 continue
             info = {"id": name, "name": name, "is_book": is_book(d)}
             if info["is_book"]:
@@ -284,7 +285,7 @@ def list_books(library):
 
 
 def read_hook(book_dir):
-    p = os.path.join(book_dir, "設定", "故事核心.md")
+    p = layout.path(book_dir, layout.STORY_CORE)
     if not os.path.isfile(p):
         return ""
     _, body = split_frontmatter(read_text(p))
@@ -297,7 +298,7 @@ def read_hook(book_dir):
 
 def latest_mtime(book_dir):
     newest = 0
-    for sub in ("正文", "大綱", "追蹤", "設定", "候選"):
+    for sub in (layout.MANUSCRIPT, layout.OUTLINE, layout.TRACKING, layout.BIBLE, layout.CANDIDATES):
         d = os.path.join(book_dir, sub)
         for root, _, files in os.walk(d):
             for f in files:
@@ -335,10 +336,10 @@ def _scan_dir(d, pattern=".md"):
 
 
 def scan_chapters(book_dir):
-    cards = _scan_dir(os.path.join(book_dir, "大綱", "章綱"))
-    texts = _scan_dir(os.path.join(book_dir, "正文"))
-    cands = _scan_dir(os.path.join(book_dir, "候選"))
-    sums = _scan_dir(os.path.join(book_dir, "追蹤", "章節摘要"))
+    cards = _scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS))
+    texts = _scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
+    cands = _scan_dir(layout.path(book_dir, layout.CANDIDATES))
+    sums = _scan_dir(layout.path(book_dir, layout.SUMMARIES))
     nums = sorted(set(cards) | set(texts) | set(cands))
     rows = []
     for n in nums:
@@ -346,9 +347,9 @@ def scan_chapters(book_dir):
                "card_target": None, "text_file": None, "chars": 0,
                "candidate_file": None, "candidate_chars": 0,
                "summary_file": None, "func": ""}
-        card_text = _read_maybe(os.path.join(book_dir, "大綱", "章綱", cards[n])) if n in cards else None
+        card_text = _read_maybe(layout.path(book_dir, layout.CHAPTER_CARDS, cards[n])) if n in cards else None
         if card_text is not None:
-            p = os.path.join(book_dir, "大綱", "章綱", cards[n])
+            p = layout.path(book_dir, layout.CHAPTER_CARDS, cards[n])
             fm, body = split_frontmatter(card_text)
             row["card_file"] = rel_of(book_dir, p)
             row["card_status"] = fm.get("狀態")
@@ -357,20 +358,20 @@ def scan_chapters(book_dir):
             m = re.search(r"-\s*功能：([^\n<]*)", body)
             if m:
                 row["func"] = m.group(1).strip()
-        text = _read_maybe(os.path.join(book_dir, "正文", texts[n])) if n in texts else None
+        text = _read_maybe(layout.path(book_dir, layout.MANUSCRIPT, texts[n])) if n in texts else None
         if text is not None:
-            p = os.path.join(book_dir, "正文", texts[n])
+            p = layout.path(book_dir, layout.MANUSCRIPT, texts[n])
             row["text_file"] = rel_of(book_dir, p)
             row["chars"] = count_chars(text)
             row["title"] = row["title"] or chapter_title_from_filename(texts[n])
-        cand = _read_maybe(os.path.join(book_dir, "候選", cands[n])) if n in cands else None
+        cand = _read_maybe(layout.path(book_dir, layout.CANDIDATES, cands[n])) if n in cands else None
         if cand is not None:
-            p = os.path.join(book_dir, "候選", cands[n])
+            p = layout.path(book_dir, layout.CANDIDATES, cands[n])
             row["candidate_file"] = rel_of(book_dir, p)
             row["candidate_chars"] = count_chars(cand)
             row["title"] = row["title"] or chapter_title_from_filename(cands[n])
         if n in sums:
-            row["summary_file"] = rel_of(book_dir, os.path.join(book_dir, "追蹤", "章節摘要", sums[n]))
+            row["summary_file"] = rel_of(book_dir, layout.path(book_dir, layout.SUMMARIES, sums[n]))
         if row["card_file"] or row["text_file"] or row["candidate_file"]:
             rows.append(row)
     return rows
@@ -559,15 +560,15 @@ def list_entries(book_dir, rel_dir):
 
 def bible(book_dir):
     return {
-        "角色": list_entries(book_dir, "設定/角色"),
-        "勢力": list_entries(book_dir, "設定/勢力"),
-        "世界觀": list_entries(book_dir, "設定/世界觀"),
-        "草稿": list_entries(book_dir, "設定/草稿"),
+        "角色": list_entries(book_dir, layout.CHARACTERS),
+        "勢力": list_entries(book_dir, layout.FACTIONS),
+        "世界觀": list_entries(book_dir, layout.WORLD),
+        "草稿": list_entries(book_dir, layout.BIBLE_DRAFTS),  # literal-ok: 設定集分頁鍵（API），P2 換
         "核心": [e for e in [
-            _single(book_dir, "設定/故事核心.md", "故事核心"),
-            _single(book_dir, "設定/文風.md", "文風"),
-            _single(book_dir, "設定/作者偏好.md", "作者偏好"),
-            _single(book_dir, "設定/名詞表.md", "名詞表"),
+            _single(book_dir, layout.STORY_CORE, "故事核心"),
+            _single(book_dir, layout.STYLE, "文風"),  # literal-ok: 設定集分頁的顯示標籤
+            _single(book_dir, layout.AUTHOR_PREFS, "作者偏好"),
+            _single(book_dir, layout.GLOSSARY, "名詞表"),
         ] if e],
     }
 
@@ -601,7 +602,7 @@ def outline_files(book_dir):
 
     以前直接用檔名排序，中文字會排成「一、三、二」（碼位順序），看起來像亂的。
     """
-    d = os.path.join(book_dir, "大綱")
+    d = layout.path(book_dir, layout.OUTLINE)
     rows = []
     if os.path.isdir(d):
         for f in os.listdir(d):
@@ -614,7 +615,7 @@ def outline_files(book_dir):
                 key = (1, _vol_order(name))
             else:
                 key = (2, 0)
-            rows.append((key, {"file": "大綱/" + f, "name": name}))
+            rows.append((key, {"file": layout.OUTLINE + "/" + f, "name": name}))
     rows.sort(key=lambda x: (x[0], x[1]["name"]))
     return [r[1] for r in rows]
 
@@ -639,14 +640,14 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
     chs = scan_chapters(book_dir)
     written = [c for c in chs if c["text_file"]]
     latest = max((c["no"] for c in written), default=0)
-    status_count = {"草稿": 0, "已確認": 0, "已寫": 0, "無章綱": 0}
+    status_count = {"草稿": 0, "已確認": 0, "已寫": 0, "無章綱": 0}  # literal-ok: 章綱狀態值，P2 換
     for c in chs:
-        s = c["card_status"] or ("無章綱" if not c["card_file"] else "草稿")
+        s = c["card_status"] or ("無章綱" if not c["card_file"] else "草稿")  # literal-ok: 章綱狀態值
         status_count[s] = status_count.get(s, 0) + 1
 
     alerts = []
     # 追蹤落後
-    state_p = os.path.join(book_dir, "追蹤", "狀態卡.md")
+    state_p = layout.path(book_dir, layout.STATE_CARD)
     state_text = read_text(state_p) if os.path.isfile(state_p) else ""
     fm, _ = split_frontmatter(state_text)
     updated_to = _ch(fm.get("更新至"))
@@ -661,7 +662,7 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
             alerts.append({"level": "info", "kind": "候選稿",
                            "text": "第%d章有候選稿等你審閱。" % c["no"], "chapter": c["no"]})
     # 伏筆：合併成「久未出現」「已過預計回收章」兩條，可以展開
-    fs = read_table(book_dir, "追蹤/伏筆.md")
+    fs = read_table(book_dir, layout.FORESHADOWING)
     quiet, late, seen, dup = [], [], set(), []
     for r in fs["rows"]:
         fid = r.get("編號", "")
@@ -694,7 +695,7 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
         alerts.append({"level": "warn", "kind": "伏筆編號重複",
                        "text": "伏筆表有重複的編號：%s。請到伏筆表合併或改號。" % "、".join(dup)})
     # 角色久未登場：一次性、不具名的角色不提醒；其餘合併成一條
-    cs_dir = os.path.join(book_dir, "追蹤", "角色狀態")
+    cs_dir = layout.path(book_dir, layout.CHARACTER_STATES)
     if os.path.isdir(cs_dir):
         stale = []
         for f in os.listdir(cs_dir):
@@ -715,7 +716,7 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
                                len(stale), stale_character, top, "……" if len(stale) > 3 else ""),
                            "details": ["%s：%d 章沒有登場（最後第%d章）" % (n, g, l) for g, n, l in stale]})
     # 草稿
-    drafts = list_entries(book_dir, "設定/草稿")
+    drafts = list_entries(book_dir, layout.BIBLE_DRAFTS)
     if drafts:
         alerts.append({"level": "info", "kind": "設定草稿",
                        "text": "有 %d 份設定草稿等你確認。" % len(drafts)})
@@ -742,16 +743,16 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
 # 候選稿
 # ---------------------------------------------------------------------------
 def accept_candidate(book_dir, no):
-    cands = _scan_dir(os.path.join(book_dir, "候選"))
+    cands = _scan_dir(layout.path(book_dir, layout.CANDIDATES))
     if no not in cands:
         raise ProjectError("第%d章沒有候選稿" % no)
-    src = os.path.join(book_dir, "候選", cands[no])
-    dst_dir = os.path.join(book_dir, "正文")
+    src = layout.path(book_dir, layout.CANDIDATES, cands[no])
+    dst_dir = layout.path(book_dir, layout.MANUSCRIPT)
     os.makedirs(dst_dir, exist_ok=True)
     texts = _scan_dir(dst_dir)
     if no in texts:
         # 舊正文先備份
-        bak_dir = os.path.join(book_dir, ".studio", "備份")
+        bak_dir = layout.path(book_dir, layout.STUDIO_BACKUP)
         os.makedirs(bak_dir, exist_ok=True)
         old = os.path.join(dst_dir, texts[no])
         os.replace(old, os.path.join(bak_dir, "%s.%d.md" % (os.path.splitext(texts[no])[0], int(time.time()))))
@@ -761,10 +762,10 @@ def accept_candidate(book_dir, no):
 
 
 def discard_candidate(book_dir, no):
-    cands = _scan_dir(os.path.join(book_dir, "候選"))
+    cands = _scan_dir(layout.path(book_dir, layout.CANDIDATES))
     if no not in cands:
         raise ProjectError("第%d章沒有候選稿" % no)
-    bak_dir = os.path.join(book_dir, ".studio", "備份")
+    bak_dir = layout.path(book_dir, layout.STUDIO_BACKUP)
     os.makedirs(bak_dir, exist_ok=True)
-    src = os.path.join(book_dir, "候選", cands[no])
-    os.replace(src, os.path.join(bak_dir, "候選_%s.%d.md" % (os.path.splitext(cands[no])[0], int(time.time()))))
+    src = layout.path(book_dir, layout.CANDIDATES, cands[no])
+    os.replace(src, os.path.join(bak_dir, layout.backup_name(layout.CANDIDATES, os.path.splitext(cands[no])[0], time.time())))

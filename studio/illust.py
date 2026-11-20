@@ -23,9 +23,10 @@ import zipfile
 from xml.etree import ElementTree as ET
 
 from . import project, prompts
+from . import layout
 
-ROOT = "插圖"
-INDEX = "_插圖.json"
+ROOT = layout.ILLUST
+INDEX = layout.ILLUST_INDEX
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp")
 ENTITY_DIRS = ("角色", "勢力", "世界觀")
 CARD_HEAD = "## 繪圖提示"
@@ -109,11 +110,12 @@ def target_dir(book_dir, target):
         label = "封面"
     elif target.startswith("chapter:"):
         no = int(target.split(":", 1)[1])
-        rel = ROOT + "/章節/第%03d章" % no
+        rel = ROOT + "/章節/第%03d章" % no  # literal-ok: 插圖資料夾內部命名，P3 隨 ILLUST 一起改
         label = "第%d章" % no
     elif target.startswith("entity:"):
         f = target.split(":", 1)[1].replace("\\", "/")
-        m = re.match(r"^設定/(角色|勢力|世界觀)/([^/]+)\.md$", f)
+        m = re.match(r"^%s/(%s|%s|%s)/([^/]+)\.md$" % tuple(re.escape(x) for x in (
+            layout.BIBLE, *(layout.parts(s)[-1] for s in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD)))), f)
         if not m:
             raise IllustError("只有角色、勢力、世界觀的設定檔可以加插圖")
         rel = "%s/%s/%s" % (ROOT, m.group(1), m.group(2))
@@ -289,7 +291,7 @@ def delete_image(book_dir, target, name):
     p = os.path.join(d, name)
     if not name.lower().endswith(IMG_EXT) or not os.path.isfile(p):
         raise IllustError("找不到這張圖")
-    bak = os.path.join(book_dir, ".studio", "備份", "插圖")
+    bak = layout.path(book_dir, layout.STUDIO_BACKUP, layout.ILLUST)
     os.makedirs(bak, exist_ok=True)
     stamp = int(time.time())
     shutil.move(p, os.path.join(bak, "%d_%s" % (stamp, name)))
@@ -330,7 +332,7 @@ def overview(book_dir):
         d = os.path.join(root, sub)
         if os.path.isdir(d):
             for name in sorted(os.listdir(d)):
-                add("entity:設定/%s/%s.md" % (sub, name))
+                add("entity:" + layout.entry(layout.BIBLE + "/" + sub, name))
     return out
 
 
@@ -368,7 +370,7 @@ def entity_cards(book_dir):
     """所有角色、勢力、世界觀項目的名稱、別名與視覺卡。"""
     out = []
     for sub in ENTITY_DIRS:
-        for e in project.list_entries(book_dir, "設定/" + sub):
+        for e in project.list_entries(book_dir, layout.BIBLE + "/" + sub):
             text = project.read_text(os.path.join(book_dir, e["file"]))
             out.append({"kind": sub, "name": e["name"], "file": e["file"],
                         "aliases": [str(a) for a in (e.get("aliases") or [])],
@@ -969,7 +971,7 @@ BOOK_STYLE_DEFAULT = {"styles": [], "artist": "", "extra": "", "negative_extra":
 
 def load_book_style(book_dir):
     d = dict(BOOK_STYLE_DEFAULT)
-    d.update(_read_json(os.path.join(book_dir, ROOT, "畫風.json"), {}))
+    d.update(_read_json(os.path.join(book_dir, ROOT, layout.ART_STYLE), {}))
     return d
 
 
@@ -979,7 +981,7 @@ def save_book_style(book_dir, data):
         if k in data:
             cur[k] = data[k]
     _ensure_root(book_dir)
-    _write_json(os.path.join(book_dir, ROOT, "畫風.json"), cur)
+    _write_json(os.path.join(book_dir, ROOT, layout.ART_STYLE), cur)
     return cur
 
 
@@ -1047,7 +1049,7 @@ def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind
                                           desc=_il("il_card_desc").format(desc=c["description"]) if c.get("description") else "")
     parts = []
     if kind == "cover":
-        core = project.read_text(os.path.join(book_dir, "設定", "故事核心.md")) if os.path.isfile(os.path.join(book_dir, "設定", "故事核心.md")) else ""
+        core = project.read_text(layout.path(book_dir, layout.STORY_CORE)) if os.path.isfile(layout.path(book_dir, layout.STORY_CORE)) else ""
         parts.append(_il("il_task_cover"))
         parts.append(_il("il_h_core") + project.split_frontmatter(core)[1][:2500])
     elif kind == "entity":

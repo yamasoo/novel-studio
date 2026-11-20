@@ -18,6 +18,7 @@ import contextlib
 import os
 
 from . import lang as lang_mod, project, prompts, shared
+from . import layout
 
 # 達到門檻就重寫（可用 NS_STYLE_REL／NS_STYLE_OBVIOUS／NS_STYLE_SLIGHT 覆寫）。
 #
@@ -55,13 +56,13 @@ _TARGET_CACHE = {}      # (book_dir, 版本指紋) → (指標, 來源)；避免
 def _fingerprint(book_dir):
     """書的版本指紋：文風檔 + 正文檔的檔名/大小/mtime。內容沒變就重用上次算的目標。"""
     items = []
-    p = os.path.join(book_dir, "設定", "文風.md")
+    p = layout.path(book_dir, layout.STYLE)
     try:
         st = os.stat(p)
         items.append((st.st_size, int(st.st_mtime)))
     except OSError:
         items.append(0)
-    ch = os.path.join(book_dir, "正文")
+    ch = layout.path(book_dir, layout.MANUSCRIPT)
     try:
         names = sorted(os.listdir(ch))
     except OSError:
@@ -86,7 +87,7 @@ def target_metrics(book_dir):
     if hit is not None:
         return hit
     with _book_lang(book_dir):
-        m = shared.parse_metrics(_read(os.path.join(book_dir, "設定", "文風.md")))
+        m = shared.parse_metrics(_read(layout.path(book_dir, layout.STYLE)))
         if m:
             _TARGET_CACHE.clear()
             _TARGET_CACHE[key] = (m, "文風檔")
@@ -165,9 +166,9 @@ def summary(ev):
 def samples(book_dir, n=2):
     """作者自己的句子：優先從不同章各取一段，讓重寫有語感可以對。"""
     out = []
-    chapters = sorted(project._scan_dir(os.path.join(book_dir, "正文")).items())
+    chapters = sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items())
     for _no, fn in chapters:
-        text = _read(os.path.join(book_dir, "正文", fn))
+        text = _read(layout.path(book_dir, layout.MANUSCRIPT, fn))
         body = project.split_frontmatter(text)[1] if text else ""
         for para in body.split("\n\n"):
             p = para.strip()

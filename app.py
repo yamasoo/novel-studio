@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+from studio import layout
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -179,7 +180,7 @@ def wrap(fn):
 
 
 # 審查與修訂只處理書裡的這幾種稿子（報告 S1：不要把用戶端送來的路徑直接拼成檔案路徑）
-REVIEWABLE_DIRS = ("正文", "候選", "設定")
+REVIEWABLE_DIRS = (layout.MANUSCRIPT, layout.CANDIDATES, layout.BIBLE)
 
 
 def book_path(d, rel, must_exist=True):
@@ -366,7 +367,7 @@ def claude_goal_job(book_id, d, prov, params):
     no = int(params.get("chapter"))
     _, card = context.card_text(d, no)
     gl = goals.freeze_goals(card)
-    rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
+    rel = context.chapter_text(d, no, (layout.CANDIDATES,))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not gl or not rel:
         raise HTTPException(400, "第%d章沒有章綱情節點或沒有正文，無法核對。" % no)
     prompt = (goals.build_prompt(no, gl, prompts.t(lang, "claude_read_only", rel=rel)) +
@@ -443,17 +444,17 @@ def recovery_to_candidate(book_id: str, rid: str):
         raise HTTPException(400, "這份恢復稿不屬於任何章節")
     no = int(rec["chapter"])
     title, text, _ = native._split_output(rec["text"], no, native._card_title(d, no))
-    cand = os.path.join(d, "候選")
+    cand = layout.path(d, layout.CANDIDATES)
     os.makedirs(cand, exist_ok=True)
     old = project._scan_dir(cand).get(no)
     if old:
-        native.tracking.backup(d, os.path.join(cand, old), "候選")
+        native.tracking.backup(d, os.path.join(cand, old), layout.CANDIDATES)
         os.remove(os.path.join(cand, old))
-    name = "第%03d章_%s.md" % (no, title)
+    name = layout.chapter_file(no, title)
     fixed, _ = check_text.fix_punct(text)
     project.write_atomic(os.path.join(cand, name), fixed)
     recovery.discard(d, rid)
-    return {"path": "候選/" + name, "chapter": no}
+    return {"path": layout.CANDIDATES + "/" + name, "chapter": no}
 
 
 def claude_review_job(book_id, d, prov, params):
@@ -462,7 +463,7 @@ def claude_review_job(book_id, d, prov, params):
     if params.get("path"):
         rel = book_path(d, params.get("path"))          # 用戶端指定稿子：一律驗證在 正文／候選／設定 底下
     else:
-        rel = context.chapter_text(d, no, ("候選",))[0] if params.get("candidate") else goals.target(d, no, True)[0]
+        rel = context.chapter_text(d, no, (layout.CANDIDATES,))[0] if params.get("candidate") else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以審查的稿子" % no)
     lang = lang_mod.book_lang(d)
@@ -497,7 +498,7 @@ def claude_revise_job(book_id, d, prov, params):
     rel = book_path(d, rel) if rel else goals.target(d, no, True)[0]
     if not rel:
         raise HTTPException(400, "第%d章沒有可以修訂的稿子" % no)
-    draft = ".studio/修訂/第%03d章.draft.md" % no
+    draft = layout.revision_draft(no)
     prompt = prompts.t(lang_mod.book_lang(d), "claude_revise_at", n=no, rel=rel, notes=notes, draft=draft)
     job = runner_mod.Job(book_id, d, "修訂第%d章" % no, prompt, provider=prov, meta={"action": "revise_notes", "params": params})
     base_text = project.read_text(os.path.join(d, rel))
@@ -525,7 +526,7 @@ def claude_recover_job(book_id, d, prov, params):
     lang = lang_mod.book_lang(d)
     prompt = prompts.t(lang, "recover_continue", n=no, rid=rec["id"], ch="第%03d章" % no, rule=actions.candidate_rule(lang))
     job = runner_mod.Job(book_id, d, "續寫第%d章" % no, prompt, provider=prov, meta={"action": "recover_continue", "params": params})
-    job.after = lambda j: recovery.discard(d, rec["id"]) if project._scan_dir(os.path.join(d, "候選")).get(no) else None
+    job.after = lambda j: recovery.discard(d, rec["id"]) if project._scan_dir(layout.path(d, layout.CANDIDATES)).get(no) else None
     return job
 
 
@@ -627,7 +628,7 @@ def _guard_book(book_id):
 def shared_overview():
     lib = library()
     d = shared.shared_dir(lib)
-    prefs = os.path.join(d, "作者偏好.md")
+    prefs = os.path.join(d, layout.SHARED_PREFS)
     banned = check_text.parse_banned(project.read_text(prefs)) if os.path.isfile(prefs) else []
     return {"dir": d, "exists": os.path.isdir(d), "styles": wrap(lambda: shared.list_styles(lib)),
             "structures": wrap(lambda: shared.list_structures(lib)),
@@ -699,7 +700,7 @@ async def shared_style_restat(name: str, req: Request):
     text, names = _sample_text(body)
     if not text:
         raise HTTPException(400, "請提供樣本文字")
-    p = os.path.join(shared.shared_dir(library()), "文風", name + ".md")
+    p = os.path.join(shared.shared_dir(library()), layout.SHARED_STYLES, name + ".md")
     if not os.path.isfile(p):
         raise HTTPException(404, "找不到這個文風")
     m = wrap(lambda: shared.analyze(text, names))
@@ -719,7 +720,7 @@ async def shared_style_apply(name: str, req: Request):
 @app.post("/api/shared/styles/{name}/compare")
 async def shared_style_compare(name: str, req: Request):
     body = await req.json()
-    p = os.path.join(shared.shared_dir(library()), "文風", name + ".md")
+    p = os.path.join(shared.shared_dir(library()), layout.SHARED_STYLES, name + ".md")
     if not os.path.isfile(p):
         raise HTTPException(404, "找不到這個文風")
     target = shared.parse_metrics(project.read_text(p))
@@ -815,7 +816,7 @@ def book_structures(book_id: str, chapter: int = None):
         name, _, src = shared.structure_for(d, chapter)
         _, card = context.card_text(d, chapter)
         fm = project.split_frontmatter(card)[0] if card else {}
-        out["chapter"] = {"assigned": str(fm.get("結構") or ""), "effective": name, "from": src, "has_card": bool(card)}
+        out["chapter"] = {"assigned": str(fm.get("結構") or ""), "effective": name, "from": src, "has_card": bool(card)}  # literal-ok: frontmatter 鍵，P2 換
     return out
 
 
@@ -840,7 +841,7 @@ async def book_style_compare(book_id: str, req: Request):
     """本書的 設定/文風.md 文字指標 vs 正文實際統計。"""
     body = await req.json()
     d = book_dir(book_id)
-    sp = os.path.join(d, "設定", "文風.md")
+    sp = layout.path(d, layout.STYLE)
     target = shared.parse_metrics(project.read_text(sp)) if os.path.isfile(sp) else {}
     text, names = _sample_text(dict(body, source="book", book=book_id))
     actual = wrap(lambda: shared.analyze(text, names))
@@ -1195,7 +1196,7 @@ async def book_illust_pick(book_id: str, req: Request):
     body = await req.json()
     d = book_dir(book_id)
     no = int(body.get("chapter"))
-    rel, text = context.chapter_text(d, no, ("正文", "候選"))
+    rel, text = context.chapter_text(d, no, (layout.MANUSCRIPT, layout.CANDIDATES))
     if not text:
         raise HTTPException(400, "第%d章還沒有正文或候選稿" % no)
     _, card = context.card_text(d, no)
@@ -1305,7 +1306,7 @@ async def book_card_save(book_id: str, req: Request):
     d = book_dir(book_id)
     _guard_book(book_id)
     f = body.get("file") or ""
-    if not f.startswith(("設定/角色/", "設定/勢力/", "設定/世界觀/")):
+    if not f.startswith((layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")):
         raise HTTPException(400, "只有角色、勢力、世界觀的設定檔可以加視覺卡")
     p = wrap(lambda: project.safe_path(d, f))
     text = project.read_text(p)
@@ -1371,7 +1372,7 @@ def claude_card_job(book_id, d, prov, params):
 
 
 def claude_reader_job(book_id, d, prov, params):
-    if not project.read_table(d, "追蹤/時間線.md")["rows"]:
+    if not project.read_table(d, layout.TIMELINE)["rows"]:
         raise HTTPException(400, "這本書還沒有時間線，沒有東西可以轉換")
     job = runner_mod.Job(book_id, d, "從時間線建立讀者認知", reader_ledger.claude_prompt(d), provider=prov,
                          meta={"action": "reader_init", "params": params})
@@ -1408,14 +1409,14 @@ def claude_reader_recon_job(book_id, d, prov, params):
 def claude_deslop_job(book_id, d, prov, params):
     """Claude Code 去 AI 味：不改原稿，改好的全文寫到暫存檔，工作台建立逐段對照（或流程裡直接全部套用）。"""
     no = int(params.get("chapter"))
-    where = ("候選",) if params.get("candidate") else ("正文",)
+    where = (layout.CANDIDATES,) if params.get("candidate") else (layout.MANUSCRIPT,)
     rel, base_text = context.chapter_text(d, no, where)
     if not base_text:
-        raise HTTPException(400, "第%d章沒有%s" % (no, where[0] if where[0] == "正文" else "候選稿"))
+        raise HTTPException(400, "第%d章沒有%s" % (no, "正文" if where[0] == layout.MANUSCRIPT else "候選稿"))  # literal-ok: 錯誤訊息文字
     pending = revision.load_revision(d, no)
     if pending and not params.get("auto_apply"):
         raise HTTPException(409, "第%d章還有一份待確認的修訂。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % no)
-    draft = ".studio/修訂/第%03d章.draft.md" % no
+    draft = layout.revision_draft(no)
     note = (params.get("note") or "").strip()
     lang = lang_mod.book_lang(d)
     prompts.set_lang(lang)
@@ -1459,7 +1460,7 @@ def get_actions():
 # ---------------------------------------------------------------------------
 # 書架
 # ---------------------------------------------------------------------------
-SUGGESTED_LIBRARY = os.path.join(os.path.expanduser("~"), "Documents", "小說")
+SUGGESTED_LIBRARY = os.path.join(os.path.expanduser("~"), "Documents", "小說")  # literal-ok: 建議的書庫位置（使用者自己的資料夾）
 
 
 @app.get("/api/books")
@@ -1706,7 +1707,7 @@ async def drift_apply(book_id: str, req: Request):
     if not draft:
         raise HTTPException(400, "沒有草稿可以附加")
     p = wrap(lambda: project.safe_path(d, draft))
-    if not os.path.isfile(p) or not draft.startswith(("候選/", "大綱/草稿/")):
+    if not os.path.isfile(p) or not draft.startswith((layout.CANDIDATES + "/", layout.VOLUME_DRAFTS + "/")):
         raise HTTPException(400, "草稿路徑不對：%s" % draft)
     notes = []
     rel, bak = wrap(lambda: drift.apply_plan(d, b, project.read_text(p), a, b, notes))
@@ -1765,10 +1766,10 @@ def book_overview(book_id: str):
     ov["alerts"][lag:lag] = [a for a in wb if a["kind"] == "回寫檢查"]
     ov["alerts"] += [a for a in wb if a["kind"] != "回寫檢查"]
     rv_drafts = sum(len(v) for v in reverse.draft_groups(d).values())
-    if rv_drafts and project.list_entries(d, "設定/角色"):
+    if rv_drafts and project.list_entries(d, layout.CHARACTERS):
         ov["alerts"].insert(0, {"level": "info", "kind": "設定草稿等你核對", "action": "reverse",
                                 "text": "「從正文建立設定」或「整理名詞表」產生了 %d 份草稿，還沒採用或捨棄。" % rv_drafts})
-    elif ov.get("latest") and not project.list_entries(d, "設定/角色") and not project.read_table(d, "追蹤/伏筆.md")["rows"]:
+    elif ov.get("latest") and not project.list_entries(d, layout.CHARACTERS) and not project.read_table(d, layout.FORESHADOWING)["rows"]:
         st = reverse.state(d)
         ov["alerts"].insert(0, {"level": "info", "kind": "從正文建立設定", "action": "reverse",
                                 "text": ("正文有 %d 章，但還沒有角色與追蹤資料。可以讓 AI 從正文反推設定、大綱與追蹤（先存成草稿）。" % ov["latest"])
@@ -1778,7 +1779,7 @@ def book_overview(book_id: str):
     if recs:
         ov["alerts"].insert(0, {"level": "warn", "kind": "恢復稿",
                                 "text": "有 %d 份中斷的輸出被保留下來，可以接著寫或捨棄。" % len(recs), "action": "recoveries"})
-    rdir = os.path.join(d, ".studio", "修訂")
+    rdir = layout.path(d, layout.STUDIO_REVISIONS)
     if os.path.isdir(rdir):
         for f in sorted(os.listdir(rdir)):
             m = __import__("re").match(r"第0*(\d+)章\.json$", f)
@@ -1841,15 +1842,15 @@ async def book_bible_delete(book_id: str, req: Request):
     d = book_dir(book_id)
     body = await req.json()
     rel = str(body.get("path") or "").strip().replace("\\", "/")
-    allowed = ("設定/角色/", "設定/勢力/", "設定/世界觀/", "設定/草稿/")
+    allowed = (layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/", layout.BIBLE_DRAFTS + "/")
     if not rel or ".." in rel.split("/") or not any(rel.startswith(p) for p in allowed):
         raise HTTPException(400, "只能刪除設定集裡的角色、勢力、世界觀或草稿。")
     p = wrap(lambda: project.safe_path(d, rel))
     if not os.path.isfile(p):
         raise HTTPException(404, "找不到這個設定檔")
-    trash = os.path.join(d, ".studio", "刪除")
+    trash = layout.path(d, layout.STUDIO_TRASH)
     os.makedirs(trash, exist_ok=True)
-    cat = rel.split("/")[1] if len(rel.split("/")) > 2 else "設定"
+    cat = rel.split("/")[1] if len(rel.split("/")) > 2 else "設定"  # literal-ok: 顯示用分類名
     base = "%s_%s_%s" % (time.strftime("%Y%m%d-%H%M%S"), cat, os.path.basename(p))
     dst = os.path.join(trash, base)
     i = 2
@@ -1948,17 +1949,17 @@ def book_card_check(book_id: str, from_: int = Query(None, alias="from"), to: in
 @app.get("/api/books/{book_id}/tracking")
 def book_tracking(book_id: str):
     d = book_dir(book_id)
-    cs_dir = os.path.join(d, "追蹤", "角色狀態")
-    chars = project.list_entries(d, "追蹤/角色狀態") if os.path.isdir(cs_dir) else []
+    cs_dir = layout.path(d, layout.CHARACTER_STATES)
+    chars = project.list_entries(d, layout.CHARACTER_STATES) if os.path.isdir(cs_dir) else []
     for c in chars:
         fm, _ = project.split_frontmatter(project.read_text(os.path.join(d, c["file"])))
         c["last"] = fm.get("最後登場")
         c["updated_to"] = fm.get("更新至")
     ov = project.overview(d)
     return {
-        "foreshadow": project.read_table(d, "追蹤/伏筆.md"),
-        "timeline": project.read_table(d, "追蹤/時間線.md"),
-        "glossary": project.read_table(d, "設定/名詞表.md"),
+        "foreshadow": project.read_table(d, layout.FORESHADOWING),
+        "timeline": project.read_table(d, layout.TIMELINE),
+        "glossary": project.read_table(d, layout.GLOSSARY),
         "reader": project.read_table(d, tracking.RP_FILE),
         "reader_draft": project.read_table(d, tracking.RP_DRAFT),
         "relations": project.read_table(d, relations.FILE),
@@ -1977,7 +1978,7 @@ def reverse_info(book_id: str, provider: str = None, upto: int = 0):
     prov = get_provider(provider)
     st = reverse.state(d)
     return {"state": st, "estimate": reverse.estimate(d, prov, upto or None),
-            "has_settings": bool(project.list_entries(d, "設定/角色")) or bool(project.read_table(d, "追蹤/伏筆.md")["rows"])}
+            "has_settings": bool(project.list_entries(d, layout.CHARACTERS)) or bool(project.read_table(d, layout.FORESHADOWING)["rows"])}
 
 
 @app.get("/api/books/{book_id}/reverse/diff")
@@ -2138,7 +2139,7 @@ async def bible_set_category(book_id: str, req: Request):
         raise HTTPException(400, "分類不在固定清單內")
     if role is not None and role not in project.CHAR_ROLES:
         raise HTTPException(400, "定位不在固定清單內")
-    if status is not None and status not in ("正式", "草稿"):
+    if status is not None and status not in ("正式", "草稿"):  # literal-ok: frontmatter 狀態值，P2 換
         raise HTTPException(400, "狀態只能是 正式 或 草稿")
     if not isinstance(files, list) or not files:
         raise HTTPException(400, "沒有選取項目")
@@ -2150,12 +2151,12 @@ async def bible_set_category(book_id: str, req: Request):
             raise HTTPException(400, "檔案路徑格式錯誤")
         norm = rel.replace("\\", "/").lstrip("/")
         p = wrap(lambda: project.safe_path(d, norm))
-        allowed = ("設定/角色/", "設定/勢力/", "設定/世界觀/")
+        allowed = (layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")
         if not norm.startswith(allowed) or not p.endswith(".md") or not os.path.isfile(p):
             raise HTTPException(400, "只能改 設定/角色、設定/勢力、設定/世界觀 裡的 .md 檔：" + rel)
-        if cat is not None and not norm.startswith("設定/世界觀/"):
+        if cat is not None and not norm.startswith(layout.WORLD + "/"):
             raise HTTPException(400, "只有世界觀可以改分類：" + rel)
-        if role is not None and not norm.startswith("設定/角色/"):
+        if role is not None and not norm.startswith(layout.CHARACTERS + "/"):
             raise HTTPException(400, "只有角色可以改定位：" + rel)
         targets.append(p)
     for p in targets:
@@ -2181,7 +2182,7 @@ async def check_file(book_id: str, req: Request):
     wl = check_text.load_whitelist(d)
     res = check_text.check_file(p, wl)
     rel = project.rel_of(d, p)
-    if rel.startswith(("正文", "候選")):
+    if rel.startswith((layout.MANUSCRIPT, layout.CANDIDATES)):
         res["問題"] += shared.style_deviation_findings(d, project.read_text(p))
     return res
 
@@ -2235,7 +2236,7 @@ def _attach_fidelity(job, d, params):
         no = int(params.get("chapter"))
     except (TypeError, ValueError):
         return job
-    where = ("候選",) if params.get("candidate") else ("正文",)
+    where = (layout.CANDIDATES,) if params.get("candidate") else (layout.MANUSCRIPT,)
     _, before = context.chapter_text(d, no, where)
     if not before:
         return job
@@ -2261,7 +2262,7 @@ def attach_wb_check(job, d, action, params, prov):
         if action == "accept":
             nos = [int(params.get("chapter"))]
         else:
-            nos = [n for n in sorted(project._scan_dir(os.path.join(d, "正文"))) if before < n <= tracking.tracked_to(d)]
+            nos = [n for n in sorted(project._scan_dir(layout.path(d, layout.MANUSCRIPT))) if before < n <= tracking.tracked_to(d)]
         add = "".join(wb_check.run(d, n, revision=bool(before and n < before)) for n in nos)
         if add:
             j.result = (j.result or "") + add
@@ -2361,8 +2362,8 @@ async def pipeline_start(book_id: str, req: Request):
         raise HTTPException(400, "章號要從 1 開始")
     if b - a >= 50:
         raise HTTPException(400, "一次最多 50 章")
-    texts = project._scan_dir(os.path.join(d, "正文"))
-    cands = project._scan_dir(os.path.join(d, "候選"))
+    texts = project._scan_dir(layout.path(d, layout.MANUSCRIPT))
+    cands = project._scan_dir(layout.path(d, layout.CANDIDATES))
     done = [n for n in range(a, b + 1) if n in texts and n not in cands]
     if done:
         raise HTTPException(400, "這些章節已經定稿了：%s。整章自動流程只處理還沒定稿的章節（已有候選稿的會從核對開始）。"
@@ -2467,7 +2468,7 @@ def pipeline_clear(book_id: str):
     if p and p.s["status"] == "running":
         raise HTTPException(409, "流程正在執行，請先停止")
     PIPES.pipes.pop(book_id, None)
-    sp = os.path.join(d, ".studio", "流程", "目前.json")
+    sp = layout.path(d, layout.STUDIO_PIPELINE_CURRENT)
     if os.path.isfile(sp):
         os.remove(sp)
     return {"ok": True}
@@ -2581,6 +2582,12 @@ for _sub in ("css", "fe", "vendor"):
         app.mount("/fekit/" + _sub, StaticFiles(directory=_dir), name="fekit-" + _sub)
 
 
+def layout_script():
+    """studio/layout.py 的路徑常數 → <script>window.LAYOUT = {...}</script>（只含字串常數）。"""
+    data = {k: v for k, v in layout.all_constants().items() if isinstance(v, str)}
+    return "<script>window.LAYOUT = Object.freeze(%s);</script>\n" % json.dumps(data, ensure_ascii=True, sort_keys=True)
+
+
 @app.get("/")
 def index():
     # 程式更新後瀏覽器常拿舊的 app.js：網址加上檔案修改時間，檔案一改就會重新下載
@@ -2598,6 +2605,8 @@ def index():
         return '%s%s?v=%d"' % (m.group(1), m.group(2), v)
 
     html = re.sub(r'((?:src|href)=")(/static/[^"?]+)"', stamp, html)
+    # 書的資料夾結構給前端用（studio/layout.py 是唯一來源；v3 結構英文化 P1）
+    html = html.replace('<script src="/static/', layout_script() + '<script src="/static/', 1)
     # 一次性權杖由 fekit 注入（<meta name="fe-token">／<meta name="fe-app">，前端 fetch 自己帶）
     return HTMLResponse(fe.inject(html), headers={"Cache-Control": "no-cache"})
 

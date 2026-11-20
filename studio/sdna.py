@@ -12,8 +12,9 @@ import re
 import statistics
 
 from . import lang as lang_mod, project, prompts
+from . import layout
 
-REL = "設定/結構DNA.json"
+REL = layout.STRUCTURE_DNA
 VER = 1
 DIALOGUE_RX = re.compile(r"「[^」]*」|『[^』]*』|\"[^\"]*\"|[“”][^“”]*[“”]|“[^”]*”")
 PRONOUNS = {
@@ -25,8 +26,8 @@ PRONOUNS = {
 
 
 def _body(book_dir):
-    ch = project._scan_dir(os.path.join(book_dir, "正文"))
-    return [project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", ch[no])))[1]
+    ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
+    return [project.split_frontmatter(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, ch[no])))[1]
             for no in sorted(ch)]
 
 
@@ -78,7 +79,7 @@ def build(book_dir, fp=None):
         ch = {"章數": len(lens), "平均": round(statistics.mean(lens)),
               "最短": min(lens), "最長": max(lens),
               "變異": round(statistics.pstdev(lens) / max(1, statistics.mean(lens)), 2),
-              "最長/最短": round(max(lens) / max(1, min(lens)), 1)}
+              "最長/最短": round(max(lens) / max(1, min(lens)), 1)}  # literal-ok: 顯示文字
     ratio = dialogue_ratio(texts)
     per_chapter = []
     for t in texts:
@@ -133,8 +134,8 @@ def show(data):
     d = data.get("對白") or {}
     L = ["語言 %s｜%s（%s）" % (data.get("語言"), (data.get("視角") or {}).get("人稱"),
                                (data.get("視角") or {}).get("依據")),
-         "章長：平均 %d、最短 %d、最長 %d、變異 %.2f、最長/最短 %.1f"
-         % (ch.get("平均", 0), ch.get("最短", 0), ch.get("最長", 0), ch.get("變異", 0), ch.get("最長/最短", 0)),
+         "章長：平均 %d、最短 %d、最長 %d、變異 %.2f、最長/最短 %.1f"  # literal-ok: 顯示文字
+         % (ch.get("平均", 0), ch.get("最短", 0), ch.get("最長", 0), ch.get("變異", 0), ch.get("最長/最短", 0)),  # literal-ok: 顯示文字
          "對白：比例 %.0f%%、章間變異 %.2f" % ((d.get("比例") or 0) * 100, d.get("章間變異") or 0),
          "章長曲線：" + "、".join("%.2f" % x for x in (data.get("章長曲線") or []))]
     return "\n".join(L)

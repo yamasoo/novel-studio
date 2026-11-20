@@ -11,6 +11,7 @@ import re
 import time
 
 from . import context, project, prompts, shared
+from . import layout
 
 MODES = {"design": "設計文風", "revise": "調整文風", "test": "試寫文風"}
 BLOCK_RE = re.compile(r"<<<\s*文風\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
@@ -26,7 +27,7 @@ def skill_file(plugin_dir, rel):
 
 
 def style_path(library, name):
-    return os.path.join(shared.shared_dir(library, create=True), "文風", shared._name_ok(name) + ".md")
+    return os.path.join(shared.shared_dir(library, create=True), layout.SHARED_STYLES, shared._name_ok(name) + ".md")
 
 
 def prepare(library, params):
@@ -94,7 +95,7 @@ def reference_pack(info, plugin_dir, budget):
     if info["current"]:
         pk.add(0, "目前的文風檔", info["current"])
     if info["mode"] != "test":
-        pk.add(0, "文風範本（章節順序照這個）", context.skill_ref(plugin_dir, "novel-setup/templates/文風.md"))
+        pk.add(0, "文風範本（章節順序照這個）", context.skill_ref(plugin_dir, layout.TEMPLATES_IN_SKILLS + "/" + layout.TPL_STYLE))
         pk.add(1, "文風的十三個面向", skill_file(plugin_dir, "references/style-dimensions.md"))
         if info["mode"] == "design":
             pk.add(2, "類型線索表", skill_file(plugin_dir, "references/genre-cues.md"))
@@ -134,7 +135,7 @@ def finish(library, info, out, truncated=False):
     text = m.group(1).strip() + "\n"
     if "## 範例段落" not in text:
         text = text.rstrip() + "\n\n## 範例段落\n"
-    text = shared.set_fm(shared.set_fm(text, "名稱", info["name"]), "類型", "文風")
+    text = shared.set_fm(shared.set_fm(text, "名稱", info["name"]), "類型", "文風")  # literal-ok: frontmatter 類型值，P2 換
     if re.search(r"(?m)^# ", text):
         text = re.sub(r"(?m)^# .*$", lambda _m: "# 文風：%s" % info["name"], text, count=1)
     else:
@@ -149,9 +150,9 @@ def finish(library, info, out, truncated=False):
     p = info["path"]
     backup = ""
     if os.path.isfile(p):
-        bdir = os.path.join(os.path.dirname(os.path.dirname(p)), ".備份")
+        bdir = os.path.join(os.path.dirname(os.path.dirname(p)), layout.SHARED_BACKUP)
         os.makedirs(bdir, exist_ok=True)
-        bname = "文風_%s_%s.md" % (info["name"], time.strftime("%Y%m%d-%H%M%S"))
+        bname = layout.shared_style_file(info["name"], time.strftime("%Y%m%d-%H%M%S"))
         with open(os.path.join(bdir, bname), "w", encoding="utf-8", newline="\n") as f:
             f.write(info["current"])
         backup = "（舊版備份在 _共用/.備份/%s）" % bname

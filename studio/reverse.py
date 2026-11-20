@@ -18,9 +18,10 @@ import shutil
 import time
 
 from . import context, enums, project, prompts, tracking
+from . import layout
 
-DIR = os.path.join(".studio", "反推")
-GROUPS = ("設定", "大綱", "章綱", "追蹤")
+DIR = os.path.join(*layout.parts(layout.STUDIO_REVERSE))
+GROUPS = ("設定", "大綱", "章綱", "追蹤")  # literal-ok: API 的分組鍵（前端也用），P2 才換
 MAX_PER_BATCH = 3
 CORE_MIN_CHAPTERS = 3      # 出場 3 章以上才建角色檔；其他列進名詞表
 MAX_CORE = 40
@@ -106,16 +107,16 @@ def _save(path, data):
 
 def chapters(book_dir):
     out = []
-    for no, f in sorted(project._scan_dir(os.path.join(book_dir, "正文")).items()):
-        text = project.read_text(os.path.join(book_dir, "正文", f))
-        out.append({"no": no, "title": project.chapter_title_from_filename(f), "file": "正文/" + f,
+    for no, f in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
+        text = project.read_text(layout.path(book_dir, layout.MANUSCRIPT, f))
+        out.append({"no": no, "title": project.chapter_title_from_filename(f), "file": layout.MANUSCRIPT + "/" + f,
                     "chars": project.count_chars(context.body(text))})
     return out
 
 
 def state(book_dir):
     st = _load(_p(book_dir, "state.json"), {})
-    acc = _load(_p(book_dir, "累積.json"), {})
+    acc = _load(_p(book_dir, layout.REVERSE_CUMULATIVE), {})
     st["processed"] = sorted(int(k) for k in (acc.get("summaries") or {}))
     drafts = draft_groups(book_dir)
     for g, items in drafts.items():
@@ -129,7 +130,7 @@ def state(book_dir):
 def reset(book_dir):
     d = _p(book_dir)
     if os.path.isdir(d):
-        bak = os.path.join(book_dir, ".studio", "備份", "反推_%d" % int(time.time()))
+        bak = layout.path(book_dir, layout.STUDIO_BACKUP, "反推_%d" % int(time.time()))
         os.makedirs(os.path.dirname(bak), exist_ok=True)
         shutil.move(d, bak)
 
@@ -202,7 +203,7 @@ def _handoff(acc, first_no):
 def extract_prompt(book_dir, nos, acc):
     parts = []
     for no in nos:
-        path, text = context.chapter_text(book_dir, no, ("正文",))
+        path, text = context.chapter_text(book_dir, no, (layout.MANUSCRIPT,))
         parts.append(_t("rev_ch_head", n=no, title=project.chapter_title_from_filename(os.path.basename(path or ""))) + "\n" +
                      context.body(text))
     hand = _handoff(acc, nos[0])
@@ -450,7 +451,7 @@ def _v(x):
 
 
 def _write_draft(book_dir, rel, text):
-    path = _p(book_dir, "草稿", *rel.split("/"))
+    path = _p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/"))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text.rstrip("\n") + "\n")
@@ -555,7 +556,7 @@ def render_outline(book, vols, arcs):
             nm, a, b, nm, unknown(), _v(v.get("本卷目標")), _v(v.get("主要對手")), _v(v.get("卷末大高潮")), _v(v.get("卷末新鉤子")),
             "\n\n".join(x.get("段落摘要", "") for x in arcs_in) or unknown(), ut,
             "\n".join("- " + _v(x) for x in (v.get("人物弧線") or [])) or "- " + unknown())
-        files.append(("大綱/卷綱_第%d卷.md" % (i + 1), vt))
+        files.append((layout.volume_file(i + 1), vt))
     if _flag(book):
         lines += ["", "## 備註" + _flag(book)]
     return "\n".join(lines) + "\n", files
@@ -617,7 +618,7 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
     upto = min(upto or chs[-1]["no"], chs[-1]["no"])
     titles = {c["no"]: c["title"] for c in chs}
     st = _load(_p(book_dir, "state.json"), {})
-    acc = _load(_p(book_dir, "累積.json"), {})
+    acc = _load(_p(book_dir, layout.REVERSE_CUMULATIVE), {})
     done = {int(k) for k in (acc.get("summaries") or {})}
     batches = plan_batches(book_dir, upto, budget, out_reserve, start=(max(done) + 1) if done else 1)
     if batches:
@@ -628,8 +629,8 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
             return None
         data = call("逐章抽取 %d／%d：第%d～%d章" % (i, len(batches), nos[0], nos[-1]), extract_prompt(book_dir, nos, acc))
         apply_batch(acc, data, nos, titles)
-        _save(_p(book_dir, "批次", "第%03d-%03d章.json" % (nos[0], nos[-1])), data)
-        _save(_p(book_dir, "累積.json"), acc)
+        _save(_p(book_dir, layout.REVERSE_BATCHES, layout.chapter_range_json(nos[0], nos[-1])), data)
+        _save(_p(book_dir, layout.REVERSE_CUMULATIVE), acc)
     last = max(int(k) for k in acc["summaries"])
     label = tracking.chapter_label(last)
     st.update({"upto": last, "updated": time.time()})
@@ -659,7 +660,7 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
         return None
 
     # 產生草稿
-    d = _p(book_dir, "草稿")
+    d = _p(book_dir, layout.REVERSE_DRAFTS)
     if os.path.isdir(d):
         shutil.rmtree(d)
     core = []
@@ -668,49 +669,49 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
             continue
         name, text, stext = render_character(ch, acc, label)
         core.append(name)
-        _write_draft(book_dir, "設定/角色/%s.md" % _fname(name), text)
-        _write_draft(book_dir, "追蹤/角色狀態/%s.md" % _fname(name), stext)
+        _write_draft(book_dir, layout.entry(layout.CHARACTERS, _fname(name)), text)
+        _write_draft(book_dir, layout.entry(layout.CHARACTER_STATES, _fname(name)), stext)
     for w in (world or {}).get("世界觀") or []:
         if isinstance(w, dict):
             n, t = render_world(w)
-            _write_draft(book_dir, "設定/世界觀/%s.md" % _fname(n), t)
-    _write_draft(book_dir, "設定/故事核心.md", render_core((book or {}).get("故事核心") or {}, title))
+            _write_draft(book_dir, layout.entry(layout.WORLD, _fname(n)), t)
+    _write_draft(book_dir, layout.STORY_CORE, render_core((book or {}).get("故事核心") or {}, title))
     vols = [v for v in (book or {}).get("卷") or [] if isinstance(v, dict)]
     if not vols:
         vols = [{"卷名": "第一卷", "起": 1, "訖": last}]
     outline, vfiles = render_outline(book or {}, vols, arcs)
-    _write_draft(book_dir, "大綱/全書大綱.md", outline)
+    _write_draft(book_dir, layout.BOOK_OUTLINE, outline)
     for rel, t in vfiles:
         _write_draft(book_dir, rel, t)
     chinfo = {c["no"]: c for c in chs}
     for k, card in (acc.get("cards") or {}).items():
         no = int(k)
-        _write_draft(book_dir, "大綱/章綱/第%03d章_%s.md" % (no, _fname(card.get("title"))), render_card(no, card, vols, []))
-        _write_draft(book_dir, "追蹤/章節摘要/%s.md" % tracking.chapter_label(no),
+        _write_draft(book_dir, layout.CHAPTER_CARDS + "/" + layout.chapter_file(no, _fname(card.get("title"))), render_card(no, card, vols, []))
+        _write_draft(book_dir, layout.entry(layout.SUMMARIES, tracking.chapter_label(no)),
                      render_summary(no, card.get("title", ""), chinfo.get(no, {}).get("chars", 0), acc["summaries"][k]))
     fs, tl, rows = render_tables(acc, label, set(core))
-    _write_draft(book_dir, "追蹤/伏筆.md", fs)
-    _write_draft(book_dir, "追蹤/時間線.md", tl)
+    _write_draft(book_dir, layout.FORESHADOWING, fs)
+    _write_draft(book_dir, layout.TIMELINE, tl)
     # 名詞：細分類、主題檔、重要條目獨立、勢力合併，名詞表留作索引
     from . import glossary_org
     try:
         org = glossary_org.organize(book_dir, rows, call, lambda rel, t: _write_draft(book_dir, rel, t), log=log, step=step)
     except StopIteration:
         return None
-    tracking.write_reader_table(_p(book_dir, "草稿", "追蹤", "讀者認知.md"), acc.get("reader") or [], label, keep_ids=True)
+    tracking.write_reader_table(_p(book_dir, layout.REVERSE_DRAFTS, *layout.parts(layout.READER_KNOWLEDGE)), acc.get("reader") or [], label, keep_ids=True)
     stc = "---\n類型: 狀態卡\n更新至: %s\n---\n\n# 狀態卡\n" % label
     for i, k in enumerate(tracking.STATE_SECTIONS, 1):
         items = (sc or {}).get(k) or []
         items = items if isinstance(items, list) else [items]
         stc += "\n## %d. %s\n%s\n" % (i, k, "\n".join("- " + _clean(x) for x in items if _clean(x)) or "- " + unknown())
-    _write_draft(book_dir, "追蹤/狀態卡.md", stc)
+    _write_draft(book_dir, layout.STATE_CARD, stc)
     st["done"] = time.time()
     _save(_p(book_dir, "state.json"), st)
     g = draft_groups(book_dir)
     return ("**從正文建立設定完成**（第1～%d章）\n\n草稿：設定 %d 份、大綱 %d 份、章綱 %d 份、追蹤 %d 份。\n"
             "人物 %d 位（建角色檔 %d 位，其餘列進名詞表）、名詞 %d 個、伏筆 %d 條、時間線 %d 條、讀者認知 %d 條。\n%s\n\n"
             "請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。" % (
-                last, len(g["設定"]), len(g["大綱"]), len(g["章綱"]), len(g["追蹤"]), len(acc.get("chars") or {}), len(core),
+                last, len(g["設定"]), len(g["大綱"]), len(g["章綱"]), len(g["追蹤"]), len(acc.get("chars") or {}), len(core),  # literal-ok: 分組鍵
                 len(acc.get("terms") or {}), len(acc.get("fs") or []), len(acc.get("events") or []), len(acc.get("reader") or []), org))
 
 
@@ -718,13 +719,13 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
 # 草稿採用
 # ---------------------------------------------------------------------------
 def _group_of(rel):
-    if rel.startswith("大綱/章綱/"):
+    if rel.startswith(layout.CHAPTER_CARDS + "/"):
         return "章綱"
     return rel.split("/", 1)[0] if rel.split("/", 1)[0] in GROUPS else None
 
 
 def draft_groups(book_dir):
-    root = _p(book_dir, "草稿")
+    root = _p(book_dir, layout.REVERSE_DRAFTS)
     out = {g: [] for g in GROUPS}
     if not os.path.isdir(root):
         return out
@@ -734,19 +735,19 @@ def draft_groups(book_dir):
                 rel = os.path.relpath(os.path.join(dp, f), root).replace("\\", "/")
                 g = _group_of(rel)
                 if g:
-                    out[g].append({"rel": rel, "draft": (DIR + "/草稿/" + rel).replace("\\", "/"),
+                    out[g].append({"rel": rel, "draft": (DIR + "/" + layout.REVERSE_DRAFTS + "/" + rel).replace("\\", "/"),
                                    "exists": os.path.isfile(os.path.join(book_dir, *rel.split("/")))})
     for g in out:
         out[g].sort(key=lambda x: x["rel"])
     return out
 
 
-DEFAULT_MODE = {"設定": "merge", "大綱": "keep", "章綱": "copy", "追蹤": "keep"}
-ALLOWED_MODES = {"設定": ("merge", "replace", "keep"), "大綱": ("merge", "replace", "keep"),
-                 "章綱": ("copy",), "追蹤": ("replace", "keep")}
+DEFAULT_MODE = {"設定": "merge", "大綱": "keep", "章綱": "copy", "追蹤": "keep"}  # literal-ok: 分組鍵
+ALLOWED_MODES = {"設定": ("merge", "replace", "keep"), "大綱": ("merge", "replace", "keep"),  # literal-ok: 分組鍵
+                 "章綱": ("copy",), "追蹤": ("replace", "keep")}  # literal-ok: 分組鍵
 # 表格類設定檔：沒有「## 段落」，merge_entry 併不進任何一列（整份反推內容會被丟掉），
 # 所以當機器快照處理——預設／被要求 merge 時一律整份取代，一樣先備份；「保留現有」照舊可用。
-SNAPSHOT_RELS = ("設定/名詞表.md",)
+SNAPSHOT_RELS = (layout.GLOSSARY,)
 
 
 def _mode_for(group, rel, mode=None):
@@ -757,17 +758,17 @@ def _mode_for(group, rel, mode=None):
     if m not in ALLOWED_MODES[group]:
         raise project.ProjectError("「%s」不支援「%s」模式" % (group, m))
     return m
-CHAPTER_DRAFT_DIR = "大綱/章綱/反推"
+CHAPTER_DRAFT_DIR = layout.REVERSE_CARDS
 
 
 def _canon_rel(group, rel):
     """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 大綱/章綱/反推/。"""
     if group == "章綱":
         return "%s/%s" % (CHAPTER_DRAFT_DIR, os.path.basename(rel))
-    if group == "大綱" and rel.startswith("大綱/卷綱_第"):
+    if group == "大綱" and rel.startswith(layout.OUTLINE + "/" + layout.VOLUME_PREFIX):  # literal-ok: group 是分組鍵
         no = project._vol_order(os.path.basename(rel))
         if no != 99:
-            return "大綱/卷綱_第%d卷.md" % no
+            return layout.volume_file(int(no))
     return rel
 
 
@@ -778,8 +779,8 @@ def _existing_rel(book_dir, group, rel):
     no = project.chapter_no(os.path.basename(rel))
     if no is None:
         return None
-    f = project._scan_dir(os.path.join(book_dir, "大綱", "章綱")).get(no)
-    return "大綱/章綱/" + f if f else None
+    f = project._scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS)).get(no)
+    return layout.CHAPTER_CARDS + "/" + f if f else None
 
 
 def _read_rel(book_dir, rel):
@@ -811,7 +812,7 @@ def plan_group(book_dir, group):
     out = []
     for it in draft_groups(book_dir)[group]:
         rel = it["rel"]
-        new = project.read_text(_p(book_dir, "草稿", *rel.split("/")))
+        new = project.read_text(_p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/")))
         old_rel = _existing_rel(book_dir, group, rel)
         old = _read_rel(book_dir, old_rel)
         out.append({
@@ -835,7 +836,7 @@ def diff_group(book_dir, group, rel):
     if not any(x["rel"] == rel for x in draft_groups(book_dir)[group]):
         raise project.ProjectError("「%s」沒有這份草稿：%s" % (group, rel))
     old_rel = _existing_rel(book_dir, group, rel)
-    new = project.read_text(_p(book_dir, "草稿", *rel.split("/")))
+    new = project.read_text(_p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/")))
     old = _read_rel(book_dir, old_rel)
     from . import revision
     return {"group": group, "rel": rel, "target": _canon_rel(group, rel), "old_rel": old_rel or "",
@@ -876,7 +877,7 @@ def adopt(book_dir, group, mode=None, files=None):
     for it in items:
         rel = it["rel"]
         m = _mode_for(group, rel, mode)
-        src = _p(book_dir, "草稿", *rel.split("/"))
+        src = _p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/"))
         dst_rel = _canon_rel(group, rel)
         dst = os.path.join(book_dir, *dst_rel.split("/"))
         targets.append({"rel": rel, "mode": m, "dst": dst_rel})
@@ -909,5 +910,5 @@ def discard(book_dir, group):
     if group not in GROUPS:
         raise project.ProjectError("不認得的分組：%s" % group)
     for it in draft_groups(book_dir)[group]:
-        os.remove(_p(book_dir, "草稿", *it["rel"].split("/")))
+        os.remove(_p(book_dir, layout.REVERSE_DRAFTS, *it["rel"].split("/")))
     return {"ok": True}

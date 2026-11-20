@@ -11,6 +11,7 @@ import time
 import urllib.parse
 
 from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, style_loop, tracking, wb_check
+from . import layout
 
 DELIM = "<<<匯報>>>"
 
@@ -136,14 +137,14 @@ class Ctx:
                           % (rec["chars"], lang_mod.unit_zh(lang_mod.book_lang(self.book))))
 
     def save_messages(self, messages, extra=None):
-        d = os.path.join(self.book, ".studio", "jobs")
+        d = layout.path(self.book, layout.STUDIO, "jobs")
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, self.job.id + ".messages.json"), "w", encoding="utf-8") as f:
             json.dump({"messages": messages, "extra": extra or {}}, f, ensure_ascii=False)
 
 
 def load_messages(book_dir, job_id):
-    p = os.path.join(book_dir, ".studio", "jobs", job_id + ".messages.json")
+    p = layout.path(book_dir, layout.STUDIO, "jobs", job_id + ".messages.json")
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:
@@ -157,7 +158,7 @@ _RANGE = re.compile(r"(\d[\d,]*)\s*[～~\-－–—到至]\s*(\d[\d,]*)")
 def _core_target(book_dir):
     """設定/故事核心.md 開頭資料區的「每章字數: 2500-3500」（或單一數字）；沒有或看不懂回傳 None。
     單位跟著書的語言：中日文是字數、英文是單詞數。"""
-    core = context.read(book_dir, "設定/故事核心.md")
+    core = context.read(book_dir, layout.STORY_CORE)
     v = project.split_frontmatter(core)[0].get("每章字數") if core else None
     if v is None or v == "":
         return None
@@ -212,16 +213,16 @@ def _split_output(text, no, fallback_title):
 
 
 def _save_candidate(c, no, title, text):
-    d = os.path.join(c.book, "候選")
+    d = layout.path(c.book, layout.CANDIDATES)
     os.makedirs(d, exist_ok=True)
     old = project._scan_dir(d).get(no)
     if old:
-        tracking.backup(c.book, os.path.join(d, old), "候選")
+        tracking.backup(c.book, os.path.join(d, old), layout.CANDIDATES)
         os.remove(os.path.join(d, old))
     fixed, n = c.checker.fix_punct(text)
-    name = "第%03d章_%s.md" % (no, title)
+    name = layout.chapter_file(no, title)
     project.write_atomic(os.path.join(d, name), fixed)
-    return "候選/" + name, n
+    return layout.CANDIDATES + "/" + name, n
 
 
 def _fix_simplified(c, rel, res):
@@ -412,7 +413,7 @@ def _rewrite(c, no, src_text, instruction, label):
 
 def act_reject(c, p):
     no = int(p.get("chapter"))
-    path, src = context.chapter_text(c.book, no, ("候選",))
+    path, src = context.chapter_text(c.book, no, (layout.CANDIDATES,))
     if not src:
         raise NativeError("第%d章沒有候選稿" % no)
     note = (p.get("note") or "").strip() or _P()["reject_default"]
@@ -424,7 +425,7 @@ def act_reject(c, p):
 
 def act_revise(c, p):
     no = int(p.get("chapter"))
-    path, src = context.chapter_text(c.book, no, ("正文",))
+    path, src = context.chapter_text(c.book, no, (layout.MANUSCRIPT,))
     if not src:
         raise NativeError("第%d章還沒有正文" % no)
     note = (p.get("note") or "").strip()
@@ -441,10 +442,10 @@ def act_deslop(c, p):
     """去 AI 味：結果存成一份待確認的修訂（逐段對照、逐處列出原因），不直接覆蓋稿子。
     p["auto_apply"]（整章自動流程）：跑完直接全部套用。"""
     no = int(p.get("chapter"))
-    where = "候選" if p.get("candidate") else "正文"
+    where = layout.CANDIDATES if p.get("candidate") else layout.MANUSCRIPT
     path, src = context.chapter_text(c.book, no, (where,))
     if not src:
-        raise NativeError("第%d章沒有%s" % (no, "候選稿" if where == "候選" else "正文"))
+        raise NativeError("第%d章沒有%s" % (no, "候選稿" if where == layout.CANDIDATES else "正文"))  # literal-ok: 錯誤訊息文字
     pending = revision.load_revision(c.book, no)
     if pending and not p.get("auto_apply"):
         raise NativeError("第%d章還有一份待確認的修訂（%d 處變更）。請先到章節頁的「修訂對照」套用或捨棄，再去 AI 味。" % (no, pending["changes"]))
@@ -512,7 +513,7 @@ def deslop_result(book, book_id, no, path, src, title, text, report, provider, a
 
 
 def _writeback(c, no):
-    path, text = context.chapter_text(c.book, no, ("正文",))
+    path, text = context.chapter_text(c.book, no, (layout.MANUSCRIPT,))
     if not text:
         raise NativeError("第%d章沒有正文" % no)
     title = project.chapter_title_from_filename(os.path.basename(path)) or _card_title(c.book, no)
@@ -559,10 +560,10 @@ def act_accept(c, p):
 
 
 def act_sync(c, p):
-    fm, _ = project.split_frontmatter(context.read(c.book, "追蹤/狀態卡.md"))
+    fm, _ = project.split_frontmatter(context.read(c.book, layout.STATE_CARD))
     m = re.search(r"\d+", str(fm.get("更新至") or ""))
     done = int(m.group(0)) if m else 0
-    todo = sorted(n for n in project._scan_dir(os.path.join(c.book, "正文")) if n > done)
+    todo = sorted(n for n in project._scan_dir(layout.path(c.book, layout.MANUSCRIPT)) if n > done)
     if not todo:
         c.job.result = "追蹤資料已經是最新的（更新至第%d章）。" % done
         return
@@ -596,9 +597,9 @@ def act_review(c, p):
     user = ctx_text + _P()["task_review"].format(a=a, b=b, fmt=review_report_format(c))
     msgs = [{"role": "system", "content": c.sys()}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=out_tok, label="審查第%d～%d章" % (a, b), stage="review")
-    d = os.path.join(c.book, ".studio", "審查報告")
+    d = layout.path(c.book, layout.STUDIO_REVIEWS)
     os.makedirs(d, exist_ok=True)
-    fn = "第%03d-%03d章_%s.md" % (a, b, time.strftime("%Y%m%d-%H%M"))
+    fn = layout.chapter_range_file(a, b, time.strftime("%Y%m%d-%H%M"))
     with open(os.path.join(d, fn), "w", encoding="utf-8") as f:
         f.write(out)
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "chat"})
@@ -649,7 +650,7 @@ def act_reply(c, p):
 # ---------------------------------------------------------------------------
 def _reconcile(c, no, prev_from_candidate=False):
     """比對章綱必須事件與已定稿事實。沒有任何已定稿資料（新書第一章）或解析失敗時回傳 None。"""
-    has_facts = tracking.tracked_to(c.book) > 0 or bool(context.chapter_text(c.book, no - 1, ("正文", "候選"))[1])
+    has_facts = tracking.tracked_to(c.book) > 0 or bool(context.chapter_text(c.book, no - 1, (layout.MANUSCRIPT, layout.CANDIDATES))[1])
     if not has_facts:
         return None
     _, card = context.card_text(c.book, no)
@@ -659,12 +660,12 @@ def _reconcile(c, no, prev_from_candidate=False):
     pk = context.Pack(c.budget(_out_tokens(c)))
     pk.add(0, "第%d章章綱必須事件" % no, "\n".join("- " + g["text"] for g in gl))
     pk.add(0, "第%d章章綱全文" % no, context.body(card))
-    pk.add(1, "狀態卡（已定稿）", context.body(context.read(c.book, "追蹤/狀態卡.md")))
-    prev_path, prev = context.chapter_text(c.book, no - 1, ("候選", "正文") if prev_from_candidate else ("正文", "候選"))
+    pk.add(1, "狀態卡（已定稿）", context.body(context.read(c.book, layout.STATE_CARD)))
+    prev_path, prev = context.chapter_text(c.book, no - 1, (layout.CANDIDATES, layout.MANUSCRIPT) if prev_from_candidate else (layout.MANUSCRIPT, layout.CANDIDATES))
     if prev:
         pk.add(1, "上一章結尾", context.body(prev)[-1500:], keep="tail")
     for e in context.mentioned_entities(c.book, card):
-        st = context.read(c.book, "追蹤/角色狀態/%s.md" % e["name"])
+        st = context.read(c.book, layout.entry(layout.CHARACTER_STATES, e["name"]))
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], context.body(st))
     pk.add(2, "時間線（作者真相與讀者已知）",
@@ -719,7 +720,7 @@ def act_goal_check(c, p):
     no = int(p.get("chapter"))
     rel = None
     if p.get("candidate"):
-        rel = context.chapter_text(c.book, no, ("候選",))[0]
+        rel = context.chapter_text(c.book, no, (layout.CANDIDATES,))[0]
     r = _goal_check(c, no, rel)
     if not r:
         raise NativeError("第%d章沒有章綱情節點或沒有正文，無法核對。" % no)
@@ -733,7 +734,7 @@ def _review_target(c, no, p):
     if p.get("path"):
         return p["path"], context.read(c.book, p["path"])
     if p.get("candidate"):
-        return context.chapter_text(c.book, no, ("候選",))
+        return context.chapter_text(c.book, no, (layout.CANDIDATES,))
     return goals.target(c.book, no, prefer_candidate=True)
 
 
@@ -745,17 +746,17 @@ def act_review_notes(c, p):
     pk = context.Pack(c.budget(_out_tokens(c) + context.est_tokens(text)))
     pk.add(0, "審查清單", context.skill_ref(c.plugin_dir, "novel-review/references/checklist.md"))
     pk.add(0, "本書規則", context.book_rules(c.book))
-    pk.add(1, "本書文風（作者允許的寫法不算問題）", context.body(context.read(c.book, "設定/文風.md")))
+    pk.add(1, "本書文風（作者允許的寫法不算問題）", context.body(context.read(c.book, layout.STYLE)))
     pk.add(1, "共用作者偏好（「常犯的毛病」要特別檢查）", shared.prefs_for_context(c.book))
     _, card = context.card_text(c.book, no)
     pk.add(1, "第%d章章綱" % no, context.body(card))
-    prev_path, prev = context.chapter_text(c.book, no - 1, ("正文",))
+    prev_path, prev = context.chapter_text(c.book, no - 1, (layout.MANUSCRIPT,))
     if prev:
         pk.add(1, "前一章結尾", context.body(prev)[-1200:], keep="tail")
-    pk.add(2, "狀態卡", context.body(context.read(c.book, "追蹤/狀態卡.md")))
+    pk.add(2, "狀態卡", context.body(context.read(c.book, layout.STATE_CARD)))
     for e in context.mentioned_entities(c.book, text):
         pk.add(2, "設定：%s" % e["name"], context.body(context.read(c.book, e["file"])))
-        st = context.read(c.book, "追蹤/角色狀態/%s.md" % e["name"])
+        st = context.read(c.book, layout.entry(layout.CHARACTER_STATES, e["name"]))
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], context.body(st))
     pk.add(3, context.READER_TITLE, context.reader_for(c.book, text + "\n" + card, no, pk=pk))
@@ -907,7 +908,7 @@ def save_card_result(book, p, data):
 
 def act_visual_card(c, p):
     f = p.get("file") or ""
-    if not f.startswith(("設定/角色/", "設定/勢力/", "設定/世界觀/")):
+    if not f.startswith((layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")):
         raise NativeError("只有角色、勢力、世界觀的設定檔可以產生視覺卡")
     text = context.read(c.book, f)
     if not text:
@@ -1060,8 +1061,8 @@ def act_glossary_org(c, p):
 
     def call(label, user):
         return _json_call(c, [{"role": "system", "content": sysm}, {"role": "user", "content": user}], label)
-    for sub in (("設定", "世界觀"), ("設定", "勢力"), ("設定", "名詞表.md")):   # 清掉上次留下的同類草稿
-        old = os.path.join(c.book, reverse.DIR, "草稿", *sub)
+    for sub in (layout.parts(layout.WORLD), layout.parts(layout.FACTIONS), layout.parts(layout.GLOSSARY)):   # 清掉上次留下的同類草稿
+        old = os.path.join(c.book, reverse.DIR, layout.REVERSE_DRAFTS, *sub)
         if os.path.isdir(old):
             shutil.rmtree(old)
         elif os.path.isfile(old):

@@ -286,7 +286,7 @@
               onclick: () => Panel.run("reader_reconcile", {}),
               title: "拿後面的時間線與章節摘要比對，找出已經揭曉、部分揭曉、重複的條目",
             }, "比對回收"),
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/讀者認知_草稿.md") }, "編輯草稿"),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.READER_KNOWLEDGE_DRAFT) }, "編輯草稿"),
             discardBtn),
           h("div", { class: "muted small", style: "margin-bottom:8px" },
             "AI 產生的結果（從時間線轉換，或回收比對；比對的逐條理由在草稿最後，按「編輯草稿」可以看）。請檢查：有沒有把你的底牌寫成讀者已經在懷疑的懸念、有沒有漏掉你刻意埋的誤導、回收章對不對。"
@@ -321,7 +321,7 @@
               onclick: () => Panel.run("reader_reconcile", {}),
               title: "拿後面的時間線與章節摘要比對，找出已經揭曉、部分揭曉、重複的條目；結果存成草稿",
             }, "比對回收"),
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/讀者認知.md") }, "編輯")),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.READER_KNOWLEDGE) }, "編輯")),
           intro,
           readerTable(rl, "fs-table"));
         parts.push(card);
@@ -377,7 +377,7 @@
             h("h2", {}, "草稿（" + rd.rows.length + " 列，尚未生效）"),
             h("span", { class: "grow" }),
             adoptBtn,
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/關係_草稿.md") }, "編輯草稿"),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.RELATIONS_DRAFT) }, "編輯草稿"),
             discardBtn),
           noteNode,
           h("div", { class: "muted small", style: "margin-bottom:8px" },
@@ -431,7 +431,7 @@
             filterInput,
             h("span", { class: "grow" }),
             rd.rows.length ? null : buildBtn("從角色檔補關係草稿"),
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/關係.md") }, "編輯")),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.RELATIONS) }, "編輯")),
           intro,
           relTable(rl, "fs-table"));
         parts.push(card);
@@ -490,7 +490,7 @@
             }, "整理進設定集"),
             h("button", {
               class: "sm",
-              onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=核心&f=" + enc("設定/名詞表.md")),
+              onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=核心&f=" + enc(LAYOUT.GLOSSARY)),
             }, "編輯名詞表")),
           tableNode(null, g.headers, g.rows))
         : h("div", { class: "card empty" }, "名詞表是空的。");
@@ -498,7 +498,7 @@
 
     ctx.view(head, tabsNode, body);
     after.forEach((fn) => fn());
-    if (t === "state" && docEl) await docView(docEl, "追蹤/狀態卡.md", { signal });
+    if (t === "state" && docEl) await docView(docEl, LAYOUT.STATE_CARD, { signal });
   }
 
   nsPage("b/:book/tracking", "tracking", { book: true }, render);

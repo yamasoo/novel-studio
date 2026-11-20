@@ -250,7 +250,7 @@
     } else if (tab === "章節結構") {
       list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", lang: s.lang, scope: s.scope, origin: s.origin }));
     } else {
-      file = "作者偏好.md";
+      file = LAYOUT.SHARED_PREFS;
     }
     if (!file && list.length) file = list[0].file;
     const curItem = list.find((x) => x.file === file);

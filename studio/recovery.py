@@ -6,8 +6,9 @@ import re
 import time
 
 from . import project
+from . import layout
 
-DIR = ("恢復稿",)
+DIR = (layout.parts(layout.STUDIO_RECOVERY)[-1],)   # .studio 底下
 TAIL = 1600
 MIN_OVERLAP = 48
 
@@ -62,7 +63,7 @@ def load(book_dir, rid):
 def discard(book_dir, rid):
     load(book_dir, rid)
     p = os.path.join(book_dir, ".studio", *DIR, rid + ".json")
-    bak = os.path.join(book_dir, ".studio", "備份")
+    bak = layout.path(book_dir, layout.STUDIO_BACKUP)
     os.makedirs(bak, exist_ok=True)
     os.replace(p, os.path.join(bak, "恢復稿_" + rid + ".json"))
 

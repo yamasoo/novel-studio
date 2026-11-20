@@ -13,12 +13,13 @@ import uuid
 import zipfile
 
 from . import illust, lang as lang_mod, project
+from . import layout
 
-OUT_DIR = "匯出"
-PREFS = os.path.join(".studio", "匯出設定.json")
+OUT_DIR = layout.EXPORT
+PREFS = os.path.join(*layout.parts(layout.STUDIO_EXPORT_PREFS))
 
 ITEMS = [
-    ("text", "正文"),
+    ("text", "正文"),  # literal-ok: 匯出區段的顯示名稱
     ("outline", "全書大綱與卷綱"),
     ("cards", "章綱"),
     ("bible", "設定集"),
@@ -35,7 +36,7 @@ TITLE_STYLES = {
 
 # 匯出檔裡出現的固定文字（目錄標題、作者、封面等）依書的語言
 STR = {
-    "zh-TW": {"contents": "目錄", "author": "作者：", "cover": "封面", "text": "正文", "code": "zh-TW",
+    "zh-TW": {"contents": "目錄", "author": "作者：", "cover": "封面", "text": "正文", "code": "zh-TW",  # literal-ok: 顯示名稱
               "g_outline": "全書大綱與卷綱", "g_cards": "章綱", "g_bible": "設定集", "g_tracking": "追蹤資料"},
     "en": {"contents": "Contents", "author": "Author: ", "cover": "Cover", "text": "Text", "code": "en",
            "g_outline": "Book and Volume Outlines", "g_cards": "Chapter Cards", "g_bible": "Story Bible", "g_tracking": "Tracking"},
@@ -89,7 +90,7 @@ def chinese_number(n):
 
 
 def book_title(book_dir):
-    p = os.path.join(book_dir, "設定", "故事核心.md")
+    p = layout.path(book_dir, layout.STORY_CORE)
     if os.path.isfile(p):
         fm, _ = project.split_frontmatter(project.read_text(p))
         if fm.get("書名"):
@@ -122,7 +123,7 @@ def load_prefs(book_dir):
 
 def save_prefs(book_dir, opts):
     keep = {k: opts.get(k) for k in DEFAULTS if k not in ("from", "to")}
-    os.makedirs(os.path.join(book_dir, ".studio"), exist_ok=True)
+    os.makedirs(layout.path(book_dir, layout.STUDIO), exist_ok=True)
     with open(os.path.join(book_dir, PREFS), "w", encoding="utf-8") as f:
         json.dump(keep, f, ensure_ascii=False, indent=1)
 
@@ -211,8 +212,8 @@ def gather(book_dir, opts):
             chapters.append({"no": r["no"], "image": img, "title": chapter_heading(r["no"], name, original, opts.get("title_style"), lang),
                              "paras": paras})
     if "outline" in items:
-        rels = [x for x in _md_files(book_dir, "大綱") if os.path.basename(x).startswith("全書大綱")]
-        rels += [x for x in _md_files(book_dir, "大綱") if x not in rels]
+        rels = [x for x in _md_files(book_dir, layout.OUTLINE) if os.path.basename(x).startswith("全書大綱")]
+        rels += [x for x in _md_files(book_dir, layout.OUTLINE) if x not in rels]
         groups.append((S["g_outline"], _docs(book_dir, rels)))
     if "cards" in items:
         docs = []
@@ -224,14 +225,14 @@ def gather(book_dir, opts):
                     docs.append(doc)
         groups.append((S["g_cards"], docs))
     if "bible" in items:
-        rels = ["設定/故事核心.md", "設定/文風.md", "設定/作者偏好.md", "設定/名詞表.md"]
+        rels = [layout.STORY_CORE, layout.STYLE, layout.AUTHOR_PREFS, layout.GLOSSARY]
         for sub in ("角色", "勢力", "世界觀"):
-            rels += _md_files(book_dir, "設定/" + sub)
+            rels += _md_files(book_dir, layout.BIBLE + "/" + sub)
         groups.append((S["g_bible"], _docs(book_dir, rels)))
     if "tracking" in items:
-        rels = ["追蹤/狀態卡.md", "追蹤/伏筆.md", "追蹤/時間線.md"]
-        rels += _md_files(book_dir, "追蹤/角色狀態")
-        rels += _md_files(book_dir, "追蹤/章節摘要")
+        rels = [layout.STATE_CARD, layout.FORESHADOWING, layout.TIMELINE]
+        rels += _md_files(book_dir, layout.CHARACTER_STATES)
+        rels += _md_files(book_dir, layout.SUMMARIES)
         groups.append((S["g_tracking"], _docs(book_dir, rels)))
     groups = [(g, docs) for g, docs in groups if docs]
     return chapters, groups

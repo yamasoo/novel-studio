@@ -15,7 +15,8 @@
 
   const ROLE_ORDER = ["主角", "主要配角", "配角", "反派", "路人"];
   const WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與政治", "經濟與物資", "宗教信仰", "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"];
-  const BIBLE_FOLDER = { "角色": "角色", "勢力": "勢力", "世界觀": "世界觀" };
+  // 分頁 ID → 設定集資料夾（相對於書；路徑來自後端 LAYOUT）
+  const BIBLE_FOLDER = { "角色": LAYOUT.CHARACTERS, "勢力": LAYOUT.FACTIONS, "世界觀": LAYOUT.WORLD };
   const ENT_TABS = ["角色", "勢力", "世界觀"];
 
   // 動態 key（書 id + 分頁名）這一輪維持 localStorage（§9.4 允許）；P6 再換 FE.store。
@@ -218,7 +219,7 @@
 
   // ── 設定索引：疑似重複勾選合併 ──
   function dupGroupsFor(t, idx) {
-    const prefix = "設定/" + BIBLE_FOLDER[t] + "/";
+    const prefix = BIBLE_FOLDER[t] + "/";
     const out = [];
     (idx.duplicates || []).forEach((g) => {
       const byFile = {};

@@ -8,10 +8,11 @@ import re
 import time
 
 from . import context, project, relations, tracking
+from . import layout
 
 MIN_MENTIONS = 3        # 正文提到幾次以上的角色，才要求角色狀態更新
 STALE_SUSPENSE = 30     # 懸念、誤認種下超過幾章還沒回收就提醒
-CHECK_DIR = os.path.join(".studio", "回寫檢查")
+CHECK_DIR = os.path.join(*layout.parts(layout.STUDIO_WRITEBACK_CHECK))
 _DONE_FS = ("已回收", "廢棄")
 _DONE_CARD = ("已寫", "定稿", "完成")
 
@@ -33,12 +34,12 @@ def check(book_dir, no, revision=False, data=None):
     """回傳問題清單（每項一句話）。data 是回寫用的 JSON（有的話多檢查新增物）。"""
     issues = []
     label = tracking.chapter_label(no)
-    _, text = context.chapter_text(book_dir, no, ("正文",))
+    _, text = context.chapter_text(book_dir, no, (layout.MANUSCRIPT,))
     text = context.body(text)
     _, card = context.card_text(book_dir, no)
 
     # 章節摘要
-    sp = os.path.join(book_dir, "追蹤", "章節摘要", label + ".md")
+    sp = layout.path(book_dir, layout.SUMMARIES, label + ".md")
     if not os.path.isfile(sp):
         issues.append("沒有產生章節摘要")
     else:
@@ -53,12 +54,12 @@ def check(book_dir, no, revision=False, data=None):
     # 角色狀態
     if not revision and text:
         miss = []
-        for e in project.list_entries(book_dir, "設定/角色"):
+        for e in project.list_entries(book_dir, layout.CHARACTERS):
             names = [e["name"]] + [str(a) for a in (e.get("aliases") or [])]
             n = _count(text, names)
             if n < MIN_MENTIONS:
                 continue
-            p = os.path.join(book_dir, "追蹤", "角色狀態", e["name"] + ".md")
+            p = layout.path(book_dir, layout.CHARACTER_STATES, e["name"] + ".md")
             if not os.path.isfile(p):
                 continue
             fm, _ = project.split_frontmatter(project.read_text(p))
@@ -73,7 +74,7 @@ def check(book_dir, no, revision=False, data=None):
             issues.append("角色狀態寫了「關係變化」，但角色關係表沒有更新")
 
     # 伏筆：章綱點名的
-    fs = {r.get("編號"): r for r in project.read_table(book_dir, "追蹤/伏筆.md")["rows"]}
+    fs = {r.get("編號"): r for r in project.read_table(book_dir, layout.FORESHADOWING)["rows"]}
     for fid in _ids(card, "F"):
         r = fs.get(fid)
         if not r:
@@ -82,7 +83,7 @@ def check(book_dir, no, revision=False, data=None):
             issues.append("章綱提到 %s，伏筆表的「最後出現」沒有推進到本章" % fid)
 
     # 時間線
-    tl = project.read_table(book_dir, "追蹤/時間線.md")["rows"]
+    tl = project.read_table(book_dir, layout.TIMELINE)["rows"]
     if tl and not any(no in [int(x) for x in re.findall(r"\d+", str(r.get("揭示章") or ""))] for r in tl):
         issues.append("時間線沒有任何一列的揭示章是本章")
 
@@ -154,7 +155,7 @@ def alerts(book_dir, latest):
             no, iss = int(rec.get("chapter") or 0), rec.get("issues") or []
             if not no or not iss:
                 continue
-            path, _ = context.chapter_text(book_dir, no, ("正文",))
+            path, _ = context.chapter_text(book_dir, no, (layout.MANUSCRIPT,))
             out.append({"level": "warn", "kind": "回寫檢查", "action": "rewriteback", "chapter_no": no, "path": path,
                         "text": "第%d章回寫有 %d 項可能沒寫到：%s%s" % (no, len(iss), iss[0], "……" if len(iss) > 1 else ""),
                         "details": iss})

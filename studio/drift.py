@@ -14,6 +14,7 @@ import os
 import re
 
 from . import contract, project, prompts, recall, shared, style_loop, textguard, volume
+from . import layout
 
 IDLE_CHARS = 20      # 幾章沒登場算「消失」
 THREAD_AGE = 30      # 伏筆埋設後幾章還沒回收算「欠帳」
@@ -55,17 +56,17 @@ def card_names(card):
 
 
 def _card(book_dir, no):
-    p = project._scan_dir(os.path.join(book_dir, "大綱", "章綱")).get(no)
+    p = project._scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS)).get(no)
     if not p:
         return ""
-    return project.split_frontmatter(project.read_text(os.path.join(book_dir, "大綱", "章綱", p)))[1]
+    return project.split_frontmatter(project.read_text(layout.path(book_dir, layout.CHAPTER_CARDS, p)))[1]
 
 
 def _text(book_dir, no):
-    p = project._scan_dir(os.path.join(book_dir, "正文")).get(no)
+    p = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).get(no)
     if not p:
         return ""
-    return project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", p)))[1]
+    return project.split_frontmatter(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, p)))[1]
 
 
 def coverage(card, text):
@@ -87,7 +88,7 @@ def coverage(card, text):
 
 def threads(book_dir):
     """未回收伏筆：[(編號, 埋設章, 摘要, 重要度)]。已回收／廢棄的不算。"""
-    text = project.read_text(project.safe_path(book_dir, "追蹤/伏筆.md"))
+    text = project.read_text(project.safe_path(book_dir, layout.FORESHADOWING))
     out = []
     for line in text.splitlines():
         if not line.startswith("|") or line.startswith("|---") or "編號" in line:
@@ -155,7 +156,7 @@ def _looks_like_name(s):
 
 def drift(book_dir, start=None, end=None, idle=IDLE_CHARS, thread_age=THREAD_AGE):
     """回傳 dict：章節範圍、章綱覆蓋、角色、伏筆、文風。"""
-    ch = project._scan_dir(os.path.join(book_dir, "正文"))
+    ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
     if not ch:
         return {"error": "沒有正文"}
     last = max(ch)
@@ -287,10 +288,10 @@ def llm_pass(prov, book_dir, d, max_chars=4000):
     volume = contract.volume_outline(book_dir, a) or ""
     sums = []
     for no in range(a, b + 1):
-        p = project._scan_dir(os.path.join(book_dir, "追蹤", "章節摘要")).get(no)
+        p = project._scan_dir(layout.path(book_dir, layout.SUMMARIES)).get(no)
         if p:
             sums.append("第%d章：%s" % (no, project.split_frontmatter(
-                project.read_text(os.path.join(book_dir, "追蹤", "章節摘要", p)))[1].strip()[:400]))
+                project.read_text(layout.path(book_dir, layout.SUMMARIES, p)))[1].strip()[:400]))
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     last = ""
     for attempt, (limit, tail) in enumerate(((4000, ""), (4000, "\n\n只輸出一個 JSON 物件，不要任何說明文字。"))):
@@ -355,7 +356,7 @@ def plan_md(res, a, b):
 
 def save_plan(book_dir, a, b, text, notes=None):
     """把草稿寫到 大綱/草稿/卷綱更新_第a-b章.md（跟新卷草稿同一個資料夾，但不會被當成新卷）。"""
-    rel = "大綱/草稿/卷綱更新_第%d-%d章.md" % (a, b)
+    rel = layout.volume_update_draft(a, b)
     p = project.safe_path(book_dir, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     text, note = textguard.guard_text(book_dir, text if text.endswith("\n") else text + "\n")

@@ -13,8 +13,9 @@ import json
 import os
 
 from . import fingerprint, project, prompts, providers, sdna, similarity, spawn, tracking
+from . import layout
 
-REL_DIR = "候選/新書草稿"
+REL_DIR = layout.SPINOFF_DRAFTS
 RULE = """你在幫作者開一本新書的骨架。只輸出一個 JSON 物件，不要說明、不要程式碼圍欄。
 
 硬性限制：
@@ -157,11 +158,11 @@ def generate(prov, source_dir, note="", lang=None, rounds=0, progress=None):
 def save(book_dir, data):
     d = os.path.join(book_dir, *REL_DIR.split("/"))
     os.makedirs(d, exist_ok=True)
-    json_p = os.path.join(d, "骨架.json")
+    json_p = os.path.join(d, layout.SPINOFF_SKELETON_JSON)
     with open(json_p, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
         f.write("\n")
-    md_p = os.path.join(d, "骨架.md")
+    md_p = os.path.join(d, layout.SPINOFF_SKELETON_MD)
     with open(md_p, "w", encoding="utf-8", newline="\n") as f:
         f.write(show(data))
     return REL_DIR + "/骨架.json"
@@ -373,8 +374,8 @@ def apply_new(book_dir, data, title=None, lang="zh-TW", source=""):
         old = project.read_text(cpath)
         if "用參考書骨架直接開書" not in old:
             raise project.ProjectError("這本書已經是專案，不能用『直接開書』覆蓋；請改用開書訪談或手動套用。")
-    fp = _load_json(os.path.join(book_dir, "設定", "風格指紋.json"))
-    dna = _load_json(os.path.join(book_dir, "設定", "結構DNA.json"))
+    fp = _load_json(layout.path(book_dir, layout.STYLE_FINGERPRINT))
+    dna = _load_json(layout.path(book_dir, layout.STRUCTURE_DNA))
     rows = _vol_rows(volumes)
     if not rows:
         raise project.ProjectError("骨架的卷綱格式不對，不能直接開書。")
@@ -389,12 +390,12 @@ def apply_new(book_dir, data, title=None, lang="zh-TW", source=""):
         _write(p, text)
         files.append(rel)
 
-    put("設定/故事核心.md", _story_core_md(data, title, lang, dna))
+    put(layout.STORY_CORE, _story_core_md(data, title, lang, dna))
     world = _world_md(data)
     if world:
-        put("設定/世界觀/世界觀.md", world)
-    put("大綱/全書大綱.md", _outline_md(data, rows, dna))
+        put(layout.entry(layout.WORLD, "世界觀"), world)
+    put(layout.BOOK_OUTLINE, _outline_md(data, rows, dna))
     for r in rows:
-        put("大綱/卷綱_第%d卷.md" % r["no"], _volume_md(r))
+        put(layout.volume_file(int(r["no"])), _volume_md(r))
     put("CLAUDE.md", _claude_md(title, lang, fp, dna, source))
     return {"files": files, "backups": backups}

@@ -10,9 +10,10 @@ import os
 import re
 
 from . import project, textguard
+from . import layout
 
-DIRS = ("大綱", "大綱/卷綱")
-DRAFT_DIR = "大綱/草稿"      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的 卷綱*.md
+DIRS = (layout.OUTLINE, layout.VOLUMES_SUBDIR)
+DRAFT_DIR = layout.VOLUME_DRAFTS      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的 卷綱*.md
 CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 
 
@@ -120,7 +121,7 @@ def next_start(book_dir):
 
 
 def draft_rel(no):
-    return "%s/卷綱_第%d卷.md" % (DRAFT_DIR, int(no))
+    return layout.volume_file(int(no), base=DRAFT_DIR)
 
 
 def drafts(book_dir):
@@ -188,7 +189,7 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
 
     只補不覆蓋：已有的句子不動，章節範圍對不上就只警告。
     """
-    rel = "大綱/全書大綱.md"
+    rel = layout.BOOK_OUTLINE
     p = os.path.join(book_dir, *rel.split("/"))
     if not os.path.isfile(p):
         return ["沒有 大綱/全書大綱.md，這次沒有同步全書大綱。"]
@@ -246,7 +247,7 @@ def _write_outline(book_dir, p, lines):
 def sync_outline(book_dir, no):
     """把已採用的卷綱重新同步進全書大綱（補缺的卷契約；只補不覆蓋）。"""
     no = int(no)
-    rel = "大綱/卷綱_第%d卷.md" % no
+    rel = layout.volume_file(no)
     p = project.safe_path(book_dir, rel)
     if not os.path.isfile(p):
         raise project.ProjectError("找不到正式的 %s，先採用卷綱再同步。" % rel)
@@ -272,7 +273,7 @@ def adopt(book_dir, no):
         raise project.ProjectError("草稿沒有 frontmatter（類型、卷名、章節範圍），不能採用。")
     if not str(fm.get("章節範圍") or "").strip():
         raise project.ProjectError("草稿沒有「章節範圍」，不能採用；先補上第幾章到第幾章。")
-    dst_rel = "大綱/卷綱_第%d卷.md" % no
+    dst_rel = layout.volume_file(no)
     dst = project.safe_path(book_dir, dst_rel)
     if os.path.isfile(dst):
         raise project.ProjectError("正式的 %s 已經存在，先確認是不是已經採用過。" % dst_rel)
@@ -291,11 +292,11 @@ def adopt(book_dir, no):
             "warnings": warnings + list(_sync_book_outline(book_dir, no, fm, contract_bullets(text)) or [])}
 
 
-REVISION_PREFIX = "卷綱修訂"
+REVISION_PREFIX = layout.VOLUME_REVISION_PREFIX
 
 
 def revision_rel(no):
-    return "%s/%s_第%d卷.md" % (DRAFT_DIR, REVISION_PREFIX, int(no))
+    return layout.volume_revision_file(no, base=DRAFT_DIR)
 
 
 def revisions(book_dir):

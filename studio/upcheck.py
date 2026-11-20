@@ -12,6 +12,7 @@ import os
 import re
 
 from . import context, contract, project
+from . import layout
 
 SPOILER_GAP = 15   # 「提前登場」：只是被提到很正常，差 15 章以上才算劇透風險
 IDLE_GAP = 30      # 「久別重逢」：最後登場之後 30 章又出現（只看主角／配角）
@@ -70,11 +71,11 @@ def findings(book_dir, start, end, cards=False):
                 c["source"] = "章綱"
                 out.append(c)
         return out
-    ch = project._scan_dir(os.path.join(book_dir, "正文"))
+    ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
     for no in sorted(n for n in ch if start <= n <= end):
-        text = project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", ch[no])))[1]
+        text = project.split_frontmatter(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, ch[no])))[1]
         for c in conflicts(book_dir, no, text, chars):
-            c["source"] = "正文"
+            c["source"] = "正文"  # literal-ok: 來源標籤（顯示用）
             out.append(c)
     return out
 

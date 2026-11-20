@@ -939,7 +939,7 @@ const Panel = {
     S.books = (await api("GET", "/api/books").catch(() => ({ books: S.books }))).books;
     if (document.querySelector("textarea.editor")) {
       toast("任務完成。你正在編輯，所以頁面沒有自動重新整理。");
-    } else if (job.book === "_共用") {
+    } else if (job.book === LAYOUT.SHARED) {
       if (typeof S.onSharedJob === "function") S.onSharedJob(job);
     } else if (S.book) {
       refresh();

@@ -13,6 +13,7 @@ import os
 import re
 
 from . import context, enums, project, prompts, search
+from . import layout
 
 BIG = ("地點", "組織", "物品", "能力與技術", "制度與習俗", "生物", "事件", "稱謂", "人物", "其他")
 TOPIC_BIG = ("地點", "物品", "能力與技術", "制度與習俗", "生物", "其他")
@@ -52,8 +53,8 @@ def _fname(s):
 # ---------------------------------------------------------------------------
 def load_texts(book_dir):
     out = []
-    for no, f in sorted(project._scan_dir(os.path.join(book_dir, "正文")).items()):
-        t = context.body(project.read_text(os.path.join(book_dir, "正文", f)))
+    for no, f in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
+        t = context.body(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, f)))
         out.append((no, t, search.norm(t)))
     return out
 
@@ -73,7 +74,7 @@ def stats(texts, term, snips=2, width=60):
 
 
 def parse_rows(book_dir):
-    tbl = project.read_table(book_dir, "設定/名詞表.md")
+    tbl = project.read_table(book_dir, layout.GLOSSARY)
     key = tbl["headers"][0] if tbl["headers"] else "名詞"
     return [{"名詞": _clean(r.get(key)), "類別": _clean(r.get("類別")), "說明": _clean(r.get("說明")), "注意": _clean(r.get("注意"))}
             for r in tbl["rows"] if _clean(r.get(key))]
@@ -125,7 +126,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     moved = {}
     if orgs or existing_factions:
         ex = existing_factions if existing_factions is not None else [
-            (e["name"], context.body(project.read_text(os.path.join(book_dir, e["file"])))[:700]) for e in project.list_entries(book_dir, "設定/勢力")]
+            (e["name"], context.body(project.read_text(os.path.join(book_dir, e["file"])))[:700]) for e in project.list_entries(book_dir, layout.FACTIONS)]
         body = _p("gl_fac_head") + "\n" + "\n".join(_p("gl_fac_line", name=r["名詞"], n=len(info[r["名詞"]]["chapters"]), desc=r["說明"]) for r in orgs)
         if ex:
             body += "\n\n" + _p("gl_fac_ex") + "\n" + "\n\n".join("〔%s〕\n%s" % (n, t) for n, t in ex)
@@ -145,7 +146,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
             if _clean(f.get("需要作者確認")):
                 extra += "\n## 需要作者確認\n- " + _clean(f.get("需要作者確認")) + "\n"
             text = text.replace("\n## 備註\n", extra + "\n## 備註\n", 1)
-            rel = "設定/勢力/%s.md" % _fname(name)
+            rel = layout.entry(layout.FACTIONS, _fname(name))
             write(rel, text)
             factions_out += 1
             for n in [name] + list(f.get("別名") or []) + list(f.get("內部編組") or []):
@@ -180,7 +181,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
             merged["規則與限制"] += [_clean(x) for x in d.get("規則與限制") or [] if _clean(x)]
             merged["與劇情的關係"] = merged["與劇情的關係"] or _clean(d.get("與劇情的關係"))
             merged["flag"] = merged["flag"] or bool(d.get("_lang_mismatch"))
-        rel = "設定/世界觀/%s.md" % _fname(t)
+        rel = layout.entry(layout.WORLD, _fname(t))
         firsts = {r["名詞"]: (info[r["名詞"]]["chapters"] or [0])[0] for r in items}
         own_names = {r["名詞"] for r in own}
         shown = set()
@@ -220,7 +221,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         got = {_clean(e.get("名稱")): e for e in d.get("條目") or [] if isinstance(e, dict)}
         for r in part:
             e = got.get(r["名詞"]) or {"一句話": r["說明"]}
-            rel = "設定/世界觀/%s.md" % _fname(r["名詞"])
+            rel = layout.entry(layout.WORLD, _fname(r["名詞"]))
 
             def lst(v):
                 v = [_clean(x) for x in (v or []) if _clean(x)] if isinstance(v, list) else ([_clean(v)] if _clean(v) else [])
@@ -254,7 +255,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     order = {b: i for i, b in enumerate(BIG)}
     out_rows.sort(key=lambda x: (order.get(x["類別"].split("／")[0], 99), x["類別"]))
     from . import tracking
-    write("設定/名詞表.md", "---\n類型: 名詞表\n來源: 從名詞表整理\n---\n\n# 名詞表\n\n> " + _p("gl_table_note") + "\n\n" +
+    write(layout.GLOSSARY, "---\n類型: 名詞表\n來源: 從名詞表整理\n---\n\n# 名詞表\n\n> " + _p("gl_table_note") + "\n\n" +
           tracking._render_table(["名詞", "類別", "說明", "注意"], out_rows) + "\n")
     cnt = {}
     for r in out_rows:

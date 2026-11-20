@@ -19,8 +19,9 @@ import re
 import time
 
 from . import project, textguard, volume
+from . import layout
 
-REL = "設定/續寫合約.md"
+REL = layout.CONTRACT
 KEEP_MARK = "## 作者補充"
 STATUS_DONE = {"已回收", "已解", "回收"}
 
@@ -87,24 +88,24 @@ def _strip_h1(text):
 
 
 def last_chapter(book_dir):
-    numbers = [n for n in project._scan_dir(os.path.join(book_dir, "正文"))]
+    numbers = [n for n in project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))]
     return max(numbers) if numbers else 0
 
 
 def characters(book_dir):
     """[(名稱, 定位, 首次登場, 最後登場)]；資料來自 設定/角色/*.md 與 追蹤/角色狀態/。"""
     out = []
-    for e in project.list_entries(book_dir, "設定/角色"):
+    for e in project.list_entries(book_dir, layout.CHARACTERS):
         name = e.get("name") or ""
         fm = e.get("frontmatter") or _front(book_dir, e.get("file") or "")
-        st = _front(book_dir, "追蹤/角色狀態/%s.md" % name)
+        st = _front(book_dir, layout.entry(layout.CHARACTER_STATES, name))
         out.append((name, fm.get("定位") or "", fm.get("首次登場") or "", st.get("最後登場") or ""))
     return out
 
 
 def threads(book_dir):
     """未回收的伏筆：[(編號, 內容, 埋設章, 預計回收, 狀態, 重要度)]，重要的排前面。"""
-    rows = _rows(_body(book_dir, "追蹤/伏筆.md"))
+    rows = _rows(_body(book_dir, layout.FORESHADOWING))
     open_rows = []
     for r in rows:
         status = r.get("狀態") or ""
@@ -119,7 +120,7 @@ def threads(book_dir):
 
 def secrets(book_dir):
     """時間線的兩堆：讀者已經知道的、還沒揭曉的。"""
-    rows = _rows(_body(book_dir, "追蹤/時間線.md"))
+    rows = _rows(_body(book_dir, layout.TIMELINE))
     known, hidden = [], []
     for r in rows:
         revealed = (r.get("揭示章") or "").strip()
@@ -150,11 +151,11 @@ def build(book_dir, keep=""):
     open_rows = threads(book_dir)
     known, hidden = secrets(book_dir)
     vol_name, vol_body = volume_outline(book_dir, no + 1)
-    style = _body(book_dir, "設定/文風.md")
+    style = _body(book_dir, layout.STYLE)
     banned = _section(style, "本書禁忌") or _section(style, "禁忌")
     style_base = _section(style, "基本設定")
-    prefs = _body(book_dir, "設定/作者偏好.md")
-    words = _rows(_body(book_dir, "設定/名詞表.md"))
+    prefs = _body(book_dir, layout.AUTHOR_PREFS)
+    words = _rows(_body(book_dir, layout.GLOSSARY))
 
     L = ["---", "類型: 續寫合約", "更新至: 第%03d章" % no,
          "產生時間: %s" % time.strftime("%Y-%m-%d %H:%M"), "---", "",

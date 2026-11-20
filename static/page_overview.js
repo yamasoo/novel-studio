@@ -134,7 +134,7 @@
 
   // 資料夾還不是小說專案（沒有 CLAUDE.md）：依 ov.setup.state 分「訪談進行中／訪談中斷／真的不是小說專案」三態。
   async function renderNonBook(ctx, ov) {
-    const draftPath = "候選/新書草稿/骨架.md";
+    const draftPath = LAYOUT.SPINOFF_DRAFTS + "/" + LAYOUT.SPINOFF_SKELETON_MD;
     let hasDraft = false;
     try {
       await FE.api(B("/file?path=" + encodeURIComponent(draftPath)), { signal: ctx.signal });

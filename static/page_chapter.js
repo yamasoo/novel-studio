@@ -203,8 +203,8 @@
       }));
 
       const noteText = ds
-        ? "套用後寫回 " + rv.base_path + "（原檔先備份" + (rv.base_path.startsWith("正文") ? "；去 AI 味不改劇情，不用重跑回寫追蹤" : "") + "），並跑一次保真檢查。"
-        : "套用後會存成候選稿" + (rv.base_path.startsWith("正文") ? "（原本的正文不動，採用候選稿時才覆蓋並回寫追蹤）" : "") + "。";
+        ? "套用後寫回 " + rv.base_path + "（原檔先備份" + (rv.base_path.startsWith(LAYOUT.MANUSCRIPT) ? "；去 AI 味不改劇情，不用重跑回寫追蹤" : "") + "），並跑一次保真檢查。"
+        : "套用後會存成候選稿" + (rv.base_path.startsWith(LAYOUT.MANUSCRIPT) ? "（原本的正文不動，採用候選稿時才覆蓋並回寫追蹤）" : "") + "。";
       const discardBtn = h("button", { class: "sm danger", id: "rv-discard" }, "捨棄這份" + (ds ? "去 AI 味結果" : "修訂"));
       const applyBtn = h("button", { class: "primary", id: "rv-apply", disabled: !!rv.stale }, ds ? "套用" : "套用到候選稿");
 

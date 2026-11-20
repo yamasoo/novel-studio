@@ -14,8 +14,9 @@ import os
 import statistics
 
 from . import contract, lang as lang_mod, project, prompts, shared
+from . import layout
 
-REL = "設定/風格指紋.json"
+REL = layout.STYLE_FINGERPRINT
 VER = 1
 SENT_MIN, SENT_MAX = 40, 120      # 代表句的字數範圍
 PICK = 10
@@ -76,7 +77,7 @@ def _pick(sentences, k=PICK):
 def _entity_names(book_dir):
     """要遮的名字：角色，加上勢力／世界觀的條目名（地名、組織名都是來源的內容）。"""
     names = [c[0] for c in contract.characters(book_dir)]
-    for sub in ("設定/勢力", "設定/世界觀"):
+    for sub in (layout.FACTIONS, layout.WORLD):
         d = os.path.join(book_dir, *sub.split("/"))
         if os.path.isdir(d):
             for f in os.listdir(d):
@@ -93,8 +94,8 @@ def build(book_dir, k=PICK):
         prompts.set_lang(lang)
         metrics, basis = _target_metrics(book_dir)
         names = _entity_names(book_dir)
-        ch = project._scan_dir(os.path.join(book_dir, "正文"))
-        texts = [project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", ch[no])))[1]
+        ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
+        texts = [project.split_frontmatter(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, ch[no])))[1]
                  for no in sorted(ch)]
     finally:
         prompts.set_lang(prev)

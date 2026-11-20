@@ -9,6 +9,7 @@ import subprocess
 import time
 
 from . import project, prompts, textguard
+from . import layout
 
 STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
@@ -17,8 +18,8 @@ CHAR_FIELDS = ["身分", "位置", "目標", "身體狀態", "情緒狀態", "�
 GLOSS_HEADERS = ["名詞", "類別", "說明", "注意"]
 RP_HEADERS = ["編號", "類型", "內容", "作者真相", "種下章", "回收章", "相關角色"]
 RP_TYPES = ("已知", "懸念", "誤認")
-RP_FILE = "追蹤/讀者認知.md"
-RP_DRAFT = "追蹤/讀者認知_草稿.md"
+RP_FILE = layout.READER_KNOWLEDGE
+RP_DRAFT = layout.READER_KNOWLEDGE_DRAFT
 RP_NEW_BOOK_ROWS = 15   # 時間線超過這麼多列又沒有帳本，視為舊書，不自動建立
 BACKUP_KEEP = 30        # 每組（標籤_原檔名）保留最新幾份
 
@@ -83,7 +84,7 @@ def _chno(s):
 
 
 def tracked_to(book_dir):
-    p = os.path.join(book_dir, "追蹤", "狀態卡.md")
+    p = layout.path(book_dir, layout.STATE_CARD)
     if not os.path.isfile(p):
         return 0
     fm, _ = project.split_frontmatter(project.read_text(p))
@@ -202,13 +203,13 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     body = "---\n類型: 章節摘要\n章號: %d\n章名: %s\n字數: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
     for k in ("發生了什麼", "局面變化", "新出現的人事物", "結尾停在"):
         body += "\n## %s\n%s\n" % (k, str(s.get(k, "")).strip() or "（無）")
-    _write(os.path.join(book_dir, "追蹤", "章節摘要", label + ".md"), body)
+    _write(layout.path(book_dir, layout.SUMMARIES, label + ".md"), body)
     log.append("章節摘要")
 
     # 2. 狀態卡
     sc = data.get("state_card") or {}
     if sc and not revision:
-        p = os.path.join(book_dir, "追蹤", "狀態卡.md")
+        p = layout.path(book_dir, layout.STATE_CARD)
         text = "---\n類型: 狀態卡\n更新至: %s\n---\n\n# 狀態卡\n" % label
         for i, k in enumerate(STATE_SECTIONS, 1):
             text += "\n## %d. %s\n" % (i, k)
@@ -220,18 +221,18 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 3. 伏筆
     fs = data.get("foreshadow") or []
     if fs:
-        a, u, ids = upsert_table(os.path.join(book_dir, "追蹤", "伏筆.md"), FS_HEADERS, fs, "F", "伏筆總表", "伏筆總表", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.FORESHADOWING), FS_HEADERS, fs, "F", "伏筆總表", "伏筆總表", label)
         log.append("伏筆（新增 %d、更新 %d）" % (a, u))
     else:
-        _touch_updated(os.path.join(book_dir, "追蹤", "伏筆.md"), label)
+        _touch_updated(layout.path(book_dir, layout.FORESHADOWING), label)
 
     # 4. 時間線
     tl = data.get("timeline") or []
     if tl:
-        a, u, ids = upsert_table(os.path.join(book_dir, "追蹤", "時間線.md"), TL_HEADERS, tl, "E", "時間線", "時間線", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.TIMELINE), TL_HEADERS, tl, "E", "時間線", "時間線", label)
         log.append("時間線（新增 %d、更新 %d）" % (a, u))
     else:
-        _touch_updated(os.path.join(book_dir, "追蹤", "時間線.md"), label)
+        _touch_updated(layout.path(book_dir, layout.TIMELINE), label)
 
     # 4.5 讀者認知
     rp = []
@@ -246,7 +247,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
             x["類型"] = "" if old else "懸念"  # 舊條目沒給類型就不動，新條目預設懸念
         rp.append(x)
     rpath = os.path.join(book_dir, *RP_FILE.split("/"))
-    if rp and not os.path.isfile(rpath) and len(project.read_table(book_dir, "追蹤/時間線.md")["rows"]) > RP_NEW_BOOK_ROWS:
+    if rp and not os.path.isfile(rpath) and len(project.read_table(book_dir, layout.TIMELINE)["rows"]) > RP_NEW_BOOK_ROWS:
         # 舊書還沒建立帳本：只登記新的幾條會變成殘缺的帳本，等作者從時間線轉換
         log.append("讀者認知（還沒建立帳本，略過；可到「伏筆與時間線」的讀者認知分頁從時間線建立）")
     elif rp:
@@ -263,7 +264,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         if not isinstance(c, dict) or not str(c.get("名稱", "")).strip():
             continue
         name = re.sub(r'[\\/:*?"<>|]', "", str(c["名稱"]).strip())
-        p = os.path.join(book_dir, "追蹤", "角色狀態", name + ".md")
+        p = layout.path(book_dir, layout.CHARACTER_STATES, name + ".md")
         old = {}
         if os.path.isfile(p):
             for m in re.finditer(r"^- (.+?)：(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
@@ -289,7 +290,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 6. 新增物登記：名詞表＋具名角色
     ents = [e for e in (data.get("new_entities") or []) if isinstance(e, dict) and str(e.get("名稱", "")).strip()]
     if ents:
-        gp = os.path.join(book_dir, "設定", "名詞表.md")
+        gp = layout.path(book_dir, layout.GLOSSARY)
         if os.path.isfile(gp):
             text = project.read_text(gp)
         else:
@@ -314,7 +315,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
             have.add(nm)
             added.append(nm)
             if e.get("類型") == "角色":
-                cp = os.path.join(book_dir, "設定", "角色", re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
+                cp = layout.path(book_dir, layout.CHARACTERS, re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
                 if not os.path.exists(cp):
                     _write(cp, "---\n類型: 角色\n名稱: %s\n別名: []\n定位: 配角\n首次登場: %s\n狀態: 正式\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
                            % (nm, label, nm, _cell(e.get("說明", ""))))
@@ -324,9 +325,9 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
             log.append("名詞表（%s）" % "、".join(added))
 
     # 7. 章綱狀態
-    cards = project._scan_dir(os.path.join(book_dir, "大綱", "章綱"))
+    cards = project._scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS))
     if no in cards:
-        p = os.path.join(book_dir, "大綱", "章綱", cards[no])
+        p = layout.path(book_dir, layout.CHAPTER_CARDS, cards[no])
         t = project.read_text(p)
         t2 = re.sub(r"^狀態:.*$", "狀態: 已寫", t, count=1, flags=re.M)
         if t2 != t:
@@ -442,7 +443,7 @@ def prune_backups(d, name, keep=None):
 def backup(book_dir, path, tag):
     if not os.path.isfile(path):
         return None
-    d = os.path.join(book_dir, ".studio", "備份")
+    d = layout.path(book_dir, layout.STUDIO_BACKUP)
     os.makedirs(d, exist_ok=True)
     dst = os.path.join(d, "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time())))
     with open(path, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as g:

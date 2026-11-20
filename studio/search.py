@@ -7,15 +7,17 @@ import os
 import re
 
 from . import project
+from . import layout
 
 SCOPES = {
-    "正文": ("正文", True),
-    "候選": ("候選", True),
-    "章綱": ("大綱", False),
-    "設定": ("設定", False),
-    "追蹤": ("追蹤", False),
+    # 鍵是搜尋範圍 ID（API 參數，P2 才換）；值的第一個是資料夾
+    "正文": (layout.MANUSCRIPT, True),  # literal-ok: 範圍 ID
+    "候選": (layout.CANDIDATES, True),  # literal-ok: 範圍 ID
+    "章綱": (layout.OUTLINE, False),
+    "設定": (layout.BIBLE, False),  # literal-ok: 範圍 ID
+    "追蹤": (layout.TRACKING, False),  # literal-ok: 範圍 ID
 }
-DEFAULT_SCOPES = ("正文",)
+DEFAULT_SCOPES = ("正文",)  # literal-ok: 範圍 ID
 CONTEXT = 40          # 前後文各取幾個字
 MAX_SNIPPETS = 30     # 每份檔案最多回傳幾處
 MAX_FILES = 400
@@ -81,7 +83,7 @@ def _files(book_dir, scope):
             if not f.endswith(".md"):
                 continue
             rel = os.path.relpath(os.path.join(dp, f), book_dir).replace("\\", "/")
-            no = project.chapter_no(f) if rel.startswith(("大綱/章綱/", "追蹤/章節摘要/")) else None
+            no = project.chapter_no(f) if rel.startswith((layout.CHAPTER_CARDS + "/", layout.SUMMARIES + "/")) else None
             yield {"kind": "file", "no": no, "title": os.path.splitext(f)[0], "path": rel}
 
 
@@ -150,7 +152,7 @@ def search(book_dir, q, scopes=None):
                 break
         if truncated:
             break
-    chap = [r for r in results if r["scope"] == "正文"]
+    chap = [r for r in results if r["scope"] == "正文"]  # literal-ok: 範圍 ID
     first = min((r["no"] for r in chap if r.get("no")), default=None)
     return {"query": q, "terms": terms, "scopes": scopes, "results": results, "files": len(results), "hits": hits,
             "chapters": len(chap), "first": first, "truncated": truncated}

@@ -10,6 +10,7 @@ import os
 import re
 
 from . import project
+from . import layout
 
 DEFAULT = "zh-TW"
 SUPPORTED = ("zh-TW", "en", "ja")
@@ -46,7 +47,7 @@ def normalize(value):
 
 
 def _fm_lang(book_dir):
-    p = os.path.join(book_dir, "設定", "故事核心.md")
+    p = layout.path(book_dir, layout.STORY_CORE)
     try:
         with open(p, encoding="utf-8") as f:
             head = f.read(2000)
@@ -65,7 +66,7 @@ def _fm_lang(book_dir):
 
 def _file_lang(book_dir):
     try:
-        with open(os.path.join(book_dir, ".studio", "lang"), encoding="utf-8") as f:
+        with open(layout.path(book_dir, layout.STUDIO, "lang"), encoding="utf-8") as f:
             return f.read().strip() or None
     except OSError:
         return None
@@ -85,10 +86,10 @@ def set_book_lang(book_dir, value):
     """設定書的語言：寫 .studio/lang；故事核心檔已存在的話，也同步改裡面的「語言」。"""
     from . import shared
     lang = normalize(value)
-    os.makedirs(os.path.join(book_dir, ".studio"), exist_ok=True)
-    with open(os.path.join(book_dir, ".studio", "lang"), "w", encoding="utf-8", newline="\n") as f:
+    os.makedirs(layout.path(book_dir, layout.STUDIO), exist_ok=True)
+    with open(layout.path(book_dir, layout.STUDIO, "lang"), "w", encoding="utf-8", newline="\n") as f:
         f.write(lang + "\n")
-    p = os.path.join(book_dir, "設定", "故事核心.md")
+    p = layout.path(book_dir, layout.STORY_CORE)
     if os.path.isfile(p):
         with open(p, encoding="utf-8") as f:
             text = f.read()

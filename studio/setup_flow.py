@@ -16,16 +16,17 @@ import json
 import os
 
 from . import project, volume
+from . import layout
 
-CORE = "設定/故事核心.md"
-STYLE = "設定/文風.md"
-MASTER = "大綱/全書大綱.md"
-VOLUME_FILES = ("大綱/卷綱_第1卷.md", "大綱/卷一卷綱.md", "大綱/卷綱_第一卷.md")
-CARD_DIR = "大綱/章綱"
-CHAR_DIR = "設定/角色"
-FACTION_DIR = "設定/勢力"
-WORLD_DIR = "設定/世界觀"
-BIBLE_DRAFT_DIR = "設定/草稿"
+CORE = layout.STORY_CORE
+STYLE = layout.STYLE
+MASTER = layout.BOOK_OUTLINE
+VOLUME_FILES = layout.VOLUME_ONE_ALIASES
+CARD_DIR = layout.CHAPTER_CARDS
+CHAR_DIR = layout.CHARACTERS
+FACTION_DIR = layout.FACTIONS
+WORLD_DIR = layout.WORLD
+BIBLE_DRAFT_DIR = layout.BIBLE_DRAFTS
 MIN_CHARACTERS = 3          # 初始設定過關的角色正式檔門檻
 
 # 六步：id 給前端當 key，action／prefill 給 Panel.openForm 用（go 給換頁型步驟用）
@@ -200,7 +201,7 @@ def _volume_checked(book_dir, vol):
     text = _read(book_dir, vol["rel"]) if vol.get("rel") else None
     if text and "卷綱更新草稿" in text:
         return True
-    return _read(book_dir, "大綱/草稿/卷綱更新_第%d-%d章.md" % (vol["lo"], vol["hi"])) is not None
+    return _read(book_dir, layout.volume_update_draft(vol["lo"], vol["hi"])) is not None
 
 
 def _plain_write_next(book_dir):
@@ -265,7 +266,7 @@ def next_step(book_dir):
 
 def _had_setup_job(book_dir):
     """這本書以前有沒有跑過開書訪談（.studio/jobs 裡有 setup_new 的紀錄）。"""
-    d = os.path.join(book_dir, ".studio", "jobs")
+    d = layout.path(book_dir, layout.STUDIO, "jobs")
     if not os.path.isdir(d):
         return False
     for f in os.listdir(d):
@@ -330,7 +331,7 @@ def report(book_dir, meta=None):
     answers = params.get("answers") or {}
     files = [_file_row(book_dir, "CLAUDE.md", "本書規則"),
              _file_row(book_dir, CORE, "故事核心"),
-             _file_row(book_dir, STYLE, "文風")]
+             _file_row(book_dir, STYLE, "文風")]  # literal-ok: 顯示標籤
     defaults = [{"q": v.get("q") or k, "key": k} for k, v in answers.items() if isinstance(v, dict) and v.get("default")]
     pending = [f["label"] for f in files if not f["ok"]]
     return {

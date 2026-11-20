@@ -12,13 +12,14 @@ import os
 import shutil
 
 from . import fingerprint, project, sdna
+from . import layout
 
-KEY_DIRS = ("正文", "候選", "大綱/章綱", "大綱/卷綱", "追蹤/章節摘要", "追蹤/角色狀態",
-            "設定/角色", "設定/勢力", "設定/世界觀", "設定/章節結構", "範例")
-LIVE_FILES = ("設定/故事核心.md", "設定/名詞表.md", "設定/作者偏好.md",
-              "追蹤/伏筆.md", "追蹤/時間線.md", "追蹤/狀態卡.md",
-              "追蹤/讀者認知.md", "追蹤/關係.md",
-              "大綱/全書大綱.md", "大綱/卷綱/卷綱_第一卷.md")
+KEY_DIRS = (layout.MANUSCRIPT, layout.CANDIDATES, layout.CHAPTER_CARDS, layout.VOLUMES_SUBDIR, layout.SUMMARIES, layout.CHARACTER_STATES,
+            layout.CHARACTERS, layout.FACTIONS, layout.WORLD, layout.BIBLE_STRUCTURE, layout.SAMPLES)
+LIVE_FILES = (layout.STORY_CORE, layout.GLOSSARY, layout.AUTHOR_PREFS,
+              layout.FORESHADOWING, layout.TIMELINE, layout.STATE_CARD,
+              layout.READER_KNOWLEDGE, layout.RELATIONS,
+              layout.BOOK_OUTLINE, layout.SPAWN_VOLUME_ONE)
 CARD_SECTIONS = """## 本章四問
 1. 主角這章想做什麼：
 2. 誰或什麼阻止他：
@@ -44,7 +45,7 @@ CARD_SECTIONS = """## 本章四問
 def template_dir():
     """範本從示範書拿（它被 check_parity 盯著，一定有 18 份）。"""
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(here, "demo", "退婚之後", "_範本")
+    return os.path.join(here, "demo", "退婚之後", layout.TEMPLATES)
 
 
 def _write(p, text):
@@ -165,38 +166,38 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
         os.makedirs(os.path.join(target, *sub.split("/")), exist_ok=True)
 
     # 18 份範本
-    dst_tpl = os.path.join(target, "_範本")
+    dst_tpl = layout.path(target, layout.TEMPLATES)
     shutil.copytree(tpl, dst_tpl)
     created.append("_範本/（%d 份）" % len(os.listdir(dst_tpl)))
 
     # 空的「活檔」：從範本複製，狀態改成草稿（範本檔名不一定同名，這裡做對應）
     for rel in LIVE_FILES:
-        src_name = "卷綱.md" if rel.endswith("卷綱_第一卷.md") else os.path.basename(rel)
+        src_name = layout.TPL_VOLUME_OUTLINE if rel == layout.SPAWN_VOLUME_ONE else os.path.basename(rel)
         src = os.path.join(tpl, src_name)
         if not os.path.isfile(src):
             continue
         text = project.read_text(src)
-        text = project.set_frontmatter_field(text, "狀態", "草稿") if "---" in text[:10] else text
+        text = project.set_frontmatter_field(text, "狀態", "草稿") if "---" in text[:10] else text  # literal-ok: frontmatter 狀態值，P2 換
         _write(os.path.join(target, *rel.split("/")), text)
         created.append(rel)
 
     lang = (fp or {}).get("語言") or (dna or {}).get("語言") or "zh-TW"
-    _write(os.path.join(target, "設定", "文風.md"), style_md(title, fp, dna))
-    created.append("設定/文風.md")
-    _write(os.path.join(target, "設定", "章節結構", "結構.md"), structure_md(dna=dna, fp=fp, title=title))
-    created.append("設定/章節結構/結構.md")
+    _write(layout.path(target, layout.STYLE), style_md(title, fp, dna))
+    created.append(layout.STYLE)
+    _write(layout.path(target, layout.BOOK_STRUCTURE), structure_md(dna=dna, fp=fp, title=title))
+    created.append(layout.BOOK_STRUCTURE)
     if fp:
-        _write(os.path.join(target, "設定", "風格指紋.json"), json.dumps(fp, ensure_ascii=False, indent=1))
-        created.append("設定/風格指紋.json")
+        _write(layout.path(target, layout.STYLE_FINGERPRINT), json.dumps(fp, ensure_ascii=False, indent=1))
+        created.append(layout.STYLE_FINGERPRINT)
     if dna:
-        _write(os.path.join(target, "設定", "結構DNA.json"), json.dumps(dna, ensure_ascii=False, indent=1))
-        created.append("設定/結構DNA.json")
+        _write(layout.path(target, layout.STRUCTURE_DNA), json.dumps(dna, ensure_ascii=False, indent=1))
+        created.append(layout.STRUCTURE_DNA)
 
     _write(os.path.join(target, "CLAUDE.md"), claude_md(title, lang, fp, dna, source))
     created.append("CLAUDE.md")
 
     for i in range(1, max(1, int(cards)) + 1):
-        rel = "大綱/章綱/第%03d章_待填.md" % i
+        rel = layout.CHAPTER_CARDS + "/" + layout.chapter_stub_file(i)
         _write(os.path.join(target, *rel.split("/")), card_md("（待填）", i))
         created.append(rel)
 
@@ -211,20 +212,20 @@ def seed(book_dir, title, fp, dna, source=""):
       設定/風格指紋.json、設定/結構DNA.json
     """
     created = []
-    p = os.path.join(book_dir, "設定", "文風.md")
+    p = layout.path(book_dir, layout.STYLE)
     text = project.read_text(p) if os.path.isfile(p) else ""
     from . import shared
     if not shared.parse_metrics(text):          # 已經有指標就不覆蓋（尊重作者手填的）
         _write(p, style_md(title, fp, dna))
-        created.append("設定/文風.md")
-    _write(os.path.join(book_dir, "設定", "章節結構", "結構.md"), structure_md(dna=dna, fp=fp, title=title))
-    created.append("設定/章節結構/結構.md")
+        created.append(layout.STYLE)
+    _write(layout.path(book_dir, layout.BOOK_STRUCTURE), structure_md(dna=dna, fp=fp, title=title))
+    created.append(layout.BOOK_STRUCTURE)
     if fp:
-        _write(os.path.join(book_dir, "設定", "風格指紋.json"), json.dumps(fp, ensure_ascii=False, indent=1))
-        created.append("設定/風格指紋.json")
+        _write(layout.path(book_dir, layout.STYLE_FINGERPRINT), json.dumps(fp, ensure_ascii=False, indent=1))
+        created.append(layout.STYLE_FINGERPRINT)
     if dna:
-        _write(os.path.join(book_dir, "設定", "結構DNA.json"), json.dumps(dna, ensure_ascii=False, indent=1))
-        created.append("設定/結構DNA.json")
+        _write(layout.path(book_dir, layout.STRUCTURE_DNA), json.dumps(dna, ensure_ascii=False, indent=1))
+        created.append(layout.STRUCTURE_DNA)
     return created
 
 

@@ -11,9 +11,10 @@ import os
 import re
 
 from . import project, prompts, tracking
+from . import layout
 
-FILE = "追蹤/關係.md"
-DRAFT = "追蹤/關係_草稿.md"
+FILE = layout.RELATIONS
+DRAFT = layout.RELATIONS_DRAFT
 HEADERS = ["編號", "誰", "對誰", "關係", "態度", "起始章", "結束章", "變化原因"]
 NEW_BOOK_CHAPTERS = 15   # 沒有關係表又已經寫超過這麼多章，視為舊書，不自動建立（等作者從角色檔轉換）
 
@@ -57,8 +58,8 @@ def faction_merge_map(factions):
 
 def alias_map(book_dir):
     """名稱／別名 → 正式名稱。角色與勢力都對得到；兩個人共用的別名不猜。"""
-    entries = project.list_entries(book_dir, "設定/角色")
-    factions = project.list_entries(book_dir, "設定/勢力")
+    entries = project.list_entries(book_dir, layout.CHARACTERS)
+    factions = project.list_entries(book_dir, layout.FACTIONS)
     merge = faction_merge_map(factions)
     names = {str(e["name"]).strip() for e in entries} | {str(f["name"]).strip() for f in factions}
     owners = {}
@@ -174,7 +175,7 @@ def _section(body):
 
 
 def build_draft(book_dir):
-    entries = project.list_entries(book_dir, "設定/角色")
+    entries = project.list_entries(book_dir, layout.CHARACTERS)
     if not entries:
         raise project.ProjectError("這本書還沒有角色檔，沒有東西可以轉換")
     amap = alias_map(book_dir)
@@ -280,9 +281,9 @@ def faction_members(book_dir, amap=None):
     """各勢力的成員：{勢力: {角色: 優先序}}，優先序 0＝首領、1＝主要成員、2＝只列在「相關角色」。
     來源是勢力檔本身（frontmatter 的相關角色、「首領」「主要成員」兩行），重複登記的勢力併在一起。"""
     amap = amap or alias_map(book_dir)
-    entries = project.list_entries(book_dir, "設定/勢力")
+    entries = project.list_entries(book_dir, layout.FACTIONS)
     merge = faction_merge_map(entries)
-    chars = {e["name"] for e in project.list_entries(book_dir, "設定/角色")}
+    chars = {e["name"] for e in project.list_entries(book_dir, layout.CHARACTERS)}
     out = {}
     for e in entries:
         fname = merge.get(str(e["name"]).strip(), str(e["name"]).strip())
@@ -302,8 +303,8 @@ def faction_members(book_dir, amap=None):
 
 def graph_data(book_dir):
     """關係圖用的資料：節點（角色、勢力）、勢力成員、全部關係列。前端依章數與篩選條件畫圖。"""
-    chars = project.list_entries(book_dir, "設定/角色")
-    factions = project.list_entries(book_dir, "設定/勢力")
+    chars = project.list_entries(book_dir, layout.CHARACTERS)
+    factions = project.list_entries(book_dir, layout.FACTIONS)
     merge = faction_merge_map(factions)
     members = faction_members(book_dir)
     belongs = {}   # 角色 → 勢力（首領 > 主要成員 > 相關角色；同級取第一個）；也列出其他所屬

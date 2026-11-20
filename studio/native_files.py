@@ -16,16 +16,17 @@ import time
 import urllib.request
 
 from . import contract, context, project, prompts, setup_flow, shared, textguard, tracking, volume
+from . import layout
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
 APPEND_RE = re.compile(r"<<<\s*追加\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
-APPEND_TARGETS = ("設定/名詞表.md",)   # 名詞表太大，只能用追加，不讓模型整份重寫
-GLOSSARY_REL = "設定/名詞表.md"
+APPEND_TARGETS = (layout.GLOSSARY,)   # 名詞表太大，只能用追加，不讓模型整份重寫
+GLOSSARY_REL = layout.GLOSSARY
 CLAIM_RE = re.compile(r"已(?:登錄|寫入|入庫|建立|新增|存入|更新|登記)")
-WRITE_PREFIXES = ("設定/", "大綱/", "範例/")
-DELETE_PREFIXES = ("設定/草稿/",)
-DRAFT_PREFIX = "設定/草稿/"
+WRITE_PREFIXES = (layout.BIBLE + "/", layout.OUTLINE + "/", layout.SAMPLES + "/")
+DELETE_PREFIXES = (layout.BIBLE_DRAFTS + "/",)
+DRAFT_PREFIX = layout.BIBLE_DRAFTS + "/"
 # 自由指令裡要求「設計設定」的句子：走草稿流程，產出直接存進 設定/草稿/
 DESIGN_RE = re.compile(r"novel-bible|設計世界觀|設計勢力|設計力量體系|建角色|建立角色|生成設定|設定草稿|設計設定")
 
@@ -36,12 +37,12 @@ CONFIRM_RULE = prompts.pack("zh-TW")["confirm_rule"]
 # ---------------------------------------------------------------------------
 # 專案骨架（不需要 AI）
 # ---------------------------------------------------------------------------
-SKELETON_DIRS = ["設定/世界觀", "設定/角色", "設定/勢力", "設定/草稿", "大綱/章綱", "正文", "候選",
-                 "追蹤/角色狀態", "追蹤/章節摘要", "範例", "_範本"]
+SKELETON_DIRS = [layout.WORLD, layout.CHARACTERS, layout.FACTIONS, layout.BIBLE_DRAFTS, layout.CHAPTER_CARDS, layout.MANUSCRIPT, layout.CANDIDATES,
+                 layout.CHARACTER_STATES, layout.SUMMARIES, layout.SAMPLES, layout.TEMPLATES]
 SKELETON_FILES = {  # 目的地: 範本
-    "設定/故事核心.md": "故事核心.md", "設定/文風.md": "文風.md", "設定/作者偏好.md": "作者偏好.md",
-    "設定/名詞表.md": "名詞表.md", "大綱/全書大綱.md": "全書大綱.md", "追蹤/狀態卡.md": "狀態卡.md",
-    "追蹤/伏筆.md": "伏筆.md", "追蹤/時間線.md": "時間線.md",
+    layout.STORY_CORE: layout.TPL_STORY_CORE, layout.STYLE: layout.TPL_STYLE, layout.AUTHOR_PREFS: layout.TPL_AUTHOR_PREFS,
+    layout.GLOSSARY: layout.TPL_GLOSSARY, layout.BOOK_OUTLINE: layout.TPL_BOOK_OUTLINE, layout.STATE_CARD: layout.TPL_STATE_CARD,
+    layout.FORESHADOWING: layout.TPL_FORESHADOWING, layout.TIMELINE: layout.TPL_TIMELINE,
 }
 
 
@@ -57,25 +58,25 @@ def ensure_skeleton(book_dir, plugin_dir):
         if not os.path.isdir(p):
             os.makedirs(p)
             created.append(d + "/")
-        if d not in ("_範本",) and not os.listdir(p):
+        if d not in (layout.TEMPLATES,) and not os.listdir(p):
             open(os.path.join(p, ".gitkeep"), "w").close()
     if os.path.isdir(tpl_dir):
         for f in os.listdir(tpl_dir):
-            dst = os.path.join(book_dir, "_範本", f)
+            dst = layout.path(book_dir, layout.TEMPLATES, f)
             if not os.path.exists(dst):
                 shutil.copyfile(os.path.join(tpl_dir, f), dst)
-                created.append("_範本/" + f)
+                created.append(layout.TEMPLATES + "/" + f)
         spec = os.path.join(plugin_dir, "skills", "novel-setup", "references", "project-layout.md")
-        dst = os.path.join(book_dir, "_範本", "專案規範.md")
+        dst = layout.path(book_dir, layout.PROJECT_RULES)
         if os.path.isfile(spec) and not os.path.exists(dst):
             shutil.copyfile(spec, dst)
-            created.append("_範本/專案規範.md")
+            created.append(layout.PROJECT_RULES)
         for rel, tpl in SKELETON_FILES.items():
             dst = os.path.join(book_dir, rel)
             if not os.path.exists(dst) and os.path.isfile(os.path.join(tpl_dir, tpl)):
                 shutil.copyfile(os.path.join(tpl_dir, tpl), dst)
                 created.append(rel)
-                if rel == "設定/故事核心.md":   # 範本裡的「語言」換成這本書的語言
+                if rel == layout.STORY_CORE:   # 範本裡的「語言」換成這本書的語言
                     lang_mod.set_book_lang(book_dir, book_lang)
     return created
 
@@ -83,7 +84,7 @@ def ensure_skeleton(book_dir, plugin_dir):
 def blank_files(book_dir):
     """還是空白範本（沒填內容）的核心檔案。"""
     out = []
-    for rel in ("設定/故事核心.md", "設定/文風.md", "大綱/全書大綱.md", "追蹤/狀態卡.md"):
+    for rel in (layout.STORY_CORE, layout.STYLE, layout.BOOK_OUTLINE, layout.STATE_CARD):
         p = os.path.join(book_dir, rel)
         if os.path.isfile(p):
             b = context.body(project.read_text(p))
@@ -230,7 +231,7 @@ def result_text(report, done, skipped):
 # ---------------------------------------------------------------------------
 def tpl(c, name):
     for base in (context.lang_plugin(c.plugin_dir), c.plugin_dir):
-        p = os.path.join(base, "skills", "novel-setup", "templates", name)
+        p = os.path.join(base, "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), name)
         if os.path.isfile(p):
             return project.read_text(p)
     return ""
@@ -242,7 +243,7 @@ def ref(c, rel):
 
 def entity_index(book_dir):
     lines = []
-    for sub, label in (("設定/角色", "角色"), ("設定/勢力", "勢力"), ("設定/世界觀", "世界觀"), ("設定/草稿", "草稿")):
+    for sub, label in ((layout.CHARACTERS, "角色"), (layout.FACTIONS, "勢力"), (layout.WORLD, "世界觀"), (layout.BIBLE_DRAFTS, "草稿")):  # literal-ok: 第二個值是顯示標籤
         for e in project.list_entries(book_dir, sub):
             lines.append("- [%s] %s（%s）%s" % (label, e["name"], e["file"], ("：" + e["summary"]) if e.get("summary") else ""))
     return "\n".join(lines) or prompts.cur()["none_entities"]
@@ -257,7 +258,7 @@ def contract_text(c, drop_volume_promise=False):
         contract.ensure(c.book)
     except Exception:
         pass
-    t = context.body(context.read(c.book, "設定/續寫合約.md"))
+    t = context.body(context.read(c.book, layout.CONTRACT))
     if not (t or "").strip():
         return ""
     if drop_volume_promise:
@@ -268,22 +269,22 @@ def contract_text(c, drop_volume_promise=False):
 def add_book_core(pk, c, light=False):
     rd = lambda r: context.body(context.read(c.book, r))
     pk.add(0, "本書規則（CLAUDE.md）", context.book_rules(c.book))
-    pk.add(1, "故事核心", rd("設定/故事核心.md"))
-    pk.add(2, "本書文風", rd("設定/文風.md"))
-    pk.add(2, "作者偏好", rd("設定/作者偏好.md"))
+    pk.add(1, "故事核心", rd(layout.STORY_CORE))
+    pk.add(2, "本書文風", rd(layout.STYLE))
+    pk.add(2, "作者偏好", rd(layout.AUTHOR_PREFS))
     pk.add(2, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(c.book))
     sname, stext, _ = shared.structure_for(c.book)
     if sname and not light:
         pk.add(3, prompts.cur()["default_structure_title"].format(name=sname), stext)
     if not light:
-        pk.add(3, "狀態卡（已寫章節的目前局勢）", rd("追蹤/狀態卡.md"))
-        pk.add(4, "名詞表", rd("設定/名詞表.md"))
+        pk.add(3, "狀態卡（已寫章節的目前局勢）", rd(layout.STATE_CARD))
+        pk.add(4, "名詞表", rd(layout.GLOSSARY))
     pk.add(4, "已有的設定檔", entity_index(c.book))
 
 
 def outline_files_text(c):
     return "\n\n".join("〈%s〉\n%s" % (f["file"], context.body(context.read(c.book, f["file"])))
-                       for f in project.outline_files(c.book) if f["file"] != "大綱/全書大綱.md")
+                       for f in project.outline_files(c.book) if f["file"] != layout.BOOK_OUTLINE)
 
 
 # ---------------------------------------------------------------------------
@@ -366,8 +367,8 @@ def spec_setup_new(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "開書訪談流程", ref(c, "novel-setup/references/interview.md"))
     pk.add(0, "CLAUDE.md 範本", ref(c, "novel-setup/references/claude-md-template.md"))
-    pk.add(1, "故事核心範本（設定/故事核心.md）", tpl(c, "故事核心.md"))
-    pk.add(1, "文風範本（設定/文風.md）", tpl(c, "文風.md"))
+    pk.add(1, "故事核心範本（設定/故事核心.md）", tpl(c, layout.TPL_STORY_CORE))
+    pk.add(1, "文風範本（設定/文風.md）", tpl(c, layout.TPL_STYLE))
     idea = (p.get("idea") or "").strip() or prompts.cur()["idea_blank"]
     task = prompts.cur()["task_setup_new"].format(book=c.job.book_id, idea=idea,
                                                   answers=answers_md(c, p.get("answers") or {}))
@@ -383,8 +384,8 @@ def spec_style(c, p):
         except shared.SharedError:
             m = None
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
-    pk.add(0, "目前的 設定/文風.md", context.read(c.book, "設定/文風.md") or tpl(c, "文風.md"))
-    pk.add(0, "文風範本（缺的章節照這個補）", tpl(c, "文風.md"))
+    pk.add(0, "目前的 設定/文風.md", context.read(c.book, layout.STYLE) or tpl(c, layout.TPL_STYLE))
+    pk.add(0, "文風範本（缺的章節照這個補）", tpl(c, layout.TPL_STYLE))
     pk.add(1, "文風的十三個面向", ref(c, "novel-style/references/style-dimensions.md"))
     pk.add(2, "類型線索表", ref(c, "novel-style/references/genre-cues.md"))
     if m:
@@ -397,16 +398,16 @@ def spec_style(c, p):
 
 
 def _style_metrics_after(c, m, done):
-    if not any(x.endswith("設定/文風.md") for x in done):
+    if not any(x.endswith(layout.STYLE) for x in done):
         return
-    fp = os.path.join(c.book, "設定", "文風.md")
+    fp = layout.path(c.book, layout.STYLE)
     t = shared.put_metrics(project.read_text(fp), m)
     project.write_atomic(fp, t)
 
 
 def spec_preference(c, p):
     pk = context.Pack(c.budget(4000))
-    pk.add(0, "目前的 設定/作者偏好.md", context.read(c.book, "設定/作者偏好.md") or tpl(c, "作者偏好.md"))
+    pk.add(0, "目前的 設定/作者偏好.md", context.read(c.book, layout.AUTHOR_PREFS) or tpl(c, layout.TPL_AUTHOR_PREFS))
     task = prompts.cur()["task_preference"].format(date=time.strftime("%Y-%m-%d"), text=p.get("text", ""))
     return "記錄偏好", task, pk, False
 
@@ -414,7 +415,7 @@ def spec_preference(c, p):
 def spec_concept(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "故事核心診斷方法", ref(c, "novel-outline/references/concept.md"))
-    pk.add(1, "目前的 設定/故事核心.md", context.read(c.book, "設定/故事核心.md") or tpl(c, "故事核心.md"))
+    pk.add(1, "目前的 設定/故事核心.md", context.read(c.book, layout.STORY_CORE) or tpl(c, layout.TPL_STORY_CORE))
     add_book_core(pk, c, light=True)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_concept"].format(note=prompts.cur()["note_inline_files"].format(note=note) if note else "")
@@ -424,8 +425,8 @@ def spec_concept(c, p):
 def spec_master_outline(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
-    pk.add(1, "全書大綱範本", tpl(c, "全書大綱.md"))
-    pk.add(0, "目前的 大綱/全書大綱.md", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(1, "全書大綱範本", tpl(c, layout.TPL_BOOK_OUTLINE))
+    pk.add(0, "目前的 大綱/全書大綱.md", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_master_outline"].format(note=prompts.cur()["note_line_files"].format(note=note) if note else "")
@@ -436,11 +437,11 @@ def spec_volume_outline(c, p):
     v = (p.get("volume") or "一").strip()
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
-    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
-    pk.add(1, "卷綱範本", tpl(c, "卷綱.md"))
-    pk.add(1, "目前的 大綱/卷綱_第%s卷.md" % v, context.body(context.read(c.book, "大綱/卷綱_第%s卷.md" % v)))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
+    pk.add(1, "卷綱範本", tpl(c, layout.TPL_VOLUME_OUTLINE))
+    pk.add(1, "目前的 大綱/卷綱_第%s卷.md" % v, context.body(context.read(c.book, layout.volume_file(v))))
     pk.add(2, "其他卷綱", outline_files_text(c))
-    pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
+    pk.add(2, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_volume_outline"].format(v=v, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
@@ -455,19 +456,19 @@ def spec_chapter_cards(c, p):
     pk.add(0, "卷綱寫法", ref(c, "novel-outline/references/chapter-card.md"))
     if a <= 3:
         pk.add(1, "開篇與黃金三章", ref(c, "novel-outline/references/opening.md"))
-    pk.add(0, "章綱範本（大綱/章綱/第NNN章.md）", tpl(c, "章綱.md"))
+    pk.add(0, "章綱範本（大綱/章綱/第NNN章.md）", tpl(c, layout.TPL_CHAPTER_CARD))
     pk.add(0, "卷綱", outline_files_text(c))
     ct = contract_text(c)
     if ct:
         pk.add(0, "續寫合約（不可變事實、已揭曉／未揭曉的秘密、卷末承諾）", ct)
-    pk.add(2, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(2, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     for n in range(a, b + 1):
         _, card = context.card_text(c.book, n)
         if card:
             pk.add(1, "既有的第%d章章綱" % n, context.body(card))
     _, prev = context.card_text(c.book, a - 1)
     pk.add(1, "前一章（第%d章）章綱" % (a - 1), context.body(prev))
-    pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
+    pk.add(2, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     rule = prompts.cur()["contract_rule"]
@@ -486,18 +487,18 @@ def spec_volume_draft(c, p):
     a, b = min(a, b), max(a, b)
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
-    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     ct = contract_text(c, drop_volume_promise=True)
     if ct:
         pk.add(0, "續寫合約（已定稿的事實與未回收伏筆；新卷還沒有卷末承諾）", ct)
-    pk.add(1, "卷綱範本", tpl(c, "卷綱.md"))
+    pk.add(1, "卷綱範本", tpl(c, layout.TPL_VOLUME_OUTLINE))
     pk.add(1, "其他卷綱", outline_files_text(c))
     plans = volume.plan_drafts(c.book)
     if plans:
         latest = plans[-1]
         pk.add(1, "上一卷的卷末體檢草稿（%s）" % latest["name"],
                context.body(context.read(c.book, latest["rel"])))
-    pk.add(2, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
+    pk.add(2, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_volume_draft"].format(
@@ -518,14 +519,14 @@ def spec_volume_revise(c, p):
     a, b = v["lo"], v["hi"]
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
-    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     pk.add(0, "現有正式卷綱（%s）" % v["rel"], context.body(context.read(c.book, v["rel"])))
     pk.add(1, "章綱清單（保留已寫正文對得上的部分）", cards_brief(c))
     ct = contract_text(c)
     if ct:
         pk.add(0, "續寫合約（已定稿的事實與未回收伏筆）", ct)
-    pk.add(1, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
-    pk.add(2, "狀態卡", context.body(context.read(c.book, "追蹤/狀態卡.md")))
+    pk.add(1, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
+    pk.add(2, "狀態卡", context.body(context.read(c.book, layout.STATE_CARD)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_volume_revise"].format(
@@ -538,8 +539,8 @@ def spec_character(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "角色設計方法", ref(c, "novel-bible/references/character-design.md"))
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
-    pk.add(1, "角色範本", tpl(c, "角色.md"))
-    for rel in ("設定/角色/%s.md" % name, "設定/草稿/%s.md" % name):
+    pk.add(1, "角色範本", tpl(c, layout.TPL_CHARACTER))
+    for rel in (layout.entry(layout.CHARACTERS, name), layout.entry(layout.BIBLE_DRAFTS, name)):
         pk.add(0, "目前的 %s" % rel, context.read(c.book, rel))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
@@ -552,9 +553,9 @@ def spec_gen_drafts(c, p):
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
     pk.add(1, "角色設計方法", ref(c, "novel-bible/references/character-design.md"))
     pk.add(2, "世界觀設計方法", ref(c, "novel-bible/references/worldbuilding.md"))
-    pk.add(1, "角色範本", tpl(c, "角色.md"))
-    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
-    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
+    pk.add(1, "角色範本", tpl(c, layout.TPL_CHARACTER))
+    pk.add(2, "勢力範本", tpl(c, layout.TPL_FACTION))
+    pk.add(2, "世界觀範本", tpl(c, layout.TPL_WORLD))
     add_book_core(pk, c)
     task = prompts.cur()["task_gen_drafts"].format(text=p.get("text", ""))
     return "生成設定草稿", task, pk, False
@@ -581,7 +582,7 @@ def fetch_urls(raw, limit=3, max_chars=6000):
 
 def cards_brief(c, limit=60):
     """章綱清單（章號、章名、一句話），給「從大綱長設定」對齊人物出場。"""
-    cards = project._scan_dir(os.path.join(c.book, "大綱", "章綱"))
+    cards = project._scan_dir(layout.path(c.book, layout.CHAPTER_CARDS))
     lines = []
     for no in sorted(cards)[:limit]:
         _rel, text = context.card_text(c.book, no)
@@ -604,10 +605,10 @@ def spec_bible_from_outline(c, p):
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
     pk.add(1, "角色設計方法", ref(c, "novel-bible/references/character-design.md"))
     pk.add(2, "世界觀設計方法", ref(c, "novel-bible/references/worldbuilding.md"))
-    pk.add(1, "角色範本", tpl(c, "角色.md"))
-    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
-    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
-    pk.add(0, "全書大綱", context.body(context.read(c.book, "大綱/全書大綱.md")))
+    pk.add(1, "角色範本", tpl(c, layout.TPL_CHARACTER))
+    pk.add(2, "勢力範本", tpl(c, layout.TPL_FACTION))
+    pk.add(2, "世界觀範本", tpl(c, layout.TPL_WORLD))
+    pk.add(0, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     pk.add(0, "卷綱", outline_files_text(c))
     pk.add(1, "章綱清單", cards_brief(c))
     pk.add(0, "既有設定索引（避免撞名）", entity_index(c.book))
@@ -622,9 +623,9 @@ def spec_bible_from_outline(c, p):
 def spec_intake(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
-    pk.add(1, "角色範本", tpl(c, "角色.md"))
-    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
-    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
+    pk.add(1, "角色範本", tpl(c, layout.TPL_CHARACTER))
+    pk.add(2, "勢力範本", tpl(c, layout.TPL_FACTION))
+    pk.add(2, "世界觀範本", tpl(c, layout.TPL_WORLD))
     add_book_core(pk, c)
     pk.add(0, "要整理的內容", p.get("text", ""))
     task = prompts.cur()["task_intake"]
@@ -641,10 +642,10 @@ def spec_design_draft(c, p):
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
     pk.add(1, "世界觀設計方法", ref(c, "novel-bible/references/worldbuilding.md"))
     pk.add(1, "角色設計方法", ref(c, "novel-bible/references/character-design.md"))
-    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
-    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
-    pk.add(2, "角色範本", tpl(c, "角色.md"))
-    pk.add(1, "設定索引", context.read(c.book, "設定/_索引.md"))
+    pk.add(2, "世界觀範本", tpl(c, layout.TPL_WORLD))
+    pk.add(2, "勢力範本", tpl(c, layout.TPL_FACTION))
+    pk.add(2, "角色範本", tpl(c, layout.TPL_CHARACTER))
+    pk.add(1, "設定索引", context.read(c.book, layout.BIBLE_INDEX))
     add_book_core(pk, c)
     task = prompts.cur()["task_design_draft"].format(text=p.get("text", ""))
     return "設計設定草稿", task, pk, False
@@ -653,12 +654,12 @@ def spec_design_draft(c, p):
 def spec_promote(c, p):
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "入庫規則", ref(c, "novel-bible/references/intake-rules.md"))
-    for e in project.list_entries(c.book, "設定/草稿"):
+    for e in project.list_entries(c.book, layout.BIBLE_DRAFTS):
         pk.add(0, "草稿：%s（%s）" % (e["name"], e["file"]), context.read(c.book, e["file"]))
-    pk.add(1, "角色範本", tpl(c, "角色.md"))
-    pk.add(2, "勢力範本", tpl(c, "勢力.md"))
-    pk.add(2, "世界觀範本", tpl(c, "世界觀.md"))
-    pk.add(1, "目前的名詞表（設定/名詞表.md）", context.read(c.book, "設定/名詞表.md"))
+    pk.add(1, "角色範本", tpl(c, layout.TPL_CHARACTER))
+    pk.add(2, "勢力範本", tpl(c, layout.TPL_FACTION))
+    pk.add(2, "世界觀範本", tpl(c, layout.TPL_WORLD))
+    pk.add(1, "目前的名詞表（設定/名詞表.md）", context.read(c.book, layout.GLOSSARY))
     add_book_core(pk, c)
     task = prompts.cur()["task_promote"].format(text=p.get("text") or prompts.cur()["promote_none"])
     return "草稿轉正式", task, pk, False
@@ -796,8 +797,9 @@ def act_setup_check(c, p):
         lines.append("還沒有 CLAUDE.md（本書規則），建議先做「開書訪談」。")
     if blanks:
         lines.append("這些檔案還是空白範本：%s。" % "、".join(blanks))
-    ents = {k: len(project.list_entries(c.book, "設定/" + k)) for k in ("角色", "勢力", "世界觀", "草稿")}
-    lines.append("目前設定：角色 %d、勢力 %d、世界觀 %d、草稿 %d。" % (ents["角色"], ents["勢力"], ents["世界觀"], ents["草稿"]))
+    ents = {k: len(project.list_entries(c.book, rel)) for k, rel in (
+        ("角色", layout.CHARACTERS), ("勢力", layout.FACTIONS), ("世界觀", layout.WORLD), ("草稿", layout.BIBLE_DRAFTS))}  # literal-ok: 鍵是顯示標籤
+    lines.append("目前設定：角色 %d、勢力 %d、世界觀 %d、草稿 %d。" % (ents["角色"], ents["勢力"], ents["世界觀"], ents["草稿"]))  # literal-ok: 顯示標籤
     chs = project.scan_chapters(c.book)
     lines.append("章綱 %d 章、已寫正文 %d 章。" % (sum(1 for x in chs if x["card_file"]), sum(1 for x in chs if x["text_file"])))
     if not os.path.isdir(os.path.join(c.book, ".git")):
@@ -810,13 +812,13 @@ def act_review_all(c, p, system):
     pk.add(0, "審查清單", ref(c, "novel-review/references/checklist.md"))
     ov = project.overview(c.book)
     pk.add(0, "工作台偵測到的警示", "\n".join("- %s：%s" % (a["kind"], a["text"]) for a in ov["alerts"]) or prompts.cur()["no_alerts"])
-    pk.add(1, "伏筆總表", context.body(context.read(c.book, "追蹤/伏筆.md")))
-    pk.add(1, "時間線", context.body(context.read(c.book, "追蹤/時間線.md")))
-    pk.add(1, "狀態卡", context.body(context.read(c.book, "追蹤/狀態卡.md")))
-    sums = project._scan_dir(os.path.join(c.book, "追蹤", "章節摘要"))
-    pk.add(2, "全部章節摘要", "\n\n".join(context.body(context.read(c.book, "追蹤/章節摘要/" + sums[k])) for k in sorted(sums)), keep="tail")
+    pk.add(1, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
+    pk.add(1, "時間線", context.body(context.read(c.book, layout.TIMELINE)))
+    pk.add(1, "狀態卡", context.body(context.read(c.book, layout.STATE_CARD)))
+    sums = project._scan_dir(layout.path(c.book, layout.SUMMARIES))
+    pk.add(2, "全部章節摘要", "\n\n".join(context.body(context.read(c.book, layout.SUMMARIES + "/" + sums[k])) for k in sorted(sums)), keep="tail")
     roles = []
-    for e in project.list_entries(c.book, "追蹤/角色狀態"):
+    for e in project.list_entries(c.book, layout.CHARACTER_STATES):
         fm, _ = project.split_frontmatter(context.read(c.book, e["file"]))
         roles.append("- %s：最後登場 %s" % (e["name"], fm.get("最後登場") or "—"))
     pk.add(2, "角色最後登場", "\n".join(roles))
@@ -825,9 +827,9 @@ def act_review_all(c, p, system):
     user = pk.build()[0] + prompts.cur()["task_h"] + prompts.cur()["task_review_all"].format(latest=ov["latest"], fmt=native.review_report_format(c))
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     out = c.call(msgs, max_tokens=int(c.prov.get("max_output") or 8192), label="全書健康檢查", stage="review")
-    d = os.path.join(c.book, ".studio", "審查報告")
+    d = layout.path(c.book, layout.STUDIO_REVIEWS)
     os.makedirs(d, exist_ok=True)
-    fn = "全書健康檢查_%s.md" % time.strftime("%Y%m%d-%H%M")
+    fn = layout.health_report_file(time.strftime("%Y%m%d-%H%M"))
     with open(os.path.join(d, fn), "w", encoding="utf-8") as f:
         f.write(out)
     c.save_messages(msgs + [{"role": "assistant", "content": out}], {"kind": "chat"})

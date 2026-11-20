@@ -95,8 +95,8 @@
 
     const openResult = async (x) => {
       const tab = x.scope === "正文" ? "text" : x.scope === "候選" ? "candidate"
-        : x.no && x.path.startsWith("大綱/章綱/") ? "card"
-          : x.no && x.path.startsWith("追蹤/章節摘要/") ? "summary" : null;
+        : x.no && x.path.startsWith(LAYOUT.CHAPTER_CARDS + "/") ? "card"
+          : x.no && x.path.startsWith(LAYOUT.SUMMARIES + "/") ? "summary" : null;
       if (tab) { S.hl = r.terms; FE.go(bookPath("/ch/" + x.no + "?tab=" + tab)); return; }
       await docView(docEl, x.path);
       highlightTerms(docEl, r.terms);

@@ -14,12 +14,13 @@ import re
 import shutil
 
 from . import project
+from . import layout
 
 SETTING_SUBDIRS = ("世界觀", "角色", "勢力")
-MERGE_FOLDERS = ("設定/角色/", "設定/勢力/", "設定/世界觀/")
-INDEX_REL = "設定/_索引.md"
-GLOSSARY_REL = "設定/名詞表.md"
-MERGED_REL = "設定/_已合併"
+MERGE_FOLDERS = (layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")
+INDEX_REL = layout.BIBLE_INDEX
+GLOSSARY_REL = layout.GLOSSARY
+MERGED_REL = layout.BIBLE_MERGED
 
 # 「近似」比對時才去掉的層級後綴：只用來提醒「可能是同一個地方」，結果一律標成近似，不預設勾選。
 # 刻意不包含「迴廊」「要塞」等會指不同地點的詞。
@@ -60,7 +61,7 @@ def loose_norm(name):
 def _setting_rows(book_dir):
     rows = []
     for sub in SETTING_SUBDIRS:
-        folder = os.path.join(book_dir, "設定", sub)
+        folder = layout.path(book_dir, layout.BIBLE, sub)
         if not os.path.isdir(folder):
             continue
         for f in sorted(os.listdir(folder)):
@@ -315,10 +316,10 @@ def merge(book_dir, canonical, duplicates_rel):
     refs_changed = []
     merged_abs = os.path.normpath(os.path.join(book_dir, MERGED_REL))
     targets = [os.path.join(book_dir, GLOSSARY_REL)]
-    for root, _, files in os.walk(os.path.join(book_dir, "設定")):
+    for root, _, files in os.walk(layout.path(book_dir, layout.BIBLE)):
         if os.path.normpath(root).startswith(merged_abs):
             continue
-        targets += [os.path.join(root, f) for f in files if f.endswith(".md") and f != "_索引.md"]
+        targets += [os.path.join(root, f) for f in files if f.endswith(".md") and f != layout.parts(layout.BIBLE_INDEX)[-1]]
     for tp in set(targets):
         if not os.path.isfile(tp):
             continue

@@ -11,6 +11,7 @@ import time
 import uuid
 
 from . import lang as lang_mod, prompts
+from . import layout
 
 # 系統提示詞依書的語言取自 studio/prompts/（保持單行：Windows 的 claude.cmd 會把參數裡的換行切斷）
 
@@ -226,7 +227,7 @@ class Job:
 
     def save(self):
         from . import project
-        d = os.path.join(self.book_dir, ".studio", "jobs")
+        d = layout.path(self.book_dir, layout.STUDIO, "jobs")
         os.makedirs(d, exist_ok=True)
         # 任務紀錄含完整事件，可能幾百 KB：用原子寫，中途斷掉才不會留下半個 json
         project.write_atomic(os.path.join(d, self.id + ".json"),
@@ -462,7 +463,7 @@ class Runner:
 
 
 def load_history(book_dir, limit=30):
-    d = os.path.join(book_dir, ".studio", "jobs")
+    d = layout.path(book_dir, layout.STUDIO, "jobs")
     out = []
     if not os.path.isdir(d):
         return out
@@ -479,7 +480,7 @@ def load_history(book_dir, limit=30):
 
 
 def load_job_file(book_dir, job_id):
-    p = os.path.join(book_dir, ".studio", "jobs", job_id + ".json")
+    p = layout.path(book_dir, layout.STUDIO, "jobs", job_id + ".json")
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:

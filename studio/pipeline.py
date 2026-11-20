@@ -14,6 +14,7 @@ import time
 import uuid
 
 from . import context, goals, lang as lang_mod, project, prompts, revision, style_loop, tracking, upcheck, volume
+from . import layout
 
 STEPS = [
     ("card", "章綱"),
@@ -64,13 +65,13 @@ class Stopped(Exception):
 
 
 def _state_path(book_dir):
-    d = os.path.join(book_dir, ".studio", "流程")
+    d = layout.path(book_dir, layout.STUDIO_PIPELINE)
     os.makedirs(d, exist_ok=True)
-    return os.path.join(d, "目前.json")
+    return os.path.join(d, layout.PIPELINE_CURRENT_FILE)
 
 
 def load_state(book_dir):
-    p = os.path.join(book_dir, ".studio", "流程", "目前.json")
+    p = layout.path(book_dir, layout.STUDIO_PIPELINE_CURRENT)
     if not os.path.isfile(p):
         return None
     try:
@@ -331,7 +332,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ 各步驟
     def _cand(self, no):
-        return project._scan_dir(os.path.join(self.d, "候選")).get(no)
+        return project._scan_dir(layout.path(self.d, layout.CANDIDATES)).get(no)
 
     def _rerun_note(self, key):
         r = self.s.get("rerun_note") or {}
@@ -344,7 +345,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ 快照與退回重跑
     def _snap_dir(self, no):
-        return os.path.join(self.d, ".studio", "流程", "快照", "第%03d章" % no)
+        return layout.path(self.d, layout.STUDIO_PIPELINE_SNAPSHOTS, "第%03d章" % no)
 
     def _snapshot(self, no, key):
         """這一步開始前的候選稿（與章綱是否存在），給「從這裡重跑」還原用。"""
@@ -352,7 +353,7 @@ class Pipeline:
             return
         os.makedirs(self._snap_dir(no), exist_ok=True)
         name = self._cand(no)
-        text = project.read_text(os.path.join(self.d, "候選", name)) if name else ""
+        text = project.read_text(layout.path(self.d, layout.CANDIDATES, name)) if name else ""
         rec = {"step": key, "candidate": name or "", "text": text, "card": bool(context.card_text(self.d, no)[1]),
                "time": time.time()}
         with open(os.path.join(self._snap_dir(no), key + ".json"), "w", encoding="utf-8") as f:
@@ -404,7 +405,7 @@ class Pipeline:
         idx = keys.index(key)
         later = set(keys[idx:])
         cand = self._cand(no)
-        cand_path = os.path.join(self.d, "候選", cand) if cand else ""
+        cand_path = layout.path(self.d, layout.CANDIDATES, cand) if cand else ""
         if key == "card":
             card_path, _ = context.card_text(self.d, no)
             self._shelve(os.path.join(self.d, card_path) if card_path else "", "重跑前章綱")
@@ -415,17 +416,17 @@ class Pipeline:
             snap = self.load_snapshot(no, key)
             self._shelve(cand_path, "重跑前候選")
             if snap.get("candidate"):
-                os.makedirs(os.path.join(self.d, "候選"), exist_ok=True)
-                project.write_atomic(os.path.join(self.d, "候選", snap["candidate"]), snap["text"])
+                os.makedirs(layout.path(self.d, layout.CANDIDATES), exist_ok=True)
+                project.write_atomic(layout.path(self.d, layout.CANDIDATES, snap["candidate"]), snap["text"])
         # 之後各步的紀錄
-        recs = {"goal": ("核對", "第%03d章.json" % no), "review": ("審查", "第%03d章.json" % no)}
+        recs = {"goal": (layout.STUDIO_CHECK, layout.chapter_json(no)), "review": (layout.STUDIO_REVIEW, layout.chapter_json(no))}
         for k, (sub, fn) in recs.items():
             if k in later:
-                p = os.path.join(self.d, ".studio", sub, fn)
+                p = layout.path(self.d, sub, fn)
                 if os.path.isfile(p):
-                    bak = os.path.join(self.d, ".studio", "備份")
+                    bak = layout.path(self.d, layout.STUDIO_BACKUP)
                     os.makedirs(bak, exist_ok=True)
-                    os.replace(p, os.path.join(bak, "重跑前%s_%s.%d.json" % (sub, fn[:-5], int(time.time()))))
+                    os.replace(p, os.path.join(bak, layout.rerun_backup_file(layout.parts(sub)[-1], fn[:-5], time.time())))
         if "revise" in later:
             revision.discard_revision(self.d, no)
         if "tick" in later:
@@ -461,7 +462,7 @@ class Pipeline:
         if not goals.freeze_goals(card):
             return ("skip", "章綱沒有可以核對的情節點")
         rec = goals.load(self.d, no)
-        if rec and not rec.get("stale") and (rec.get("path") or "").startswith("候選"):
+        if rec and not rec.get("stale") and (rec.get("path") or "").startswith(layout.CANDIDATES):
             return ("skip", "寫稿時已核對：%s" % _goal_brief(rec["items"]))
         self._wait("goal_check", {"chapter": no, "candidate": True})
         rec = goals.load(self.d, no)
@@ -479,7 +480,7 @@ class Pipeline:
         「偏離就重寫」，這裡是把最終候選稿的 13 指標記錄下來，讓作者看得到數字。"""
         if not self.h.get("style_check", lambda: True)():
             return ("skip", "文風檢查已關閉")
-        rel, text = context.chapter_text(self.d, no, ("候選", "正文"))
+        rel, text = context.chapter_text(self.d, no, (layout.CANDIDATES, layout.MANUSCRIPT))
         if not text:
             return ("skip", "還沒有稿子")
         ev = style_loop.evaluate(self.d, text)
@@ -549,7 +550,7 @@ class Pipeline:
             with self.lock:
                 self.s["accepted_path"] = path
             self.save()
-        path = self.s.get("accepted_path") or context.chapter_text(self.d, no, ("正文",))[0]
+        path = self.s.get("accepted_path") or context.chapter_text(self.d, no, (layout.MANUSCRIPT,))[0]
         if not path:
             raise StepFailed("找不到第%d章的候選稿或正文" % no)
         self._wait("accept", {"chapter": no, "path": path})

@@ -1067,7 +1067,7 @@ def act_glossary_org(c, p):
     sysm = c.sys("json_short")
 
     def call(label, user):
-        return _json_call(c, [{"role": "system", "content": sysm}, {"role": "user", "content": user}], label)
+        return _json_call(c, [{"role": "system", "content": sysm}, {"role": "user", "content": user}], label, conv=_en)
     for sub in (layout.parts(layout.WORLD), layout.parts(layout.FACTIONS), layout.parts(layout.GLOSSARY)):   # 清掉上次留下的同類草稿
         old = os.path.join(c.book, reverse.DIR, layout.REVERSE_DRAFTS, *sub)
         if os.path.isdir(old):

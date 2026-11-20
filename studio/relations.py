@@ -139,7 +139,7 @@ def apply_changes(book_dir, no, items, revision=False):
         # 模型回傳的資料經 jsonkeys 換成中文鍵；英文鍵、中文鍵都認
         who, to = canon(tables.pick(it, "relations", "who"), amap), canon(tables.pick(it, "relations", "toward"), amap)
         rel, att = _cell(tables.pick(it, "relations", "relationship")), _cell(tables.pick(it, "relations", "attitude"))
-        why = _cell(tables.pick(it, "relations", "reason", "原因"))
+        why = _cell(tables.pick(it, "relations", "reason"))
         if not who or not to or who == to or not (rel or att):
             continue
         cur = next((r for r in reversed(rows) if r.get("who") == who and r.get("toward") == to and not _ended(r)), None)

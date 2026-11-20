@@ -106,8 +106,8 @@ def md(kind, ks, rows):
 
 
 def pick(item, kind, key, *aliases):
-    """從模型回傳的一筆資料取值：英文鍵、表頭（中文）、其他別名都認（jsonkeys 會把英文鍵換成中文）。"""
-    for k in (key, header_of(kind, key)) + aliases:
+    """從模型回傳的一筆資料（jsonkeys.to_keys 換過的英文鍵）取值；aliases：同一欄在模型資料裡的其他英文鍵。"""
+    for k in (key,) + aliases:
         if k in item and item[k] not in (None, ""):
             return item[k]
     return None

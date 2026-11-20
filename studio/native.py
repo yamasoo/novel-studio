@@ -970,19 +970,15 @@ def act_reader_init(c, p):
         raise NativeError(str(e))
 
 
-def _zh(c, data, label):
-    """英文、日文書：英文鍵換回中文鍵、列舉值換回中文固定詞；認不得的列舉值在任務紀錄提醒一次。繁中書原樣通過。"""
+def _en(c, data, label):
+    """模型資料 → 程式內部的英文鍵（v3）：英文、中文、大小寫不同的鍵都認；英文、日文書的列舉值換回固定詞，
+    認不得的列舉值在任務紀錄提醒一次。"""
     unknown = []
-    data = jsonkeys.to_zh(data, unknown)
+    data = jsonkeys.to_keys(data, unknown)
     if unknown and c.lang != "zh-TW":
         seen = list(dict.fromkeys("%s=%s" % (k, v) for k, v in unknown))
         c.job.emit("log", text="%s：有認不得的選項值，照原樣寫入：%s" % (label, "、".join(seen[:8])))
     return data
-
-
-def _en(c, data, label):
-    """模型資料 → 程式內部的英文鍵（v3）：先照 _zh 收斂與提醒，再把中文鍵換成英文鍵。"""
-    return jsonkeys.to_keys(_zh(c, data, label), values=False)
 
 
 def _lang_check(c, msgs, out, data, label, max_tokens=None, conv=None):
@@ -994,7 +990,7 @@ def _lang_check(c, msgs, out, data, label, max_tokens=None, conv=None):
     retry = msgs + [{"role": "assistant", "content": out}, {"role": "user", "content": _P()["lang_retry"]}]
     try:
         out2 = c.call(retry, json_mode=True, max_tokens=max_tokens or _out_tokens(c), label=label + "（語言重試）", stage="structured")
-        data2 = (conv or _zh)(c, providers.parse_json(out2), label)
+        data2 = (conv or _en)(c, providers.parse_json(out2), label)
     except providers.ProviderError as e:
         c.job.emit("log", text="%s：語言重試失敗（%s），沿用第一次的結果並標上待核對。" % (label, e))
         data2 = None
@@ -1006,8 +1002,8 @@ def _lang_check(c, msgs, out, data, label, max_tokens=None, conv=None):
 
 
 def _json_call(c, msgs, label, conv=None):
-    """conv：模型資料的鍵名換算，_en（英文鍵，v3）或 _zh（舊的中文鍵；還沒改完的流程用）。"""
-    conv = conv or _zh
+    """conv：模型資料的鍵名換算，預設 _en（程式內部用英文鍵）。"""
+    conv = conv or _en
     out = c.call(msgs, json_mode=True, max_tokens=_out_tokens(c), label=label, stage="structured")
     try:
         return _lang_check(c, msgs, out, conv(c, providers.parse_json(out), label), label, conv=conv)
@@ -1047,7 +1043,7 @@ def act_reverse(c, p):
     msgs0 = c.sys("json_short")
 
     def call(label, user):
-        return _json_call(c, [{"role": "system", "content": msgs0}, {"role": "user", "content": user}], label)
+        return _json_call(c, [{"role": "system", "content": msgs0}, {"role": "user", "content": user}], label, conv=_en)
     try:
         upto = int(p.get("upto") or 0) or None
     except (TypeError, ValueError):

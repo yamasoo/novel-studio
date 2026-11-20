@@ -145,7 +145,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         for f in d.get("factions") or []:
             if not isinstance(f, dict) or not _clean(f.get("name")):
                 continue
-            name, text = render_faction(jsonkeys.to_zh(f, values=False))   # 反推的 render_faction 還是中文鍵（反推那批再改）
+            name, text = render_faction(f)
             extra = ""
             if f.get("aliases"):
                 extra += "\n## 別名\n" + "、".join(_clean(a) for a in f["aliases"] if _clean(a)) + "\n"

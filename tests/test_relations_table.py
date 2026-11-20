@@ -17,7 +17,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import context, layout, prompts, relations  # noqa: E402
+from studio import context, jsonkeys, layout, prompts, relations  # noqa: E402
 
 GOLDEN = os.path.join(ROOT, "tests", "snapshots", "relations_golden.json")
 UPDATE = os.environ.get("UPDATE_SNAPSHOT") == "1"
@@ -37,11 +37,16 @@ REL = """---
 | L004 | 林晚 | 小翠 | 主僕 | 信任 | 第001章 |  |  |  |
 """
 
+# 模型回傳的資料（繁中提示詞是中文鍵）；實際流程會先經 jsonkeys.to_keys 換成英文鍵，見 _m()
 ITEMS = [{"誰": "林晚", "對誰": "沈既白", "關係": "合作", "態度": "半信半疑", "原因": "一起查帳"},
          {"誰": "小翠", "對誰": "林晚", "關係": "主僕", "態度": "忠心"},
          {"誰": "林晚", "對誰": "小翠", "關係": "主僕", "態度": "信任"},
          {"誰": "林晚", "對誰": "林晚", "關係": "自己"},
          {"誰": "", "對誰": "沈既白", "關係": "x"}]
+
+
+def _m(items):
+    return jsonkeys.to_keys(json.loads(json.dumps(items, ensure_ascii=False)), values=False)
 
 
 def scenario():
@@ -64,11 +69,11 @@ def scenario():
         out["relations_for_history"] = context.relations_for(book, text2, history=True)
         out["relations_for_writeback"] = context.relations_for_writeback(book, text2)
         out["active"] = len(relations.active(relations.read_rows(book)))
-        out["apply3"] = relations.apply_changes(book, 3, ITEMS)
+        out["apply3"] = relations.apply_changes(book, 3, _m(ITEMS))
         out["file_after3"] = rd(layout.RELATIONS)
-        out["apply3_again"] = relations.apply_changes(book, 3, [{"誰": "林晚", "對誰": "沈既白", "關係": "盟友", "原因": "改口"}])
+        out["apply3_again"] = relations.apply_changes(book, 3, _m([{"誰": "林晚", "對誰": "沈既白", "關係": "盟友", "原因": "改口"}]))
         out["file_after3_again"] = rd(layout.RELATIONS)
-        out["apply_revision"] = relations.apply_changes(book, 1, ITEMS, revision=True)
+        out["apply_revision"] = relations.apply_changes(book, 1, _m(ITEMS), revision=True)
         out["file_after_rev"] = rd(layout.RELATIONS)
         out["build_draft"] = relations.build_draft(book)
         out["draft_file"] = rd(layout.RELATIONS_DRAFT)
@@ -78,7 +83,7 @@ def scenario():
         out["graph_nodes"] = g["nodes"]
         out["graph_rows"] = g["rows"]
         os.remove(rel_path)
-        out["apply_new"] = relations.apply_changes(book, 2, ITEMS[:2])
+        out["apply_new"] = relations.apply_changes(book, 2, _m(ITEMS[:2]))
         out["file_new"] = rd(layout.RELATIONS)
     finally:
         shutil.rmtree(tmp)
@@ -110,7 +115,7 @@ class RelationsTableTest(unittest.TestCase):
         self.assertIn("作者加的欄", got["file_after3"], "作者自己加的欄位寫回時不能掉")
 
     def test_model_items_with_english_keys(self):
-        """模型的資料不論是英文鍵還是中文鍵（jsonkeys 換過），結果都一樣。"""
+        """模型給中文鍵（繁中書）或英文鍵（英文、日文書），經 jsonkeys.to_keys 後結果都一樣。"""
         tmp = tempfile.mkdtemp()
         try:
             res = []
@@ -120,7 +125,7 @@ class RelationsTableTest(unittest.TestCase):
                 shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), book)
                 with open(layout.path(book, layout.RELATIONS), "w", encoding="utf-8", newline="\n") as f:
                     f.write(REL)
-                relations.apply_changes(book, 3, items)
+                relations.apply_changes(book, 3, _m(items))
                 res.append(open(layout.path(book, layout.RELATIONS), encoding="utf-8").read())
             self.assertEqual(res[0], res[1])
         finally:

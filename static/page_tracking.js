@@ -24,13 +24,16 @@
     return /^(前後|左右)/.test(rest) ? n + 2 : n;
   }
 
+  // headers：表頭字串（列以表頭為鍵），或後端 tables.columns() 的 {key, label}（列以英文鍵為鍵、表頭顯示 label）
   function tableNode(id, headers, rows, opts) {
     const o = opts || {};
     const rowClass = o.rowClass || (() => "");
-    const cell = o.cell || ((r, x) => r[x]);
+    const keyOf = (x) => (typeof x === "object" ? x.key : x);
+    const labelOf = (x) => (typeof x === "object" ? x.label : x);
+    const cell = o.cell || ((r, x) => r[keyOf(x)]);
     return h("div", { class: "table-wrap" },
       h("table", id ? { id } : {},
-        h("thead", {}, h("tr", {}, headers.map((x) => h("th", {}, x)))),
+        h("thead", {}, h("tr", {}, headers.map((x) => h("th", {}, labelOf(x))))),
         h("tbody", {}, rows.map((r) => h("tr", { class: rowClass(r) },
           headers.map((x) => h("td", {}, cell(r, x))))))));
   }
@@ -67,7 +70,7 @@
     // 角色對自己所屬（含 also）的勢力：靠框的位置表示，不畫線（舊版 own()）。
     const mine = (c, fac) => !!c && !!fac && c.kind === "角色" && fac.kind === "勢力"
       && (c.faction === fac.name || (c.also || []).includes(fac.name));
-    const own = (r) => mine(byName[r["誰"]], byName[r["對誰"]]) || mine(byName[r["對誰"]], byName[r["誰"]]);
+    const own = (r) => mine(byName[r.who], byName[r.toward]) || mine(byName[r.toward], byName[r.who]);
 
     const out = facs.map((x) => ({ id: idOf(x.name), label: x.name, box: true, data: { kind: "勢力" } }));
     chars.forEach((c) => out.push({
@@ -77,11 +80,11 @@
     }));
     const edges = [];
     rows.forEach((r) => {
-      const a = byName[r["誰"]], b = byName[r["對誰"]];
-      if (!a || !b || r["誰"] === r["對誰"] || own(r)) return;
+      const a = byName[r.who], b = byName[r.toward];
+      if (!a || !b || r.who === r.toward || own(r)) return;
       edges.push({
-        id: "e" + edges.length, source: idOf(r["誰"]), target: idOf(r["對誰"]), label: r["關係"] || "",
-        data: { start: r["起始章"], end: r["結束章"], a: r["誰"], b: r["對誰"] },
+        id: "e" + edges.length, source: idOf(r.who), target: idOf(r.toward), label: r.relationship || "",
+        data: { start: r.start_chapter, end: r.end_chapter, a: r.who, b: r.toward },
       });
     });
     return { nodes: out, edges, rows, byName, chars, facs, idOf, own };
@@ -117,12 +120,12 @@
           "點圖上的人或勢力，這裡會列出他在第 " + st.n + " 章的所有關係。滾輪縮放、拖背景移動。"));
         return;
       }
-      const out = m.rows.filter((r) => r["誰"] === nd.name), inn = m.rows.filter((r) => r["對誰"] === nd.name);
+      const out = m.rows.filter((r) => r.who === nd.name), inn = m.rows.filter((r) => r.toward === nd.name);
       const line = (r, to) => h("div", { style: "padding:4px 0;border-bottom:1px dashed var(--line)" },
-        h("b", {}, to ? r["對誰"] : r["誰"]), "　", r["關係"] || "—",
-        r["態度"] ? h("span", { class: "badge", style: "margin-left:6px" }, r["態度"]) : null,
+        h("b", {}, to ? r.toward : r.who), "　", r.relationship || "—",
+        r.attitude ? h("span", { class: "badge", style: "margin-left:6px" }, r.attitude) : null,
         h("div", { class: "muted small" },
-          [r["起始章"] ? r["起始章"] + "起" : "", r["結束章"] ? "到" + r["結束章"] : "目前有效", r["變化原因"] || ""]
+          [r.start_chapter ? r.start_chapter + "起" : "", r.end_chapter ? "到" + r.end_chapter : "目前有效", r.reason || ""]
             .filter(Boolean).join("　")));
       detEl.replaceChildren(
         h("div", { style: "font-size:15px;margin-bottom:2px" },
@@ -147,8 +150,8 @@
       const visSet = new Set(visChars.map((c) => c.name));
       const facVis = new Set(m.facs.filter((f) => visChars.some((c) => c.faction === f.name)).map((f) => f.name));
       m.rows.forEach((r) => {   // 沒有成員的勢力：只要和看得到的角色或勢力有關係就顯示
-        const a = m.byName[r["誰"]], b = m.byName[r["對誰"]];
-        if (!a || !b || !activeAt({ start: r["起始章"], end: r["結束章"] }, st.n)) return;
+        const a = m.byName[r.who], b = m.byName[r.toward];
+        if (!a || !b || !activeAt({ start: r.start_chapter, end: r.end_chapter }, st.n)) return;
         if (a.kind === "勢力" && (visSet.has(b.name) || facVis.has(b.name))) facVis.add(a.name);
         if (b.kind === "勢力" && (visSet.has(a.name) || facVis.has(a.name))) facVis.add(b.name);
       });
@@ -160,8 +163,8 @@
         return !activeAt(item.data, st.n) || !inGraph(item.data.a) || !inGraph(item.data.b);
       });
       const on = m.edges.filter((e) => activeAt(e.data, st.n) && inGraph(e.data.a) && inGraph(e.data.b));
-      const away = m.rows.filter((r) => !m.own(r) && r["誰"] !== r["對誰"] && m.byName[r["誰"]] && m.byName[r["對誰"]]
-        && activeAt({ start: r["起始章"], end: r["結束章"] }, st.n) && !(inGraph(r["誰"]) && inGraph(r["對誰"]))).length;
+      const away = m.rows.filter((r) => !m.own(r) && r.who !== r.toward && m.byName[r.who] && m.byName[r.toward]
+        && activeAt({ start: r.start_chapter, end: r.end_chapter }, st.n) && !(inGraph(r.who) && inGraph(r.toward))).length;
       statEl.textContent = visChars.length + " 個角色 · " + facVis.size + " 個勢力 · " + on.length + " 條關係 · 第 " + st.n + " 章"
         + (away > 0 ? " · 另有 " + away + " 條涉及未顯示的角色" : "");
       nEl.textContent = String(st.n);
@@ -347,9 +350,10 @@
       body = h("div", {}, parts, docEl);
     } else if (t === "relations") {
       const rd = d.relations_draft, rl = d.relations;
-      const cols = (x) => x.headers.filter((x2) => x2 !== "編號");
+      // 列是英文鍵（studio/tables.py），表頭用 columns 的 label
+      const cols = (x) => x.columns.filter((c) => c.key !== "id");
       const relTable = (x, id) => tableNode(id, cols(x), x.rows, {
-        rowClass: (r) => (r["結束章"] ? "dim done" : ""),
+        rowClass: (r) => (r.end_chapter ? "dim done" : ""),
       });
       const intro = h("div", { class: "muted small", style: "margin-bottom:8px" },
         "誰對誰的關係，一個方向一列（A 對 B、B 對 A 分開記）。關係改變時，舊的那列會填上「結束章」、另開一列，所以歷史都留著；淡色的列是已經結束的舊關係。寫稿時只帶在場角色之間、目前有效的關係。");

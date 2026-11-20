@@ -32,6 +32,11 @@ SEARCH_SCOPES = ("manuscript", "candidates", "outline", "bible", "tracking")
 # ---------------------------------------------------------------------------
 IMPORT_TARGETS = ("manuscript", "candidates")
 
+# ---------------------------------------------------------------------------
+# 共用庫分頁（網址 #/shared?t=）
+# ---------------------------------------------------------------------------
+SHARED_TABS = ("styles", "structures", "prefs")
+
 
 def _leaf(rel):
     return layout.parts(rel)[-1]
@@ -64,9 +69,14 @@ ALIASES = {
         "正文": "manuscript", layout.MANUSCRIPT: "manuscript",
         "候選": "candidates", layout.CANDIDATES: "candidates",
     },
+    "shared_tab": {
+        "文風": "styles", layout.SHARED_STYLES: "styles",
+        "章節結構": "structures", layout.SHARED_STRUCTURES: "structures",
+        "共用作者偏好": "prefs",
+    },
 }
 VALID = {"bible_tab": BIBLE_TABS, "reverse_group": REVERSE_GROUPS,
-         "search_scope": SEARCH_SCOPES, "import_target": IMPORT_TARGETS}
+         "search_scope": SEARCH_SCOPES, "import_target": IMPORT_TARGETS, "shared_tab": SHARED_TABS}
 
 
 def norm(kind, value):

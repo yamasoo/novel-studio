@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tests"))
 
-from studio import ids  # noqa: E402
+from studio import ids, tables  # noqa: E402
 
 SNAP = os.path.join(ROOT, "tests", "snapshots", "demo_snapshot.json")
 
@@ -35,6 +35,17 @@ def transform(old):
         r = per.get("/reverse", {}).get("body")
         if isinstance(r, dict) and isinstance(r.get("state"), dict) and "drafts" in r["state"]:
             r["state"]["drafts"] = rename_keys(r["state"]["drafts"], "reverse_group")
+        t = per.get("/tracking", {}).get("body")
+        if isinstance(t, dict):
+            # P2(3)：追蹤表改英文鍵，另附 columns（表頭照舊）
+            for name, kind in (("relations", "relations"), ("relations_draft", "relations")):
+                x = t.get(name)
+                if isinstance(x, dict) and "rows" in x and "columns" not in x:
+                    x["rows"] = tables.rows_to_keys(kind, x["rows"])
+                    x["columns"] = tables.columns(kind, x.get("headers"))
+            g = t.get("relations_graph")
+            if isinstance(g, dict) and g.get("rows"):
+                g["rows"] = tables.rows_to_keys("relations", g["rows"])
         s = per.get("/search", {}).get("body")
         if isinstance(s, dict):
             if "scopes" in s:

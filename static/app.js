@@ -244,7 +244,7 @@ async function renderChapterStructure(el, no) {
     // 有章節結構就說明會參考；沒有就給「到共用庫套用」的連結
     const note = r.list.length
       ? "寫這章時會參考這個節拍表；章綱的情節點優先。"
-      : ["這本書還沒有章節結構，", FE.h("a", { href: "#/shared?t=" + enc("章節結構") }, "到共用庫套用"), "。"];
+      : ["這本書還沒有章節結構，", FE.h("a", { href: "#/shared?t=structures" }, "到共用庫套用"), "。"];
     el.replaceChildren(FE.h("div", { class: "row struct-row" },
       FE.h("span", { class: "small" }, FE.h("b", {}, "本章結構")),
       sel,

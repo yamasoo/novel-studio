@@ -1082,11 +1082,79 @@
      "rows": []
     },
     "relations": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "who",
+       "label": "誰"
+      },
+      {
+       "key": "toward",
+       "label": "對誰"
+      },
+      {
+       "key": "relationship",
+       "label": "關係"
+      },
+      {
+       "key": "attitude",
+       "label": "態度"
+      },
+      {
+       "key": "start_chapter",
+       "label": "起始章"
+      },
+      {
+       "key": "end_chapter",
+       "label": "結束章"
+      },
+      {
+       "key": "reason",
+       "label": "變化原因"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
     },
     "relations_draft": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "who",
+       "label": "誰"
+      },
+      {
+       "key": "toward",
+       "label": "對誰"
+      },
+      {
+       "key": "relationship",
+       "label": "關係"
+      },
+      {
+       "key": "attitude",
+       "label": "態度"
+      },
+      {
+       "key": "start_chapter",
+       "label": "起始章"
+      },
+      {
+       "key": "end_chapter",
+       "label": "結束章"
+      },
+      {
+       "key": "reason",
+       "label": "變化原因"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
@@ -2853,11 +2921,79 @@
      "rows": []
     },
     "relations": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "who",
+       "label": "誰"
+      },
+      {
+       "key": "toward",
+       "label": "對誰"
+      },
+      {
+       "key": "relationship",
+       "label": "關係"
+      },
+      {
+       "key": "attitude",
+       "label": "態度"
+      },
+      {
+       "key": "start_chapter",
+       "label": "起始章"
+      },
+      {
+       "key": "end_chapter",
+       "label": "結束章"
+      },
+      {
+       "key": "reason",
+       "label": "變化原因"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
     },
     "relations_draft": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "who",
+       "label": "誰"
+      },
+      {
+       "key": "toward",
+       "label": "對誰"
+      },
+      {
+       "key": "relationship",
+       "label": "關係"
+      },
+      {
+       "key": "attitude",
+       "label": "態度"
+      },
+      {
+       "key": "start_chapter",
+       "label": "起始章"
+      },
+      {
+       "key": "end_chapter",
+       "label": "結束章"
+      },
+      {
+       "key": "reason",
+       "label": "變化原因"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
@@ -3962,11 +4098,79 @@
      "rows": []
     },
     "relations": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "who",
+       "label": "誰"
+      },
+      {
+       "key": "toward",
+       "label": "對誰"
+      },
+      {
+       "key": "relationship",
+       "label": "關係"
+      },
+      {
+       "key": "attitude",
+       "label": "態度"
+      },
+      {
+       "key": "start_chapter",
+       "label": "起始章"
+      },
+      {
+       "key": "end_chapter",
+       "label": "結束章"
+      },
+      {
+       "key": "reason",
+       "label": "變化原因"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []
     },
     "relations_draft": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "who",
+       "label": "誰"
+      },
+      {
+       "key": "toward",
+       "label": "對誰"
+      },
+      {
+       "key": "relationship",
+       "label": "關係"
+      },
+      {
+       "key": "attitude",
+       "label": "態度"
+      },
+      {
+       "key": "start_chapter",
+       "label": "起始章"
+      },
+      {
+       "key": "end_chapter",
+       "label": "結束章"
+      },
+      {
+       "key": "reason",
+       "label": "變化原因"
+      }
+     ],
      "exists": false,
      "headers": [],
      "rows": []

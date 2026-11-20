@@ -377,7 +377,7 @@
         : h("div", { class: "muted" },
           "這本書還沒有章節結構。",
           h("br"),
-          h("a", { href: "#/shared?t=" + enc("章節結構") }, "到共用庫套用一個 →"))),
+          h("a", { href: "#/shared?t=structures" }, "到共用庫套用一個 →"))),
       h("div", {}, actions,
         file ? docEl : h("div", { class: "card empty" },
           h("div", { class: "big" }, "✦"),
@@ -416,13 +416,13 @@
     const filt = isEnt ? loadEntryFilter(S.book, t) : {};
 
     const btns = [];
-    if (t === "core") btns.push(h("button", { onclick: () => FE.go("#/shared?t=" + enc("文風")) }, "共用文風庫"));
+    if (t === "core") btns.push(h("button", { onclick: () => FE.go("#/shared?t=styles") }, "共用文風庫"));
     if (t === "core") btns.push([
       h("button", { onclick: () => Panel.openForm("style") }, "分析／調整文風"),
       h("button", { onclick: () => Panel.openForm("preference") }, "記錄偏好"),
     ]);
     if (t === "drafts") btns.push(h("button", { class: "primary", onclick: () => Panel.openForm("promote_drafts") }, "草稿轉正式"));
-    if (t === "structure") btns.push(h("button", { onclick: () => FE.go("#/shared?t=" + enc("章節結構")) }, "到共用庫選結構"));
+    if (t === "structure") btns.push(h("button", { onclick: () => FE.go("#/shared?t=structures") }, "到共用庫選結構"));
     if (canDel) btns.push(h("button", { class: "danger", id: "bible-del" }, FE.t("刪除這份")));
     if (isEnt) btns.push(h("button", { onclick: () => rebuildBibleIndex(), title: "重新產生 設定/_索引.md，給 novel-bible 先讀" }, "重建索引"));
     btns.push(h("button", { class: "primary", onclick: () => bibleGenDialog() }, "生成設定"));

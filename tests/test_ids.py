@@ -27,6 +27,10 @@ class NormTest(unittest.TestCase):
         self.assertEqual("outline", ids.norm("search_scope", "章綱"))
         self.assertEqual("candidates", ids.norm("search_scope", "候選"))
         self.assertEqual("manuscript", ids.norm("import_target", "正文"))
+        self.assertEqual("styles", ids.norm("shared_tab", "文風"))
+        self.assertEqual("structures", ids.norm("shared_tab", "章節結構"))
+        self.assertEqual("structures", ids.norm("shared_tab", layout.SHARED_STRUCTURES))
+        self.assertEqual("prefs", ids.norm("shared_tab", "共用作者偏好"))
 
     def test_unknown_passes_through(self):
         self.assertEqual("nope", ids.norm("bible_tab", "nope"))

@@ -206,9 +206,11 @@
     const o = await FE.api("/api/shared", { signal });
     S.sharedBooks = o.books;
     S.sharedLangs = o.book_langs || {};
-    const tab = ctx.query.t || "文風";
+    // 分頁 ID 見 studio/ids.py 的 SHARED_TABS；舊網址的中文分頁（?t=文風）也接受
+    const tab = nsShared.normId("shared_tab", ctx.query.t) || "styles";
     let file = ctx.query.f || "";
-    const tabs = ["文風", "章節結構", "共用作者偏好"];
+    const tabs = ["styles", "structures", "prefs"];
+    const TAB_LABEL = { styles: "文風", structures: "章節結構", prefs: "共用作者偏好" };
 
     // 任務完成後刷新共用庫；換頁就把回呼清掉，避免指到已經不存在的頁面
     const onSharedJob = (job) => {
@@ -216,7 +218,7 @@
       const n = styleJobTarget;
       if (n) FE.toast("文風「" + n + "」已更新");
       if (location.hash.startsWith("#/shared")) {
-        if (n) FE.go("#/shared?t=" + enc("文風") + "&f=" + enc("文風/" + n + ".md"));
+        if (n) FE.go("#/shared?t=styles&f=" + enc(LAYOUT.SHARED_STYLES + "/" + n + ".md"));
         else FE.route();
       }
     };
@@ -245,9 +247,9 @@
     }
 
     let list = [];
-    if (tab === "文風") {
+    if (tab === "styles") {
       list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, lang: s.lang, badge: s.has_metrics ? "已統計 " + fmtNum(+s.sample) + " 字" : "" }));
-    } else if (tab === "章節結構") {
+    } else if (tab === "structures") {
       list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", lang: s.lang, scope: s.scope, origin: s.origin }));
     } else {
       file = LAYOUT.SHARED_PREFS;
@@ -257,12 +259,12 @@
     const books = o.books;
 
     const headButtons = {
-      "文風": [
+      styles: [
         h("button", { id: "sh-ai-style" }, "✦ 請 AI 設計文風"),
         h("button", { class: "primary", id: "sh-new-style" }, "新增文風"),
       ],
-      "章節結構": [h("button", { class: "primary", id: "sh-new-struct" }, "新增結構")],
-      "共用作者偏好": [],
+      structures: [h("button", { class: "primary", id: "sh-new-struct" }, "新增結構")],
+      prefs: [],
     };
 
     const docEl = h("div", { id: "doc" },
@@ -273,7 +275,7 @@
       tabs.map((x) => h("button", {
         class: "tab" + (x === tab ? " active" : ""),
         onclick: () => FE.go(BASE + "?t=" + enc(x)),
-      }, x, (x === "共用作者偏好" && o.prefs.active) ? [" ", h("span", { class: "badge b-ok" }, "生效中")] : null)));
+      }, TAB_LABEL[x], (x === "prefs" && o.prefs.active) ? [" ", h("span", { class: "badge b-ok" }, "生效中")] : null)));
 
     const listNode = h("div", { class: "list" },
       list.length
@@ -288,7 +290,7 @@
             e.badge ? h("span", { class: "badge" }, e.badge) : null),
           e.desc ? h("div", { class: "ds" }, e.desc) : null,
           e.scope ? h("div", { class: "ds" }, "適用：" + e.scope) : null))
-        : h("div", { class: "muted" }, "還沒有" + tab + "。按右上角新增。"));
+        : h("div", { class: "muted" }, "還沒有" + TAB_LABEL[tab] + "。按右上角新增。"));
 
     ctx.view(
       h("div", { class: "page-head" },
@@ -296,7 +298,7 @@
           h("div", { class: "sub" }, "所有書都能用；放在書庫的 ", h("code", {}, "_共用"), " 資料夾，不會進 git")),
         h("div", { class: "row" }, headButtons[tab])),
       tabsNode,
-      tab === "共用作者偏好"
+      tab === "prefs"
         ? [
           h("div", { class: "alert info", style: "margin-bottom:12px" },
             h("span", { class: "k" }, "怎麼生效"),
@@ -308,7 +310,7 @@
         ]
         : h("div", { class: "split" }, listNode, h("div", {}, actionsEl, docEl)));
 
-    if (tab === "文風") {
+    if (tab === "styles") {
       ctx.view; // no-op：節點已放好
       document.querySelector("#sh-ai-style").onclick = () => styleAiModal("design", books, null, signal);
       document.querySelector("#sh-new-style").onclick = () => {
@@ -340,7 +342,7 @@
                   const r = await FE.api("/api/shared/styles", { method: "POST", body: v, signal });
                   close();
                   FE.toast("已建立文風「" + r.name + "」");
-                  FE.go(BASE + "?t=" + enc("文風") + "&f=" + enc(r.file));
+                  FE.go(BASE + "?t=styles&f=" + enc(r.file));
                 } catch (e) { FE.fail(e); }
               },
             }, "建立"),
@@ -449,13 +451,13 @@
           if (!(await FE.confirm("刪除文風「" + name + "」？（會移到 _共用/.刪除，不會永久刪除）"))) return;
           try {
             await FE.api("/api/shared/styles/" + enc(name), { method: "DELETE", signal });
-            FE.go(BASE + "?t=" + enc("文風"));
+            FE.go(BASE + "?t=styles");
           } catch (e) { FE.fail(e); }
         };
       }
     }
 
-    if (tab === "章節結構") {
+    if (tab === "structures") {
       document.querySelector("#sh-new-struct").onclick = () => {
         const nameInput = h("input", { type: "text", id: "nt-name", placeholder: "例如：雙線交錯" });
         const close = FE.modal({
@@ -476,7 +478,7 @@
                     signal,
                   });
                   close();
-                  FE.go(BASE + "?t=" + enc("章節結構") + "&f=" + enc("結構/" + r.name + ".md"));
+                  FE.go(BASE + "?t=structures&f=" + enc(LAYOUT.SHARED_STRUCTURES + "/" + r.name + ".md"));
                 } catch (e) { FE.fail(e); }
               },
             }, "建立"),
@@ -540,7 +542,7 @@
               if (!nn) return;
               try {
                 const r = await FE.api("/api/shared/structures", { method: "POST", body: { copy_preset: name, name: nn }, signal });
-                FE.go(BASE + "?t=" + enc("章節結構") + "&f=" + enc("結構/" + r.name + ".md"));
+                FE.go(BASE + "?t=structures&f=" + enc(LAYOUT.SHARED_STRUCTURES + "/" + r.name + ".md"));
               } catch (e) { FE.fail(e); }
             });
           };
@@ -550,7 +552,7 @@
             if (!(await FE.confirm("刪除結構「" + name + "」？（會移到 _共用/.刪除；已套用到書裡的複本不受影響）"))) return;
             try {
               await FE.api("/api/shared/structures/" + enc(name), { method: "DELETE", signal });
-              FE.go(BASE + "?t=" + enc("章節結構"));
+              FE.go(BASE + "?t=structures");
             } catch (e) { FE.fail(e); }
           };
         }

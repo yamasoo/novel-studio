@@ -27,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 from studio import layout
 from studio import ids
+from studio import tables
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -1963,8 +1964,8 @@ def book_tracking(book_id: str):
         "glossary": project.read_table(d, layout.GLOSSARY),
         "reader": project.read_table(d, tracking.RP_FILE),
         "reader_draft": project.read_table(d, tracking.RP_DRAFT),
-        "relations": project.read_table(d, relations.FILE),
-        "relations_draft": project.read_table(d, relations.DRAFT),
+        "relations": tables.read(d, "relations", relations.FILE),
+        "relations_draft": tables.read(d, "relations", relations.DRAFT),
         "relations_graph": relations.graph_data(d),
         "characters": chars,
         "latest": ov["latest"],

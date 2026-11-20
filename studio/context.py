@@ -8,6 +8,7 @@ import re
 
 from . import contract, lang as lang_mod, project, prompts, recall, shared
 from . import layout
+from . import tables
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -377,8 +378,9 @@ READER_TITLE = "讀者認知（懸念與誤認不能提前揭曉；回收章在�
 RELATION_FILE = layout.RELATIONS
 RELATION_TITLE = "角色關係（誰對誰目前的關係與態度；已經改變的不能無故倒退，要變就要在劇情裡有原因）"
 RELATION_HISTORY_TITLE = "角色關係（含歷史：誰對誰什麼時候變過；結束章空白＝目前有效）"
-_REL_NOW = ["誰", "對誰", "關係", "態度", "起始章"]
-_REL_ALL = ["誰", "對誰", "關係", "態度", "起始章", "結束章", "變化原因"]
+# 送給模型的關係表欄位（英文鍵；表頭由 tables.md 換回檔案的中文表頭）
+_REL_NOW = ["who", "toward", "relationship", "attitude", "start_chapter"]
+_REL_ALL = ["who", "toward", "relationship", "attitude", "start_chapter", "end_chapter", "reason"]
 
 
 def _scene_chars(book_dir, scope):
@@ -389,30 +391,30 @@ def _scene_chars(book_dir, scope):
 
 def relations_for(book_dir, scope, pk=None, history=False):
     """角色關係：只帶「在場角色之間」的。寫稿帶目前有效的；審查（history）連結束章與變化原因一起帶。"""
-    rows = project.read_table(book_dir, RELATION_FILE)["rows"]
+    rows = tables.read(book_dir, "relations", RELATION_FILE)["rows"]
     if not rows:
         return ""
     chars = _scene_chars(book_dir, scope)
-    pair = [r for r in rows if r.get("誰") in chars and r.get("對誰") in chars]
-    now = [r for r in pair if not str(r.get("結束章") or "").strip()]
+    pair = [r for r in rows if r.get("who") in chars and r.get("toward") in chars]
+    now = [r for r in pair if not str(r.get("end_chapter") or "").strip()]
     if history:
-        pair.sort(key=lambda r: (r.get("誰", ""), r.get("對誰", ""), _nums(r.get("起始章"))[:1] or [0]))
+        pair.sort(key=lambda r: (r.get("who", ""), r.get("toward", ""), _nums(r.get("start_chapter"))[:1] or [0]))
         out_rows, cols = pair, _REL_ALL
     else:
         out_rows, cols = now, _REL_NOW
     if pk is not None:
         pk.note("角色關係 %d 列（在場角色之間%s）" % (len(out_rows), "，含歷史" if history else "，目前有效"))
-    return table_md(cols, out_rows)
+    return tables.md("relations", cols, out_rows)
 
 
 def relations_for_writeback(book_dir, text):
     """回寫用：正文出場角色的、目前有效的關係。AI 只需要報有變的。"""
-    rows = project.read_table(book_dir, RELATION_FILE)["rows"]
+    rows = tables.read(book_dir, "relations", RELATION_FILE)["rows"]
     if not rows:
         return ""
     chars = _scene_chars(book_dir, text)
-    mine = [r for r in rows if (r.get("誰") in chars or r.get("對誰") in chars) and not str(r.get("結束章") or "").strip()]
-    return table_md(_REL_NOW, mine)
+    mine = [r for r in rows if (r.get("who") in chars or r.get("toward") in chars) and not str(r.get("end_chapter") or "").strip()]
+    return tables.md("relations", _REL_NOW, mine)
 
 
 def glossary_for(book_dir, scope, pk=None):

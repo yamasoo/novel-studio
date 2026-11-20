@@ -42,7 +42,6 @@
   ],
   "second_run": [],
   "tree": {
-   ".studio/lang": "b6c075ba25de",
    "_範本/世界觀.md": "80e8ca32995f",
    "_範本/伏筆.md": "364cae066519",
    "_範本/作者偏好.md": "851a7ff75418",
@@ -61,6 +60,12 @@
    "_範本/角色狀態.md": "fcb0b38d8ed6",
    "_範本/讀者認知.md": "ee9fad063446",
    "_範本/關係.md": "4090e05446ae",
+   "book.json": {
+    "created": "<date>",
+    "lang": "en",
+    "schema_version": 2,
+    "title": "skeleton-en"
+   },
    "候選/.gitkeep": "da39a3ee5e6b",
    "大綱/全書大綱.md": "2fa54d08168f",
    "大綱/章綱/.gitkeep": "da39a3ee5e6b",
@@ -124,7 +129,6 @@
   ],
   "second_run": [],
   "tree": {
-   ".studio/lang": "4b3ffd2e0f1b",
    "_範本/世界觀.md": "c4ff20a99247",
    "_範本/伏筆.md": "8c18273c9192",
    "_範本/作者偏好.md": "33a6d378cc94",
@@ -143,6 +147,12 @@
    "_範本/角色狀態.md": "f8bfd779ad55",
    "_範本/讀者認知.md": "e3eadeec5d8c",
    "_範本/關係.md": "90ccd11548cc",
+   "book.json": {
+    "created": "<date>",
+    "lang": "ja",
+    "schema_version": 2,
+    "title": "skeleton-ja"
+   },
    "候選/.gitkeep": "da39a3ee5e6b",
    "大綱/全書大綱.md": "a9729b9fa81d",
    "大綱/章綱/.gitkeep": "da39a3ee5e6b",
@@ -206,7 +216,6 @@
   ],
   "second_run": [],
   "tree": {
-   ".studio/lang": "ff2f0d74abdb",
    "_範本/世界觀.md": "eae82cfeb9fb",
    "_範本/伏筆.md": "f042f2f58279",
    "_範本/作者偏好.md": "036f15bf4c2d",
@@ -225,6 +234,12 @@
    "_範本/角色狀態.md": "fb00662fa55b",
    "_範本/讀者認知.md": "c34dbc6681ca",
    "_範本/關係.md": "7030a0d151d2",
+   "book.json": {
+    "created": "<date>",
+    "lang": "zh-TW",
+    "schema_version": 2,
+    "title": "skeleton-zh-TW"
+   },
    "候選/.gitkeep": "da39a3ee5e6b",
    "大綱/全書大綱.md": "c0a005e496ea",
    "大綱/章綱/.gitkeep": "da39a3ee5e6b",
@@ -250,6 +265,7 @@
    "created": [
     "CLAUDE.md",
     "_範本/（18 份）",
+    "book.json",
     "大綱/全書大綱.md",
     "大綱/卷綱/卷綱_第一卷.md",
     "大綱/章綱/第001章_待填.md",
@@ -288,6 +304,11 @@
    "_範本/角色狀態.md": "fb00662fa55b",
    "_範本/讀者認知.md": "c34dbc6681ca",
    "_範本/關係.md": "7030a0d151d2",
+   "book.json": {
+    "created": "<date>",
+    "schema_version": 2,
+    "title": "示範新書"
+   },
    "候選/": "<empty dir>",
    "大綱/全書大綱.md": "c0a005e496ea",
    "大綱/卷綱/卷綱_第一卷.md": "3cd8deaeb6d6",

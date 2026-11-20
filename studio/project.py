@@ -319,6 +319,8 @@ def create_book(library, name):
     if os.path.exists(d):
         raise ProjectError("已經有同名資料夾")
     os.makedirs(d)
+    from . import bookmeta
+    bookmeta.write(d)      # 書名、格式版本、建立日期；語言等作者選了再寫（沒寫時照舊看故事核心）
     return d
 
 

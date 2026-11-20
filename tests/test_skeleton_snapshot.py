@@ -33,7 +33,13 @@ def _tree(d):
         for f in sorted(files):
             rel = (rel_base + "/" if rel_base else "") + f
             with open(os.path.join(base, f), "rb") as fh:
-                out[rel] = hashlib.sha1(fh.read().replace(b"\r\n", b"\n")).hexdigest()[:12]
+                data = fh.read().replace(b"\r\n", b"\n")
+            if rel == "book.json":     # 建立日期每天不同：記內容（日期換成固定字）
+                meta = json.loads(data.decode("utf-8"))
+                meta["created"] = "<date>" if meta.get("created") else meta.get("created")
+                out[rel] = meta
+                continue
+            out[rel] = hashlib.sha1(data).hexdigest()[:12]
         if not files and not dirs:
             out[rel_base + "/"] = "<empty dir>"
     return out

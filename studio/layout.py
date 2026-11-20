@@ -25,6 +25,8 @@ TRACKING = "追蹤"
 SAMPLES = "範例"
 TEMPLATES = "_範本"
 STUDIO = ".studio"
+BOOK_META = "book.json"          # 書的身分證（格式版本、書名、語言）；各版都放在書的根目錄
+SCHEMA_VERSION = 2               # 這版程式寫出的書的格式。P3 把資料夾、檔名換成英文後改成 3
 
 # 書架與檔案瀏覽看得到的資料夾（順序就是顯示順序）
 BROWSABLE = (BIBLE, OUTLINE, MANUSCRIPT, TRACKING, CANDIDATES, SAMPLES, TEMPLATES)
@@ -99,6 +101,8 @@ STUDIO_FIDELITY = STUDIO + "/保真"
 STUDIO_WRITEBACK_CHECK = STUDIO + "/回寫檢查"
 STUDIO_RECOVERY = STUDIO + "/恢復稿"
 STUDIO_EXPORT_PREFS = STUDIO + "/匯出設定.json"
+STUDIO_REPORTS = STUDIO + "/報告"              # 移轉報告等（P3 改成 .studio/reports）
+MIGRATE_BACKUP_PREFIX = "pre-v3_"              # 移轉前的整本備份：.studio/備份/pre-v3_YYYYMMDD-HHMMSS.zip
 PIPELINE_CURRENT_FILE = "目前.json"            # 流程狀態檔名（放在 STUDIO_PIPELINE 底下）
 REVERSE_CUMULATIVE = "累積.json"               # 反推的累積結果（放在 STUDIO_REVERSE 底下）
 REVERSE_DRAFTS = "草稿"                        # STUDIO_REVERSE 底下：反推出來、還沒採用的草稿

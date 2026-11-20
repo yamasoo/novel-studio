@@ -195,6 +195,9 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
 
     _write(os.path.join(target, "CLAUDE.md"), claude_md(title, lang, fp, dna, source))
     created.append("CLAUDE.md")
+    from . import bookmeta
+    bookmeta.write(target, title=title)    # 語言照舊由故事核心決定（spawn 不改變語言判斷）
+    created.append(layout.BOOK_META)
 
     for i in range(1, max(1, int(cards)) + 1):
         rel = layout.CHAPTER_CARDS + "/" + layout.chapter_stub_file(i)

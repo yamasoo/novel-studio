@@ -2,9 +2,10 @@
 """每本書的寫作語言。
 
 存放位置（依序找，找到就用）：
-  1. 設定/故事核心.md 開頭資料區的「語言: zh-TW | en | ja」
-  2. .studio/lang（開書當下還沒有故事核心檔時先記在這裡；開書訪談時會被寫進故事核心）
-  3. 都沒有 → zh-TW（舊書不用改任何東西）
+  1. book.json 的 lang（v3 起的唯一來源；工作台開書、改語言都寫這裡）
+  2. 設定/故事核心.md 開頭資料區的「語言: zh-TW | en | ja」（舊書；Claude Code 技能目前也寫這裡，P4 改）
+  3. .studio/lang（舊書）
+  4. 都沒有 → zh-TW
 """
 import os
 import re
@@ -75,7 +76,8 @@ def _file_lang(book_dir):
 def book_lang(book_dir):
     if not book_dir:
         return DEFAULT
-    return normalize(_fm_lang(book_dir) or _file_lang(book_dir))
+    from . import bookmeta
+    return normalize(bookmeta.read(book_dir).get("lang") or _fm_lang(book_dir) or _file_lang(book_dir))
 
 
 def book_unit(book_dir):
@@ -83,12 +85,14 @@ def book_unit(book_dir):
 
 
 def set_book_lang(book_dir, value):
-    """設定書的語言：寫 .studio/lang；故事核心檔已存在的話，也同步改裡面的「語言」。"""
-    from . import shared
+    """設定書的語言：寫 book.json。舊的 .studio/lang 拿掉（免得兩邊不一致）。
+    故事核心檔已存在的話，也同步改裡面的「語言」（Claude Code 技能還會讀它；P4 改完技能再拿掉）。"""
+    from . import bookmeta, shared
     lang = normalize(value)
-    os.makedirs(layout.path(book_dir, layout.STUDIO), exist_ok=True)
-    with open(layout.path(book_dir, layout.STUDIO, "lang"), "w", encoding="utf-8", newline="\n") as f:
-        f.write(lang + "\n")
+    bookmeta.write(book_dir, lang=lang)
+    old = layout.path(book_dir, layout.STUDIO, "lang")
+    if os.path.isfile(old):
+        os.remove(old)
     p = layout.path(book_dir, layout.STORY_CORE)
     if os.path.isfile(p):
         with open(p, encoding="utf-8") as f:

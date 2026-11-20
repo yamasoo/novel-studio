@@ -20,6 +20,7 @@ import time
 
 from . import project, textguard, volume
 from . import layout
+from . import tables
 
 REL = layout.CONTRACT
 KEEP_MARK = "## 作者補充"
@@ -105,14 +106,14 @@ def characters(book_dir):
 
 def threads(book_dir):
     """未回收的伏筆：[(編號, 內容, 埋設章, 預計回收, 狀態, 重要度)]，重要的排前面。"""
-    rows = _rows(_body(book_dir, layout.FORESHADOWING))
+    rows = tables.rows_to_keys("foreshadow", _rows(_body(book_dir, layout.FORESHADOWING)))
     open_rows = []
     for r in rows:
-        status = r.get("狀態") or ""
+        status = r.get("status") or ""
         if status in STATUS_DONE:
             continue
-        open_rows.append((r.get("編號") or "", r.get("內容") or "", r.get("埋設章") or "",
-                          r.get("預計回收") or "", status, r.get("重要度") or ""))
+        open_rows.append((r.get("id") or "", r.get("content") or "", r.get("planted_in") or "",
+                          r.get("planned_payoff") or "", status, r.get("priority") or ""))
     order = {"高": 0, "中": 1, "低": 2}
     open_rows.sort(key=lambda x: (order.get(x[5], 3), x[0]))
     return open_rows
@@ -120,11 +121,11 @@ def threads(book_dir):
 
 def secrets(book_dir):
     """時間線的兩堆：讀者已經知道的、還沒揭曉的。"""
-    rows = _rows(_body(book_dir, layout.TIMELINE))
+    rows = tables.rows_to_keys("timeline", _rows(_body(book_dir, layout.TIMELINE)))
     known, hidden = [], []
     for r in rows:
-        revealed = (r.get("揭示章") or "").strip()
-        item = (r.get("編號") or "", (r.get("實際發生（作者真相）") or "").strip(), revealed)
+        revealed = (r.get("revealed_in") or "").strip()
+        item = (r.get("id") or "", (r.get("what_really_happened") or "").strip(), revealed)
         if revealed and revealed not in ("未揭示", "未"):
             known.append(item)
         else:

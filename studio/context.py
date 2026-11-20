@@ -206,17 +206,17 @@ def foreshadow_for(book_dir, scope, a, b=None, pk=None):
     """伏筆：近期的整條帶、其他還沒回收的只帶一行索引、已回收或廢棄的不帶（被點名的照帶）。
     整條帶：scope（章綱等）點名的編號、預計回收章在 [a−3, b+5]、最後出現在最近 3 章。"""
     b = b or a
-    tbl = project.read_table(book_dir, layout.FORESHADOWING)
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "foreshadow", layout.FORESHADOWING)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows:
         return body(read(book_dir, layout.FORESHADOWING))
     ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope or ""))
     full, index = [], []
     for r in rows:
-        rid = str(r.get("編號") or "")
-        done = str(r.get("狀態") or "").strip() in FS_DONE
-        due = _nums(r.get("預計回收"))
-        last = _nums(r.get("最後出現"))
+        rid = str(r.get("id") or "")
+        done = str(r.get("status") or "").strip() in FS_DONE
+        due = _nums(r.get("planned_payoff"))
+        last = _nums(r.get("last_seen"))
         if rid in ids:
             full.append(r)
         elif done:
@@ -227,13 +227,13 @@ def foreshadow_for(book_dir, scope, a, b=None, pk=None):
             index.append(r)
     if pk is not None:
         pk.note("伏筆整條帶 %d、索引 %d（已回收或廢棄的不帶）" % (len(full), len(index)))
-    out = table_md(hs, full) if full else prompts.cur()["fs_none"]
+    out = tables.md("foreshadow", ks, full) if full else prompts.cur()["fs_none"]
     if index:
         def short(s, n=30):
             s = str(s or "").replace("|", "／").replace("\n", " ")
             return s if len(s) <= n else s[:n] + "…"
         out += (prompts.cur()["fs_index_head"] +
-                "\n".join("| %s | %s | %s | %s |" % (r.get("編號", ""), short(r.get("內容")), r.get("預計回收", ""), r.get("重要度", ""))
+                "\n".join("| %s | %s | %s | %s |" % (r.get("id", ""), short(r.get("content")), r.get("planned_payoff", ""), r.get("priority", ""))
                           for r in index))
     return out
 
@@ -274,11 +274,11 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
     - 只列「讀者還不知道什麼」（不帶作者真相）：其他還有懸念的列
     - 不帶：其他已經揭曉、和本章無關的列"""
     b = b or a
-    tl = project.read_table(book_dir, layout.TIMELINE)
-    rows, hs = tl["rows"], tl["headers"]
+    tl = tables.read(book_dir, "timeline", layout.TIMELINE)
+    rows, ks = tl["rows"], tables.file_keys(tl)
     if not rows:
         return body(read(book_dir, layout.TIMELINE))
-    full = table_md(hs, rows)
+    full = tables.md("timeline", ks, rows)
     if est_tokens(full) <= FILTER_MIN_TOKENS:
         return full
     names = _entity_names(book_dir, scope)
@@ -288,21 +288,21 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
     ledger = has_reader_ledger(book_dir)   # 有帳本就由帳本負責未解疑問
     keep, opens = [], []
     for r, j in zip(rows, joined):
-        rev = _nums(r.get("揭示章"))
-        known = str(r.get("讀者目前知道") or "").strip()
+        rev = _nums(r.get("revealed_in"))
+        known = str(r.get("reader_knows_now") or "").strip()
         hidden = not known or known in _UNREVEALED or not rev or min(rev) >= a
         recent = any(a - RECENT_CHAPTERS <= n <= b for n in rev)
-        related = str(r.get("編號") or "") in ids or any(n in j for n in names)
+        related = str(r.get("id") or "") in ids or any(n in j for n in names)
         if hidden or recent or related:
             keep.append(r)
         elif not ledger and re.search(_PARTIAL, known):   # 沒有讀者認知帳本時：從措辭猜讀者還不知道的部分
             opens.append(r)
     if pk is not None:
         pk.note("時間線 %d 條：整列帶 %d、只列未解疑問 %d" % (len(rows), len(keep), len(opens)))
-    out = table_md(hs, keep)
+    out = tables.md("timeline", ks, keep)
     if opens:
         out += (prompts.cur()["tl_open_head"] +
-                "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("揭示章", ""), _open_part(str(r.get("讀者目前知道") or "")))
+                "\n".join("| %s | %s | %s |" % (r.get("id", ""), r.get("revealed_in", ""), _open_part(str(r.get("reader_knows_now") or "")))
                           for r in opens))
     return out
 

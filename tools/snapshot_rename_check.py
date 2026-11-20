@@ -38,7 +38,8 @@ def transform(old):
         t = per.get("/tracking", {}).get("body")
         if isinstance(t, dict):
             # P2(3)：追蹤表改英文鍵，另附 columns（表頭照舊）
-            for name, kind in (("relations", "relations"), ("relations_draft", "relations")):
+            for name, kind in (("relations", "relations"), ("relations_draft", "relations"),
+                               ("foreshadow", "foreshadow"), ("timeline", "timeline")):
                 x = t.get(name)
                 if isinstance(x, dict) and "rows" in x and "columns" not in x:
                     x["rows"] = tables.rows_to_keys(kind, x["rows"])

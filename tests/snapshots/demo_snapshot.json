@@ -954,6 +954,36 @@
      }
     ],
     "foreshadow": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "planted_in",
+       "label": "埋設章"
+      },
+      {
+       "key": "planned_payoff",
+       "label": "預計回收"
+      },
+      {
+       "key": "last_seen",
+       "label": "最後出現"
+      },
+      {
+       "key": "status",
+       "label": "狀態"
+      },
+      {
+       "key": "priority",
+       "label": "重要度"
+      }
+     ],
      "exists": true,
      "file": "追蹤/伏筆.md",
      "headers": [
@@ -967,40 +997,40 @@
      ],
      "rows": [
       {
-       "內容": "Hob lights only for a place Wren has truly stood in",
-       "埋設章": "第002章",
-       "最後出現": "第002章",
-       "狀態": "推進中",
-       "編號": "F001",
-       "重要度": "高",
-       "預計回收": "第030章"
+       "content": "Hob lights only for a place Wren has truly stood in",
+       "id": "F001",
+       "last_seen": "第002章",
+       "planned_payoff": "第030章",
+       "planted_in": "第002章",
+       "priority": "高",
+       "status": "推進中"
       },
       {
-       "內容": "Wren erased the road from the master map on Orrin's order",
-       "埋設章": "第002章",
-       "最後出現": "第002章",
-       "狀態": "已埋",
-       "編號": "F002",
-       "重要度": "高",
-       "預計回收": "第020章"
+       "content": "Wren erased the road from the master map on Orrin's order",
+       "id": "F002",
+       "last_seen": "第002章",
+       "planned_payoff": "第020章",
+       "planted_in": "第002章",
+       "priority": "高",
+       "status": "已埋"
       },
       {
-       "內容": "Dessa Pike's eyes keep drifting to the old map by the stove",
-       "埋設章": "第001章",
-       "最後出現": "第001章",
-       "狀態": "已埋",
-       "編號": "F003",
-       "重要度": "中",
-       "預計回收": "第015章"
+       "content": "Dessa Pike's eyes keep drifting to the old map by the stove",
+       "id": "F003",
+       "last_seen": "第001章",
+       "planned_payoff": "第015章",
+       "planted_in": "第001章",
+       "priority": "中",
+       "status": "已埋"
       },
       {
-       "內容": "The old map's milestones skip from 40 to 42",
-       "埋設章": "第001章",
-       "最後出現": "第001章",
-       "狀態": "已埋",
-       "編號": "F004",
-       "重要度": "中",
-       "預計回收": "第012章"
+       "content": "The old map's milestones skip from 40 to 42",
+       "id": "F004",
+       "last_seen": "第001章",
+       "planned_payoff": "第012章",
+       "planted_in": "第001章",
+       "priority": "中",
+       "status": "已埋"
       }
      ]
     },
@@ -1187,6 +1217,32 @@
     },
     "stale_foreshadow": 10,
     "timeline": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "story_time",
+       "label": "故事時間"
+      },
+      {
+       "key": "what_really_happened",
+       "label": "實際發生（作者真相）"
+      },
+      {
+       "key": "reader_knows_now",
+       "label": "讀者目前知道"
+      },
+      {
+       "key": "revealed_in",
+       "label": "揭示章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": true,
      "file": "追蹤/時間線.md",
      "headers": [
@@ -1199,44 +1255,44 @@
      ],
      "rows": [
       {
-       "實際發生（作者真相）": "Greywater Bridge collapses; the Guild strikes the road from every official map",
-       "揭示章": "未揭示",
-       "故事時間": "Three years ago, autumn",
-       "相關角色": "Corvin Tarr, Orrin Vale",
-       "編號": "E001",
-       "讀者目前知道": "Nothing yet"
+       "id": "E001",
+       "reader_knows_now": "Nothing yet",
+       "related_characters": "Corvin Tarr, Orrin Vale",
+       "revealed_in": "未揭示",
+       "story_time": "Three years ago, autumn",
+       "what_really_happened": "Greywater Bridge collapses; the Guild strikes the road from every official map"
       },
       {
-       "實際發生（作者真相）": "Orrin has Wren rub the road out of the master map",
-       "揭示章": "第002章",
-       "故事時間": "Last spring",
-       "相關角色": "Wren Alder, Orrin Vale",
-       "編號": "E002",
-       "讀者目前知道": "Wren erased a line on Orrin's order"
+       "id": "E002",
+       "reader_knows_now": "Wren erased a line on Orrin's order",
+       "related_characters": "Wren Alder, Orrin Vale",
+       "revealed_in": "第002章",
+       "story_time": "Last spring",
+       "what_really_happened": "Orrin has Wren rub the road out of the master map"
       },
       {
-       "實際發生（作者真相）": "Orrin vanishes from the shop overnight",
-       "揭示章": "第001章",
-       "故事時間": "Three weeks ago",
-       "相關角色": "Orrin Vale",
-       "編號": "E003",
-       "讀者目前知道": "Orrin has been missing three weeks"
+       "id": "E003",
+       "reader_knows_now": "Orrin has been missing three weeks",
+       "related_characters": "Orrin Vale",
+       "revealed_in": "第001章",
+       "story_time": "Three weeks ago",
+       "what_really_happened": "Orrin vanishes from the shop overnight"
       },
       {
-       "實際發生（作者真相）": "Dessa Pike takes Orrin's survey books for the Guild",
-       "揭示章": "第001章",
-       "故事時間": "Day one, afternoon",
-       "相關角色": "Wren Alder, Dessa Pike",
-       "編號": "E004",
-       "讀者目前知道": "Everything"
+       "id": "E004",
+       "reader_knows_now": "Everything",
+       "related_characters": "Wren Alder, Dessa Pike",
+       "revealed_in": "第001章",
+       "story_time": "Day one, afternoon",
+       "what_really_happened": "Dessa Pike takes Orrin's survey books for the Guild"
       },
       {
-       "實際發生（作者真相）": "Wren lights Hob with \"Pellman's Ford\" and sees the silver road",
-       "揭示章": "第002章",
-       "故事時間": "Day one, night",
-       "相關角色": "Wren Alder, Hob",
-       "編號": "E005",
-       "讀者目前知道": "Everything"
+       "id": "E005",
+       "reader_knows_now": "Everything",
+       "related_characters": "Wren Alder, Hob",
+       "revealed_in": "第002章",
+       "story_time": "Day one, night",
+       "what_really_happened": "Wren lights Hob with \"Pellman's Ford\" and sees the silver road"
       }
      ]
     }
@@ -2781,6 +2837,36 @@
      }
     ],
     "foreshadow": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "planted_in",
+       "label": "埋設章"
+      },
+      {
+       "key": "planned_payoff",
+       "label": "預計回收"
+      },
+      {
+       "key": "last_seen",
+       "label": "最後出現"
+      },
+      {
+       "key": "status",
+       "label": "狀態"
+      },
+      {
+       "key": "priority",
+       "label": "重要度"
+      }
+     ],
      "exists": true,
      "file": "追蹤/伏筆.md",
      "headers": [
@@ -2794,40 +2880,40 @@
      ],
      "rows": [
       {
-       "內容": "竜約の印が、院長の印章と同じ形をしている",
-       "埋設章": "第002章",
-       "最後出現": "第002章",
-       "狀態": "已埋",
-       "編號": "F001",
-       "重要度": "高",
-       "預計回收": "第030章"
+       "content": "竜約の印が、院長の印章と同じ形をしている",
+       "id": "F001",
+       "last_seen": "第002章",
+       "planned_payoff": "第030章",
+       "planted_in": "第002章",
+       "priority": "高",
+       "status": "已埋"
       },
       {
-       "內容": "ルゥの傷に刺さっていた矢尻に、薬師院の紋がある",
-       "埋設章": "第002章",
-       "最後出現": "第002章",
-       "狀態": "推進中",
-       "編號": "F002",
-       "重要度": "高",
-       "預計回收": "第020章"
+       "content": "ルゥの傷に刺さっていた矢尻に、薬師院の紋がある",
+       "id": "F002",
+       "last_seen": "第002章",
+       "planned_payoff": "第020章",
+       "planted_in": "第002章",
+       "priority": "高",
+       "status": "推進中"
       },
       {
-       "內容": "追放の場で、トーマスが目を伏せた",
-       "埋設章": "第001章",
-       "最後出現": "第001章",
-       "狀態": "已埋",
-       "編號": "F003",
-       "重要度": "中",
-       "預計回收": "第015章"
+       "content": "追放の場で、トーマスが目を伏せた",
+       "id": "F003",
+       "last_seen": "第001章",
+       "planned_payoff": "第015章",
+       "planted_in": "第001章",
+       "priority": "中",
+       "status": "已埋"
       },
       {
-       "內容": "配合表の棚の鍵を持っていたのは誰か",
-       "埋設章": "第001章",
-       "最後出現": "第001章",
-       "狀態": "已埋",
-       "編號": "F004",
-       "重要度": "中",
-       "預計回收": "第012章"
+       "content": "配合表の棚の鍵を持っていたのは誰か",
+       "id": "F004",
+       "last_seen": "第001章",
+       "planned_payoff": "第012章",
+       "planted_in": "第001章",
+       "priority": "中",
+       "status": "已埋"
       }
      ]
     },
@@ -3026,6 +3112,32 @@
     },
     "stale_foreshadow": 10,
     "timeline": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "story_time",
+       "label": "故事時間"
+      },
+      {
+       "key": "what_really_happened",
+       "label": "實際發生（作者真相）"
+      },
+      {
+       "key": "reader_knows_now",
+       "label": "讀者目前知道"
+      },
+      {
+       "key": "revealed_in",
+       "label": "揭示章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": true,
      "file": "追蹤/時間線.md",
      "headers": [
@@ -3038,44 +3150,44 @@
      ],
      "rows": [
       {
-       "實際發生（作者真相）": "院長ガルドが配合表を書き換え、傷薬に毒草が混ざる",
-       "揭示章": "第001章",
-       "故事時間": "先月",
-       "相關角色": "ガルド・ベルク、エルマ・フェイン",
-       "編號": "E001",
-       "讀者目前知道": "エルマの責任とされた"
+       "id": "E001",
+       "reader_knows_now": "エルマの責任とされた",
+       "related_characters": "ガルド・ベルク、エルマ・フェイン",
+       "revealed_in": "第001章",
+       "story_time": "先月",
+       "what_really_happened": "院長ガルドが配合表を書き換え、傷薬に毒草が混ざる"
       },
       {
-       "實際發生（作者真相）": "薬師院の者が、ルゥに毒矢を射る",
-       "揭示章": "第002章",
-       "故事時間": "三日前",
-       "相關角色": "ルゥ",
-       "編號": "E002",
-       "讀者目前知道": "矢尻に薬師院の紋があること"
+       "id": "E002",
+       "reader_knows_now": "矢尻に薬師院の紋があること",
+       "related_characters": "ルゥ",
+       "revealed_in": "第002章",
+       "story_time": "三日前",
+       "what_really_happened": "薬師院の者が、ルゥに毒矢を射る"
       },
       {
-       "實際發生（作者真相）": "エルマが薬師院を追放される",
-       "揭示章": "第001章",
-       "故事時間": "追放の朝",
-       "相關角色": "エルマ・フェイン、ガルド・ベルク、トーマス",
-       "編號": "E003",
-       "讀者目前知道": "すべて"
+       "id": "E003",
+       "reader_knows_now": "すべて",
+       "related_characters": "エルマ・フェイン、ガルド・ベルク、トーマス",
+       "revealed_in": "第001章",
+       "story_time": "追放の朝",
+       "what_really_happened": "エルマが薬師院を追放される"
       },
       {
-       "實際發生（作者真相）": "エルマが森で傷ついた竜と出会う",
-       "揭示章": "第001章",
-       "故事時間": "三日後の夕方",
-       "相關角色": "エルマ・フェイン、ルゥ",
-       "編號": "E004",
-       "讀者目前知道": "すべて"
+       "id": "E004",
+       "reader_knows_now": "すべて",
+       "related_characters": "エルマ・フェイン、ルゥ",
+       "revealed_in": "第001章",
+       "story_time": "三日後の夕方",
+       "what_really_happened": "エルマが森で傷ついた竜と出会う"
       },
       {
-       "實際發生（作者真相）": "エルマとルゥが竜約を結ぶ",
-       "揭示章": "第002章",
-       "故事時間": "その夜",
-       "相關角色": "エルマ・フェイン、ルゥ",
-       "編號": "E005",
-       "讀者目前知道": "すべて"
+       "id": "E005",
+       "reader_knows_now": "すべて",
+       "related_characters": "エルマ・フェイン、ルゥ",
+       "revealed_in": "第002章",
+       "story_time": "その夜",
+       "what_really_happened": "エルマとルゥが竜約を結ぶ"
       }
      ]
     }
@@ -3988,6 +4100,36 @@
      }
     ],
     "foreshadow": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "content",
+       "label": "內容"
+      },
+      {
+       "key": "planted_in",
+       "label": "埋設章"
+      },
+      {
+       "key": "planned_payoff",
+       "label": "預計回收"
+      },
+      {
+       "key": "last_seen",
+       "label": "最後出現"
+      },
+      {
+       "key": "status",
+       "label": "狀態"
+      },
+      {
+       "key": "priority",
+       "label": "重要度"
+      }
+     ],
      "exists": true,
      "file": "追蹤/伏筆.md",
      "headers": [
@@ -4001,40 +4143,40 @@
      ],
      "rows": [
       {
-       "內容": "玉珮靠近相關的人或物會發熱",
-       "埋設章": "第001章",
-       "最後出現": "第002章",
-       "狀態": "推進中",
-       "編號": "F001",
-       "重要度": "高",
-       "預計回收": "第030章"
+       "content": "玉珮靠近相關的人或物會發熱",
+       "id": "F001",
+       "last_seen": "第002章",
+       "planned_payoff": "第030章",
+       "planted_in": "第001章",
+       "priority": "高",
+       "status": "推進中"
       },
       {
-       "內容": "浮字：沈家欠的，不止一紙婚書",
-       "埋設章": "第002章",
-       "最後出現": "第002章",
-       "狀態": "已埋",
-       "編號": "F002",
-       "重要度": "高",
-       "預計回收": "第030章"
+       "content": "浮字：沈家欠的，不止一紙婚書",
+       "id": "F002",
+       "last_seen": "第002章",
+       "planned_payoff": "第030章",
+       "planted_in": "第002章",
+       "priority": "高",
+       "status": "已埋"
       },
       {
-       "內容": "沈既白拇指上的舊玉扳指",
-       "埋設章": "第001章",
-       "最後出現": "第001章",
-       "狀態": "已埋",
-       "編號": "F003",
-       "重要度": "中",
-       "預計回收": "第020章"
+       "content": "沈既白拇指上的舊玉扳指",
+       "id": "F003",
+       "last_seen": "第001章",
+       "planned_payoff": "第020章",
+       "planted_in": "第001章",
+       "priority": "中",
+       "status": "已埋"
       },
       {
-       "內容": "周老太爺看見玉珮時站起又坐下",
-       "埋設章": "第001章",
-       "最後出現": "第001章",
-       "狀態": "已埋",
-       "編號": "F004",
-       "重要度": "中",
-       "預計回收": "第015章"
+       "content": "周老太爺看見玉珮時站起又坐下",
+       "id": "F004",
+       "last_seen": "第001章",
+       "planned_payoff": "第015章",
+       "planted_in": "第001章",
+       "priority": "中",
+       "status": "已埋"
       }
      ]
     },
@@ -4205,6 +4347,32 @@
     },
     "stale_foreshadow": 10,
     "timeline": {
+     "columns": [
+      {
+       "key": "id",
+       "label": "編號"
+      },
+      {
+       "key": "story_time",
+       "label": "故事時間"
+      },
+      {
+       "key": "what_really_happened",
+       "label": "實際發生（作者真相）"
+      },
+      {
+       "key": "reader_knows_now",
+       "label": "讀者目前知道"
+      },
+      {
+       "key": "revealed_in",
+       "label": "揭示章"
+      },
+      {
+       "key": "related_characters",
+       "label": "相關角色"
+      }
+     ],
      "exists": true,
      "file": "追蹤/時間線.md",
      "headers": [
@@ -4217,36 +4385,36 @@
      ],
      "rows": [
       {
-       "實際發生（作者真相）": "沈家帳房周叔偽造帳目，讓林家的鹽引被轉走兩次",
-       "揭示章": "未揭示",
-       "故事時間": "三年前三月",
-       "相關角色": "周叔、林父",
-       "編號": "E001",
-       "讀者目前知道": "不知道"
+       "id": "E001",
+       "reader_knows_now": "不知道",
+       "related_characters": "周叔、林父",
+       "revealed_in": "未揭示",
+       "story_time": "三年前三月",
+       "what_really_happened": "沈家帳房周叔偽造帳目，讓林家的鹽引被轉走兩次"
       },
       {
-       "實際發生（作者真相）": "林父因鹽引案入獄",
-       "揭示章": "第001章",
-       "故事時間": "三年前秋天",
-       "相關角色": "林父",
-       "編號": "E002",
-       "讀者目前知道": "林父在牢裡"
+       "id": "E002",
+       "reader_knows_now": "林父在牢裡",
+       "related_characters": "林父",
+       "revealed_in": "第001章",
+       "story_time": "三年前秋天",
+       "what_really_happened": "林父因鹽引案入獄"
       },
       {
-       "實際發生（作者真相）": "沈既白當眾退婚",
-       "揭示章": "第001章",
-       "故事時間": "退婚當天",
-       "相關角色": "林晚、沈既白、大伯母",
-       "編號": "E003",
-       "讀者目前知道": "全部"
+       "id": "E003",
+       "reader_knows_now": "全部",
+       "related_characters": "林晚、沈既白、大伯母",
+       "revealed_in": "第001章",
+       "story_time": "退婚當天",
+       "what_really_happened": "沈既白當眾退婚"
       },
       {
-       "實際發生（作者真相）": "玉珮浮字",
-       "揭示章": "第002章",
-       "故事時間": "退婚當夜",
-       "相關角色": "林晚",
-       "編號": "E004",
-       "讀者目前知道": "全部"
+       "id": "E004",
+       "reader_knows_now": "全部",
+       "related_characters": "林晚",
+       "revealed_in": "第002章",
+       "story_time": "退婚當夜",
+       "what_really_happened": "玉珮浮字"
       }
      ]
     }

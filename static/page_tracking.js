@@ -233,15 +233,16 @@
         body = h("div", { class: "card empty" }, h("div", { class: "big" }, "⟲"), "還沒有伏筆紀錄。寫完章節後 Claude 會自動登記。");
       } else {
         const hideBox = h("input", { type: "checkbox", id: "hide-done", checked: true });
-        const table = tableNode("fs-table", d.foreshadow.headers, rows, {
+        // 列是英文鍵（studio/tables.py），表頭用 columns 的 label
+        const table = tableNode("fs-table", d.foreshadow.columns, rows, {
           rowClass: (r) => {
-            const done = ["已回收", "廢棄"].includes(r["狀態"]);
-            const last = chn(r["最後出現"]) || chn(r["埋設章"]);
-            const due = dueCh(r["預計回收"]);
-            const stale = !done && ((["高", "中"].includes(r["重要度"]) && last && latest - last > d.stale_foreshadow) || (due && latest > due));
+            const done = ["已回收", "廢棄"].includes(r.status);
+            const last = chn(r.last_seen) || chn(r.planted_in);
+            const due = dueCh(r.planned_payoff);
+            const stale = !done && ((["高", "中"].includes(r.priority) && last && latest - last > d.stale_foreshadow) || (due && latest > due));
             return (done ? "dim done " : "") + (stale ? "hl" : "");
           },
-          cell: (r, x) => (x === "狀態" ? statusBadgeNode(r[x]) : r[x]),
+          cell: (r, x) => (x.key === "status" ? statusBadgeNode(r.status) : r[x.key]),
         });
         body = h("div", { class: "card" },
           h("div", { class: "row", style: "margin-bottom:8px" },
@@ -261,7 +262,7 @@
       body = rows.length
         ? h("div", { class: "card" },
           h("div", { class: "muted small", style: "margin-bottom:8px" }, "「讀者目前知道」是寫作時的資訊邊界；揭示章為「未揭示」的列以黃底標示。"),
-          tableNode(null, d.timeline.headers, rows, { rowClass: (r) => (/未/.test(r["揭示章"] || "") ? "hl" : "") }))
+          tableNode(null, d.timeline.columns, rows, { rowClass: (r) => (/未/.test(r.revealed_in || "") ? "hl" : "") }))
         : h("div", { class: "card empty" }, "還沒有時間線。");
     } else if (t === "reader") {
       const rd = d.reader_draft, rl = d.reader;

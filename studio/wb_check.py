@@ -9,6 +9,7 @@ import time
 
 from . import context, project, relations, tracking
 from . import layout
+from . import tables
 
 MIN_MENTIONS = 3        # 正文提到幾次以上的角色，才要求角色狀態更新
 STALE_SUSPENSE = 30     # 懸念、誤認種下超過幾章還沒回收就提醒
@@ -74,17 +75,17 @@ def check(book_dir, no, revision=False, data=None):
             issues.append("角色狀態寫了「關係變化」，但角色關係表沒有更新")
 
     # 伏筆：章綱點名的
-    fs = {r.get("編號"): r for r in project.read_table(book_dir, layout.FORESHADOWING)["rows"]}
+    fs = {r.get("id"): r for r in tables.read(book_dir, "foreshadow", layout.FORESHADOWING)["rows"]}
     for fid in _ids(card, "F"):
         r = fs.get(fid)
         if not r:
             issues.append("章綱提到 %s，伏筆表沒有這一條" % fid)
-        elif r.get("狀態") not in _DONE_FS and _ch(r.get("最後出現")) < no:
+        elif r.get("status") not in _DONE_FS and _ch(r.get("last_seen")) < no:
             issues.append("章綱提到 %s，伏筆表的「最後出現」沒有推進到本章" % fid)
 
     # 時間線
-    tl = project.read_table(book_dir, layout.TIMELINE)["rows"]
-    if tl and not any(no in [int(x) for x in re.findall(r"\d+", str(r.get("揭示章") or ""))] for r in tl):
+    tl = tables.read(book_dir, "timeline", layout.TIMELINE)["rows"]
+    if tl and not any(no in [int(x) for x in re.findall(r"\d+", str(r.get("revealed_in") or ""))] for r in tl):
         issues.append("時間線沒有任何一列的揭示章是本章")
 
     # 讀者認知：章綱點名的

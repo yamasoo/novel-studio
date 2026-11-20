@@ -10,6 +10,7 @@ import time
 
 from . import project, prompts, textguard
 from . import layout
+from . import tables
 
 STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
@@ -132,35 +133,40 @@ def _render_table(headers, rows):
     return "\n".join(out)
 
 
-def upsert_table(path, default_headers, items, prefix, title, ftype, chapter_label):
-    """依「編號」更新或新增表格列。回傳 (新增數, 更新數, 新編號清單)。"""
+def upsert_table(path, kind, items, prefix, title, ftype, chapter_label):
+    """依「編號」更新或新增表格列。回傳 (新增數, 更新數, 新編號清單)。
+    kind：tables.COLUMNS 的表名。檔案的表頭照舊；處理過程一律用英文鍵（v3 P2），
+    模型給的資料不論是英文鍵或中文鍵（jsonkeys 換過）都認。"""
     if os.path.isfile(path):
         text = project.read_text(path)
     else:
         text = "---\n類型: %s\n更新至: %s\n---\n\n# %s\n\n" % (ftype, chapter_label, title)
     before, headers, rows, after = _split_table(text)
-    headers = headers or default_headers
-    by_id = {r.get("編號"): r for r in rows if r.get("編號")}
-    nums = [int(m.group(1)) for r in rows for m in [re.match(prefix + r"(\d+)", r.get("編號", ""))] if m]
+    headers = headers or tables.headers(kind)
+    keys = [tables.key_of(kind, h) for h in headers]
+    rows = tables.rows_to_keys(kind, rows)
+    by_id = {r.get("id"): r for r in rows if r.get("id")}
+    nums = [int(m.group(1)) for r in rows for m in [re.match(prefix + r"(\d+)", r.get("id", ""))] if m]
     nxt = max(nums, default=0) + 1
     added, updated, new_ids = 0, 0, []
     for it in items or []:
         if not isinstance(it, dict):
             continue
-        rid = str(it.get("編號", "")).strip()
+        it = tables.row_to_keys(kind, it)
+        rid = str(it.get("id", "")).strip()
         if rid in by_id:
-            for h in headers:
-                if h != "編號" and it.get(h) not in (None, ""):
-                    if h == "最後出現" and _chno(it[h]) < _chno(by_id[rid].get(h)):
+            for k in keys:
+                if k != "id" and it.get(k) not in (None, ""):
+                    if k == "last_seen" and _chno(it[k]) < _chno(by_id[rid].get(k)):
                         continue  # 修訂舊章時不讓「最後出現」倒退
-                    by_id[rid][h] = _cell(it[h])
+                    by_id[rid][k] = _cell(it[k])
             updated += 1
         else:
             if not re.match(prefix + r"\d+$", rid) or rid in by_id:
                 rid = "%s%03d" % (prefix, nxt)
                 nxt += 1
-            row = {h: _cell(it.get(h, "")) for h in headers}
-            row["編號"] = rid
+            row = {k: _cell(it.get(k, "")) for k in keys}
+            row["id"] = rid
             rows.append(row)
             by_id[rid] = row
             added += 1
@@ -168,7 +174,7 @@ def upsert_table(path, default_headers, items, prefix, title, ftype, chapter_lab
     # frontmatter 更新至
     before = _bump_updated(before, chapter_label)
     sep = "" if before.endswith("\n\n") else ("\n" if before.endswith("\n") else "\n\n")
-    text = before + sep + _render_table(headers, rows) + ("\n" + after if after.strip() else "\n")
+    text = before + sep + _render_table(headers, tables.rows_to_headers(kind, rows)) + ("\n" + after if after.strip() else "\n")
     _write(path, text)
     return added, updated, new_ids
 
@@ -221,7 +227,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 3. 伏筆
     fs = data.get("foreshadow") or []
     if fs:
-        a, u, ids = upsert_table(layout.path(book_dir, layout.FORESHADOWING), FS_HEADERS, fs, "F", "伏筆總表", "伏筆總表", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.FORESHADOWING), "foreshadow", fs, "F", "伏筆總表", "伏筆總表", label)
         log.append("伏筆（新增 %d、更新 %d）" % (a, u))
     else:
         _touch_updated(layout.path(book_dir, layout.FORESHADOWING), label)
@@ -229,7 +235,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 4. 時間線
     tl = data.get("timeline") or []
     if tl:
-        a, u, ids = upsert_table(layout.path(book_dir, layout.TIMELINE), TL_HEADERS, tl, "E", "時間線", "時間線", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.TIMELINE), "timeline", tl, "E", "時間線", "時間線", label)
         log.append("時間線（新增 %d、更新 %d）" % (a, u))
     else:
         _touch_updated(layout.path(book_dir, layout.TIMELINE), label)
@@ -253,7 +259,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     elif rp:
         if not os.path.isfile(rpath):
             write_reader_table(rpath, [], label)
-        a, u, ids = upsert_table(rpath, RP_HEADERS, rp, "R", "讀者認知", "讀者認知", label)
+        a, u, ids = upsert_table(rpath, "reader", rp, "R", "讀者認知", "讀者認知", label)
         log.append("讀者認知（新增 %d、更新 %d）" % (a, u))
     elif os.path.isfile(os.path.join(book_dir, *RP_FILE.split("/"))):
         _touch_updated(os.path.join(book_dir, *RP_FILE.split("/")), label)

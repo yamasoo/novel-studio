@@ -663,20 +663,21 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
             alerts.append({"level": "info", "kind": "候選稿",
                            "text": "第%d章有候選稿等你審閱。" % c["no"], "chapter": c["no"]})
     # 伏筆：合併成「久未出現」「已過預計回收章」兩條，可以展開
-    fs = read_table(book_dir, layout.FORESHADOWING)
+    from . import tables   # tables 依賴 project：在函式內匯入，避免循環匯入
+    fs = tables.read(book_dir, "foreshadow", layout.FORESHADOWING)   # 列是英文鍵（v3 P2）
     quiet, late, seen, dup = [], [], set(), []
     for r in fs["rows"]:
-        fid = r.get("編號", "")
+        fid = r.get("id", "")
         if fid in seen and fid not in dup:
             dup.append(fid)
         seen.add(fid)
-        st = r.get("狀態", "")
+        st = r.get("status", "")
         if st in ("已回收", "廢棄"):
             continue
-        imp = r.get("重要度", "")
-        last = _ch(r.get("最後出現")) or _ch(r.get("埋設章"))
-        due = due_chapter(r.get("預計回收"))
-        label = "%s（%s）" % (fid, r.get("內容", "")[:20])
+        imp = r.get("priority", "")
+        last = _ch(r.get("last_seen")) or _ch(r.get("planted_in"))
+        due = due_chapter(r.get("planned_payoff"))
+        label = "%s（%s）" % (fid, r.get("content", "")[:20])
         if imp in ("高", "中") and last and latest - last > stale_foreshadow:
             quiet.append((latest - last, label))
         if due and latest > due:

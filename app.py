@@ -1959,8 +1959,8 @@ def book_tracking(book_id: str):
         c["updated_to"] = fm.get("更新至")
     ov = project.overview(d)
     return {
-        "foreshadow": project.read_table(d, layout.FORESHADOWING),
-        "timeline": project.read_table(d, layout.TIMELINE),
+        "foreshadow": tables.read(d, "foreshadow", layout.FORESHADOWING),
+        "timeline": tables.read(d, "timeline", layout.TIMELINE),
         "glossary": project.read_table(d, layout.GLOSSARY),
         "reader": project.read_table(d, tracking.RP_FILE),
         "reader_draft": project.read_table(d, tracking.RP_DRAFT),

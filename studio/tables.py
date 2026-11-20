@@ -12,6 +12,18 @@ from . import project
 
 # 每張表：(英文鍵, 檔案裡的表頭)，順序就是預設欄位順序
 COLUMNS = {
+    "foreshadow": (
+        ("id", "編號"), ("content", "內容"), ("planted_in", "埋設章"), ("planned_payoff", "預計回收"),
+        ("last_seen", "最後出現"), ("status", "狀態"), ("priority", "重要度"),
+    ),
+    "timeline": (
+        ("id", "編號"), ("story_time", "故事時間"), ("what_really_happened", "實際發生（作者真相）"),
+        ("reader_knows_now", "讀者目前知道"), ("revealed_in", "揭示章"), ("related_characters", "相關角色"),
+    ),
+    "reader": (
+        ("id", "編號"), ("type", "類型"), ("content", "內容"), ("author_truth", "作者真相"),
+        ("planted_chapter", "種下章"), ("resolved_in", "回收章"), ("related_characters", "相關角色"),
+    ),
     "relations": (
         ("id", "編號"), ("who", "誰"), ("toward", "對誰"), ("relationship", "關係"), ("attitude", "態度"),
         ("start_chapter", "起始章"), ("end_chapter", "結束章"), ("reason", "變化原因"),
@@ -63,6 +75,11 @@ def columns(kind, hdrs=None):
     """給介面用的欄位清單：[{key, label}]；hdrs 是檔案裡實際的表頭（含作者加的欄），沒給就用預設。"""
     hdrs = list(hdrs) if hdrs else headers(kind)
     return [{"key": key_of(kind, h), "label": h} for h in hdrs]
+
+
+def file_keys(t):
+    """tables.read() 結果裡、檔案實際欄位的英文鍵（含作者加的欄，順序照檔案）。"""
+    return [c["key"] for c in t["columns"]]
 
 
 def read(book_dir, kind, rel):

@@ -10,6 +10,7 @@ import re
 from . import context, project, tracking
 from . import prompts as _prompts   # 本模組有個函式也叫 prompts()
 from . import layout
+from . import tables
 
 BATCH = 40   # 每次送給模型的時間線列數
 
@@ -25,8 +26,8 @@ def _rows_md(headers, rows):
 
 def prompts(book_dir):
     """回傳 [(標籤, 使用者訊息)]，每批一則。"""
-    tl = project.read_table(book_dir, layout.TIMELINE)
-    rows, hs = tl["rows"], tl["headers"]
+    tl = tables.read(book_dir, "timeline", layout.TIMELINE)
+    rows, ks = tl["rows"], tables.file_keys(tl)
     if not rows:
         raise project.ProjectError("這本書還沒有時間線，沒有東西可以轉換")
     to = tracking.tracked_to(book_dir) or 0
@@ -35,7 +36,7 @@ def prompts(book_dir):
     for i in range(0, len(rows), BATCH):
         part = rows[i:i + BATCH]
         label = "轉換讀者認知 %d／%d" % (i // BATCH + 1, (len(rows) + BATCH - 1) // BATCH)
-        out.append((label, head + _t("rl_h_timeline") + _rows_md(hs, part)))
+        out.append((label, head + _t("rl_h_timeline") + tables.md("timeline", ks, part)))
     return out
 
 
@@ -109,9 +110,9 @@ def _index(rows):
 
 
 def _timeline_after(book_dir, start):
-    tl = project.read_table(book_dir, layout.TIMELINE)
-    keep = [r for r in tl["rows"] if _first(r.get("揭示章")) >= start]
-    return "\n".join(_t("rl_tl_line", id=r.get("編號", ""), ch=r.get("揭示章", ""), text=r.get("讀者目前知道", "")) for r in keep)
+    tl = tables.read(book_dir, "timeline", layout.TIMELINE)
+    keep = [r for r in tl["rows"] if _first(r.get("revealed_in")) >= start]
+    return "\n".join(_t("rl_tl_line", id=r.get("id", ""), ch=r.get("revealed_in", ""), text=r.get("reader_knows_now", "")) for r in keep)
 
 
 def _summaries_after(book_dir, start):

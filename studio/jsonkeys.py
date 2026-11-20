@@ -105,6 +105,33 @@ def to_zh(data, unknown=None, values=None):
     return out
 
 
+# 中文鍵 → 英文鍵（程式內部用）。一個中文鍵有兩個英文字時，依值的型別選：清單用複數那個。
+_PLURAL = {"名詞": ("terms", "term"), "關係": ("relationships", "relationship")}
+ZH_TO_EN = {}
+for _en, _zh in KEYS.items():
+    ZH_TO_EN.setdefault(_zh, _en)
+
+
+def _en_key(k, v):
+    if k in _PLURAL:
+        return _PLURAL[k][0] if isinstance(v, list) else _PLURAL[k][1]
+    return ZH_TO_EN.get(k, k)
+
+
+def to_keys(data, unknown=None, values=None):
+    """模型資料 → 程式內部的英文鍵（v3）。先照 to_zh 收斂（英文、中文、大小寫不同的鍵都認，同時出現時中文鍵優先、
+    列舉值換回固定詞），再把中文鍵換成英文鍵；認不得的鍵原樣保留。"""
+    return _rename(to_zh(data, unknown, values))
+
+
+def _rename(data):
+    if isinstance(data, list):
+        return [_rename(x) for x in data]
+    if not isinstance(data, dict):
+        return data
+    return {_en_key(k, v): _rename(v) for k, v in data.items()}
+
+
 def to_en(data):
     """測試用：把中文鍵換成英文鍵（一個中文鍵有兩個英文字時用表裡先出現的那個）。"""
     rev = {}

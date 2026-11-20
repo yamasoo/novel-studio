@@ -20,7 +20,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import context, contract, layout, project, prompts, reader_ledger, tracking, wb_check  # noqa: E402
+from studio import context, contract, jsonkeys, layout, project, prompts, reader_ledger, tracking, wb_check  # noqa: E402
 
 GOLDEN = os.path.join(ROOT, "tests", "snapshots", "tracking_tables_golden.json")
 UPDATE = os.environ.get("UPDATE_SNAPSHOT") == "1"
@@ -87,14 +87,14 @@ def scenario():
                                "不是 dict 的雜訊"],
                 "timeline": [{"編號": "E012", "讀者目前知道": "讀者知道帳本被改過", "揭示章": "第021章"},
                              {"故事時間": "退婚當天", "實際發生（作者真相）": "周叔偷看了帳本", "讀者目前知道": "未知", "揭示章": "未揭示"}]}
-        out["writeback"] = tracking.apply_writeback(book, 21, "暗格", 3000, json.loads(json.dumps(data, ensure_ascii=False)))
+        out["writeback"] = tracking.apply_writeback(book, 21, "暗格", 3000, jsonkeys.to_keys(json.loads(json.dumps(data, ensure_ascii=False))))   # 和實際流程一樣先經 jsonkeys
         out["fs_after"] = rd(layout.FORESHADOWING)
         out["tl_after"] = rd(layout.TIMELINE)
         out["wb_check_21"] = wb_check.check(book, 21)
         # 新書：沒有伏筆表、時間線時建立
         os.remove(layout.path(book, layout.FORESHADOWING))
         os.remove(layout.path(book, layout.TIMELINE))
-        out["writeback_new"] = tracking.apply_writeback(book, 23, "新表", 1000, json.loads(json.dumps(data, ensure_ascii=False)))
+        out["writeback_new"] = tracking.apply_writeback(book, 23, "新表", 1000, jsonkeys.to_keys(json.loads(json.dumps(data, ensure_ascii=False))))
         out["fs_new"] = rd(layout.FORESHADOWING)
         out["tl_new"] = rd(layout.TIMELINE)
     finally:
@@ -122,16 +122,14 @@ class TrackingTablesTest(unittest.TestCase):
                 self.assertEqual(want.get(k), got.get(k))
 
     def test_english_keys_same_as_jsonkeys_converted(self):
-        """模型資料直接用英文鍵（v3 之後 jsonkeys 反轉會變成這樣），結果要和先經 jsonkeys.to_zh 轉成中文鍵相同。
-        （v3 以前英文鍵到不了這裡：回寫前一律先 to_zh，所以舊程式不認英文鍵也沒有影響。）"""
-        from studio import jsonkeys
+        """模型給英文鍵（英文、日文書）或中文鍵（繁中書）時，經 jsonkeys.to_keys 換算後的回寫結果要相同。"""
         en = {"summary": {"what_happened": "林晚查帳。"},
               "foreshadow": [{"id": "F005", "last_seen": "第022章", "status": "已回收"},
                              {"content": "英文鍵的新伏筆", "planted_in": "第022章", "priority": "低"}],
               "timeline": [{"id": "E013", "revealed_in": "第022章"},
                            {"story_time": "退婚次日", "what_really_happened": "周叔燒了信", "reader_knows_now": "未知"}]}
         res = []
-        for data in (en, jsonkeys.to_zh(json.loads(json.dumps(en)), values=False)):
+        for data in (jsonkeys.to_keys(en, values=False), jsonkeys.to_keys(jsonkeys.to_zh(json.loads(json.dumps(en)), values=False), values=False)):
             tmp = tempfile.mkdtemp()
             try:
                 book = os.path.join(tmp, "b")

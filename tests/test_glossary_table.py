@@ -21,7 +21,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import context, contract, fidelity, glossary_org, layout, prompts, shared, tracking  # noqa: E402
+from studio import context, contract, jsonkeys, fidelity, glossary_org, layout, prompts, shared, tracking  # noqa: E402
 
 GOLDEN = os.path.join(ROOT, "tests", "snapshots", "glossary_table_golden.json")
 UPDATE = os.environ.get("UPDATE_SNAPSHOT") == "1"
@@ -93,7 +93,7 @@ def scenario():
                 "new_entities": [{"類型": "名詞", "名稱": "暗格", "說明": "鋪子後院的暗格"},
                                  {"類型": "名詞", "名稱": "天機閣", "說明": "已登記的不重複加"},
                                  {"類型": "地點", "名稱": "後山", "說明": ""}]}
-        out["writeback"] = tracking.apply_writeback(book, 3, "暗格", 1000, data)
+        out["writeback"] = tracking.apply_writeback(book, 3, "暗格", 1000, jsonkeys.to_keys(data))   # 和實際流程一樣先經 jsonkeys
         out["glossary_after_wb"] = open(gp, encoding="utf-8").read()[-400:]
     finally:
         shutil.rmtree(tmp)

@@ -12,10 +12,19 @@ from . import project, prompts, textguard
 from . import layout
 from . import tables
 
-STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
+# 回寫資料（英文鍵）與檔案裡的段落／欄位名稱（中文，檔案格式到 P3 才換）
+SUMMARY_KEYS = (("what_happened", "發生了什麼"), ("situation_change", "局面變化"), ("new_elements", "新出現的人事物"),
+                ("ends_on", "結尾停在"))
+STATE_KEYS = (("current_position", "目前位置"), ("main_progress", "主線進度"), ("present_characters", "在場角色"),
+              ("next_chapter_promises", "下一章承諾"), ("long_term_constraints", "長期約束"),
+              ("continuity_risks", "連續性風險"), ("active_foreshadowing", "活躍伏筆"))
+CHAR_KEYS = (("identity", "身分"), ("location", "位置"), ("goal", "目標"), ("physical_state", "身體狀態"),
+             ("emotional_state", "情緒狀態"), ("abilities_resources", "能力與資源"), ("relationship_changes", "關係變化"),
+             ("known_secrets", "知道的秘密"), ("unfinished_business", "未了結的事"))
+STATE_SECTIONS = [label for _, label in STATE_KEYS]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
 TL_HEADERS = ["編號", "故事時間", "實際發生（作者真相）", "讀者目前知道", "揭示章", "相關角色"]
-CHAR_FIELDS = ["身分", "位置", "目標", "身體狀態", "情緒狀態", "能力與資源", "關係變化", "知道的秘密", "未了結的事"]
+CHAR_FIELDS = [label for _, label in CHAR_KEYS]
 GLOSS_HEADERS = ["名詞", "類別", "說明", "注意"]
 RP_HEADERS = ["編號", "類型", "內容", "作者真相", "種下章", "回收章", "相關角色"]
 RP_TYPES = ("已知", "懸念", "誤認")
@@ -197,7 +206,7 @@ def chapter_label(no):
 
 
 def apply_writeback(book_dir, no, title, chars, data, revision=False):
-    """回寫一章的追蹤資料。回傳變更摘要（給匯報用）。"""
+    """回寫一章的追蹤資料。data 是英文鍵（jsonkeys.to_keys 換過）。回傳變更摘要（給匯報用）。"""
     label = chapter_label(no)
     log = []
     data, note = textguard.guard_data(book_dir, data)
@@ -207,8 +216,8 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 1. 章節摘要
     s = data.get("summary") or {}
     body = "---\n類型: 章節摘要\n章號: %d\n章名: %s\n字數: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
-    for k in ("發生了什麼", "局面變化", "新出現的人事物", "結尾停在"):
-        body += "\n## %s\n%s\n" % (k, str(s.get(k, "")).strip() or "（無）")
+    for k, head in SUMMARY_KEYS:
+        body += "\n## %s\n%s\n" % (head, str(s.get(k, "")).strip() or "（無）")
     _write(layout.path(book_dir, layout.SUMMARIES, label + ".md"), body)
     log.append("章節摘要")
 
@@ -217,8 +226,8 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     if sc and not revision:
         p = layout.path(book_dir, layout.STATE_CARD)
         text = "---\n類型: 狀態卡\n更新至: %s\n---\n\n# 狀態卡\n" % label
-        for i, k in enumerate(STATE_SECTIONS, 1):
-            text += "\n## %d. %s\n" % (i, k)
+        for i, (k, head) in enumerate(STATE_KEYS, 1):
+            text += "\n## %d. %s\n" % (i, head)
             items = _lines(sc.get(k))
             text += "".join("- %s\n" % x for x in items) if items else "- （無）\n"
         _write(p, text)
@@ -245,12 +254,12 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     for x in data.get("reader") or []:
         if not isinstance(x, dict):
             continue
-        old = bool(re.match(r"R\d+$", str(x.get("編號") or "").strip()))
-        if not old and not str(x.get("內容") or "").strip():
+        old = bool(re.match(r"R\d+$", str(x.get("id") or "").strip()))
+        if not old and not str(x.get("content") or "").strip():
             continue
-        if x.get("類型") not in RP_TYPES:
+        if x.get("type") not in RP_TYPES:
             x = dict(x)
-            x["類型"] = "" if old else "懸念"  # 舊條目沒給類型就不動，新條目預設懸念
+            x["type"] = "" if old else "懸念"  # 舊條目沒給類型就不動，新條目預設懸念
         rp.append(x)
     rpath = os.path.join(book_dir, *RP_FILE.split("/"))
     if rp and not os.path.isfile(rpath) and len(project.read_table(book_dir, layout.TIMELINE)["rows"]) > RP_NEW_BOOK_ROWS:
@@ -267,17 +276,17 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 5. 角色狀態
     names = []
     for c in ([] if revision else (data.get("characters") or [])):
-        if not isinstance(c, dict) or not str(c.get("名稱", "")).strip():
+        if not isinstance(c, dict) or not str(c.get("name", "")).strip():
             continue
-        name = re.sub(r'[\\/:*?"<>|]', "", str(c["名稱"]).strip())
+        name = re.sub(r'[\\/:*?"<>|]', "", str(c["name"]).strip())
         p = layout.path(book_dir, layout.CHARACTER_STATES, name + ".md")
         old = {}
         if os.path.isfile(p):
             for m in re.finditer(r"^- (.+?)：(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
                 old[m.group(1)] = m.group(2)
         text = "---\n類型: 角色狀態\n名稱: %s\n更新至: %s\n最後登場: %s\n---\n\n# %s：目前狀態\n\n" % (name, label, label, name)
-        for f in CHAR_FIELDS:
-            v = c.get(f)
+        for k, f in CHAR_KEYS:
+            v = c.get(k)
             if isinstance(v, list):
                 v = "；".join(str(x) for x in v)
             v = str(v).strip() if v not in (None, "") else old.get(f, "")
@@ -294,7 +303,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         log.append(r)
 
     # 6. 新增物登記：名詞表＋具名角色
-    ents = [e for e in (data.get("new_entities") or []) if isinstance(e, dict) and str(e.get("名稱", "")).strip()]
+    ents = [e for e in (data.get("new_entities") or []) if isinstance(e, dict) and str(e.get("name", "")).strip()]
     if ents:
         gp = layout.path(book_dir, layout.GLOSSARY)
         if os.path.isfile(gp):
@@ -306,25 +315,25 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         have = {r.get(headers[0]) for r in rows}
         added = []
         for e in ents:
-            nm = _cell(e["名稱"])
+            nm = _cell(e["name"])
             if nm in have:
                 continue
             row = {h: "" for h in headers}
             row[headers[0]] = nm
             if len(headers) > 1:
-                row[headers[1]] = _cell(e.get("類型", ""))
+                row[headers[1]] = _cell(e.get("type", ""))
             if len(headers) > 2:
-                row[headers[2]] = _cell(e.get("說明", ""))
+                row[headers[2]] = _cell(e.get("explanation", ""))
             if len(headers) > 3:
                 row[headers[3]] = "首次出現：%s" % label
             rows.append(row)
             have.add(nm)
             added.append(nm)
-            if e.get("類型") == "角色":
+            if e.get("type") == "角色":
                 cp = layout.path(book_dir, layout.CHARACTERS, re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
                 if not os.path.exists(cp):
                     _write(cp, "---\n類型: 角色\n名稱: %s\n別名: []\n定位: 配角\n首次登場: %s\n狀態: 正式\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
-                           % (nm, label, nm, _cell(e.get("說明", ""))))
+                           % (nm, label, nm, _cell(e.get("explanation", ""))))
         if added:
             sep = "" if before.endswith("\n\n") else "\n"
             _write(gp, before + sep + _render_table(headers, rows) + ("\n" + after if after.strip() else "\n"))

@@ -109,7 +109,7 @@ def check(book_dir, no, revision=False, data=None):
     if data and text:
         ghost = []
         for it in data.get("new_entities") or []:
-            name = str((it or {}).get("名稱") or (it or {}).get("名詞") or "").strip() if isinstance(it, dict) else str(it).strip()
+            name = str((it or {}).get("name") or (it or {}).get("term") or "").strip() if isinstance(it, dict) else str(it).strip()
             if name and len(name) >= 2 and name not in text:
                 ghost.append(name)
         if ghost:

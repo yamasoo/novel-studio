@@ -21,7 +21,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import context, layout, prompts, reader_ledger, tracking, wb_check  # noqa: E402
+from studio import context, jsonkeys, layout, prompts, reader_ledger, tracking, wb_check  # noqa: E402
 
 GOLDEN = os.path.join(ROOT, "tests", "snapshots", "reader_table_golden.json")
 UPDATE = os.environ.get("UPDATE_SNAPSHOT") == "1"
@@ -67,7 +67,7 @@ def scenario():
                            {"編號": "R005", "內容": "讀者改為懷疑周叔"},
                            {"編號": "新", "類型": "誤認", "內容": "讀者以為玉珮是假的", "種下章": "第031章"},
                            {"編號": "新", "內容": ""}]}
-        out["writeback"] = tracking.apply_writeback(book, 31, "對質", 2500, json.loads(json.dumps(data, ensure_ascii=False)))
+        out["writeback"] = tracking.apply_writeback(book, 31, "對質", 2500, jsonkeys.to_keys(json.loads(json.dumps(data, ensure_ascii=False))))   # 和實際流程一樣先經 jsonkeys 換成英文鍵
         out["ledger_after_wb"] = rd(layout.READER_KNOWLEDGE)
         # 從時間線轉換（模型條目是中文鍵；重複內容要去掉）
         items = reader_ledger.merge([{"items": [

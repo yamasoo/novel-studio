@@ -258,9 +258,9 @@ def discard_draft(book_dir):
 # 檢查用
 # ---------------------------------------------------------------------------
 def has_relation_change(characters):
-    """回寫資料裡，有沒有角色填了「關係變化」。"""
+    """回寫資料（英文鍵）裡，有沒有角色填了「關係變化」（relationship_changes）。"""
     for c in characters or []:
-        if isinstance(c, dict) and str(c.get("關係變化") or "").strip() not in _TRIVIAL:
+        if isinstance(c, dict) and str(c.get("relationship_changes") or "").strip() not in _TRIVIAL:
             return True
     return False
 

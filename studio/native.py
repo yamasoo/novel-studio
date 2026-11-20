@@ -545,7 +545,7 @@ def _writeback(c, no):
             data = providers.parse_json(out)
         except providers.ProviderError as e:
             raise NativeError("%s。%s" % (e, "輸出仍被截斷，請到設定調高「最大輸出」後再試。" if c.truncated else "可以再試一次，或改用其他模型。"))
-    data = _lang_check(c, msgs, out, _zh(c, data, "整理第%d章的追蹤資料" % no), "整理第%d章的追蹤資料" % no, out_tok)
+    data = _lang_check(c, msgs, out, _en(c, data, "整理第%d章的追蹤資料" % no), "整理第%d章的追蹤資料" % no, out_tok, conv=_en)
     log = tracking.apply_writeback(c.book, no, title, project.count_chars(text), data, revision=revision)
     if revision:
         log.append("（修訂舊章：狀態卡與角色狀態保留第%d章的版本）" % tracked)
@@ -980,7 +980,12 @@ def _zh(c, data, label):
     return data
 
 
-def _lang_check(c, msgs, out, data, label, max_tokens=None):
+def _en(c, data, label):
+    """模型資料 → 程式內部的英文鍵（v3）：先照 _zh 收斂與提醒，再把中文鍵換成英文鍵。"""
+    return jsonkeys.to_keys(_zh(c, data, label), values=False)
+
+
+def _lang_check(c, msgs, out, data, label, max_tokens=None, conv=None):
     """自由文字的語言不對時（英文、日文書寫成中文；繁體書寫成簡體），請模型重寫一次；還是不符就照寫，但標上待核對。"""
     bad, n, total = textguard.lang_mismatch(data, c.lang)
     if not bad:
@@ -989,7 +994,7 @@ def _lang_check(c, msgs, out, data, label, max_tokens=None):
     retry = msgs + [{"role": "assistant", "content": out}, {"role": "user", "content": _P()["lang_retry"]}]
     try:
         out2 = c.call(retry, json_mode=True, max_tokens=max_tokens or _out_tokens(c), label=label + "（語言重試）", stage="structured")
-        data2 = _zh(c, providers.parse_json(out2), label)
+        data2 = (conv or _zh)(c, providers.parse_json(out2), label)
     except providers.ProviderError as e:
         c.job.emit("log", text="%s：語言重試失敗（%s），沿用第一次的結果並標上待核對。" % (label, e))
         data2 = None

@@ -10,6 +10,7 @@ from collections import Counter
 
 from . import context, goals, lang as lang_mod, project
 from . import layout
+from . import tables
 
 DIR = os.path.join(*layout.parts(layout.STUDIO_FIDELITY))
 NAME_DROP = 0.3       # 名字少了三成以上（而且至少少 3 次）才列
@@ -25,8 +26,8 @@ def _names(book_dir):
     for sub in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD):
         for e in project.list_entries(book_dir, sub):
             names += [e["name"]] + [str(a) for a in (e.get("aliases") or [])]
-    gl = project.read_table(book_dir, layout.GLOSSARY)
-    key = gl["headers"][0] if gl["headers"] else "名詞"
+    gl = tables.read(book_dir, "glossary", layout.GLOSSARY)
+    key = tables.file_keys(gl)[0] if gl["headers"] else "term"   # 名詞取第一欄
     for r in gl["rows"]:
         names += [t.strip() for t in re.split(r"[／/、,，]", str(r.get(key) or "")) if t.strip()]
     return [n for n in dict.fromkeys(names) if len(n) >= 2]

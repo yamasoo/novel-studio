@@ -156,7 +156,7 @@ def build(book_dir, keep=""):
     banned = _section(style, "本書禁忌") or _section(style, "禁忌")
     style_base = _section(style, "基本設定")
     prefs = _body(book_dir, layout.AUTHOR_PREFS)
-    words = _rows(_body(book_dir, layout.GLOSSARY))
+    words = tables.rows_to_keys("glossary", _rows(_body(book_dir, layout.GLOSSARY)))
 
     L = ["---", "類型: 續寫合約", "更新至: 第%03d章" % no,
          "產生時間: %s" % time.strftime("%Y-%m-%d %H:%M"), "---", "",
@@ -188,7 +188,7 @@ def build(book_dir, keep=""):
         if len(hidden) > 12:
             L.append("  - ……另有 %d 條，見 `追蹤/時間線.md`" % (len(hidden) - 12))
     if words:
-        names = [r.get("名詞") or r.get("名稱") or r.get("詞") or "" for r in words][:20]
+        names = [r.get("term") or r.get("名稱") or r.get("詞") or "" for r in words][:20]   # 名稱、詞：作者自己取的表頭
         L.append("- 名詞表已登記 %d 條%s" % (len(words), ("（例：%s）" % "、".join(n for n in names if n)) if any(names) else ""))
     L += ["", "## 2. 聲線（每章都要維持）", ""]
     if style_base:

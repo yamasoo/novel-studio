@@ -24,6 +24,9 @@ COLUMNS = {
         ("id", "編號"), ("type", "類型"), ("content", "內容"), ("author_truth", "作者真相"),
         ("planted_chapter", "種下章"), ("resolved_in", "回收章"), ("related_characters", "相關角色"),
     ),
+    "glossary": (
+        ("term", "名詞"), ("kind", "類別"), ("explanation", "說明"), ("note", "注意"),
+    ),
     "relations": (
         ("id", "編號"), ("who", "誰"), ("toward", "對誰"), ("relationship", "關係"), ("attitude", "態度"),
         ("start_chapter", "起始章"), ("end_chapter", "結束章"), ("reason", "變化原因"),

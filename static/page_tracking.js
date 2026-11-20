@@ -498,7 +498,7 @@
               class: "sm",
               onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=core&f=" + enc(LAYOUT.GLOSSARY)),
             }, "編輯名詞表")),
-          tableNode(null, g.headers, g.rows))
+          tableNode(null, g.columns, g.rows))
         : h("div", { class: "card empty" }, "名詞表是空的。");
     }
 

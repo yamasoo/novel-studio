@@ -1035,6 +1035,24 @@
      ]
     },
     "glossary": {
+     "columns": [
+      {
+       "key": "term",
+       "label": "名詞"
+      },
+      {
+       "key": "kind",
+       "label": "類別"
+      },
+      {
+       "key": "explanation",
+       "label": "說明"
+      },
+      {
+       "key": "note",
+       "label": "注意"
+      }
+     ],
      "exists": true,
      "file": "設定/名詞表.md",
      "headers": [
@@ -1045,58 +1063,58 @@
      ],
      "rows": [
       {
-       "名詞": "Wren Alder",
-       "注意": "Orrin calls her \"Alder\"; Hob calls her \"Wren\"",
-       "說明": "apprentice mapmaker, the lead",
-       "類別": "person"
+       "explanation": "apprentice mapmaker, the lead",
+       "kind": "person",
+       "note": "Orrin calls her \"Alder\"; Hob calls her \"Wren\"",
+       "term": "Wren Alder"
       },
       {
-       "名詞": "Hob",
-       "注意": "always \"Hob\", never \"the lantern\" in dialogue",
-       "說明": "the brass lantern",
-       "類別": "object"
+       "explanation": "the brass lantern",
+       "kind": "object",
+       "note": "always \"Hob\", never \"the lantern\" in dialogue",
+       "term": "Hob"
       },
       {
-       "名詞": "Master Orrin Vale",
-       "注意": "\"Master Vale\" in formal speech",
-       "說明": "Wren's master, missing",
-       "類別": "person"
+       "explanation": "Wren's master, missing",
+       "kind": "person",
+       "note": "\"Master Vale\" in formal speech",
+       "term": "Master Orrin Vale"
       },
       {
-       "名詞": "Hollin Cross",
-       "注意": "",
-       "說明": "market town where the shop stands",
-       "類別": "place"
+       "explanation": "market town where the shop stands",
+       "kind": "place",
+       "note": "",
+       "term": "Hollin Cross"
       },
       {
-       "名詞": "Pellman's Ford",
-       "注意": "possessive spelling is fixed",
-       "說明": "shallow crossing east of town",
-       "類別": "place"
+       "explanation": "shallow crossing east of town",
+       "kind": "place",
+       "note": "possessive spelling is fixed",
+       "term": "Pellman's Ford"
       },
       {
-       "名詞": "Surveyors' Guild",
-       "注意": "",
-       "說明": "official map authority of the Marches",
-       "類別": "faction"
+       "explanation": "official map authority of the Marches",
+       "kind": "faction",
+       "note": "",
+       "term": "Surveyors' Guild"
       },
       {
-       "名詞": "Corvin Tarr",
-       "注意": "",
-       "說明": "Warden-Surveyor of the Guild",
-       "類別": "person"
+       "explanation": "Warden-Surveyor of the Guild",
+       "kind": "person",
+       "note": "",
+       "term": "Corvin Tarr"
       },
       {
-       "名詞": "Dessa Pike",
-       "注意": "",
-       "說明": "Guild clerk",
-       "類別": "person"
+       "explanation": "Guild clerk",
+       "kind": "person",
+       "note": "",
+       "term": "Dessa Pike"
       },
       {
-       "名詞": "Lantern Road",
-       "注意": "capital L, capital R",
-       "說明": "the erased trade road",
-       "類別": "place"
+       "explanation": "the erased trade road",
+       "kind": "place",
+       "note": "capital L, capital R",
+       "term": "Lantern Road"
       }
      ]
     },
@@ -2978,6 +2996,24 @@
      ]
     },
     "glossary": {
+     "columns": [
+      {
+       "key": "term",
+       "label": "名詞"
+      },
+      {
+       "key": "kind",
+       "label": "類別"
+      },
+      {
+       "key": "explanation",
+       "label": "說明"
+      },
+      {
+       "key": "note",
+       "label": "注意"
+      }
+     ],
      "exists": true,
      "file": "設定/名詞表.md",
      "headers": [
@@ -2988,70 +3024,70 @@
      ],
      "rows": [
       {
-       "名詞": "エルマ・フェイン",
-       "注意": "ルゥは「おぬし」と呼ぶ",
-       "說明": "元・王都薬師院の見習い。主人公",
-       "類別": "人名"
+       "explanation": "元・王都薬師院の見習い。主人公",
+       "kind": "人名",
+       "note": "ルゥは「おぬし」と呼ぶ",
+       "term": "エルマ・フェイン"
       },
       {
-       "名詞": "ルゥ",
-       "注意": "「まことの名」は長いので使わない",
-       "說明": "傷ついた小さな竜",
-       "類別": "人名"
+       "explanation": "傷ついた小さな竜",
+       "kind": "人名",
+       "note": "「まことの名」は長いので使わない",
+       "term": "ルゥ"
       },
       {
-       "名詞": "ガルド・ベルク",
-       "注意": "「院長」と呼ぶ",
-       "說明": "王都薬師院の院長",
-       "類別": "人名"
+       "explanation": "王都薬師院の院長",
+       "kind": "人名",
+       "note": "「院長」と呼ぶ",
+       "term": "ガルド・ベルク"
       },
       {
-       "名詞": "トーマス",
-       "注意": "",
-       "說明": "薬師院の同僚",
-       "類別": "人名"
+       "explanation": "薬師院の同僚",
+       "kind": "人名",
+       "note": "",
+       "term": "トーマス"
       },
       {
-       "名詞": "ミロ",
-       "注意": "",
-       "說明": "灰谷村の少年",
-       "類別": "人名"
+       "explanation": "灰谷村の少年",
+       "kind": "人名",
+       "note": "",
+       "term": "ミロ"
       },
       {
-       "名詞": "灰谷村",
-       "注意": "読みは「はいたにむら」",
-       "說明": "辺境の小さな村",
-       "類別": "地名"
+       "explanation": "辺境の小さな村",
+       "kind": "地名",
+       "note": "読みは「はいたにむら」",
+       "term": "灰谷村"
       },
       {
-       "名詞": "王都薬師院",
-       "注意": "紋は天秤と蛇",
-       "說明": "王国の薬の管理機関",
-       "類別": "勢力"
+       "explanation": "王国の薬の管理機関",
+       "kind": "勢力",
+       "note": "紋は天秤と蛇",
+       "term": "王都薬師院"
       },
       {
-       "名詞": "竜約",
-       "注意": "読みは「りゅうやく」",
-       "說明": "竜と人の約束",
-       "類別": "用語"
+       "explanation": "竜と人の約束",
+       "kind": "用語",
+       "note": "読みは「りゅうやく」",
+       "term": "竜約"
       },
       {
-       "名詞": "月涙草",
-       "注意": "読みは「げつるいそう」",
-       "說明": "月光の下でだけ咲く薬草",
-       "類別": "物品"
+       "explanation": "月光の下でだけ咲く薬草",
+       "kind": "物品",
+       "note": "読みは「げつるいそう」",
+       "term": "月涙草"
       },
       {
-       "名詞": "霧根",
-       "注意": "読みは「きりね」",
-       "說明": "北の崖に生える根",
-       "類別": "物品"
+       "explanation": "北の崖に生える根",
+       "kind": "物品",
+       "note": "読みは「きりね」",
+       "term": "霧根"
       },
       {
-       "名詞": "暁花",
-       "注意": "読みは「あかつきばな」",
-       "說明": "夜明けの丘に咲く花",
-       "類別": "物品"
+       "explanation": "夜明けの丘に咲く花",
+       "kind": "物品",
+       "note": "読みは「あかつきばな」",
+       "term": "暁花"
       }
      ]
     },
@@ -4301,6 +4337,24 @@
      ]
     },
     "glossary": {
+     "columns": [
+      {
+       "key": "term",
+       "label": "名詞"
+      },
+      {
+       "key": "kind",
+       "label": "類別"
+      },
+      {
+       "key": "explanation",
+       "label": "說明"
+      },
+      {
+       "key": "note",
+       "label": "注意"
+      }
+     ],
      "exists": true,
      "file": "設定/名詞表.md",
      "headers": [
@@ -4311,40 +4365,40 @@
      ],
      "rows": [
       {
-       "名詞": "林晚",
-       "注意": "下人稱「二小姐」，大伯母叫「晚丫頭」",
-       "說明": "林家二小姐，主角",
-       "類別": "人名"
+       "explanation": "林家二小姐，主角",
+       "kind": "人名",
+       "note": "下人稱「二小姐」，大伯母叫「晚丫頭」",
+       "term": "林晚"
       },
       {
-       "名詞": "沈既白",
-       "注意": "",
-       "說明": "沈家嫡子，前未婚夫",
-       "類別": "人名"
+       "explanation": "沈家嫡子，前未婚夫",
+       "kind": "人名",
+       "note": "",
+       "term": "沈既白"
       },
       {
-       "名詞": "沈家",
-       "注意": "",
-       "說明": "青州鹽商",
-       "類別": "勢力"
+       "explanation": "青州鹽商",
+       "kind": "勢力",
+       "note": "",
+       "term": "沈家"
       },
       {
-       "名詞": "回春堂",
-       "注意": "",
-       "說明": "城南藥鋪",
-       "類別": "地名"
+       "explanation": "城南藥鋪",
+       "kind": "地名",
+       "note": "",
+       "term": "回春堂"
       },
       {
-       "名詞": "鹽引",
-       "注意": "",
-       "說明": "官府發給鹽商的運銷憑證",
-       "類別": "物品"
+       "explanation": "官府發給鹽商的運銷憑證",
+       "kind": "物品",
+       "note": "",
+       "term": "鹽引"
       },
       {
-       "名詞": "玉珮",
-       "注意": "不寫成「玉佩」",
-       "說明": "林母遺物，只剩半塊",
-       "類別": "物品"
+       "explanation": "林母遺物，只剩半塊",
+       "kind": "物品",
+       "note": "不寫成「玉佩」",
+       "term": "玉珮"
       }
      ]
     },

@@ -40,7 +40,7 @@ def transform(old):
             # P2(3)：追蹤表改英文鍵，另附 columns（表頭照舊）
             for name, kind in (("relations", "relations"), ("relations_draft", "relations"),
                                ("foreshadow", "foreshadow"), ("timeline", "timeline"),
-                               ("reader", "reader"), ("reader_draft", "reader")):
+                               ("reader", "reader"), ("reader_draft", "reader"), ("glossary", "glossary")):
                 x = t.get(name)
                 if isinstance(x, dict) and "rows" in x and "columns" not in x:
                     x["rows"] = tables.rows_to_keys(kind, x["rows"])

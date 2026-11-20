@@ -420,24 +420,24 @@ def relations_for_writeback(book_dir, text):
 def glossary_for(book_dir, scope, pk=None):
     """名詞表：只帶這一章範圍裡出現的名詞；稱謂類的，說明提到出場角色也帶。表格小時整份帶。"""
     text = read(book_dir, layout.GLOSSARY)
-    tbl = project.read_table(book_dir, layout.GLOSSARY)
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "glossary", layout.GLOSSARY)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows or est_tokens(body(text)) <= FILTER_MIN_TOKENS:
         return body(text)
-    key = hs[0] if hs else "名詞"
+    key = ks[0] if ks else "term"   # 名詞取第一欄（不論表頭寫什麼）
     names = _entity_names(book_dir, scope)
     keep = []
     for r in rows:
         term = str(r.get(key) or "").strip()
         terms = [t for t in re.split(r"[／/、,，]", term) if t.strip()]
         hit = any(t.strip() in scope for t in terms)
-        if not hit and "稱謂" in str(r.get("類別") or ""):
+        if not hit and "稱謂" in str(r.get("kind") or ""):
             hit = any(n in "|".join(str(v) for v in r.values()) for n in names)
         if hit:
             keep.append(r)
     if pk is not None:
         pk.note("名詞表帶 %d／%d 條" % (len(keep), len(rows)))
-    return table_md(hs, keep)
+    return tables.md("glossary", ks, keep)
 
 
 def table_md(headers, rows):

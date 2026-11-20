@@ -1961,7 +1961,7 @@ def book_tracking(book_id: str):
     return {
         "foreshadow": tables.read(d, "foreshadow", layout.FORESHADOWING),
         "timeline": tables.read(d, "timeline", layout.TIMELINE),
-        "glossary": project.read_table(d, layout.GLOSSARY),
+        "glossary": tables.read(d, "glossary", layout.GLOSSARY),
         "reader": tables.read(d, "reader", tracking.RP_FILE),
         "reader_draft": tables.read(d, "reader", tracking.RP_DRAFT),
         "relations": tables.read(d, "relations", relations.FILE),

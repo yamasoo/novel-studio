@@ -17,6 +17,7 @@ from collections import Counter
 
 from . import lang as lang_mod, project
 from . import layout
+from . import tables
 
 SHARED = layout.SHARED
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -405,8 +406,8 @@ def book_names(book_dir):
             names += [str(a) for a in (e.get("aliases") or [])]
     _, rows = project.parse_md_table(project.read_text(layout.path(book_dir, layout.GLOSSARY))) \
         if os.path.isfile(layout.path(book_dir, layout.GLOSSARY)) else ([], [])
-    for r in rows:
-        v = r.get("名詞") or r.get("名稱") or ""
+    for r in tables.rows_to_keys("glossary", rows):
+        v = r.get("term") or r.get("名稱") or ""   # 名稱：作者自己取的表頭
         if v:
             names.append(v)
     return names

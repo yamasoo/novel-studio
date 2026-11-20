@@ -14,6 +14,7 @@ import re
 
 from . import context, enums, project, prompts, search
 from . import layout
+from . import tables
 
 BIG = ("地點", "組織", "物品", "能力與技術", "制度與習俗", "生物", "事件", "稱謂", "人物", "其他")
 TOPIC_BIG = ("地點", "物品", "能力與技術", "制度與習俗", "生物", "其他")
@@ -74,9 +75,10 @@ def stats(texts, term, snips=2, width=60):
 
 
 def parse_rows(book_dir):
-    tbl = project.read_table(book_dir, layout.GLOSSARY)
-    key = tbl["headers"][0] if tbl["headers"] else "名詞"
-    return [{"名詞": _clean(r.get(key)), "類別": _clean(r.get("類別")), "說明": _clean(r.get("說明")), "注意": _clean(r.get("注意"))}
+    """名詞表的列（英文鍵：term、kind、explanation、note）。名詞取第一欄（不論表頭寫什麼）。"""
+    tbl = tables.read(book_dir, "glossary", layout.GLOSSARY)
+    key = tables.file_keys(tbl)[0] if tbl["headers"] else "term"
+    return [{"term": _clean(r.get(key)), "kind": _clean(r.get("kind")), "explanation": _clean(r.get("explanation")), "note": _clean(r.get("note"))}
             for r in tbl["rows"] if _clean(r.get(key))]
 
 
@@ -84,29 +86,31 @@ def parse_rows(book_dir):
 # 主流程
 # ---------------------------------------------------------------------------
 def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existing_factions=None):
-    """rows：[{名詞, 類別, 說明, 注意}]；call(label, text) → dict；write(rel, text) 寫草稿。
+    """rows：名詞表的列（parse_rows 的英文鍵；反推傳來的中文鍵也收，一進來就換成英文鍵）；
+    call(label, text) → dict；write(rel, text) 寫草稿。
     step(key, label, text)：有快取時用（反推流程），沒有就直接 call。回傳匯報文字。"""
     step = step or (lambda key, label, text: call(label, text))
+    rows = [tables.row_to_keys("glossary", r) for r in rows]
     texts = load_texts(book_dir)
     info = {}
     keep_rows = []
     junk = 0
     for r in rows:
-        if JUNK.search(r["說明"] or "") and not r["類別"] == "人物":
+        if JUNK.search(r["explanation"] or "") and not r["kind"] == "人物":
             junk += 1
             continue
-        chs, sn = stats(texts, r["名詞"].split("／")[0])
-        info[r["名詞"]] = {"chapters": chs, "snips": sn}
+        chs, sn = stats(texts, r["term"].split("／")[0])
+        info[r["term"]] = {"chapters": chs, "snips": sn}
         keep_rows.append(r)
     log("名詞 %d 條（刪掉說明空白的 %d 條），開始分類" % (len(keep_rows), junk))
 
     # 1. 分類（人物列不送）
     cls = {}
-    todo = [r for r in keep_rows if r["類別"] != "人物"]
+    todo = [r for r in keep_rows if r["kind"] != "人物"]
     for i in range(0, len(todo), CLASSIFY_BATCH):
         part = todo[i:i + CLASSIFY_BATCH]
-        body = "\n".join(_p("gl_cls_line", name=r["名詞"], cat=enums.show("term_cat", r["類別"], prompts.cur_lang()) or _p("gl_none"),
-                             n=len(info[r["名詞"]]["chapters"]), desc=r["說明"])
+        body = "\n".join(_p("gl_cls_line", name=r["term"], cat=enums.show("term_cat", r["kind"], prompts.cur_lang()) or _p("gl_none"),
+                             n=len(info[r["term"]]["chapters"]), desc=r["explanation"])
                          for r in part)
         d = step("org_cls_%d" % (i // CLASSIFY_BATCH), _p("gl_lbl_cls", i=i // CLASSIFY_BATCH + 1, total=(len(todo) + CLASSIFY_BATCH - 1) // CLASSIFY_BATCH),
                  _p("gl_classify_wrap", body=body, schema=_p("gl_classify_schema", topic_hint=_p("gl_topic_hint")))) or {}
@@ -115,19 +119,19 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
                 cls[_clean(x.get("名詞"))] = x
 
     def big_of(r):
-        x = cls.get(r["名詞"]) or {}
+        x = cls.get(r["term"]) or {}
         b = _clean(x.get("大類"))
-        return b if b in BIG else ("人物" if r["類別"] == "人物" else (r["類別"] if r["類別"] in BIG else "其他"))
+        return b if b in BIG else ("人物" if r["kind"] == "人物" else (r["kind"] if r["kind"] in BIG else "其他"))
 
     # 2. 勢力
-    orgs = [r for r in keep_rows if big_of(r) == "組織" and _clean((cls.get(r["名詞"]) or {}).get("處理")) != "刪除"]
+    orgs = [r for r in keep_rows if big_of(r) == "組織" and _clean((cls.get(r["term"]) or {}).get("處理")) != "刪除"]
     where = {}          # 名詞 → 詳見哪份檔
     factions_out = 0
     moved = {}
     if orgs or existing_factions:
         ex = existing_factions if existing_factions is not None else [
             (e["name"], context.body(project.read_text(os.path.join(book_dir, e["file"])))[:700]) for e in project.list_entries(book_dir, layout.FACTIONS)]
-        body = _p("gl_fac_head") + "\n" + "\n".join(_p("gl_fac_line", name=r["名詞"], n=len(info[r["名詞"]]["chapters"]), desc=r["說明"]) for r in orgs)
+        body = _p("gl_fac_head") + "\n" + "\n".join(_p("gl_fac_line", name=r["term"], n=len(info[r["term"]]["chapters"]), desc=r["explanation"]) for r in orgs)
         if ex:
             body += "\n\n" + _p("gl_fac_ex") + "\n" + "\n\n".join("〔%s〕\n%s" % (n, t) for n, t in ex)
         d = step("org_fac", _p("gl_lbl_fac"), _p("gl_fac_wrap", body=body, schema=_p("gl_faction_schema", unknown=_u()))) or {}
@@ -158,11 +162,11 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     # 3. 主題檔與獨立檔
     topics, own = {}, []
     for r in keep_rows:
-        x = cls.get(r["名詞"]) or {}
+        x = cls.get(r["term"]) or {}
         b = big_of(r)
-        if moved.get(r["名詞"]) == "人物" or _clean(x.get("處理")) in ("刪除", "人物") or b not in TOPIC_BIG:
+        if moved.get(r["term"]) == "人物" or _clean(x.get("處理")) in ("刪除", "人物") or b not in TOPIC_BIG:
             continue
-        n_ch = len(info[r["名詞"]]["chapters"])
+        n_ch = len(info[r["term"]]["chapters"])
         if b in OWN_FILE_BIG and n_ch >= OWN_FILE_MIN:
             own.append(r)
         t = _clean(x.get("主題")) or _default_topic(b)
@@ -172,8 +176,8 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         for j in range(0, len(items), TOPIC_BATCH):
             part = items[j:j + TOPIC_BATCH]
             body = "\n".join("- %s〔%s〕%s%s" % (
-                r["名詞"], _clean((cls.get(r["名詞"]) or {}).get("小類")) or big_of(r), r["說明"],
-                "".join("\n  " + _p("gl_snip", n=s[0], s=s[1]) for s in info[r["名詞"]]["snips"][:1])) for r in part)
+                r["term"], _clean((cls.get(r["term"]) or {}).get("小類")) or big_of(r), r["explanation"],
+                "".join("\n  " + _p("gl_snip", n=s[0], s=s[1]) for s in info[r["term"]]["snips"][:1])) for r in part)
             d = step("org_topic_%s_%d" % (t, j // TOPIC_BATCH), _p("gl_lbl_topic", topic=t),
                      _p("gl_topic_wrap", topic=t, body=body, schema=_p("gl_topic_schema", unknown=_u()))) or {}
             merged["一句話"] = merged["一句話"] or _clean(d.get("一句話"))
@@ -182,8 +186,8 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
             merged["與劇情的關係"] = merged["與劇情的關係"] or _clean(d.get("與劇情的關係"))
             merged["flag"] = merged["flag"] or bool(d.get("_lang_mismatch"))
         rel = layout.entry(layout.WORLD, _fname(t))
-        firsts = {r["名詞"]: (info[r["名詞"]]["chapters"] or [0])[0] for r in items}
-        own_names = {r["名詞"] for r in own}
+        firsts = {r["term"]: (info[r["term"]]["chapters"] or [0])[0] for r in items}
+        own_names = {r["term"] for r in own}
         shown = set()
         secs = []
         for s in merged["分區"]:
@@ -201,65 +205,65 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
                 lines.append("- **%s**：%s%s" % (n, _clean(e.get("說明")) or _u(), "（%s）" % "；".join(tail) if tail else ""))
             if lines:
                 secs.append("## %s\n%s" % (_clean(s.get("標題")) or "其他", "\n".join(lines)))
-        left = [r for r in items if r["名詞"] not in shown]
+        left = [r for r in items if r["term"] not in shown]
         if left:   # AI 漏掉的照原說明補上，不讓名詞消失
-            secs.append("## 其他\n" + "\n".join("- **%s**：%s" % (r["名詞"], r["說明"] or _u()) for r in left))
+            secs.append("## 其他\n" + "\n".join("- **%s**：%s" % (r["term"], r["explanation"] or _u()) for r in left))
         rules = "\n".join("- " + x for x in merged["規則與限制"]) or "- " + _u()
         write(rel, ("---\n類型: 世界觀\n名稱: %s\n狀態: 草稿\n來源: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n%s\n\n## 規則與限制\n%s\n\n"
                     "## 與劇情的關係\n%s\n\n## 備註\n- %s\n") % (
             t, t, merged["一句話"] or _u(), "\n\n".join(secs), rules, merged["與劇情的關係"] or _u(),
             _p("gl_note_review") + (("\n- " + _p("lang_flag_note")) if merged["flag"] else "")))
         for r in items:
-            where.setdefault(r["名詞"], rel)
+            where.setdefault(r["term"], rel)
     for j in range(0, len(own), OWN_BATCH):
         part = own[j:j + OWN_BATCH]
-        body = "\n\n".join(_p("gl_own_line", name=r["名詞"], n=len(info[r["名詞"]]["chapters"]), a=info[r["名詞"]]["chapters"][0],
-                              b=info[r["名詞"]]["chapters"][-1], desc=r["說明"],
-                              snips="\n".join(_p("gl_snip", n=s[0], s=s[1]) for s in info[r["名詞"]]["snips"])) for r in part)
+        body = "\n\n".join(_p("gl_own_line", name=r["term"], n=len(info[r["term"]]["chapters"]), a=info[r["term"]]["chapters"][0],
+                              b=info[r["term"]]["chapters"][-1], desc=r["explanation"],
+                              snips="\n".join(_p("gl_snip", n=s[0], s=s[1]) for s in info[r["term"]]["snips"])) for r in part)
         d = step("org_own_%d" % (j // OWN_BATCH), _p("gl_lbl_own", i=j // OWN_BATCH + 1, total=(len(own) + OWN_BATCH - 1) // OWN_BATCH),
                  _p("gl_own_wrap", body=body, schema=_p("gl_own_schema", unknown=_u()))) or {}
         got = {_clean(e.get("名稱")): e for e in d.get("條目") or [] if isinstance(e, dict)}
         for r in part:
-            e = got.get(r["名詞"]) or {"一句話": r["說明"]}
-            rel = layout.entry(layout.WORLD, _fname(r["名詞"]))
+            e = got.get(r["term"]) or {"一句話": r["explanation"]}
+            rel = layout.entry(layout.WORLD, _fname(r["term"]))
 
             def lst(v):
                 v = [_clean(x) for x in (v or []) if _clean(x)] if isinstance(v, list) else ([_clean(v)] if _clean(v) else [])
                 return "\n".join("- " + x for x in v) or "- " + _u()
             write(rel, ("---\n類型: 世界觀\n名稱: %s\n狀態: 草稿\n來源: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n## 特性\n%s\n\n## 來歷\n%s\n\n"
                         "## 在故事中的作用\n%s\n\n## 目前狀態\n%s\n\n## 限制與代價\n%s\n\n## 備註\n- %s\n") % (
-                r["名詞"], r["名詞"], _clean(e.get("一句話")) or _u(), lst(e.get("特性")), _clean(e.get("來歷")) or _u(),
+                r["term"], r["term"], _clean(e.get("一句話")) or _u(), lst(e.get("特性")), _clean(e.get("來歷")) or _u(),
                 _clean(e.get("在故事中的作用")) or _u(), _clean(e.get("目前狀態")) or _u(), lst(e.get("限制與代價")),
-                _p("gl_own_note", n=len(info[r["名詞"]]["chapters"]), a="%03d" % info[r["名詞"]]["chapters"][0], b="%03d" % info[r["名詞"]]["chapters"][-1]) +
+                _p("gl_own_note", n=len(info[r["term"]]["chapters"]), a="%03d" % info[r["term"]]["chapters"][0], b="%03d" % info[r["term"]]["chapters"][-1]) +
                 (("\n- " + _p("lang_flag_note")) if e.get("_lang_mismatch") else "")))
-            where[r["名詞"]] = rel
+            where[r["term"]] = rel
 
     # 4. 名詞表（索引）
     out_rows, n_del = [], 0
     for r in keep_rows:
-        x = cls.get(r["名詞"]) or {}
+        x = cls.get(r["term"]) or {}
         act = _clean(x.get("處理"))
         if act == "刪除":
             n_del += 1
             continue
         b = big_of(r)
-        if act == "人物" or moved.get(r["名詞"]) == "人物":
+        if act == "人物" or moved.get(r["term"]) == "人物":
             b = "人物"
         sub = _clean(x.get("小類"))
-        note = [p for p in re.split(r"[；;]", r["注意"]) if p.strip() and not p.strip().startswith("詳見")]
-        if where.get(r["名詞"]):
-            note.append("詳見 " + where[r["名詞"]])
+        note = [p for p in re.split(r"[；;]", r["note"]) if p.strip() and not p.strip().startswith("詳見")]
+        if where.get(r["term"]):
+            note.append("詳見 " + where[r["term"]])
         elif b == "事件":
             note.append("見 追蹤/時間線.md")
-        out_rows.append({"名詞": r["名詞"], "類別": b + ("／" + sub if sub and sub != b else ""), "說明": r["說明"], "注意": "；".join(note)})
+        out_rows.append({"term": r["term"], "kind": b + ("／" + sub if sub and sub != b else ""), "explanation": r["explanation"], "note": "；".join(note)})
     order = {b: i for i, b in enumerate(BIG)}
-    out_rows.sort(key=lambda x: (order.get(x["類別"].split("／")[0], 99), x["類別"]))
+    out_rows.sort(key=lambda x: (order.get(x["kind"].split("／")[0], 99), x["kind"]))
     from . import tracking
     write(layout.GLOSSARY, "---\n類型: 名詞表\n來源: 從名詞表整理\n---\n\n# 名詞表\n\n> " + _p("gl_table_note") + "\n\n" +
-          tracking._render_table(["名詞", "類別", "說明", "注意"], out_rows) + "\n")
+          tracking._render_table(tables.headers("glossary"), tables.rows_to_headers("glossary", out_rows)) + "\n")
     cnt = {}
     for r in out_rows:
-        cnt[r["類別"].split("／")[0]] = cnt.get(r["類別"].split("／")[0], 0) + 1
+        cnt[r["kind"].split("／")[0]] = cnt.get(r["kind"].split("／")[0], 0) + 1
     return ("名詞表 %d 條（%s）；刪掉 %d 條沒有內容的；主題檔 %d 份（%s）；獨立條目 %d 份；勢力 %d 份。" % (
         len(out_rows), "、".join("%s %d" % (k, v) for k, v in cnt.items()), junk + n_del, len(topics), "、".join(topics),
         len(own), factions_out))

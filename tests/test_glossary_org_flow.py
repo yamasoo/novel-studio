@@ -109,8 +109,8 @@ def _book(tmp, name, gloss, text):
     with open(layout.path(book, layout.GLOSSARY), "w", encoding="utf-8", newline="\n") as f:
         f.write("---\n類型: 名詞表\n---\n\n# 名詞表\n\n" + "\n".join(rows) + "\n")
     for no in range(3, 9):   # 補幾章，讓常出現的條目超過獨立成檔的門檻
-        with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_file(no, "x%d" % no)), "w", encoding="utf-8", newline="\n") as f:
-            f.write("# x\n\n%s\n" % (text * 3))
+        with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_md(no)), "w", encoding="utf-8", newline="\n") as f:
+            f.write("# x%d\n\n%s\n" % (no, text * 3))      # 章名在標題（以前在檔名 x3、x4…）
     return book
 
 

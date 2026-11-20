@@ -18,7 +18,7 @@ When novel-setup builds a project, write what lies between `---範本開始---` 
 - Settings (static): `bible/`　story core, style, author preferences, glossary, worldbuilding, characters, factions; unconfirmed items in `bible/drafts/`
 - Plans (not yet happened): `outline/`　whole-book outline, volume outlines, chapter cards
 - Facts (already happened): `tracking/`　state card, character state, foreshadowing, timeline, chapter summaries
-- Chapter text: `manuscript/第NNN章_<title>.md`
+- Chapter text: `manuscript/ch-NNNN.md`
 - Blank templates: `_templates/`
 
 (Folder and file names stay in Chinese; the studio program reads them.)

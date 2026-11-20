@@ -220,7 +220,7 @@ def _save_candidate(c, no, title, text):
         tracking.backup(c.book, os.path.join(d, old), layout.CANDIDATES)
         os.remove(os.path.join(d, old))
     fixed, n = c.checker.fix_punct(text)
-    name = layout.chapter_file(no, title)
+    name = layout.chapter_md(no)            # 章名在正文的一級標題裡（_split_output 保證有）
     project.write_atomic(os.path.join(d, name), fixed)
     return layout.CANDIDATES + "/" + name, n
 
@@ -516,7 +516,7 @@ def _writeback(c, no):
     path, text = context.chapter_text(c.book, no, (layout.MANUSCRIPT,))
     if not text:
         raise NativeError("第%d章沒有正文" % no)
-    title = project.chapter_title_from_filename(os.path.basename(path)) or _card_title(c.book, no)
+    title = project.chapter_title(path, text) or _card_title(c.book, no)
     out_tok = _out_tokens(c)
     tracked = tracking.tracked_to(c.book)
     revision = bool(tracked and no < tracked)

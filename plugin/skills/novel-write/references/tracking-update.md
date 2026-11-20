@@ -4,7 +4,7 @@
 
 ## 一、章節摘要（新建）
 
-`tracking/summaries/第NNN章.md`，用 `_templates/章節摘要.md`。200～400 字，寫：發生了什麼、局面變化、新出現的人事物、結尾停在哪裡。frontmatter 的字數填實際字數。
+`tracking/summaries/ch-NNNN.md`，用 `_templates/章節摘要.md`。200～400 字，寫：發生了什麼、局面變化、新出現的人事物、結尾停在哪裡。frontmatter 的字數填實際字數。
 
 ## 二、狀態卡（覆寫為最新）
 

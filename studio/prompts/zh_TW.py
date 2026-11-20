@@ -42,7 +42,7 @@ T = {
 
     # ---------- 寫作 ----------
     "write": "請使用 novel-write skill 寫{rng}。\n{rule}{extra}",
-    "revise": "請使用 novel-write skill 的改稿流程修改第{n}章（manuscript/{ch}_*.md）。\n作者的要求：{note}",
+    "revise": "請使用 novel-write skill 的改稿流程修改第{n}章（manuscript/{ch}.md）。\n作者的要求：{note}",
     "sync_tracking": "請使用 novel-write skill：檢查 tracking/state-card.md 的「更新至」，對所有已在 manuscript/ 但追蹤還沒回寫的章節，依序執行第七步回寫追蹤，然後匯報。",
 
     # ---------- 品質 ----------
@@ -59,19 +59,19 @@ T = {
     "claude_read_only": "（請用 Read 讀取 {rel}，不要修改任何檔案）",
     "claude_deslop_at": "請使用 novel-deslop skill 處理第{n}章（原稿在 {rel}，用 Read 讀取）：先跑檢查腳本、修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。{note}\n**不要修改原稿**；把改好的完整章節（含「# 第{n}章 章名」標題）寫到 {draft}。沒有要改的段落一字不動，維持原本的空行分段（作者會逐段比對）。\n最後一則回覆是給作者的匯報。{table}",
     "review_all": "請使用 novel-review skill 做全書檢查，重點是清單 B：設定一致性、追蹤是否跟上正文、伏筆健康度、角色久未登場、資訊揭露邊界、讀者契約與節奏。不要讀全部正文，以摘要與追蹤為主。",
-    "deslop": "請使用 novel-deslop skill 處理 {where}{ch}_*.md（第{n}章）：先跑檢查腳本、修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。{extra}",
+    "deslop": "請使用 novel-deslop skill 處理 {where}{ch}.md（第{n}章）：先跑檢查腳本、修必須修的項目，再處理語意層的 AI 味。不要改動劇情事實。{extra}",
 
     # ---------- 內部動作 ----------
     "accept": "作者已在工作台採用第{n}章，正文已移到 {path}。請使用 novel-write skill，從第七步「回寫追蹤」開始執行（章節摘要、狀態卡、角色狀態、伏筆、時間線、設定登記、章綱狀態、git 提交），完成後簡短匯報。",
-    "reject": "作者退回了第{n}章的候選稿（candidates/{ch}_*.md）。\n作者的意見：{note}\n請使用 novel-write skill 依意見改寫這份候選稿，仍然只寫在 candidates/，不要回寫追蹤。改完匯報改了哪些地方。\n{rule}",
+    "reject": "作者退回了第{n}章的候選稿（candidates/{ch}.md）。\n作者的意見：{note}\n請使用 novel-write skill 依意見改寫這份候選稿，仍然只寫在 candidates/，不要回寫追蹤。改完匯報改了哪些地方。\n{rule}",
 
     "candidate_rule": (
         "【寫稿前對帳】動筆前先把章綱的每個情節點和已定稿事實（狀態卡、角色狀態、時間線、上一章結尾）逐條比對，"
         "有衝突就採用與定稿一致的寫法，並在匯報列出衝突與你的處理方式。\n"
         "【候選稿模式】這次由作者在工作台審稿：依 novel-write 的「候選稿模式」執行——"
-        "正文寫進 `candidates/第NNN章_章名.md`（不是 manuscript/），做完自查與新增物申報後就停止並匯報，"
+        "正文寫進 `candidates/ch-NNNN.md`（不是 manuscript/），做完自查與新增物申報後就停止並匯報，"
         "不要回寫追蹤、不要更新章綱狀態、不要 git 提交。作者在介面按「採用」後，會另外請你回寫。"),
-    "recover_continue": "第{n}章之前寫到一半中斷了，已寫內容在 .studio/recovery/{rid}.json 的 text 欄位（用 Read 讀取）。請使用 novel-write skill，從中斷處接著寫完，不要重複已寫內容；把完整章節（已寫部分＋續寫）寫進 candidates/{ch}_章名.md。\n{rule}",
+    "recover_continue": "第{n}章之前寫到一半中斷了，已寫內容在 .studio/recovery/{rid}.json 的 text 欄位（用 Read 讀取）。請使用 novel-write skill，從中斷處接著寫完，不要重複已寫內容；把完整章節（已寫部分＋續寫）寫進 candidates/{ch}.md。\n{rule}",
 
     # ---------- 系統提示詞 ----------
     # Claude Code 模式（保持單行：Windows 的 claude.cmd 會把參數裡的換行切斷）
@@ -273,8 +273,8 @@ T.update({
     "task_volume_draft": "寫第{v}卷（第{a}～{b}章）的卷綱草稿：直接輸出 outline/drafts/卷綱_第{v}卷.md（frontmatter：類型: 卷綱、卷名、章節範圍: 第{a}章～第{b}章、狀態: 草稿），內容要有卷契約（賣點、目標、對手、卷末兌現、新鉤子）與劇情單元表（每個單元：起點、衝突、小高潮、結果）。這是交給作者看過再決定的草稿：不要寫正式卷綱，也不要改別的檔案。{note}",
     "task_volume_revise": "修訂第{v}卷（第{a}～{b}章）的卷綱：讀現有正式卷綱、全書大綱、章綱清單、狀態卡與伏筆，保留已寫正文對得上的內容，只改需要改的地方；直接輸出完整檔案到 outline/drafts/卷綱修訂_第{v}卷.md（frontmatter：類型: 卷綱、卷名、章節範圍: 第{a}章～第{b}章、狀態: 草稿）。不要改正式卷綱或其他檔案。{note}",
     "contract_rule": "續寫合約列出的事實優先於大綱與任何安排：不能讓已退場的角色重新登場、不能提前說破「未揭示」的秘密；合約與大綱衝突時以合約為準，並在匯報說明。",
-    "task_cards_auto": "寫第{a}～{b}章的章綱，直接為每一章輸出一個 outline/chapters/第NNN章.md（章號補零到三位數，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的狀態填「已確認」）。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。{note}",
-    "task_cards": "排第{a}～{b}章的章綱。先給作者看單元總覽表（一章一行：章號、章名、一句話、功能、鉤子類型），作者確認後，再為每一章各輸出一個 outline/chapters/第NNN章.md（章號補零到三位數，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的狀態填「已確認」）。回收重要伏筆、新的大反轉或新角色要先問作者。{note}",
+    "task_cards_auto": "寫第{a}～{b}章的章綱，直接為每一章輸出一個 outline/chapters/ch-NNNN.md（章號補零到四位數，例如 ch-0001.md，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的狀態填「已確認」）。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。{note}",
+    "task_cards": "排第{a}～{b}章的章綱。先給作者看單元總覽表（一章一行：章號、章名、一句話、功能、鉤子類型），作者確認後，再為每一章各輸出一個 outline/chapters/ch-NNNN.md（章號補零到四位數，例如 ch-0001.md，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的狀態填「已確認」）。回收重要伏筆、新的大反轉或新角色要先問作者。{note}",
     "task_character": "建立或補完角色「{name}」。作者提供的資訊：{info}\n作者給的、已確認的資訊寫進 bible/characters/{name}.md（狀態：正式）；你自己補的部分放 bible/drafts/{name}.md（狀態：草稿），等作者確認。已有檔案時保留原本內容，只補空欄。新名詞也更新 bible/glossary.md（輸出完整檔案）。",
     "info_none": "（無）",
     "task_gen_drafts": "生成設定草稿：{text}\n全部寫在 bible/drafts/ 底下（一個項目一個檔，狀態：草稿），名字不要和既有設定撞名撞音，彼此拉開差異。批量生成配角時只寫一句話功能、想要、缺陷、聲音卡兩三條、和主角的關係。",

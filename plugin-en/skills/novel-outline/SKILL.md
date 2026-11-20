@@ -22,7 +22,7 @@ Folder and file names, frontmatter keys and table headers stay in Chinese as the
 | "is this idea OK?", "help me think up a story" | story-core diagnosis | [concept.md](references/concept.md) | update `bible/story-core.md` |
 | "write an outline", "plan the whole book" | whole-book outline | concept.md, [structure.md](references/structure.md) | `outline/book.md` |
 | "plan volume X", "make a volume outline" | volume outline | structure.md | `outline/卷綱_第X卷.md` |
-| "lay out chapter cards", "cards for chapters X-Y" | chapter cards (one plot unit at a time is best) | [chapter-card.md](references/chapter-card.md); for chapters 1-3 also [opening.md](references/opening.md) | `outline/chapters/第NNN章.md` |
+| "lay out chapter cards", "cards for chapters X-Y" | chapter cards (one plot unit at a time is best) | [chapter-card.md](references/chapter-card.md); for chapters 1-3 also [opening.md](references/opening.md) | `outline/chapters/ch-NNNN.md` |
 | "fill in chapter N's card", "change chapter N's card" | only the named chapter | chapter-card.md | that card |
 | "I'm stuck in the middle", "I don't know what comes next" | diagnose the sticking point and offer directions | structure.md, "Keeping the middle together" | options for the author to pick |
 | "just want to talk structure" | discuss only, write no files | by topic | a proposal in the conversation |

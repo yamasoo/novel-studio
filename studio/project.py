@@ -13,7 +13,8 @@ from . import layout
 from . import ids
 
 CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
-CH_NUM = re.compile(r"第0*(\d+)章")
+# 章號：v3 的 ch-0001（也收 ch-001、ch1、CH-1），以及舊的「第001章」（技能或手寫的舊檔名照樣認得）
+CH_NUM = re.compile(r"^ch-?0*(\d+)|第0*(\d+)章", re.I)
 
 # 書目錄內允許瀏覽的資料夾
 BROWSABLE = [layout.BIBLE, layout.OUTLINE, layout.MANUSCRIPT, layout.TRACKING, layout.CANDIDATES, layout.SAMPLES, layout.TEMPLATES]
@@ -137,8 +138,8 @@ def safe_filename(name, maxlen=40):
 
 
 def chapter_no(name):
-    m = CH_NUM.search(name)
-    return int(m.group(1)) if m else None
+    m = CH_NUM.search(os.path.basename(name))
+    return int(m.group(1) or m.group(2)) if m else None
 
 
 _DUE = re.compile(r"^\s*第\s*(\d+)\s*(?:章)?(?:\s*[～~\-–至到]\s*第?\s*(\d+))?\s*章(.*)$", re.S)
@@ -158,10 +159,30 @@ def due_chapter(s):
 
 
 def chapter_title_from_filename(name):
-    # 第001章_章名.md
-    stem = os.path.splitext(name)[0]
+    """舊檔名（第001章_章名.md）裡的章名；v3 的 ch-0001.md 沒有章名，回傳空字串。"""
+    stem = os.path.splitext(os.path.basename(name))[0]
+    if stem.lower().startswith("ch"):
+        return ""
     parts = stem.split("_", 1)
     return parts[1] if len(parts) == 2 else ""
+
+
+_HEADING = re.compile(r"^#\s+(.+?)\s*$", re.M)
+_HEADING_NO = re.compile(r"^(?:第\s*0*\d+\s*[章話回]|chapter\s+\d+)\s*[:：.\-–—、]?\s*", re.I)
+
+
+def heading_title(text):
+    """正文第一個一級標題裡的章名：「# 第1章 退婚當天」→「退婚當天」；沒有章號就用整個標題。"""
+    _, body = split_frontmatter(text or "")
+    m = _HEADING.search(body)
+    if not m:
+        return ""
+    return _HEADING_NO.sub("", m.group(1).strip(), count=1).strip()
+
+
+def chapter_title(name, text=None):
+    """正文、候選稿的章名：舊檔名裡的章名 → 正文的一級標題。（有章綱時，章綱的「章名」優先，由呼叫端決定）"""
+    return chapter_title_from_filename(name) or (heading_title(text) if text is not None else "")
 
 
 def safe_path(book_dir, rel):
@@ -335,7 +356,7 @@ def create_book(library, name):
 def _scan_dir(d, pattern=".md"):
     out = {}
     if os.path.isdir(d):
-        for f in os.listdir(d):
+        for f in sorted(os.listdir(d)):     # 同一章有好幾份時固定挑 ch-0003.md（排在 .v2 與舊檔名前面）
             if f.endswith(pattern):
                 n = chapter_no(f)
                 if n is not None:
@@ -371,13 +392,13 @@ def scan_chapters(book_dir):
             p = layout.path(book_dir, layout.MANUSCRIPT, texts[n])
             row["text_file"] = rel_of(book_dir, p)
             row["chars"] = count_chars(text)
-            row["title"] = row["title"] or chapter_title_from_filename(texts[n])
+            row["title"] = row["title"] or chapter_title(texts[n], text)
         cand = _read_maybe(layout.path(book_dir, layout.CANDIDATES, cands[n])) if n in cands else None
         if cand is not None:
             p = layout.path(book_dir, layout.CANDIDATES, cands[n])
             row["candidate_file"] = rel_of(book_dir, p)
             row["candidate_chars"] = count_chars(cand)
-            row["title"] = row["title"] or chapter_title_from_filename(cands[n])
+            row["title"] = row["title"] or chapter_title(cands[n], cand)
         if n in sums:
             row["summary_file"] = rel_of(book_dir, layout.path(book_dir, layout.SUMMARIES, sums[n]))
         if row["card_file"] or row["text_file"] or row["candidate_file"]:
@@ -766,7 +787,7 @@ def accept_candidate(book_dir, no):
         os.makedirs(bak_dir, exist_ok=True)
         old = os.path.join(dst_dir, texts[no])
         os.replace(old, os.path.join(bak_dir, "%s.%d.md" % (os.path.splitext(texts[no])[0], int(time.time()))))
-    dst = os.path.join(dst_dir, cands[no])
+    dst = os.path.join(dst_dir, layout.chapter_md(no))     # 一律存成 ch-0003.md（候選稿可能是舊檔名或 .v2）
     os.replace(src, dst)
     return rel_of(book_dir, dst)
 

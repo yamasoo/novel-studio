@@ -455,7 +455,7 @@ def recovery_to_candidate(book_id: str, rid: str):
     if old:
         native.tracking.backup(d, os.path.join(cand, old), layout.CANDIDATES)
         os.remove(os.path.join(cand, old))
-    name = layout.chapter_file(no, title)
+    name = layout.chapter_md(no)            # 章名在正文的一級標題裡（_split_output 保證有）
     fixed, _ = check_text.fix_punct(text)
     project.write_atomic(os.path.join(cand, name), fixed)
     recovery.discard(d, rid)
@@ -529,7 +529,7 @@ def claude_recover_job(book_id, d, prov, params):
         raise HTTPException(400, "這份恢復稿不屬於任何章節")
     no = int(rec["chapter"])
     lang = lang_mod.book_lang(d)
-    prompt = prompts.t(lang, "recover_continue", n=no, rid=rec["id"], ch="第%03d章" % no, rule=actions.candidate_rule(lang))
+    prompt = prompts.t(lang, "recover_continue", n=no, rid=rec["id"], ch=layout.chapter_stem(no), rule=actions.candidate_rule(lang))
     job = runner_mod.Job(book_id, d, "續寫第%d章" % no, prompt, provider=prov, meta={"action": "recover_continue", "params": params})
     job.after = lambda j: recovery.discard(d, rec["id"]) if project._scan_dir(layout.path(d, layout.CANDIDATES)).get(no) else None
     return job

@@ -13,11 +13,11 @@
   7. 字數統計
 
 用法：
-  python3 check_text.py manuscript/第001章_退婚.md
+  python3 check_text.py manuscript/ch-0001.md
   python3 check_text.py manuscript/                     # 檢查整個資料夾
-  python3 check_text.py manuscript/第001章_退婚.md --fix-punct   # 自動修正標點
-  python3 check_text.py manuscript/第001章_退婚.md --json
-  python3 check_text.py manuscript/第001章_退婚.md --count       # 只算字數
+  python3 check_text.py manuscript/ch-0001.md --fix-punct   # 自動修正標點
+  python3 check_text.py manuscript/ch-0001.md --json
+  python3 check_text.py manuscript/ch-0001.md --count       # 只算字數
 
 白名單：
   書目錄（manuscript/ 的上一層）放一個 `.去AI味白名單` 檔，一行一個原文片段，

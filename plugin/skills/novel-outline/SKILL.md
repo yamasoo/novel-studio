@@ -20,7 +20,7 @@ description: 小說規劃：故事核心診斷（點子值不值得寫、賣點�
 | 「這個點子可以嗎」「幫我想故事」 | 故事核心診斷 | [concept.md](references/concept.md) | 更新 `bible/story-core.md` |
 | 「寫大綱」「規劃全書」 | 全書大綱 | concept.md、[structure.md](references/structure.md) | `outline/book.md` |
 | 「規劃第X卷」「出卷綱」 | 卷綱 | structure.md | `outline/卷綱_第X卷.md` |
-| 「排章綱」「出第X～Y章章綱」 | 章綱（一次一個劇情單元為宜） | [chapter-card.md](references/chapter-card.md)；第 1～3 章另讀 [opening.md](references/opening.md) | `outline/chapters/第NNN章.md` |
+| 「排章綱」「出第X～Y章章綱」 | 章綱（一次一個劇情單元為宜） | [chapter-card.md](references/chapter-card.md)；第 1～3 章另讀 [opening.md](references/opening.md) | `outline/chapters/ch-NNNN.md` |
 | 「補第N章章綱」「改第N章章綱」 | 只動點名的章 | chapter-card.md | 該章章綱 |
 | 「中段寫不下去」「後面不知道寫什麼」 | 診斷卡點並提出方向 | structure.md「中段不散」 | 選項給作者挑 |
 | 「只是想聊聊結構」 | 只討論，不寫檔 | 依話題 | 對話中的方案 |

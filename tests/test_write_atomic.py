@@ -31,7 +31,7 @@ class WriteAtomicTest(unittest.TestCase):
         self.assertEqual(self.leftovers(), [])
 
     def test_自動建父目錄(self):
-        p = os.path.join(self.dir, "manuscript", "第001章.md")
+        p = os.path.join(self.dir, "manuscript", "ch-0001.md")
         project.write_atomic(p, "內容\n")
         self.assertEqual(project.read_text(p), "內容\n")
 

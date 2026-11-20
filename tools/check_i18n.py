@@ -26,7 +26,7 @@ SAME = "=="   # 同形標記：三語相同，執行期顯示原文（fekit 的 
 # ---- 英文包允許出現的中文：先把這些樣式從字串拿掉，再看還有沒有漢字 ----
 _PATH_HEAD = r"(?:設定|大綱|追蹤|正文|候選|範例|_範本|\.studio)"
 ALLOW = [
-    re.compile(r"[^\s\"'`(\[]*" + _PATH_HEAD + r"/[^\s\"'`)\],;:]*"),   # bible/story-core.md、candidates/{ch}_*.md、.studio/recovery/{rid}.json
+    re.compile(r"[^\s\"'`(\[]*" + _PATH_HEAD + r"/[^\s\"'`)\],;:]*"),   # bible/story-core.md、candidates/{ch}.md、.studio/recovery/{rid}.json
     re.compile(r"第\s*(?:N+|\{[A-Za-z_0-9]*\}|\d+)\s*章"),               # 第NNN章、第{n}章、第12章
     re.compile(r"\"[^\"\n]*[㐀-鿿][^\"\n]*\""),                  # "名稱"、"主角|主要配角"（JSON 鍵名與中文列舉值）
     re.compile(r"\\\"[^\"\n]*[㐀-鿿][^\"\n]*\\\""),              # \"知道的秘密\"

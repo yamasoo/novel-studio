@@ -509,7 +509,7 @@ def commit(book_dir, payload, opts, checker=None):
             tracking.prune_backups(bak, name)
             os.remove(old)
             replaced.append(no)
-        name = layout.chapter_file(no, _fname_title(title))
+        name = layout.chapter_md(no)            # 章名寫在上面的標題（heading）裡
         project.write_atomic(os.path.join(tdir, name), text)
         written.append({"no": no, "file": target + "/" + name, "chars": c["chars"]})
     return {"target": target_id, "written": written, "skipped": skipped, "replaced": replaced,

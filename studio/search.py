@@ -76,7 +76,8 @@ def _files(book_dir, scope):
         return
     if chapters:
         for no, f in sorted(project._scan_dir(root).items()):
-            yield {"kind": "chapter", "no": no, "title": project.chapter_title_from_filename(f), "path": sub + "/" + f}
+            yield {"kind": "chapter", "no": no, "path": sub + "/" + f,
+                   "title": project.chapter_title(f, project.read_text(os.path.join(root, f)))}
         return
     for dp, dns, fns in os.walk(root):
         dns[:] = sorted(d for d in dns if not d.startswith("."))

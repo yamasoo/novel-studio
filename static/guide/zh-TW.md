@@ -79,7 +79,7 @@
 #### 步驟 4：前 10 章章綱（＋章綱體檢）
 
 1. 卷況卡 →「排這一卷的章綱」：先給**一章一行的總覽**
-2. 看過回覆「確認」才逐章寫檔：`outline/chapters/第NNN章_*.md`
+2. 看過回覆「確認」才逐章寫檔：`outline/chapters/ch-NNNN.md`
 3. 卷況卡 →「章綱體檢」：抓**提前登場／劇透**與**角色久別重逢**；有問題先改章綱再開寫
 
 一次排 10–12 章就夠，不用整卷排完才動筆。
@@ -169,8 +169,8 @@
 |---|---|
 | 全書大綱 | `outline/book.md` |
 | 卷綱 | `outline/卷綱_第N卷.md`（草稿在 `outline/drafts/`） |
-| 章綱 | `outline/chapters/第NNN章_*.md` |
-| 正文 | `manuscript/第NNN章_*.md` |
+| 章綱 | `outline/chapters/ch-NNNN.md` |
+| 正文 | `manuscript/ch-NNNN.md` |
 | 候選稿 | `candidates/` |
 | 設定 | `bible/characters/`、`bible/factions/`、`bible/world/`、設定草稿在 `bible/drafts/` |
 | 追蹤 | `tracking/state-card.md`、`tracking/foreshadowing.md`、`tracking/summaries/` |

@@ -14,7 +14,7 @@
 - 設定（靜態）：`bible/`　故事核心、文風、作者偏好、名詞表、世界觀、角色、勢力；未確認的在 `bible/drafts/`
 - 計畫（未發生）：`outline/`　全書大綱、卷綱、章綱
 - 事實（已發生）：`tracking/`　狀態卡、角色狀態、伏筆、時間線、章節摘要
-- 正文：`manuscript/第NNN章_章名.md`；候選稿：`candidates/`
+- 正文：`manuscript/ch-NNNN.md`；候選稿：`candidates/`
 - 空白範本：`_templates/`
 
 ## 鐵律

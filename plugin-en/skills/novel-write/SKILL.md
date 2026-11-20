@@ -24,7 +24,7 @@ Folder names, file names, frontmatter keys and section headings in this project 
 ## Step 1: preconditions (stop if any fails)
 
 1. Is there a `CLAUDE.md`? If not, ask the author to run novel-setup first.
-2. Does this chapter have a card at `outline/chapters/第NNN章.md`?
+2. Does this chapter have a card at `outline/chapters/ch-NNNN.md`?
    - No: stop and ask whether to lay out chapter cards with novel-outline first. (If the author says "just write it", you may draft a minimal card for them to see first: the four questions, plot points, chapter-ending hook; write only after they nod.)
    - The card's `狀態` is `草稿` (draft): ask "The chapter N card is still a draft; write from it anyway?"
 3. Is tracking up to date through the previous chapter? Check `更新至` in `tracking/state-card.md`. If it is behind, finish the previous chapter's write-back first. Never write a new chapter on top of stale state. (Exception: when candidate mode writes several chapters at once, later chapters continue from the previous chapter's candidate; see "Candidate mode".)
@@ -60,7 +60,7 @@ Style priority: the author's request this time > 文風.md > 作者偏好.md > w
 
 ## Step 4: write the chapter
 
-- Write straight into `manuscript/第NNN章_<title>.md`; do not paste it in the conversation first. The first line of the file is `# 第N章 <title>` (the Chinese heading format stays; the title after it is in English).
+- Write straight into `manuscript/ch-NNNN.md`; do not paste it in the conversation first. The first line of the file is `# 第N章 <title>` (the Chinese heading format stays; the title after it is in English).
 - English prose in the book's chosen convention (American spelling unless 文風.md says otherwise); curly quotes for dialogue, em dashes and ellipses used consistently as the style file says.
 - Dramatize the plot points as scenes in the card's order; do not just string the card's sentences together in other words.
 - Where the card is silent, apply the "three tiers of new things" in CLAUDE.md:
@@ -109,7 +109,7 @@ If you wrote 3 chapters, or this chapter has many new things, finish the report 
 
 When the author or the command says "candidate mode" or "write it as a candidate", or the command comes from the novel studio:
 
-1. Steps 1-6 as usual, but write the chapter text into `candidates/第NNN章_<title>.md`, not `manuscript/`. Create `candidates/` if it does not exist.
+1. Steps 1-6 as usual, but write the chapter text into `candidates/ch-NNNN.md`, not `manuscript/`. Create `candidates/` if it does not exist.
 2. After the step 5 self-check and the step 6 declaration, **stop**: no step 7 write-back, no change of card status, no git commit.
 3. Report with report-template.md, with the last line changed to: "The candidate is in candidates/; please review and adopt or send it back."
 4. When writing several chapters: each only as a candidate. For the second chapter, continue from the first chapter's **candidate** (tracking has not been updated) and remind the author in the report to adopt them in order.

@@ -14,11 +14,11 @@ Same command line and result shape as the Chinese checker, so the workbench can 
 Level names (必須修/建議修/提醒) and JSON keys are fixed tokens shared by every language.
 
 Usage:
-  python3 check_text.py manuscript/第001章_Title.md
+  python3 check_text.py manuscript/ch-0001.md
   python3 check_text.py manuscript/
-  python3 check_text.py manuscript/第001章_Title.md --fix-punct
-  python3 check_text.py manuscript/第001章_Title.md --json
-  python3 check_text.py manuscript/第001章_Title.md --count
+  python3 check_text.py manuscript/ch-0001.md --fix-punct
+  python3 check_text.py manuscript/ch-0001.md --json
+  python3 check_text.py manuscript/ch-0001.md --count
 
 Whitelist: `.去AI味白名單` in the book folder, one fragment per line, `#` for comments.
 Lines containing a whitelisted fragment skip the wording and AI-tell checks (punctuation still checked).

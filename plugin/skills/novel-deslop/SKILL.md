@@ -28,10 +28,10 @@ description: 小說去 AI 味與台灣繁體中文校正：找出並改寫套話
 `scripts/check_text.py` 會檢查簡體字、標點、大陸用語、工程詞、AI 味信號密度、章尾昇華，並統計字數。只用 Python 標準函式庫。
 
 ```bash
-python3 {本 skill 目錄}/scripts/check_text.py manuscript/第001章_章名.md          # 檢查一章
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/ch-0001.md          # 檢查一章
 python3 {本 skill 目錄}/scripts/check_text.py manuscript/                        # 檢查整個資料夾
-python3 {本 skill 目錄}/scripts/check_text.py manuscript/第001章_章名.md --fix-punct   # 自動修正標點
-python3 {本 skill 目錄}/scripts/check_text.py manuscript/第001章_章名.md --count       # 只算字數
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/ch-0001.md --fix-punct   # 自動修正標點
+python3 {本 skill 目錄}/scripts/check_text.py manuscript/ch-0001.md --count       # 只算字數
 ```
 
 Windows 上 `python3` 不能用時改用 `python` 或 `py -3`。

@@ -9,6 +9,7 @@
 import datetime
 import os
 import re
+import unicodedata
 import shutil
 import zipfile
 
@@ -292,8 +293,10 @@ _V2_DIRS = tuple(TOP_V2) + tuple(v[0] for k, v in PATHS.items() if k.startswith(
 
 
 def needs_migration(book_dir):
-    """工作台開不了、要先轉換的舊書：還有 v2 的資料夾。只看資料夾在不在（書架每次都會問，不能逐檔掃描）。"""
-    return rename_enabled() and any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
+    """要先轉換的舊書：還有 v2 的資料夾，或逐章資料夾裡還有舊檔名（第001章_…）。
+    只看資料夾與檔名（書架每次都會問，不能讀檔）。"""
+    return rename_enabled() and (any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
+                                 or _old_chapter_files(book_dir) or _docs_needed(book_dir))
 
 
 def library_needs_migration(library):
@@ -401,9 +404,261 @@ def migrate_library(library, dry_run=False):
     return ["%s/ → %s/（%d 個檔）" % (SHARED_PATHS["SHARED"][0], SHARED_PATHS["SHARED"][1], len(moves))]
 
 
+# --- 第三步：逐章檔名換成 ch-0001 ---------------------------------------------------
+_OLD_CH_FILE = re.compile(r"^第0*(\d+)章(_.*)?(\.[^.]+(?:\.[^.]+)?)$")       # 第001章_章名.md、第001章.json、第001章.draft.md
+_OLD_CH_RANGE = re.compile(r"^第0*(\d+)-0*(\d+)章(.*)$")                   # 第001-003章.json、第001-010章_報告.md
+_OLD_CH_DIR = re.compile(r"^第0*(\d+)章$")                                  # 插圖、流程快照的逐章資料夾
+_CH_TEXT_DIRS = ("MANUSCRIPT", "CANDIDATES")                               # 章名可能只在檔名裡的資料夾
+_CH_DIRS = ("MANUSCRIPT", "CANDIDATES", "CHAPTER_CARDS", "REVERSE_CARDS", "SUMMARIES")
+_CH_SKIP = ("STUDIO_BACKUP",)                                              # 備份是歷史紀錄，不改名
+
+
+def _ch_scope(rel):
+    """這個檔案在不在逐章改名的範圍：各章資料夾（含反推草稿裡的）、.studio（備份、任務紀錄除外）、插圖的各章資料夾。"""
+    v3 = v3_view()
+    rel = map_rel(rel)          # 還沒改資料夾名稱的書（試跑時）：用改名後的位置判斷
+    inner = rel[len(_REV_DRAFTS):] if rel.startswith(_REV_DRAFTS) else rel
+    if any(os.path.dirname(inner) == v3[k] for k in _CH_DIRS):
+        return True
+    if rel.startswith(PATHS["ILLUST"][1] + "/" + NAMES["ILLUST_CHAPTERS"][1] + "/"):
+        return True
+    if rel.startswith(".studio/") and not rel.startswith(_REV_DRAFTS):
+        return not any(rel.startswith(v3[k] + "/") for k in _CH_SKIP) and not rel.startswith((layout.MIGRATE_DIR + "/", ".studio/jobs/"))
+    return False
+
+
+def _ch_name(name, is_dir=False):
+    """舊的逐章名稱 → 新名稱；不是逐章名稱回傳 None。"""
+    if is_dir:
+        m = _OLD_CH_DIR.match(name)
+        return layout.chapter_stem(int(m.group(1))) if m else None
+    m = _OLD_CH_RANGE.match(name)
+    if m:
+        return "ch-%04d-%04d%s" % (int(m.group(1)), int(m.group(2)), m.group(3))
+    m = _OLD_CH_FILE.match(name)
+    if m:
+        return layout.chapter_stem(int(m.group(1))) + m.group(3)
+    return None
+
+
+def _ch_moves(book_dir):
+    """[(舊相對路徑, 新相對路徑, 舊檔名裡的章名)]；目錄層的「第001章/」也一起換。撞名的加 .v2、.v3……"""
+    moves, taken = [], set()
+    for _, rel in _walk_files(book_dir):
+        if not _ch_scope(rel):
+            continue
+        parts = rel.split("/")
+        new_parts = [(_ch_name(p, is_dir=True) or p) for p in parts[:-1]]
+        leaf = _ch_name(parts[-1]) or parts[-1]
+        title = ""
+        m = _OLD_CH_FILE.match(parts[-1])
+        if m and m.group(2):
+            title = m.group(2)[1:]
+        new = "/".join(new_parts + [leaf])
+        if new == rel:
+            continue
+        stem, ext = (new.rsplit(".", 1) + [""])[:2] if "." in leaf else (new, "")
+        k = 2
+        while new in taken or (os.path.exists(os.path.join(book_dir, *new.split("/"))) and new != rel):
+            new = "%s.v%d.%s" % (stem, k, ext) if ext else "%s.v%d" % (stem, k)
+            k += 1
+        taken.add(new)
+        moves.append((rel, new, title))
+    return moves
+
+
+def map_v3(rel):
+    """v2 路徑 → 完整的 v3 路徑（資料夾名稱＋逐章檔名）。給測試與快照比對用；實際搬檔時撞名會另加 .v2。"""
+    rel = map_rel(rel)
+    if not _ch_scope(rel):
+        return rel
+    parts = rel.split("/")
+    return "/".join([(_ch_name(p, is_dir=True) or p) for p in parts[:-1]] + [_ch_name(parts[-1]) or parts[-1]])
+
+
+def _old_chapter_files(book_dir):
+    """工作台會用到的四個逐章資料夾裡，還有舊檔名的檔（書架偵測用，只列資料夾、不讀檔）。"""
+    v3 = v3_view()
+    for k in _CH_DIRS:
+        d = os.path.join(book_dir, *v3[k].split("/"))
+        if os.path.isdir(d) and any(_OLD_CH_FILE.match(f) for f in os.listdir(d)):
+            return True
+    return False
+
+
+def _chapters_needed(book_dir):
+    return rename_enabled() and bool(_ch_moves(book_dir))
+
+
+def _chapters_plan(book_dir):
+    moves = _ch_moves(book_dir)
+    by_dir = {}
+    for old, new, _ in moves:
+        d = os.path.dirname(old) or "."
+        by_dir[d] = by_dir.get(d, 0) + 1
+    out = ["%s/：%d 個檔改成 ch-0001 格式" % (d, n) for d, n in sorted(by_dir.items())]
+    dup = [new for _, new, _ in moves if ".v" in os.path.basename(new)]
+    if dup:
+        out.append("同一章有多份（加上 .v2 等）：%s" % "、".join(dup))
+    return out or ["沒有要改名的檔案"]
+
+
+def _chapters_apply(book_dir):
+    import json
+    out = _chapters_plan(book_dir)
+    moves = _ch_moves(book_dir)
+    v3 = v3_view()
+    headed = []
+    for old, new, title in moves:
+        src = os.path.join(book_dir, *old.split("/"))
+        # 章名只在舊檔名裡（正文沒有一級標題）：補一行標題，章名才不會因為改名而不見
+        if title and os.path.dirname(old) in tuple(v3[k] for k in _CH_TEXT_DIRS) and old.endswith(".md"):
+            text = project.read_text(src)
+            if not project.heading_title(text):
+                no = int(_OLD_CH_FILE.match(os.path.basename(old)).group(1))
+                project.write_atomic(src, "# 第%d章 %s\n\n%s" % (no, title, text.lstrip("\n")))   # literal-ok: 正文標題的固定寫法
+                headed.append(new)
+        os.renames(src, os.path.join(book_dir, *new.split("/")))
+    if headed:
+        out.append("章名原本只在檔名裡，已在正文第一行補上標題：%s" % "、".join(headed))
+    # 紀錄檔裡指向舊檔名的路徑
+    rel_map = {old: new for old, new, _ in moves}
+    dir_map = {}
+    for old, new, _ in moves:
+        od, nd = os.path.dirname(old), os.path.dirname(new)
+        if od != nd:
+            dir_map[od] = nd
+
+    def fix(v):
+        if isinstance(v, dict):
+            return {fix(k): fix(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [fix(x) for x in v]
+        if isinstance(v, str):
+            if v in rel_map:
+                return rel_map[v]
+            for od, nd in dir_map.items():
+                if v == od or v.startswith(od + "/"):
+                    return nd + v[len(od):]
+        return v
+    fixed = 0
+    for full, rel in _book_files(book_dir):
+        if rel.endswith(".json") and not rel.startswith(".studio/jobs/"):
+            try:
+                with open(full, encoding="utf-8") as f:
+                    data = json.load(f)
+            except (OSError, ValueError):
+                continue
+            new = fix(data)
+            if new != data:
+                project.write_atomic(full, json.dumps(new, ensure_ascii=False, indent=1) + "\n")
+                fixed += 1
+    if fixed:
+        out.append("改寫紀錄檔裡的路徑：%d 個檔" % fixed)
+    return out
+
+
+# --- 第四步：系統文件裡的路徑（CLAUDE.md、_templates、名詞表、設定索引） ------------------
+# Claude Code 照 CLAUDE.md 與範本找檔、寫檔，裡面的路徑沒換，技能就會寫回舊位置。
+_CH_PATTERN = re.compile(r"第NNN章(?:_(?:<[^<>\s]{1,20}>|章名|章題|題名|title|\*))?\.md")     # literal-ok: 舊檔名樣板
+_DOC_TOKEN = re.compile(r"[^\s|，、。；：（）()「」『』【】\[\]<>\"'`*,{}・;:]+")
+
+
+# 資料夾樹狀圖裡是相對的名稱（「│   ├── 故事核心.md」），上面的路徑規則認不出來，另外處理
+_TREE_NAMES = [("故事核心.md", "story-core.md"), ("文風.md", "style.md"), ("作者偏好.md", "author-prefs.md"), ("名詞表.md", "glossary.md"),
+         ("世界觀/", "world/"), ("角色狀態/", "characters/"), ("角色/", "characters/"), ("勢力/", "factions/"), ("草稿/", "drafts/"),
+         ("全書大綱.md", "book.md"), ("章綱/第001章.md", "chapters/ch-0001.md"), ("狀態卡.md", "state-card.md"),
+         ("伏筆.md", "foreshadowing.md"), ("時間線.md", "timeline.md"), ("讀者認知.md", "reader-knowledge.md"), ("關係.md", "relations.md"),
+         ("章節摘要/第001章.md", "summaries/ch-0001.md")]
+_TREE_CH_TEXT = re.compile(r"第001章_(?:<[^>]+>|章名)\.md")
+_TREE_COL = 31
+
+
+def _width(s):
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+
+def _fix_tree(text):
+    """資料夾樹狀圖（```區塊裡的 ├── 行）：系統檔名換成英文、註解欄重新對齊。"""
+    out, inside = [], False
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            inside = not inside
+            out.append(line)
+            continue
+        m = re.match(r"^([│ ]*[├└]── )(\S+)(\s{2,}(.*))?$", line) if inside else None
+        if not m:
+            out.append(line)
+            continue
+        pre, name, comment = m.group(1), m.group(2), m.group(4)
+        for old, new in _TREE_NAMES:
+            if name.startswith(old):
+                name = new + name[len(old):]
+                break
+        name = _TREE_CH_TEXT.sub("ch-0001.md", name)
+        if comment:
+            pad = max(2, _TREE_COL - _width(pre + name))
+            out.append(pre + name + " " * pad + comment)
+        else:
+            out.append(pre + name)
+    return "\n".join(out)  # literal-ok: v2 名稱對照
+
+
+def _doc_rewrite(text):
+    def tok(m):
+        t, tail = m.group(0), ""
+        while len(t) > 1 and t[-1] in ".!?":
+            t, tail = t[:-1], t[-1] + tail
+        new = map_ref(t)
+        if "/" in new and re.search(r"第\d+章", new):         # 具體的章節檔：outline/chapters/第001章.md → ch-0001.md
+            new = map_v3(new)
+        nxt = text[m.end():m.end() + 1]
+        if new == t and t.startswith(tuple(x + "/" for x in TOP_V2)) and nxt and nxt in "<{*%":
+            new = map_rel(t.rstrip("/")) + ("/" if t.endswith("/") else "")      # 第一層資料夾＋檔名樣板
+        return new + tail
+    return _fix_tree(_CH_PATTERN.sub("ch-NNNN.md", _DOC_TOKEN.sub(tok, text)))
+
+
+def _doc_files(book_dir):
+    v3 = v3_view()
+    out = ["CLAUDE.md", v3["GLOSSARY"], v3["BIBLE_INDEX"]]
+    d = os.path.join(book_dir, *v3["TEMPLATES"].split("/"))
+    if os.path.isdir(d):
+        out += [v3["TEMPLATES"] + "/" + f for f in sorted(os.listdir(d)) if f.endswith(".md")]
+    return [r for r in out if os.path.isfile(os.path.join(book_dir, *r.split("/")))]
+
+
+def _docs_pending(book_dir):
+    out = []
+    for rel in _doc_files(book_dir):
+        text = project.read_text(os.path.join(book_dir, *rel.split("/")))
+        if _doc_rewrite(text) != text:
+            out.append(rel)
+    return out
+
+
+def _docs_needed(book_dir):
+    return rename_enabled() and not any(os.path.isdir(os.path.join(book_dir, d)) for d in TOP_V2) and bool(_docs_pending(book_dir))
+
+
+def _docs_plan(book_dir):
+    files = _docs_pending(book_dir)
+    return ["改寫檔案裡的舊路徑：%s" % "、".join(files)] if files else ["沒有要改的"]
+
+
+def _docs_apply(book_dir):
+    out = _docs_plan(book_dir)
+    for rel in _docs_pending(book_dir):
+        p = os.path.join(book_dir, *rel.split("/"))
+        project.write_atomic(p, _doc_rewrite(project.read_text(p)))
+    return out
+
+
 STEPS = [
     Step("book_meta", "書的身分證 book.json", _meta_needed, _meta_plan, _meta_apply),
     Step("rename", "資料夾與系統檔名換成英文", _rename_needed, _rename_plan, _rename_apply),
+    Step("chapters", "逐章檔名換成 ch-0001", _chapters_needed, _chapters_plan, _chapters_apply),
+    Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
 ]
 
 
@@ -524,7 +779,12 @@ def migrate(book_dir, dry_run=False, now=None):
     done = []
     try:
         for s in todo:
+            if not s.needed(book_dir):       # 前面的步驟可能已經處理掉（各步驟會互相影響，套用前再確認一次）
+                continue
             done.append({"key": s.key, "title": s.title, "changes": s.apply(book_dir)})
+        for s in STEPS:                      # 前面的步驟（例如改資料夾名稱）做完才看得出來的
+            if s.key not in {d["key"] for d in done} and s.needed(book_dir):
+                done.append({"key": s.key, "title": s.title, "changes": s.apply(book_dir)})
         after = stats(book_dir)
     except Exception as e:      # 任何一步失敗：整本還原
         rollback(book_dir, zp)

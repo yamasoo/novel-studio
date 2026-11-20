@@ -144,7 +144,7 @@ def chapters(book_dir):
     out = []
     for no, f in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
         text = project.read_text(layout.path(book_dir, layout.MANUSCRIPT, f))
-        out.append({"no": no, "title": project.chapter_title_from_filename(f), "file": layout.MANUSCRIPT + "/" + f,
+        out.append({"no": no, "title": project.chapter_title(f, text), "file": layout.MANUSCRIPT + "/" + f,
                     "chars": project.count_chars(context.body(text))})
     return out
 
@@ -239,7 +239,7 @@ def extract_prompt(book_dir, nos, acc):
     parts = []
     for no in nos:
         path, text = context.chapter_text(book_dir, no, (layout.MANUSCRIPT,))
-        parts.append(_t("rev_ch_head", n=no, title=project.chapter_title_from_filename(os.path.basename(path or ""))) + "\n" +
+        parts.append(_t("rev_ch_head", n=no, title=project.chapter_title(path or "", text)) + "\n" +
                      context.body(text))
     hand = _handoff(acc, nos[0])
     return ((hand + "\n\n" if hand else "") + "\n\n".join(parts) + _t("task_mark") +
@@ -724,8 +724,8 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
     chinfo = {c["no"]: c for c in chs}
     for k, card in (acc.get("cards") or {}).items():
         no = int(k)
-        _write_draft(book_dir, layout.CHAPTER_CARDS + "/" + layout.chapter_file(no, _fname(card.get("title"))), render_card(no, card, vols, []))
-        _write_draft(book_dir, layout.entry(layout.SUMMARIES, tracking.chapter_label(no)),
+        _write_draft(book_dir, layout.CHAPTER_CARDS + "/" + layout.chapter_md(no), render_card(no, card, vols, []))
+        _write_draft(book_dir, layout.SUMMARIES + "/" + layout.chapter_md(no),
                      render_summary(no, card.get("title", ""), chinfo.get(no, {}).get("chars", 0), acc["summaries"][k]))
     fs, tl, rows = render_tables(acc, label, set(core))
     _write_draft(book_dir, layout.FORESHADOWING, fs)
@@ -849,8 +849,9 @@ def chapter_cards(book_dir):
             if not f.endswith(".md"):
                 continue
             no = project.chapter_no(f)
+            fm = project.split_frontmatter(project.read_text(os.path.join(root, f)))[0]
             out.append({"rel": "%s/%s" % (CHAPTER_DRAFT_DIR, f), "no": no or 0,
-                        "name": project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
+                        "name": str(fm.get("章名") or "") or project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
     out.sort(key=lambda x: (x["no"] or 10 ** 9, x["rel"]))
     return out
 

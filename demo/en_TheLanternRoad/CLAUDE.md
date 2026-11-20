@@ -14,7 +14,7 @@ A mapmaker's apprentice and a lantern that only lights roads the maps swear don'
 - Settings (static): `bible/`　story core, style, author preferences, glossary, worldbuilding, characters, factions; unconfirmed items in `bible/drafts/`
 - Plans (not yet happened): `outline/`　whole-book outline, volume outlines, chapter cards
 - Facts (already happened): `tracking/`　state card, character state, foreshadowing, timeline, chapter summaries
-- Chapter text: `正文/第NNN章_<title>.md`; candidate drafts: `candidates/`
+- Chapter text: `manuscript/ch-NNNN.md`; candidate drafts: `candidates/`
 - Blank templates: `_templates/`
 
 (Folder and file names stay in Chinese; the studio program reads them.)

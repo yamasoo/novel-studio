@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 審查意見與逐段對照修訂。
-- 審查：模型逐條列出意見（附正文原句），存在 .studio/review/第NNN章.json
-- 修訂：模型依勾選的意見產生修訂稿，不直接覆蓋；存在 .studio/revisions/第NNN章.json，
+- 審查：模型逐條列出意見（附正文原句），存在 .studio/review/ch-NNNN.json
+- 修訂：模型依勾選的意見產生修訂稿，不直接覆蓋；存在 .studio/revisions/ch-NNNN.json，
   由作者逐段選擇保留原文或採用修訂，再套用成候選稿。
 """
 import difflib
@@ -350,9 +350,7 @@ def apply_revision(book_dir, no, choices, checker):
     if old:
         tracking.backup(book_dir, os.path.join(cand_dir, old), layout.CANDIDATES)
         os.remove(os.path.join(cand_dir, old))
-    title = re.sub(r'[\\/:*?"<>|]', "", rec.get("new_title") or "") or \
-        project.chapter_title_from_filename(os.path.basename(rec["base_path"])) or "未命名"
-    name = layout.chapter_file(no, title)
+    name = layout.chapter_md(no)            # 章名在修訂稿的一級標題裡
     project.write_atomic(os.path.join(cand_dir, name), text)
     discard_revision(book_dir, no)
     return {"path": layout.CANDIDATES + "/" + name, "used_new": used_new, "kept_old": kept_old,

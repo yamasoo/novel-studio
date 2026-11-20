@@ -29,7 +29,8 @@ def _path_tok(tok):
     for old, new in _SHARED:
         if tok == old or tok.startswith(old + "/"):
             return new + tok[len(old):]
-    return migrate.map_ref(tok)
+    t = migrate.map_ref(tok)
+    return migrate.map_v3(t) if "/" in t else t          # P3 第三批：逐章檔名 第001章_….md → ch-0001.md
 
 
 def convert_paths(v):
@@ -40,7 +41,9 @@ def convert_paths(v):
         return [convert_paths(x) for x in v]
     if isinstance(v, str):
         whole = _path_tok(v)               # 整個字串就是路徑（檔名可能有空白）
-        return whole if whole != v else _TOK.sub(lambda m: _path_tok(m.group(0)), v)
+        if whole != v:
+            return whole
+        return migrate._CH_PATTERN.sub("ch-NNNN.md", _TOK.sub(lambda m: _path_tok(m.group(0)), v))
     return v
 
 SNAP = os.path.join(ROOT, "tests", "snapshots", "demo_snapshot.json")

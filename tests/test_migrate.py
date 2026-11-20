@@ -105,7 +105,7 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename", "chapters"], [s["key"] for s in r["steps"]])
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
 
@@ -121,11 +121,11 @@ class MigrateTest(unittest.TestCase):
             self.assertEqual(layout.SCHEMA_VERSION, m["schema_version"])
             self.assertEqual(lang, lang_mod.book_lang(b))
             after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
-            rewritten = {"CLAUDE.md", layout.GLOSSARY, layout.BIBLE_INDEX}    # 內容裡有路徑的系統檔
-            moved = {migrate.map_rel(k): v for k, v in before.items() if k != ".studio/lang"}
+            rewritten = {"CLAUDE.md", layout.GLOSSARY, layout.BIBLE_INDEX}    # 內容裡有路徑的系統檔（＋_templates 底下的範本）
+            moved = {migrate.map_v3(k): v for k, v in before.items() if k != ".studio/lang"}
             self.assertEqual(set(moved) | {"book.json"}, set(after), "只多 book.json，其他都是搬到新位置")
             for k, v in moved.items():
-                if k not in rewritten:
+                if k not in rewritten and not k.startswith(layout.TEMPLATES + "/"):
                     self.assertEqual(v, after[k], k)
             self.assertTrue(os.path.isfile(r["report"]))
             self.assertTrue(os.path.isfile(r["backup"]))
@@ -263,30 +263,30 @@ class RenameStepTest(unittest.TestCase):
         r = migrate.migrate(self.book)
         self.assertEqual("done", r["status"], r.get("message"))
         after = _snapshot(self.book)
-        rewritten = {"CLAUDE.md", "bible/glossary.md", ".studio/revisions/第001章.json", ".studio/pipeline/current.json",
+        rewritten = {"CLAUDE.md", "bible/glossary.md", ".studio/revisions/ch-0001.json", ".studio/pipeline/current.json",
                      ".studio/reverse/drafts/bible/glossary.md", "illust/_illustrations.json"}
         for rel, data in self.before.items():
-            new = migrate.map_rel(rel)
+            new = migrate.map_v3(rel)
             if rel == ".studio/lang":
                 continue
             self.assertIn(new, after, rel)
-            if new not in rewritten:
+            if new not in rewritten and not new.startswith(layout.TEMPLATES + "/"):
                 self.assertEqual(data, after[new], "內容不能變：%s" % rel)
         for top in migrate.TOP_V2:
             self.assertFalse(os.path.exists(os.path.join(self.book, top)), top)
         self.assertTrue(os.path.isdir(os.path.join(self.book, "export")), "空資料夾也要換名稱")
         self.assertEqual(r["stats"], migrate.stats(self.book))
         rd = lambda rel: after[rel].decode("utf-8")
-        rec = json.loads(rd(".studio/revisions/第001章.json"))
-        self.assertEqual("manuscript/第001章_退婚當天.md", rec["path"])
-        self.assertEqual("candidates/第003章_x.md", rec["base_path"])
+        rec = json.loads(rd(".studio/revisions/ch-0001.json"))
+        self.assertEqual("manuscript/ch-0001.md", rec["path"], "紀錄裡的路徑跟著檔名改")
+        self.assertEqual("candidates/第003章_x.md", rec["base_path"], "不存在的檔不改（只換資料夾名稱）")
         self.assertEqual("設定/那個不是路徑", rec["note"], "不是路徑的字串不動")
         self.assertIn("詳見 bible/world/兵器.md；見 tracking/timeline.md", rd("bible/glossary.md"))
         self.assertIn("詳見 bible/world/兵器.md", rd(".studio/reverse/drafts/bible/glossary.md"))
         self.assertIn("`bible/characters/`，正文在 manuscript/。", rd("CLAUDE.md"))
         self.assertIn("bible/characters/林晚.md", rd("illust/_illustrations.json"))
         self.assertIn("illust/林晚/1.png", rd("illust/_illustrations.json"))
-        self.assertIn("設定/世界觀/兵器.md", rd("manuscript/第003章_路徑字樣.md"), "正文一個字都不能改")
+        self.assertIn("設定/世界觀/兵器.md", rd("manuscript/ch-0003.md"), "正文一個字都不能改")
         self.assertIn("設定/故事核心.md", rd(".studio/jobs/1.json"), "長字串裡的路徑不動（任務紀錄是歷史）")
         self.assertIn("bible/自訂資料夾/筆記.md", after)
         self.assertIn(".studio/backup/illust/舊.png", after)
@@ -333,7 +333,7 @@ class RenameStepTest(unittest.TestCase):
 class PathTableTest(unittest.TestCase):
     def test_table_covers_every_layout_path(self):
         """layout 裡每一個 v2 路徑常數都要在對照表裡（漏了就會留在舊名稱）。"""
-        skip = {"STUDIO", "BOOK_META", "PROJECT_RULES", "TEMPLATES_IN_SKILLS", "MIGRATE_DIR", "MIGRATE_BACKUP_PREFIX",
+        skip = {"STUDIO", "BOOK_META", "PROJECT_RULES", "TEMPLATES_IN_SKILLS", "MIGRATE_DIR", "MIGRATE_BACKUP_PREFIX", "CHAPTER_STEM",
                 "SPAWN_VOLUME_ONE", "VOLUME_PREFIX", "VOLUME_REVISION_PREFIX"}   # 範本檔名、卷綱檔名規則：之後的批次
         names = set(migrate.PATHS) | set(migrate.NAMES) | set(migrate.SHARED_PATHS)
         for k, v in layout.all_constants().items():
@@ -400,3 +400,121 @@ class WorkbenchGateTest(unittest.TestCase):
             self.assertEqual(["_共用/ → _shared/（1 個檔）"], r["library"], "轉書時順便轉共用資料夾")
             self.assertEqual(200, c.get("/api/books/舊書/chapters").status_code)
             self.assertFalse(c.get("/api/books").json()["shared_needs_migration"])
+
+
+class ChapterStepTest(unittest.TestCase):
+    """第三步：逐章檔名換成 ch-0001（v3 P3 第三批）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.book = os.path.join(self.tmp, "b")
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)    # 已是 v3 資料夾
+
+        def w(rel, text):
+            p = os.path.join(self.book, *rel.split("/"))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        self.w = w
+        for f in os.listdir(layout.path(self.book, layout.MANUSCRIPT)):
+            os.remove(layout.path(self.book, layout.MANUSCRIPT, f))
+        w("manuscript/第001章_退婚當天.md", "# 第1章 退婚當天\n\n正文一。\n")
+        w("manuscript/第002章_浮字.md", "正文二，沒有標題。\n")                       # 章名只在檔名裡
+        w("candidates/第003章_甲稿.md", "# 第3章 甲稿\n\n甲\n")
+        os.remove(layout.path(self.book, layout.CANDIDATES, "ch-0003.md"))
+        w("candidates/第003章_乙稿.md", "# 第3章 乙稿\n\n乙\n")                      # 同一章兩份
+        w(".studio/revisions/第001章.json", json.dumps({"path": "manuscript/第001章_退婚當天.md"}, ensure_ascii=False))
+        w(".studio/revisions/第001章.draft.md", "草稿\n")
+        w(".studio/reverse/batches/第001-002章.json", "{}")
+        w(".studio/pipeline/snapshots/第001章/write.json", "{}")
+        w(".studio/backup/修改前_第001章_退婚當天.1700000000.md", "舊\n")              # 備份不改名
+        w("illust/chapters/第001章/a.png", "x")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_needs_migration_on_old_chapter_names(self):
+        self.assertTrue(migrate.needs_migration(self.book), "v3 資料夾但還有舊章節檔名：要轉換")
+
+    def test_migrate(self):
+        before = migrate.stats(self.book)
+        r = migrate.migrate(self.book)
+        self.assertEqual("done", r["status"], r.get("message"))
+        self.assertEqual(["chapters"], [s["key"] for s in r["steps"]])
+        self.assertEqual(before, migrate.stats(self.book))
+        L = sorted(os.listdir(layout.path(self.book, layout.MANUSCRIPT)))
+        self.assertEqual(["ch-0001.md", "ch-0002.md"], L)
+        self.assertEqual(["ch-0003.md", "ch-0003.v2.md"], sorted(os.listdir(layout.path(self.book, layout.CANDIDATES))))
+        t2 = project.read_text(layout.path(self.book, layout.MANUSCRIPT, "ch-0002.md"))
+        self.assertTrue(t2.startswith("# 第2章 浮字\n\n正文二"), "章名只在檔名裡：補一行標題")
+        self.assertEqual("浮字", project.scan_chapters(self.book)[1]["title"] or "")
+        self.assertEqual("# 第1章 退婚當天\n\n正文一。\n", project.read_text(layout.path(self.book, layout.MANUSCRIPT, "ch-0001.md")))
+        rec = json.loads(project.read_text(layout.path(self.book, layout.STUDIO_REVISIONS, "ch-0001.json")))
+        self.assertEqual("manuscript/ch-0001.md", rec["path"])
+        for rel in (".studio/revisions/ch-0001.draft.md", ".studio/reverse/batches/ch-0001-0002.json",
+                    ".studio/pipeline/snapshots/ch-0001/write.json", "illust/chapters/ch-0001/a.png",
+                    ".studio/backup/修改前_第001章_退婚當天.1700000000.md"):
+            self.assertTrue(os.path.isfile(os.path.join(self.book, *rel.split("/"))), rel)
+        self.assertIn("補上標題", "".join(r["steps"][0]["changes"]))
+        self.assertFalse(migrate.needs_migration(self.book))
+        self.assertEqual("skipped", migrate.migrate(self.book)["status"])
+
+    def test_workbench_reads_legacy_names(self):
+        """技能或手動寫成舊檔名的檔，工作台照樣認得（章號、章名）。"""
+        rows = {r["no"]: r for r in project.scan_chapters(self.book)}
+        self.assertEqual("浮字", rows[2]["title"])
+        self.assertEqual("manuscript/第002章_浮字.md", rows[2]["text_file"])
+
+
+class DocsStepTest(unittest.TestCase):
+    """第四步：系統文件（CLAUDE.md、_templates、名詞表、設定索引）裡的舊路徑。"""
+
+    def test_rewrite_and_detect(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            b = os.path.join(tmp, "b")
+            shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), b)
+            self.assertFalse(migrate.needs_migration(b))
+            p = os.path.join(b, "CLAUDE.md")
+            text = project.read_text(p)
+            with open(p, "a", encoding="utf-8", newline="\n") as f:
+                f.write("\n- 正文：`正文/第NNN章_<title>.md`，章綱：outline/chapters/第NNN章.md。她說設定/那個不是路徑。\n")
+            self.assertTrue(migrate.needs_migration(b), "系統文件還有舊路徑：要轉換")
+            r = migrate.migrate(b)
+            self.assertEqual(["docs"], [s["key"] for s in r["steps"]])
+            new = project.read_text(p)
+            self.assertTrue(new.startswith(text))
+            self.assertIn("`manuscript/ch-NNNN.md`，章綱：outline/chapters/ch-NNNN.md。她說設定/那個不是路徑。", new)
+            self.assertFalse(migrate.needs_migration(b))
+        finally:
+            shutil.rmtree(tmp)
+
+
+class LegacyChapterNamesTest(unittest.TestCase):
+    """v3 的書裡出現舊檔名（技能或手動寫的）：工作台照樣能用，寫出一律 ch-0001。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.book = os.path.join(self.tmp, "b")
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)
+        cand = layout.path(self.book, layout.CANDIDATES)
+        for f in os.listdir(cand):
+            os.remove(os.path.join(cand, f))
+        with open(os.path.join(cand, "第003章_鋪子裡的帳.md"), "w", encoding="utf-8") as f:
+            f.write("鋪子裡的帳。\n")          # 沒有標題：章名只在舊檔名裡
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_scan_and_accept(self):
+        row = {r["no"]: r for r in project.scan_chapters(self.book)}[3]
+        self.assertEqual("candidates/第003章_鋪子裡的帳.md", row["candidate_file"])
+        rel = project.accept_candidate(self.book, 3)
+        self.assertEqual(layout.MANUSCRIPT + "/ch-0003.md", rel, "採用後一律存成 ch-0003.md")
+
+    def test_canonical_name_wins(self):
+        man = layout.path(self.book, layout.MANUSCRIPT)
+        for name in ("ch-0001.v2.md", "第001章_舊.md"):
+            with open(os.path.join(man, name), "w", encoding="utf-8") as f:
+                f.write("# 第1章 另一份\n")
+        self.assertEqual("ch-0001.md", project._scan_dir(man)[1])

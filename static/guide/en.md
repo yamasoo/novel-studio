@@ -79,7 +79,7 @@ The **volume card** at the top of the Outline page → "New volume" → fill the
 #### Step 4: chapter cards for the first 10 chapters (+ card health check)
 
 1. Volume card → "Plan this volume's chapter cards": it first gives a **one-line-per-chapter overview**
-2. Reply "confirm" and only then are the card files written: `outline/chapters/第NNN章_*.md`
+2. Reply "confirm" and only then are the card files written: `outline/chapters/ch-NNNN.md`
 3. Volume card → "Card check": catches **early appearance / spoilers** and **characters missing for too long**. Fix the cards before writing.
 
 10–12 chapters at a time is enough; you do not have to plan the whole volume before writing.
@@ -169,8 +169,8 @@ The last volume gets the same end-of-volume check and settings backfill, which l
 |---|---|
 | Whole-book outline | `outline/book.md` |
 | Volume outline | `outline/卷綱_第N卷.md` (drafts in `outline/drafts/`) |
-| Chapter cards | `outline/chapters/第NNN章_*.md` |
-| Manuscript | `manuscript/第NNN章_*.md` |
+| Chapter cards | `outline/chapters/ch-NNNN.md` |
+| Manuscript | `manuscript/ch-NNNN.md` |
 | Candidate drafts | `candidates/` |
 | Settings | `bible/characters/`, `bible/factions/`, `bible/world/`; drafts in `bible/drafts/` |
 | Tracking | `tracking/state-card.md`, `tracking/foreshadowing.md`, `tracking/summaries/` |

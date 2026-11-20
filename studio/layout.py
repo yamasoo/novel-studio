@@ -165,37 +165,40 @@ LIVE_TEMPLATES = {
 VOLUME_REVISION_PREFIX = "卷綱修訂"
 
 
-def chapter_file(no, title):
-    """正文／候選／反推章綱的檔名：第001章_標題.md"""
-    return "第%03d章_%s.md" % (int(no), title)
+CHAPTER_STEM = "ch-%04d"     # 逐章檔案的名稱：ch-0001（章號 4 位數；章名不放檔名，見 project.chapter_title）
 
 
-def chapter_stub_file(no):
-    """spawn 建書時的空白章綱：第001章_待填.md"""
-    return "第%03d章_待填.md" % int(no)
+def chapter_stem(no):
+    """逐章資料夾的名稱（插圖、流程快照）：ch-0001"""
+    return CHAPTER_STEM % int(no)
+
+
+def chapter_md(no):
+    """正文、候選、章綱、章節摘要的檔名：ch-0001.md"""
+    return chapter_stem(no) + ".md"
 
 
 def chapter_range_file(a, b, suffix):
-    """跨章的報告檔：第001-010章_<suffix>.md"""
-    return "第%03d-%03d章_%s.md" % (int(a), int(b), suffix)
+    """跨章的報告檔：ch-0001-0010_<suffix>.md"""
+    return "ch-%04d-%04d_%s.md" % (int(a), int(b), suffix)
 
 
 def chapter_json(no):
-    """.studio 底下逐章的紀錄檔：第001章.json"""
-    return "第%03d章.json" % int(no)
+    """.studio 底下逐章的紀錄檔：ch-0001.json"""
+    return chapter_stem(no) + ".json"
 
 
 def chapter_range_json(a, b):
-    return "第%03d-%03d章.json" % (int(a), int(b))
+    return "ch-%04d-%04d.json" % (int(a), int(b))
 
 
 def revision_draft(no):
-    """修訂稿：.studio/revisions/第001章.draft.md"""
-    return STUDIO_REVISIONS + "/第%03d章.draft.md" % int(no)
+    """修訂稿：.studio/revisions/ch-0001.draft.md"""
+    return STUDIO_REVISIONS + "/" + chapter_stem(no) + ".draft.md"
 
 
 def revision_backup_file(no, stamp):
-    return "修訂_第%03d章.%d.json" % (int(no), int(stamp))
+    return "revision_%s.%d.json" % (chapter_stem(no), int(stamp))
 
 
 def volume_file(no, base=OUTLINE):

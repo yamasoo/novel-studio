@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-20T20:34:59",
+ "generated": "2026-11-20T20:58:40",
  "units": {
   "README.md": {
    "en": "3f5755d0cbfbce82cf647b669ad53b00750624cdf56b4ab9c7a9ff54bdf8959d",
@@ -7,9 +7,9 @@
    "zh": "eddde1968ea72bc06b964bc9ce2044fd296ac6b22d12c70bf282108ce594878a"
   },
   "demo/退婚之後/CLAUDE.md": {
-   "en": "7ec4ba45056a90c1cd0f3b339a556c0e5f8f69876d9f38eea78e82e1832ce327",
-   "ja": "ff43895de353a26326b6378fd4f2306698309dbb2b7078be834d3ab40032ddea",
-   "zh": "ce3682d0f0997d89befd0e26021a6a450f05e812fb0b4de837352792ea9f00e9"
+   "en": "687683c695a1bb260cd8442848b6a3cb9870a27523f7ae4e9d9e65cafa804833",
+   "ja": "e69b40b534682bf1c780218b64fa8003769613ca75280fcd76cf23c7810a8679",
+   "zh": "9aaeee5b0ea1f2708ed52f70957034090d5de25c680924c21ae1d23fc8eaebf1"
   },
   "demo/退婚之後/_templates/世界觀.md": {
    "en": "ac9b05f5ef8cd202cb1155dce9fb13c6c87a341aa3d14ccd1e96a890114f7c51",
@@ -47,9 +47,9 @@
    "zh": "34c5f21397e330d0f73101ad5c8046f33f4f0d99544fe91c62d69eaac68cacd9"
   },
   "demo/退婚之後/_templates/專案規範.md": {
-   "en": "7f54fb4130d830a1a4204ecb0dd78ade2c27a0cb7971388af5adfb414323b46b",
-   "ja": "31eb46819c8d29c5308338917753b4608aee24b1b20f6ff499bab9d114f57420",
-   "zh": "b58600b24dd35aed2ad431183ba8d98542766a2efc21b97e291219a313c4d5b7"
+   "en": "decf28eae3f54c6a518f1510713301b57341a4958f8b761054a8ce983bf4ee30",
+   "ja": "836570d750457196f7196869f76630ee70223c6c21a253d3d418a3a3dbd1a8ef",
+   "zh": "afc79102997a267faba0c71b9fc661d7e1642ee81f04fa5e74ce84aeb6a4934f"
   },
   "demo/退婚之後/_templates/故事核心.md": {
    "en": "8d81adb0ec34a845a3fb3f0686a2171ebd4e4589c203441b2eecf3ab36a52e2b",
@@ -87,9 +87,9 @@
    "zh": "50ef7a6b6e3e78113fa7d2f1bd95bf001cf17f96a96cd08812a6a4be5879e64a"
   },
   "demo/退婚之後/_templates/角色狀態.md": {
-   "en": "454520e879e2558226cc31e78b6c8e474a3fa85ac6c1ff68c286b8e20af737c3",
-   "ja": "f2235f8a898b1076cabdef5d3164d59b7d4333f25ab84ff893c65e456bb788a1",
-   "zh": "430024108ed5ca31356be91df60b6b483018c987121b235740e597515222bcc1"
+   "en": "61118aa4423a27205f2284647c7e4de517473719e44fc5066daa351ab69bd80e",
+   "ja": "83dc47fcff83176b8200ed8942c289ae57f9da07bf260dadaeed536d65a9eb9e",
+   "zh": "b736f5527829dc077c3dd9cd9b75ccd195409baac72576217949825b6748131e"
   },
   "demo/退婚之後/_templates/讀者認知.md": {
    "en": "d50172b8886acf40b07a311dd9ccd2c3631154d505d0276eac2571e02427fd1e",
@@ -126,32 +126,47 @@
    "ja": "2923f58d9460cc1dca4b51e294c50312251ad9c9fb1fbd01525c5c7ed0d2b6fe",
    "zh": "5e4e1017af624095e90926d077906918cdd6eb581770fb9a30035b50ad18c896"
   },
+  "demo/退婚之後/candidates/ch-0003.md": {
+   "en": "b9d436d991313f7526a1ec1ff34ee26f5015c1756637c70d73c8c10db7e015ab",
+   "ja": "cba549cca4cdeca2d026404d6ececd8da77cc7b66c3a7bd164598ad6791c7f60",
+   "zh": "2c2b54571bfe089e487858b1f906ca99addabce14ffe9032ab234ede13dfb593"
+  },
+  "demo/退婚之後/manuscript/ch-0001.md": {
+   "en": "4d24c7b9fecccdf01fc5fb156ddc89f85696b8c6831d9c1960c5502ec848006f",
+   "ja": "91f76c319e31484301e73f67297bca2761227d554afe09f0a8ed9adecd5de8e5",
+   "zh": "d1b9b71cb465fb9e0dc35cf695119098204056cf32f09217b137644bcc7844a9"
+  },
+  "demo/退婚之後/manuscript/ch-0002.md": {
+   "en": "4777a5c23debac8bb29b4a8816d8a6a078508ae87e3e5b38bb043d3f44a3d55d",
+   "ja": "33c87e706c9e26cf5a448800ed5dd2874f70306fe64a173262cc961b80c3f279",
+   "zh": "9405f026619528da243dacff73069c179968d702693eab88914c0b86a36bd0a5"
+  },
   "demo/退婚之後/outline/book.md": {
    "en": "aff75041af6b17e6821b72b539327d3c4e29f68d479218112bda47be424798a5",
    "ja": "6cac11d6845780f4990c5c323f5890f9dcd151c6ba6fcd5fa0e475a8be108c3d",
    "zh": "9757c796716103d60aa59b10e63162c4b053e488495d39ebc3df77d7cd335c7f"
   },
-  "demo/退婚之後/outline/chapters/第001章.md": {
+  "demo/退婚之後/outline/chapters/ch-0001.md": {
    "en": "d123fad0657ee14f18edd332638408f70ae2a204efdfbdd5a35990cef74d622f",
    "ja": "4528d60a887007d97a7120039b651b5688e1f23bbbc2a2d23bdd69294510b1b1",
    "zh": "ff26edf250bda9a0ea9d1da0a70ec1bfa4747a52f59edc1465e9111715865fcc"
   },
-  "demo/退婚之後/outline/chapters/第002章.md": {
+  "demo/退婚之後/outline/chapters/ch-0002.md": {
    "en": "0726187c27d5c5cf3d98c782ac4a804c97f70a9713b0a972504a9336e4cdad8e",
    "ja": "160d08ffddeca99f365d8460f3693353678f5eab4c7d33dfbffc87bf73e52f85",
    "zh": "5dff78e4fa5a8fad5644aa743223f218b99f71660f4b04ce6470545bdbbe1ca3"
   },
-  "demo/退婚之後/outline/chapters/第003章.md": {
+  "demo/退婚之後/outline/chapters/ch-0003.md": {
    "en": "0ffeffda430869d151eb0f64ea914ccc41ed96daa07d4cccba9a35d08ecc2b0b",
    "ja": "b34ab3db524cda2255bed66abfb7c3c8d3b280322d1aa80d4c10397d4e4cff38",
    "zh": "6246148a45ed7fcd773be0bd3590740b13b185a90f4771a6259ae8a6eab4ab18"
   },
-  "demo/退婚之後/outline/chapters/第004章.md": {
+  "demo/退婚之後/outline/chapters/ch-0004.md": {
    "en": "7aba126d1e5bdc0c424ebf2bdb0aba68f48a280cc96ee89a72e9513e77c89a09",
    "ja": "6cd801be712a1add9afcf2c5df70585fbd474d574c4013f3125e8a4537b248b8",
    "zh": "c421a782231fca466d33628a163379fd973ad1ee5b98e6792465e6c5843cd8be"
   },
-  "demo/退婚之後/outline/chapters/第005章.md": {
+  "demo/退婚之後/outline/chapters/ch-0005.md": {
    "en": "bd7eb024105c03014c511f2cc41aedf8d14b5d7f0c74cfa1144d26dcd8229658",
    "ja": "7681e37a197b27354d485836023dec605a9dc4929141be9f641c8d440db29dea",
    "zh": "074e88cb9e83c71e47b23deb130b0b7ed5b0647bb026dcb6d1cf6d77dbf35d57"
@@ -176,12 +191,12 @@
    "ja": "407c70d50e02833c58467dc10c4354310e5905c3116db3bdf5e1ed7c8bdd1909",
    "zh": "6e08f81352976f9ca9cd8239c015425b6c27e5e7433365cbaa69a0acdf0facd1"
   },
-  "demo/退婚之後/tracking/summaries/第001章.md": {
+  "demo/退婚之後/tracking/summaries/ch-0001.md": {
    "en": "fe17f6009bf7dd5224ca7b6f465653371fe9b99308255a78feb828954dbf96f9",
    "ja": "41b22b5c9b0c3be66c7c616d14f5b2224dcef74999be1b21e169aab47316d906",
    "zh": "47c0f09707f9076bffdc8300f37c0ee51789227cc8da4ab3e06afe6384659624"
   },
-  "demo/退婚之後/tracking/summaries/第002章.md": {
+  "demo/退婚之後/tracking/summaries/ch-0002.md": {
    "en": "6ff05bf603ab4e0d4a9783b455ffde5b64b17587f2f80e7752f24a6b8b10ad9a",
    "ja": "0b8f7696ab566ce5f3276938f05958216d6ddfa51795fea33bb9579559161fba",
    "zh": "1e248c2988b9a0ecd35072809e7409e1c0c849c9e92e8eac445cc28547545b60"
@@ -212,9 +227,9 @@
    "zh": "1928311ce5edc0b8077efea387be9572b4135a92112d628272e83eaa9ecdeb8e"
   },
   "plugin/skills/novel-deslop/SKILL.md": {
-   "en": "f8ba0aade28618ca1ca11a0a7db6f11de21d545ded7779f0450f152d8ac25905",
-   "ja": "9ae35817d3139988c1ea2ca6e72ef8f409c1fa5c41b9e8c1331fe13f0a53ca07",
-   "zh": "c84e980204970f77cbcbacd8a275db05ab7b7f4b16284b890f96435fd4c59921"
+   "en": "315bce20ac2a8c079301f147a3c56519b020317e05e001aca1a22d684abc572a",
+   "ja": "ffad42608eba468d6b1ab030e26f50d808c7a38ffd69a24b7454c9d50936be76",
+   "zh": "b30004c447c6ae409dde535f61be9aaca785657d7f1b8ff84853d3523cc37b24"
   },
   "plugin/skills/novel-deslop/references/ai-signals.md": {
    "en": "4a8b76d4faca159b80f4ef75f872d0cacd293d113332dca7411089a5c6cd22c2",
@@ -227,14 +242,14 @@
    "zh": "5fde7070f887fa6ccea9f9c8d30ce5da5f420a94fcecdea9484964c65b17e34f"
   },
   "plugin/skills/novel-deslop/scripts/check_text.py": {
-   "en": "414e0130c1919ac6542f4f3d4726de065f215114071f9fad4802376be173bc1a",
-   "ja": "1a0c7c1c18bbd7aeb8f63621a975ec0b4d32dcffa5ab67e9c3ba1647a1788f27",
-   "zh": "dd006b4f4bf645fea0ab9e6010d290097aa14afeb8441af2bfb896e9d1d91200"
+   "en": "20a34f7c0c74c5996e191d1e7a758c61759ae94c8385acda1cee0a87467a484e",
+   "ja": "61eba032a940835fa9b8ccf8b105d4fc7d523d40d56770d5cbce07ce61f1c8b0",
+   "zh": "205f7bcebb70fd919d4c9ff8002faacfba3243344be08bd8fd6f9f2ae2ebd866"
   },
   "plugin/skills/novel-outline/SKILL.md": {
-   "en": "5d448a2c88d494bfc56b700f2ca3cd1be3d7e814b9e1763aaeda22348454646b",
-   "ja": "64e9c011286281d82f8091b6e82ab6cdb2a001aa50b848e3d2b8eb47e0f9c8af",
-   "zh": "09822872ad8d88823e448fc655d7429fd0dc509f43694c760e5d662ddfac2db8"
+   "en": "1a344f46d213f427398b3753f2f87a30350a6d57c9814ffb27d2b6797ea95944",
+   "ja": "f12113263c562b16a9851d26cf023a66f0dc3534dd0674ce682367e7e08bb331",
+   "zh": "3a8bc732770c1bce0f20594169a29a88c1e29327c7e24d1d4a897755a90ae201"
   },
   "plugin/skills/novel-outline/references/chapter-card.md": {
    "en": "09a95f097ff6c1c328eaf516282cb65fb06ceb88e47b4c92056b9eaab2e82d06",
@@ -277,9 +292,9 @@
    "zh": "b5660d55bddfac830e2e069adecca960f8d22b2419bf9d0263c1d08a1a86f7f3"
   },
   "plugin/skills/novel-setup/references/claude-md-template.md": {
-   "en": "6787b03d9848fb87a3f459b3e71fbcc45a3d2531a78f76543b57a5f8ace31004",
-   "ja": "ff29f716bcbc931a27f29d88ad6b7e80f66ff9fbdcb2248f79dc8cfb1b6b5422",
-   "zh": "a3cf7838d714d89a62f7d2296b4e7cdc790482a9958a6ba7c095fe6fd1a09daf"
+   "en": "7fe0b87798e53bf514143cc02e393d19890395d37719c7d531da0cb0185cd6e3",
+   "ja": "c1cc8f0628c77e1ef48ae65772bc481fd29ddfa6d5629424f7788a64f1630fc6",
+   "zh": "64c435ef00e23f25be1332eda2d4643e0feb3150282dfa4979b9c906832861ae"
   },
   "plugin/skills/novel-setup/references/interview.md": {
    "en": "4bbc49e9cafca179c670ae6b43f58204f46052097a226f2807a443f0a81ba626",
@@ -287,9 +302,9 @@
    "zh": "961c710f6bc01dbf2ee2d5ad746e2cff94376160a0fd758db472cef40bfed92c"
   },
   "plugin/skills/novel-setup/references/project-layout.md": {
-   "en": "f08bf59eefb1f88f557c96a491d3d566a97a37823b4e757b83519d421472660b",
-   "ja": "379fae0727fc721a114f49d68aedb675042248720ad45dcc404616717e0eeb7e",
-   "zh": "117b7f2e040ff9ec2d58f761d61d7bf124fb2c02dfb41f2662654dd72717f42d"
+   "en": "decf28eae3f54c6a518f1510713301b57341a4958f8b761054a8ce983bf4ee30",
+   "ja": "836570d750457196f7196869f76630ee70223c6c21a253d3d418a3a3dbd1a8ef",
+   "zh": "afc79102997a267faba0c71b9fc661d7e1642ee81f04fa5e74ce84aeb6a4934f"
   },
   "plugin/skills/novel-setup/templates/世界觀.md": {
    "en": "ac9b05f5ef8cd202cb1155dce9fb13c6c87a341aa3d14ccd1e96a890114f7c51",
@@ -397,9 +412,9 @@
    "zh": "58c204b5dfe8f347f1de73331445ca316b52476a13d1a0094d242ff48e57bee8"
   },
   "plugin/skills/novel-write/SKILL.md": {
-   "en": "1f2db62ce7c8a1d8d8f408808eb39c9fd2d65086806c12aed12a447e7b42575b",
-   "ja": "eec2aae30208bb88ee07983e22907813561e3397f6624296f116faaa283a44d2",
-   "zh": "38cdcc1b832c2f182ef75453848dfec2566963cb1f551a7a8ab83ca3973e537a"
+   "en": "d734dd0dd758a340b72aab844c2331c04e74ff4c32d8b7a101669fe6034c9bc2",
+   "ja": "53065ab486d2bcae6a59e34bd80064d2684d3862f904293b292d000751d00ef6",
+   "zh": "83a952bfb8d708b977f52475f87453d4b2b3a126b374abfb01839bad6d5865d2"
   },
   "plugin/skills/novel-write/references/examples.md": {
    "en": "59621de0fd2dfa245d2f8faf49f6e54fc356cc53ed2d4cd9b6e5a624565bbfd9",
@@ -412,9 +427,9 @@
    "zh": "f5726d11810689eacefad7613da58ad8f5ba2d9de4b43fa0421c6ba21ba32ef4"
   },
   "plugin/skills/novel-write/references/tracking-update.md": {
-   "en": "f7d7413a0c5f9e90b8b92364a16a2a8272b4500d419ece5b5fe3d0d09aed8cde",
-   "ja": "f487ff476f9bd0b4a8e29c27be3e80fdadc35f230b4651c793107d0e2c3e7061",
-   "zh": "546fe3ad997b428722893b5024970cf80c76a1a00052f0b7fcd503ae085a7560"
+   "en": "5db80b2a1c44bdd4d339b107b0cdf29d0f87d614e6428c91f93e349cacb16195",
+   "ja": "814298054630a667312ded6572dea984c27eba54d4f2180c2bace1cb620ad4ce",
+   "zh": "02720587e841a926804fcce8752861bd836016cdb32b0086233289d16d6e512f"
   },
   "plugin/skills/novel-write/references/writing-craft.md": {
    "en": "3079d2814f000ebfc9d07896c01115839cc5f7ea832ad703f5e7d82d153e5d61",

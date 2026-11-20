@@ -9,35 +9,35 @@ This specification is the common foundation of the whole novel-* skill set. nove
 ```
 {Title}/
 ├── CLAUDE.md                  ← rules for this book (loaded at the start of every conversation)
-├── bible/                      ← static settings: change rarely, consulted before writing
-│   ├── 故事核心.md            genre, selling points, one-line hook, story engine, reader contract, ending direction
-│   ├── 文風.md                this book's style: viewpoint, sentence rhythm, taboos, example passages
-│   ├── 作者偏好.md            habits the author has said "from now on" about
-│   ├── 名詞表.md              proper nouns, forms of address, fixed spellings
-│   ├── 世界觀/{topic}.md      one topic per file: geography, history, power system, social structure …
-│   ├── 角色/{name}.md         one person per file: static profile
-│   ├── 勢力/{name}.md         one organization per file
-│   └── 草稿/                  unconfirmed settings (AI-generated, extracted from conversation); moved to the official folders once confirmed
-├── outline/                      ← plans: what has not yet happened
-│   ├── 全書大綱.md
+├── bible/                     ← static settings: change rarely, consulted before writing
+│   ├── story-core.md          genre, selling points, one-line hook, story engine, reader contract, ending direction
+│   ├── style.md               this book's style: viewpoint, sentence rhythm, taboos, example passages
+│   ├── author-prefs.md        habits the author has said "from now on" about
+│   ├── glossary.md            proper nouns, forms of address, fixed spellings
+│   ├── world/{topic}.md       one topic per file: geography, history, power system, social structure …
+│   ├── characters/{name}.md   one person per file: static profile
+│   ├── factions/{name}.md     one organization per file
+│   └── drafts/                unconfirmed settings (AI-generated, extracted from conversation); moved to the official folders once confirmed
+├── outline/                   ← plans: what has not yet happened
+│   ├── book.md
 │   ├── 卷綱_第一卷.md
-│   └── 章綱/第001章.md        one file per chapter
+│   └── chapters/ch-0001.md    one file per chapter
 ├── manuscript/
-│   └── 第001章_<title>.md
-├── tracking/                      ← facts that have happened: updated only after a chapter is written
-│   ├── 狀態卡.md              the current situation, required reading before every chapter
-│   ├── 角色狀態/{name}.md     dynamic snapshot: location, injuries, holdings, what they know
-│   ├── 伏筆.md                foreshadowing table
-│   ├── 時間線.md              the author's truth and what the reader knows
-│   ├── 讀者認知.md            what the reader knows, suspects and misbelieves (optional; created during write-back)
-│   ├── 關係.md                who stands where toward whom, with history (optional; created during write-back)
-│   └── 章節摘要/第001章.md    one short summary per chapter
-├── candidates/                      candidates: chapters written but not yet adopted by the author (when using the review screen)
-├── samples/                      passages the author likes, used as positive style examples (optional)
-└── _templates/                     blank templates for each kind of file (copied in by novel-setup)
+│   └── ch-0001.md
+├── tracking/                  ← facts that have happened: updated only after a chapter is written
+│   ├── state-card.md          the current situation, required reading before every chapter
+│   ├── characters/{name}.md   dynamic snapshot: location, injuries, holdings, what they know
+│   ├── foreshadowing.md       foreshadowing table
+│   ├── timeline.md            the author's truth and what the reader knows
+│   ├── reader-knowledge.md    what the reader knows, suspects and misbelieves (optional; created during write-back)
+│   ├── relations.md           who stands where toward whom, with history (optional; created during write-back)
+│   └── summaries/ch-0001.md   one short summary per chapter
+├── candidates/                candidates: chapters written but not yet adopted by the author (when using the review screen)
+├── samples/                   passages the author likes, used as positive style examples (optional)
+└── _templates/                blank templates for each kind of file (copied in by novel-setup)
 ```
 
-Chapter numbers are zero-padded to three digits (第001章), four digits past chapter 999. Characters, factions and places are filed under their English names (bible/characters/Ines Marlow.md).
+Chapter files are named ch-0001.md (the chapter number zero-padded to four digits); the chapter title goes in the first-line heading (`# 第1章 Title`), not in the file name. Characters, factions and places are filed under their English names (bible/characters/Ines Marlow.md).
 
 ## 2. Three iron rules
 
@@ -73,7 +73,7 @@ Every database file starts with a YAML block, for searching and checking. Write 
 ---
 ```
 
-### Chapter card (outline/chapters/第001章.md)
+### Chapter card (outline/chapters/ch-0001.md)
 
 ```yaml
 ---
@@ -97,7 +97,7 @@ Every database file starts with a YAML block, for searching and checking. Write 
 ---
 ```
 
-### Chapter summary (tracking/summaries/第001章.md)
+### Chapter summary (tracking/summaries/ch-0001.md)
 
 ```yaml
 ---
@@ -159,7 +159,7 @@ Type must be one of: 已知 (the reader knows, but some characters in the story 
 
 One direction per row: A toward B and B toward A are separate, and the two views may differ. When a relationship changes, put the changing chapter in the old row's end chapter and open a new row; never overwrite, so the history stays. A blank end chapter means currently valid. When writing, look only at the currently valid rows among characters on stage; when reviewing, read the history too, to catch "changed without a cause" or "slipped back".
 
-### 章節摘要/第NNN章.md (100-250 words)
+### 章節摘要/ch-NNNN.md (100-250 words)
 
 Four things: what happened in the chapter, how the situation changed, what and who newly appeared, where the chapter stops.
 

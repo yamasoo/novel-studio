@@ -158,12 +158,12 @@ class ReverseAdoptTest(unittest.TestCase):
         self.book = os.path.join(self.tmp.name, "test-book")
         _write(self.book, "outline/book.md", OLD_OUTLINE)
         _write(self.book, "outline/卷綱_第1卷.md", OLD_VOL)
-        _write(self.book, "outline/chapters/第001章.md", OLD_CARD)
+        _write(self.book, "outline/chapters/ch-0001.md", OLD_CARD)
         _write(self.book, "tracking/foreshadowing.md", OLD_FS)
         _write(self.book, "bible/characters/周遠.md", OLD_CHAR)
         _draft(self.book, "outline/book.md", NEW_OUTLINE)
         _draft(self.book, "outline/卷綱_第一卷.md", NEW_VOL)   # 舊版中文檔名也要落到「第1卷」
-        _draft(self.book, "outline/chapters/第001章_大夜班.md", NEW_CARD)
+        _draft(self.book, "outline/chapters/ch-0001.md", NEW_CARD)
         _draft(self.book, "tracking/foreshadowing.md", NEW_FS)
         _draft(self.book, "bible/characters/周遠.md", NEW_CHAR)
         _draft(self.book, "bible/story-core.md", NEW_CORE)
@@ -172,14 +172,14 @@ class ReverseAdoptTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_chapter_cards_never_overwrite_formal(self):
-        before = _read(self.book, "outline/chapters/第001章.md")
-        mtime = os.path.getmtime(os.path.join(self.book, "outline", "chapters", "第001章.md"))
+        before = _read(self.book, "outline/chapters/ch-0001.md")
+        mtime = os.path.getmtime(os.path.join(self.book, "outline", "chapters", "ch-0001.md"))
         r = reverse.adopt(self.book, "章綱")
-        self.assertEqual(before, _read(self.book, "outline/chapters/第001章.md"))
-        self.assertEqual(mtime, os.path.getmtime(os.path.join(self.book, "outline", "chapters", "第001章.md")))
+        self.assertEqual(before, _read(self.book, "outline/chapters/ch-0001.md"))
+        self.assertEqual(mtime, os.path.getmtime(os.path.join(self.book, "outline", "chapters", "ch-0001.md")))
         self.assertEqual(r["adopted"], 1)
-        self.assertTrue(os.path.isfile(os.path.join(self.book, "outline", "chapters", "_reverse", "第001章_大夜班.md")))
-        self.assertFalse(os.path.isfile(os.path.join(self.book, ".studio", "reverse", "drafts", "outline", "chapters", "第001章_大夜班.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, "outline", "chapters", "_reverse", "ch-0001.md")))
+        self.assertFalse(os.path.isfile(os.path.join(self.book, ".studio", "reverse", "drafts", "outline", "chapters", "ch-0001.md")))
 
     def test_outline_default_keeps_everything(self):
         old = _read(self.book, "outline/book.md")
@@ -282,12 +282,12 @@ class ReverseAdoptTest(unittest.TestCase):
 
         chapter = reverse.plan_group(self.book, "章綱")[0]
         self.assertTrue(chapter["exists"])
-        self.assertEqual(chapter["target"], "outline/chapters/_reverse/第001章_大夜班.md")
+        self.assertEqual(chapter["target"], "outline/chapters/_reverse/ch-0001.md")
         self.assertEqual(chapter["default_mode"], "copy")
 
     def test_diff_group_compares_against_formal_card(self):
-        d = reverse.diff_group(self.book, "章綱", "outline/chapters/第001章_大夜班.md")
-        self.assertEqual(d["old_rel"], "outline/chapters/第001章.md")
+        d = reverse.diff_group(self.book, "章綱", "outline/chapters/ch-0001.md")
+        self.assertEqual(d["old_rel"], "outline/chapters/ch-0001.md")
         self.assertTrue(any(b["type"] == "change" for b in d["blocks"]))
 
     def test_legacy_two_argument_call_and_bad_mode(self):

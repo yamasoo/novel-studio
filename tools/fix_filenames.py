@@ -6,9 +6,8 @@
   python tools/fix_filenames.py <書目錄>            只列出「舊名 → 新名」，不改任何檔案
   python tools/fix_filenames.py <書目錄> --apply    真的改名
 
-處理範圍
-  正文／候選      依檔案第一行標題（去掉「# 第N章」）重新產生 第NNN章_<標題>.md
-  bible/characters、勢力、世界觀、草稿，tracking/characters
+處理範圍（v3 起章節檔名是 ch-0001.md、章名不放檔名，舊書的章節檔名由 tools/migrate_v3.py 轉換）
+  bible/characters、factions、world、drafts，tracking/characters
                   依 frontmatter 的「名稱」重新產生 <名稱>.md（tracking/characters 是用角色名稱原樣找檔，所以也要一起修）
 新名已經存在、或兩個檔案會變成同一個新名時，跳過並列出。
 
@@ -22,43 +21,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import importer, project  # noqa: E402
+from studio import project  # noqa: E402
 from studio import layout  # noqa: E402
 
-CH_FILE = re.compile(r"^第(\d+)章_.*\.md$")
-# 標題行開頭的章號：「# 第1章 」「# 第一章　」「# Chapter 3: 」「# CHAPTER III. 」「# 第3話 」
-HEAD_NO = re.compile(r"^#+\s*(?:第\s*[0-9一二三四五六七八九十百千零〇]+\s*[章話话回]|chapter\s+[0-9ivxlc]+)\s*[:：.、\-—–]*\s*", re.I)
-NAME_DIRS = ["bible/characters", "bible/factions", "bible/world", "bible/drafts", "tracking/characters"]
-
-
-def first_heading(path):
-    """檔案第一個「#」開頭的行（略過 frontmatter）；沒有就回傳 None。"""
-    _, body = project.split_frontmatter(project.read_text(path))
-    for line in body.split("\n"):
-        if line.lstrip().startswith("#"):
-            return line.strip()
-        if line.strip():          # 標題之前就有內文：不是標準格式，不猜
-            return None
-    return None
-
-
-def plan_chapters(book, sub):
-    d = os.path.join(book, sub)
-    out = []
-    if not os.path.isdir(d):
-        return out
-    for f in sorted(os.listdir(d)):
-        m = CH_FILE.match(f)
-        if not m or not os.path.isfile(os.path.join(d, f)):
-            continue
-        head = first_heading(os.path.join(d, f))
-        if not head:
-            out.append((sub, f, None, "沒有標題行，略過"))
-            continue
-        title = HEAD_NO.sub("", head, count=1).lstrip("#").strip()
-        new = "第%03d章_%s.md" % (int(m.group(1)), project.safe_filename(title, importer.MAX_TITLE))
-        out.append((sub, f, new, None))
-    return out
+NAME_DIRS = (layout.CHARACTERS, layout.FACTIONS, layout.WORLD, layout.BIBLE_DRAFTS, layout.CHARACTER_STATES)
 
 
 def plan_names(book, sub):
@@ -81,8 +47,6 @@ def plan_names(book, sub):
 
 def build_plan(book):
     items = []
-    for sub in (layout.MANUSCRIPT, layout.CANDIDATES):
-        items += plan_chapters(book, sub)
     for sub in NAME_DIRS:
         items += plan_names(book, sub)
     # 決定每一項：改名／不用改／跳過

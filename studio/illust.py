@@ -111,7 +111,7 @@ def target_dir(book_dir, target):
         label = "封面"
     elif target.startswith("chapter:"):
         no = int(target.split(":", 1)[1])
-        rel = ROOT + "/" + layout.ILLUST_CHAPTERS + "/第%03d章" % no  # literal-ok: 章節資料夾的命名，P3 第三批隨章節檔名一起改
+        rel = ROOT + "/" + layout.ILLUST_CHAPTERS + "/" + layout.chapter_stem(no)
         label = "第%d章" % no
     elif target.startswith("entity:"):
         f = target.split(":", 1)[1].replace("\\", "/")

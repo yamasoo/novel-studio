@@ -1,6 +1,6 @@
 """回寫追蹤後的本機檢查：只看「有沒有寫到」，不判斷寫得對不對，不花 token。
 
-結果存在 .studio/writeback-check/第NNN章.json；總覽「需要注意」會列出還有問題的章。重跑回寫通過後就會消失。
+結果存在 .studio/writeback-check/ch-NNNN.json；總覽「需要注意」會列出還有問題的章。重跑回寫通過後就會消失。
 """
 import json
 import os
@@ -40,7 +40,7 @@ def check(book_dir, no, revision=False, data=None):
     _, card = context.card_text(book_dir, no)
 
     # 章節摘要
-    sp = layout.path(book_dir, layout.SUMMARIES, label + ".md")
+    sp = layout.path(book_dir, layout.SUMMARIES, layout.chapter_md(no))
     if not os.path.isfile(sp):
         issues.append("沒有產生章節摘要")
     else:
@@ -119,7 +119,7 @@ def check(book_dir, no, revision=False, data=None):
 
 def save(book_dir, no, issues):
     d = os.path.join(book_dir, CHECK_DIR)
-    p = os.path.join(d, "%s.json" % tracking.chapter_label(no))
+    p = os.path.join(d, layout.chapter_json(no))
     if not issues:
         if os.path.isfile(p):
             os.remove(p)

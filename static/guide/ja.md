@@ -79,7 +79,7 @@
 #### ステップ4：最初の 10 章の章カード（＋章カード検査）
 
 1. 巻況カード →「この巻の章カードを並べる」：まず**一章一行の総覧**が出ます
-2. 確認を返してから一章ずつファイルに書きます：`outline/chapters/第NNN章_*.md`
+2. 確認を返してから一章ずつファイルに書きます：`outline/chapters/ch-NNNN.md`
 3. 巻況カード →「章カード検査」：**早すぎる登場／ネタバレ**と**長く出ていない人物**を検出。問題があれば章カードを直してから書き始めます
 
 一度に 10〜12 章で十分。一巻分を並べ終えてからでないと書き始められない、ということはありません。
@@ -169,8 +169,8 @@
 |---|---|
 | 全書大綱 | `outline/book.md` |
 | 卷綱 | `outline/卷綱_第N卷.md`（草稿は `outline/drafts/`） |
-| 章カード | `outline/chapters/第NNN章_*.md` |
-| 本文 | `manuscript/第NNN章_*.md` |
+| 章カード | `outline/chapters/ch-NNNN.md` |
+| 本文 | `manuscript/ch-NNNN.md` |
 | 候補稿 | `candidates/` |
 | 設定 | `bible/characters/`、`bible/factions/`、`bible/world/`、草稿は `bible/drafts/` |
 | 追跡 | `tracking/state-card.md`、`tracking/foreshadowing.md`、`tracking/summaries/` |

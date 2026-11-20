@@ -67,7 +67,7 @@
             class: "sm",
             style: "margin-top:8px",
             onclick: () => Panel.openForm("deslop", {
-              chapter: parseInt((f.path.match(/第0*(\d+)章/) || [])[1], 10) || 1,
+              chapter: (() => { const m = f.path.match(/(?:^|\/)ch-?0*(\d+)|第0*(\d+)章/i); return m ? parseInt(m[1] || m[2], 10) : 1; })(),
               candidate: f.path.startsWith(LAYOUT.CANDIDATES),
             }),
           }, "請 Claude 處理")

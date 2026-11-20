@@ -59,12 +59,12 @@ class ReverseApiTest(unittest.TestCase):
         self.book = os.path.join(self.lib, self.book_id)
         _write(self.book, "outline/book.md", OLD_OUTLINE)
         _write(self.book, "outline/卷綱_第1卷.md", OLD_VOL)
-        _write(self.book, "outline/chapters/第001章.md", OLD_CARD)
-        _write(self.book, "manuscript/第001章_大夜班.md", "第一章正文。\n")
+        _write(self.book, "outline/chapters/ch-0001.md", OLD_CARD)
+        _write(self.book, "manuscript/ch-0001.md", "# 第1章 大夜班\n\n第一章正文。\n")
         _write(self.book, ".studio/reverse/drafts/outline/book.md", NEW_OUTLINE)
         _write(self.book, ".studio/reverse/drafts/outline/卷綱_第一卷.md", NEW_VOL)
-        _write(self.book, ".studio/reverse/drafts/outline/chapters/第001章_大夜班.md", NEW_CARD)
-        _write(self.book, "outline/chapters/_reverse/第002章_兩邊.md", NEW_CARD.replace("大夜班", "兩邊"))
+        _write(self.book, ".studio/reverse/drafts/outline/chapters/ch-0001.md", NEW_CARD)
+        _write(self.book, "outline/chapters/_reverse/ch-0002.md", NEW_CARD.replace("大夜班", "兩邊"))
 
         self.patch = mock.patch.dict(app_mod.CONFIG, {"library": self.lib})
         self.patch.start()
@@ -93,7 +93,7 @@ class ReverseApiTest(unittest.TestCase):
         self.assertEqual("outline/卷綱_第1卷.md", plan["outline/卷綱_第一卷.md"]["target"])
         chapter = drafts["cards"][0]
         self.assertEqual("copy", chapter["default_mode"])
-        self.assertEqual("outline/chapters/_reverse/第001章_大夜班.md", chapter["target"])
+        self.assertEqual("outline/chapters/_reverse/ch-0001.md", chapter["target"])
 
     def test_reverse_diff_returns_blocks(self):
         r = self.client.get(self.url("/reverse/diff"), params={"group": "outline", "rel": "outline/book.md"})
@@ -107,7 +107,7 @@ class ReverseApiTest(unittest.TestCase):
         self.assertEqual(200, r.status_code, r.text)
         cards = r.json()["cards"]
         self.assertEqual(1, len(cards))
-        self.assertEqual("outline/chapters/_reverse/第002章_兩邊.md", cards[0]["rel"])
+        self.assertEqual("outline/chapters/_reverse/ch-0002.md", cards[0]["rel"])
         self.assertEqual(2, cards[0]["no"])
         self.assertEqual("兩邊", cards[0]["name"])
 

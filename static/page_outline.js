@@ -150,7 +150,7 @@
         h("span", { class: "grow" }),
         h("span", { class: "muted small" }, "唯讀對照；正式章綱不受影響")),
       h("div", { class: "muted small", style: "margin-top:4px" },
-        "從正文反推的章綱存在 outline/chapters/_reverse/。這裡只給你看，不會改到 outline/chapters/第NNN章.md。"),
+        "從正文反推的章綱存在 outline/chapters/_reverse/。這裡只給你看，不會改到 outline/chapters/ch-NNNN.md。"),
       h("details", { style: "margin-top:8px" },
         h("summary", { class: "small" }, "看清單"),
         h("div", { style: "margin-top:6px" }, cards.map((c) => h("div", { class: "row", style: "padding:4px 0" },

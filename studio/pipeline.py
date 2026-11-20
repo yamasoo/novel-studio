@@ -345,7 +345,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ 快照與退回重跑
     def _snap_dir(self, no):
-        return layout.path(self.d, layout.STUDIO_PIPELINE_SNAPSHOTS, "第%03d章" % no)
+        return layout.path(self.d, layout.STUDIO_PIPELINE_SNAPSHOTS, layout.chapter_stem(no))
 
     def _snapshot(self, no, key):
         """這一步開始前的候選稿（與章綱是否存在），給「從這裡重跑」還原用。"""

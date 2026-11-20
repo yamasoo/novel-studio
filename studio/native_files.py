@@ -455,7 +455,7 @@ def spec_chapter_cards(c, p):
     pk.add(0, "卷綱寫法", ref(c, "novel-outline/references/chapter-card.md"))
     if a <= 3:
         pk.add(1, "開篇與黃金三章", ref(c, "novel-outline/references/opening.md"))
-    pk.add(0, "章綱範本（outline/chapters/第NNN章.md）", tpl(c, layout.TPL_CHAPTER_CARD))
+    pk.add(0, "章綱範本（outline/chapters/ch-NNNN.md）", tpl(c, layout.TPL_CHAPTER_CARD))
     pk.add(0, "卷綱", outline_files_text(c))
     ct = contract_text(c)
     if ct:

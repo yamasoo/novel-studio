@@ -22,7 +22,7 @@ description: 日本語の小説の物語と大綱の計画：故事核心の診�
 | 「このアイデアはどう？」「話を考えて」 | 故事核心の診断 | [concept.md](references/concept.md) | `bible/story-core.md` を更新 |
 | 「大綱を作って」「全体を計画して」 | 全書大綱 | concept.md、[structure.md](references/structure.md) | `outline/book.md` |
 | 「第X巻を計画して」「卷綱を作って」 | 卷綱 | structure.md | `outline/卷綱_第X卷.md` |
-| 「章綱を並べて」「第X～Y章の章綱」 | 章綱（一つの劇情單元ずつが最善） | [chapter-card.md](references/chapter-card.md)。第 1～3 章なら [opening.md](references/opening.md) も | `outline/chapters/第NNN章.md` |
+| 「章綱を並べて」「第X～Y章の章綱」 | 章綱（一つの劇情單元ずつが最善） | [chapter-card.md](references/chapter-card.md)。第 1～3 章なら [opening.md](references/opening.md) も | `outline/chapters/ch-NNNN.md` |
 | 「第N章の章綱を埋めて」「第N章の章綱を変えて」 | 指定の章だけ | chapter-card.md | その章綱 |
 | 「中盤で詰まった」「次が分からない」 | 詰まりの原因を診断し、方向を出す | structure.md の「中盤をまとめる」 | 作者が選ぶ案 |
 | 「構造の話だけしたい」 | 話すだけでファイルは書かない | 話題による | 会話の中での提案 |

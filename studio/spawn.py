@@ -200,7 +200,7 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
     created.append(layout.BOOK_META)
 
     for i in range(1, max(1, int(cards)) + 1):
-        rel = layout.CHAPTER_CARDS + "/" + layout.chapter_stub_file(i)
+        rel = layout.CHAPTER_CARDS + "/" + layout.chapter_md(i)
         _write(os.path.join(target, *rel.split("/")), card_md("（待填）", i))
         created.append(rel)
 

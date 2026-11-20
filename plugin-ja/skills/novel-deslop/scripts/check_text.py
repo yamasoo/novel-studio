@@ -12,11 +12,11 @@
   6. 文字数の統計（ルビ記法や空白・改行を除く）
 
 使い方：
-  python3 check_text.py manuscript/第001章_題名.md
+  python3 check_text.py manuscript/ch-0001.md
   python3 check_text.py manuscript/
-  python3 check_text.py manuscript/第001章_題名.md --fix-punct
-  python3 check_text.py manuscript/第001章_題名.md --json
-  python3 check_text.py manuscript/第001章_題名.md --count
+  python3 check_text.py manuscript/ch-0001.md --fix-punct
+  python3 check_text.py manuscript/ch-0001.md --json
+  python3 check_text.py manuscript/ch-0001.md --count
 
 ホワイトリスト：
   書籍フォルダ（manuscript/ の一つ上）の `.去AI味白名單` に、原文の断片を一行ずつ書く。`#` で始まる行は注釈。

@@ -27,10 +27,10 @@ description: 日本語の小説から AI 臭を取り除き、約物と文字数
 `scripts/check_text.py` は、約物の統一、工房の言葉、AI 臭の密度、章末の昇華、文末・文頭の重複、短文の連続、文の長さの揃いすぎ、ダッシュの密度、表記ゆれ、括弧の対応を調べ、文字数を数えます。標準ライブラリのみ。
 
 ```bash
-python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/第001章_題名.md          # 一章
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/ch-0001.md          # 一章
 python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/                          # フォルダ全体
-python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/第001章_題名.md --fix-punct   # 約物を自動修正
-python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/第001章_題名.md --count       # 文字数だけ
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/ch-0001.md --fix-punct   # 約物を自動修正
+python3 {このスキルのフォルダ}/scripts/check_text.py manuscript/ch-0001.md --count       # 文字数だけ
 ```
 
 Windows では `python3` が無ければ `python` か `py -3` を使う。

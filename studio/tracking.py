@@ -218,7 +218,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     body = "---\n類型: 章節摘要\n章號: %d\n章名: %s\n字數: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
     for k, head in SUMMARY_KEYS:
         body += "\n## %s\n%s\n" % (head, str(s.get(k, "")).strip() or "（無）")
-    _write(layout.path(book_dir, layout.SUMMARIES, label + ".md"), body)
+    _write(layout.path(book_dir, layout.SUMMARIES, layout.chapter_md(no)), body)
     log.append("章節摘要")
 
     # 2. 狀態卡

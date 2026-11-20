@@ -128,7 +128,7 @@ def _book(tmp, name, chapters):
         shutil.rmtree(book)
     shutil.copytree(os.path.join(ROOT, "demo", name), book)
     for no, (title, text) in chapters.items():
-        with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_file(no, title)), "w", encoding="utf-8", newline="\n") as f:
+        with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_md(no)), "w", encoding="utf-8", newline="\n") as f:
             f.write("# %s\n\n%s\n" % (title, text))
     return book
 

@@ -6,7 +6,7 @@ File names, folder names, frontmatter keys and table headers stay in Chinese exa
 
 ## 1. Chapter summary (new file)
 
-`tracking/summaries/第NNN章.md`, from `_templates/章節摘要.md`. 100-250 words: what happened, how the situation changed, what and who newly appeared, where the chapter stops. Put the actual word count in the frontmatter.
+`tracking/summaries/ch-NNNN.md`, from `_templates/章節摘要.md`. 100-250 words: what happened, how the situation changed, what and who newly appeared, where the chapter stops. Put the actual word count in the frontmatter.
 
 ## 2. State card (overwrite to the latest)
 

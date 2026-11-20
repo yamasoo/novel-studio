@@ -186,7 +186,7 @@ def _book(tmp, name, extra):
         shutil.rmtree(book)
     shutil.copytree(os.path.join(ROOT, "demo", name), book)
     for no in range(3, 8):
-        with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_file(no, "c%d" % no)), "w", encoding="utf-8", newline="\n") as f:
+        with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_md(no)), "w", encoding="utf-8", newline="\n") as f:
             f.write("# c%d\n\n%s\n" % (no, extra * 4))
     return book
 
@@ -231,7 +231,7 @@ def _use_cache(book, cache):
     for base, _, files in os.walk(cache):
         for f in files:
             rel = os.path.relpath(os.path.join(base, f), cache).replace(os.sep, "/")
-            dst = os.path.join(book, *migrate.map_rel(old_dir + "/" + rel).split("/"))
+            dst = os.path.join(book, *migrate.map_v3(old_dir + "/" + rel).split("/"))
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             with open(os.path.join(base, f), encoding="utf-8") as fh:
                 data = json.load(fh)
@@ -314,7 +314,7 @@ class ReverseFlowTest(unittest.TestCase):
         self.assertIn("晚丫頭", lin)
         self.assertIn("二小姐", lin)
         self.assertIn("沈既白：前未婚夫", lin)
-        card7 = next(v for p, v in zd.items() if "第007章" in p and p.startswith(layout.CHAPTER_CARDS + "/"))
+        card7 = next(v for p, v in zd.items() if p == layout.CHAPTER_CARDS + "/" + layout.chapter_md(7))
         self.assertIn("查清帳本", card7, "章號寫錯但數量對：照順序對應")
         gl = next(v for p, v in zd.items() if p == layout.GLOSSARY)
         self.assertIn("路人甲", gl)

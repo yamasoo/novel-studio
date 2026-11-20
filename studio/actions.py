@@ -11,7 +11,8 @@ def _r(a, b):
 
 
 def _ch(n):
-    return "第%03d章" % int(n)
+    """提示詞裡的逐章檔名（不含副檔名）：ch-0003"""
+    return layout.chapter_stem(n)
 
 
 ACTIONS = {

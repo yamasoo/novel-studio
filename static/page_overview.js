@@ -37,7 +37,7 @@
     } else if (a.kind === "懸念久未回收") {
       btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/tracking?t=reader")) }, "查看");
     } else if (a.kind === "設定草稿") {
-      btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/bible?t=草稿")) }, "查看");
+      btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/bible?t=drafts")) }, "查看");
     } else if ((a.kind || "").startsWith("伏筆")) {
       btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/tracking")) }, "查看");
     }

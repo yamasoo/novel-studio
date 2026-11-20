@@ -82,7 +82,7 @@ class ReverseApiTest(unittest.TestCase):
         r = self.client.get(self.url("/reverse"))
         self.assertEqual(200, r.status_code, r.text)
         drafts = r.json()["state"]["drafts"]
-        plan = {x["rel"]: x for x in drafts["大綱"]}
+        plan = {x["rel"]: x for x in drafts["outline"]}
         outline = plan["大綱/全書大綱.md"]
         self.assertEqual(len(OLD_OUTLINE), outline["chars_old"])
         self.assertEqual(len(NEW_OUTLINE), outline["chars_new"])
@@ -90,12 +90,12 @@ class ReverseApiTest(unittest.TestCase):
         self.assertEqual("keep", outline["default_mode"])
         self.assertLess(outline["similarity"], 1.0)
         self.assertEqual("大綱/卷綱_第1卷.md", plan["大綱/卷綱_第一卷.md"]["target"])
-        chapter = drafts["章綱"][0]
+        chapter = drafts["cards"][0]
         self.assertEqual("copy", chapter["default_mode"])
         self.assertEqual("大綱/章綱/反推/第001章_大夜班.md", chapter["target"])
 
     def test_reverse_diff_returns_blocks(self):
-        r = self.client.get(self.url("/reverse/diff"), params={"group": "大綱", "rel": "大綱/全書大綱.md"})
+        r = self.client.get(self.url("/reverse/diff"), params={"group": "outline", "rel": "大綱/全書大綱.md"})
         self.assertEqual(200, r.status_code, r.text)
         d = r.json()
         self.assertEqual("大綱/全書大綱.md", d["old_rel"])
@@ -115,7 +115,7 @@ class ReverseApiTest(unittest.TestCase):
         self.assertEqual(200, r.status_code, r.text)
         b = r.json()
         self.assertEqual(3, b["reverse_drafts"])
-        self.assertEqual([], b["草稿"])
+        self.assertEqual([], b["drafts"])
 
     def test_adopt_route_honours_mode_and_files(self):
         r = self.client.post(self.url("/reverse/adopt"), headers=self.headers,

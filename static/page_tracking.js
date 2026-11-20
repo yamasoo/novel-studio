@@ -490,7 +490,7 @@
             }, "整理進設定集"),
             h("button", {
               class: "sm",
-              onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=核心&f=" + enc(LAYOUT.GLOSSARY)),
+              onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=core&f=" + enc(LAYOUT.GLOSSARY)),
             }, "編輯名詞表")),
           tableNode(null, g.headers, g.rows))
         : h("div", { class: "card empty" }, "名詞表是空的。");

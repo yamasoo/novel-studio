@@ -10,6 +10,7 @@ import yaml
 
 from . import enums
 from . import layout
+from . import ids
 
 CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
 CH_NUM = re.compile(r"第0*(\d+)章")
@@ -560,11 +561,11 @@ def list_entries(book_dir, rel_dir):
 
 def bible(book_dir):
     return {
-        "角色": list_entries(book_dir, layout.CHARACTERS),
-        "勢力": list_entries(book_dir, layout.FACTIONS),
-        "世界觀": list_entries(book_dir, layout.WORLD),
-        "草稿": list_entries(book_dir, layout.BIBLE_DRAFTS),  # literal-ok: 設定集分頁鍵（API），P2 換
-        "核心": [e for e in [
+        "characters": list_entries(book_dir, layout.CHARACTERS),
+        "factions": list_entries(book_dir, layout.FACTIONS),
+        "world": list_entries(book_dir, layout.WORLD),
+        "drafts": list_entries(book_dir, layout.BIBLE_DRAFTS),
+        "core": [e for e in [
             _single(book_dir, layout.STORY_CORE, "故事核心"),
             _single(book_dir, layout.STYLE, "文風"),  # literal-ok: 設定集分頁的顯示標籤
             _single(book_dir, layout.AUTHOR_PREFS, "作者偏好"),

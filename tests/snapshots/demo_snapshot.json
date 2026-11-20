@@ -52,80 +52,7 @@
  "en_TheLanternRoad": {
   "/bible": {
    "body": {
-    "reverse_drafts": 0,
-    "世界觀": [
-     {
-      "aliases": [],
-      "category": "力量體系",
-      "file": "設定/世界觀/The Lantern.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "The Lantern",
-      "role": null,
-      "status": "正式",
-      "summary": "Hob's light shows roads that have been erased from every map, but only to someon",
-      "tags": [
-       "lantern",
-       "roads"
-      ],
-      "type": "世界觀"
-     }
-    ],
-    "勢力": [
-     {
-      "aliases": [],
-      "category": null,
-      "file": "設定/勢力/Surveyors Guild.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "Surveyors' Guild",
-      "role": null,
-      "status": "正式",
-      "summary": "The official map authority of the Marches, which has quietly struck one road fro",
-      "tags": [],
-      "type": "勢力"
-     }
-    ],
-    "核心": [
-     {
-      "file": "設定/故事核心.md",
-      "mtime": "<volatile>",
-      "name": "故事核心"
-     },
-     {
-      "file": "設定/文風.md",
-      "mtime": "<volatile>",
-      "name": "文風"
-     },
-     {
-      "file": "設定/作者偏好.md",
-      "mtime": "<volatile>",
-      "name": "作者偏好"
-     },
-     {
-      "file": "設定/名詞表.md",
-      "mtime": "<volatile>",
-      "name": "名詞表"
-     }
-    ],
-    "草稿": [
-     {
-      "aliases": [
-       "Master Vale"
-      ],
-      "category": null,
-      "file": "設定/草稿/Orrin Vale.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "Orrin Vale",
-      "role": "配角",
-      "status": "草稿",
-      "summary": "Wren's master, a cartographer who vanished from his shop three weeks ago.",
-      "tags": [],
-      "type": "角色"
-     }
-    ],
-    "角色": [
+    "characters": [
      {
       "aliases": [
        "the lantern"
@@ -156,6 +83,79 @@
       "summary": "A copyist with a perfect memory for distances, learning to trust her own eyes.",
       "tags": [],
       "type": "角色"
+     }
+    ],
+    "core": [
+     {
+      "file": "設定/故事核心.md",
+      "mtime": "<volatile>",
+      "name": "故事核心"
+     },
+     {
+      "file": "設定/文風.md",
+      "mtime": "<volatile>",
+      "name": "文風"
+     },
+     {
+      "file": "設定/作者偏好.md",
+      "mtime": "<volatile>",
+      "name": "作者偏好"
+     },
+     {
+      "file": "設定/名詞表.md",
+      "mtime": "<volatile>",
+      "name": "名詞表"
+     }
+    ],
+    "drafts": [
+     {
+      "aliases": [
+       "Master Vale"
+      ],
+      "category": null,
+      "file": "設定/草稿/Orrin Vale.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "Orrin Vale",
+      "role": "配角",
+      "status": "草稿",
+      "summary": "Wren's master, a cartographer who vanished from his shop three weeks ago.",
+      "tags": [],
+      "type": "角色"
+     }
+    ],
+    "factions": [
+     {
+      "aliases": [],
+      "category": null,
+      "file": "設定/勢力/Surveyors Guild.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "Surveyors' Guild",
+      "role": null,
+      "status": "正式",
+      "summary": "The official map authority of the Marches, which has quietly struck one road fro",
+      "tags": [],
+      "type": "勢力"
+     }
+    ],
+    "reverse_drafts": 0,
+    "world": [
+     {
+      "aliases": [],
+      "category": "力量體系",
+      "file": "設定/世界觀/The Lantern.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "The Lantern",
+      "role": null,
+      "status": "正式",
+      "summary": "Hob's light shows roads that have been erased from every map, but only to someon",
+      "tags": [
+       "lantern",
+       "roads"
+      ],
+      "type": "世界觀"
      }
     ]
    },
@@ -710,10 +710,10 @@
     "has_settings": true,
     "state": {
      "drafts": {
-      "大綱": [],
-      "章綱": [],
-      "設定": [],
-      "追蹤": []
+      "bible": [],
+      "cards": [],
+      "outline": [],
+      "tracking": []
      },
      "processed": []
     }
@@ -734,7 +734,7 @@
       "more": 0,
       "no": 1,
       "path": "正文/第001章_The Missing Milestone.md",
-      "scope": "正文",
+      "scope": "manuscript",
       "snippets": [
        {
         "post": true,
@@ -777,7 +777,7 @@
       "more": 0,
       "no": 2,
       "path": "正文/第002章_Names You Have Walked.md",
-      "scope": "正文",
+      "scope": "manuscript",
       "snippets": [
        {
         "post": true,
@@ -823,7 +823,7 @@
      }
     ],
     "scopes": [
-     "正文"
+     "manuscript"
     ],
     "terms": [
      "lantern"
@@ -1858,78 +1858,7 @@
  "ja_辺境の薬師と竜の約束": {
   "/bible": {
    "body": {
-    "reverse_drafts": 0,
-    "世界觀": [
-     {
-      "aliases": [],
-      "category": "力量體系",
-      "file": "設定/世界觀/竜約.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "竜約",
-      "role": null,
-      "status": "正式",
-      "summary": "竜と人が結ぶ約束。契約者は竜の命を預かり、嘘をつくと左手の印が冷える。",
-      "tags": [
-       "竜",
-       "約束"
-      ],
-      "type": "世界觀"
-     }
-    ],
-    "勢力": [
-     {
-      "aliases": [],
-      "category": null,
-      "file": "設定/勢力/王都薬師院.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "王都薬師院",
-      "role": null,
-      "status": "正式",
-      "summary": "王国の薬を一手に管理する機関で、竜の血を使った秘薬を隠している。",
-      "tags": [],
-      "type": "勢力"
-     }
-    ],
-    "核心": [
-     {
-      "file": "設定/故事核心.md",
-      "mtime": "<volatile>",
-      "name": "故事核心"
-     },
-     {
-      "file": "設定/文風.md",
-      "mtime": "<volatile>",
-      "name": "文風"
-     },
-     {
-      "file": "設定/作者偏好.md",
-      "mtime": "<volatile>",
-      "name": "作者偏好"
-     },
-     {
-      "file": "設定/名詞表.md",
-      "mtime": "<volatile>",
-      "name": "名詞表"
-     }
-    ],
-    "草稿": [
-     {
-      "aliases": [],
-      "category": null,
-      "file": "設定/草稿/ボルグ.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "ボルグ",
-      "role": "配角",
-      "status": "草稿",
-      "summary": "灰谷村の鍛冶屋。村長に頼まれて、村に来る薬師を見張っている。",
-      "tags": [],
-      "type": "角色"
-     }
-    ],
-    "角色": [
+    "characters": [
      {
       "aliases": [
        "エルマ",
@@ -1960,6 +1889,77 @@
       "summary": "犬ほどの大きさの、古風でえらそうな竜。毒矢で弱っている。",
       "tags": [],
       "type": "角色"
+     }
+    ],
+    "core": [
+     {
+      "file": "設定/故事核心.md",
+      "mtime": "<volatile>",
+      "name": "故事核心"
+     },
+     {
+      "file": "設定/文風.md",
+      "mtime": "<volatile>",
+      "name": "文風"
+     },
+     {
+      "file": "設定/作者偏好.md",
+      "mtime": "<volatile>",
+      "name": "作者偏好"
+     },
+     {
+      "file": "設定/名詞表.md",
+      "mtime": "<volatile>",
+      "name": "名詞表"
+     }
+    ],
+    "drafts": [
+     {
+      "aliases": [],
+      "category": null,
+      "file": "設定/草稿/ボルグ.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "ボルグ",
+      "role": "配角",
+      "status": "草稿",
+      "summary": "灰谷村の鍛冶屋。村長に頼まれて、村に来る薬師を見張っている。",
+      "tags": [],
+      "type": "角色"
+     }
+    ],
+    "factions": [
+     {
+      "aliases": [],
+      "category": null,
+      "file": "設定/勢力/王都薬師院.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "王都薬師院",
+      "role": null,
+      "status": "正式",
+      "summary": "王国の薬を一手に管理する機関で、竜の血を使った秘薬を隠している。",
+      "tags": [],
+      "type": "勢力"
+     }
+    ],
+    "reverse_drafts": 0,
+    "world": [
+     {
+      "aliases": [],
+      "category": "力量體系",
+      "file": "設定/世界觀/竜約.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "竜約",
+      "role": null,
+      "status": "正式",
+      "summary": "竜と人が結ぶ約束。契約者は竜の命を預かり、嘘をつくと左手の印が冷える。",
+      "tags": [
+       "竜",
+       "約束"
+      ],
+      "type": "世界觀"
      }
     ]
    },
@@ -2508,10 +2508,10 @@
     "has_settings": true,
     "state": {
      "drafts": {
-      "大綱": [],
-      "章綱": [],
-      "設定": [],
-      "追蹤": []
+      "bible": [],
+      "cards": [],
+      "outline": [],
+      "tracking": []
      },
      "processed": []
     }
@@ -2532,7 +2532,7 @@
       "more": 0,
       "no": 1,
       "path": "正文/第001章_追放の朝.md",
-      "scope": "正文",
+      "scope": "manuscript",
       "snippets": [
        {
         "post": true,
@@ -2559,7 +2559,7 @@
       "more": 0,
       "no": 2,
       "path": "正文/第002章_三つの薬草.md",
-      "scope": "正文",
+      "scope": "manuscript",
       "snippets": [
        {
         "post": true,
@@ -2582,7 +2582,7 @@
      }
     ],
     "scopes": [
-     "正文"
+     "manuscript"
     ],
     "terms": [
      "竜"
@@ -2998,75 +2998,7 @@
  "退婚之後": {
   "/bible": {
    "body": {
-    "reverse_drafts": 0,
-    "世界觀": [
-     {
-      "aliases": [],
-      "category": null,
-      "file": "設定/世界觀/玉珮.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "玉珮",
-      "role": null,
-      "status": "正式",
-      "summary": "林母留下的半塊玉珮，靠近相關的帳目或人時會發熱、浮出字。",
-      "tags": [],
-      "type": "世界觀"
-     }
-    ],
-    "勢力": [
-     {
-      "aliases": [],
-      "category": null,
-      "file": "設定/勢力/沈家.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "沈家",
-      "role": null,
-      "status": "正式",
-      "summary": "青州最大的鹽商，三年前吞下了林家的鹽引。",
-      "tags": [],
-      "type": "勢力"
-     }
-    ],
-    "核心": [
-     {
-      "file": "設定/故事核心.md",
-      "mtime": "<volatile>",
-      "name": "故事核心"
-     },
-     {
-      "file": "設定/文風.md",
-      "mtime": "<volatile>",
-      "name": "文風"
-     },
-     {
-      "file": "設定/作者偏好.md",
-      "mtime": "<volatile>",
-      "name": "作者偏好"
-     },
-     {
-      "file": "設定/名詞表.md",
-      "mtime": "<volatile>",
-      "name": "名詞表"
-     }
-    ],
-    "草稿": [
-     {
-      "aliases": [],
-      "category": null,
-      "file": "設定/草稿/周叔.md",
-      "first": null,
-      "mtime": "<volatile>",
-      "name": "周叔",
-      "role": "配角",
-      "status": "草稿",
-      "summary": "沈家帳房先生，三年前在林家鋪子對面租了半年屋子。",
-      "tags": [],
-      "type": "角色"
-     }
-    ],
-    "角色": [
+    "characters": [
      {
       "aliases": [
        "二小姐",
@@ -3097,6 +3029,74 @@
       "summary": "被父親推出來退婚的沈家嫡子，比誰都想知道沈家到底欠了林家什麼。",
       "tags": [],
       "type": "角色"
+     }
+    ],
+    "core": [
+     {
+      "file": "設定/故事核心.md",
+      "mtime": "<volatile>",
+      "name": "故事核心"
+     },
+     {
+      "file": "設定/文風.md",
+      "mtime": "<volatile>",
+      "name": "文風"
+     },
+     {
+      "file": "設定/作者偏好.md",
+      "mtime": "<volatile>",
+      "name": "作者偏好"
+     },
+     {
+      "file": "設定/名詞表.md",
+      "mtime": "<volatile>",
+      "name": "名詞表"
+     }
+    ],
+    "drafts": [
+     {
+      "aliases": [],
+      "category": null,
+      "file": "設定/草稿/周叔.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "周叔",
+      "role": "配角",
+      "status": "草稿",
+      "summary": "沈家帳房先生，三年前在林家鋪子對面租了半年屋子。",
+      "tags": [],
+      "type": "角色"
+     }
+    ],
+    "factions": [
+     {
+      "aliases": [],
+      "category": null,
+      "file": "設定/勢力/沈家.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "沈家",
+      "role": null,
+      "status": "正式",
+      "summary": "青州最大的鹽商，三年前吞下了林家的鹽引。",
+      "tags": [],
+      "type": "勢力"
+     }
+    ],
+    "reverse_drafts": 0,
+    "world": [
+     {
+      "aliases": [],
+      "category": null,
+      "file": "設定/世界觀/玉珮.md",
+      "first": null,
+      "mtime": "<volatile>",
+      "name": "玉珮",
+      "role": null,
+      "status": "正式",
+      "summary": "林母留下的半塊玉珮，靠近相關的帳目或人時會發熱、浮出字。",
+      "tags": [],
+      "type": "世界觀"
      }
     ]
    },
@@ -3610,10 +3610,10 @@
     "has_settings": true,
     "state": {
      "drafts": {
-      "大綱": [],
-      "章綱": [],
-      "設定": [],
-      "追蹤": []
+      "bible": [],
+      "cards": [],
+      "outline": [],
+      "tracking": []
      },
      "processed": []
     }
@@ -3634,7 +3634,7 @@
       "more": 0,
       "no": 1,
       "path": "正文/第001章_退婚當天.md",
-      "scope": "正文",
+      "scope": "manuscript",
       "snippets": [
        {
         "post": false,
@@ -3675,7 +3675,7 @@
       "more": 0,
       "no": 2,
       "path": "正文/第002章_浮字.md",
-      "scope": "正文",
+      "scope": "manuscript",
       "snippets": [
        {
         "post": true,
@@ -3721,7 +3721,7 @@
      }
     ],
     "scopes": [
-     "正文"
+     "manuscript"
     ],
     "terms": [
      "玉珮"

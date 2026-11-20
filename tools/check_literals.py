@@ -5,7 +5,7 @@
   - 含 "/" 且有中文的字串（"設定/文風.md"、"追蹤/角色狀態/%s.md"）
   - 有中文的 .md／.json 檔名（"文風.md"、"目前.json"）
   - 等於 layout 第一層資料夾名稱的字串（"正文"、"候選"…）——可能是路徑，也可能是顯示文字，一併列出待人工判斷
-不檢查：studio/layout.py 本身、studio/prompts/（提示詞內文，P4 處理）、tests/、tools/。
+不檢查：studio/layout.py 與 studio/ids.py 本身、studio/prompts/（提示詞內文，P4 處理）、tests/、tools/。
 行尾有「# literal-ok: 原因」的不算：人工判斷過不是路徑（API 鍵、顯示文字、列舉值），或要到之後的階段才換。
 
 用法
@@ -36,7 +36,8 @@ TOP = {v for k, v in layout.all_constants().items() if isinstance(v, str) and "/
 def targets():
     files = [os.path.join(ROOT, "app.py"), os.path.join(ROOT, "ns_jobs.py")]
     files += sorted(glob.glob(os.path.join(ROOT, "studio", "*.py")))
-    return [f for f in files if os.path.basename(f) != "layout.py"]
+    # layout.py（路徑）與 ids.py（舊 ID 別名表）是唯一允許寫 v2 中文名稱的地方
+    return [f for f in files if os.path.basename(f) not in ("layout.py", "ids.py")]
 
 
 def _docstring_ids(tree):

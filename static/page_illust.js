@@ -220,7 +220,7 @@
             h("td", {}, h("input", { type: "text", "data-act": String(i), value: c.action || "", placeholder: "這張圖裡的動作、表情（英文標籤）" })),
             h("td", { class: "small muted" }, c.tags
               ? (c.tags.length > 60 ? c.tags.slice(0, 60) : c.tags)
-              : h("a", { href: "#/b/" + enc(S.book) + "/bible?t=" + enc("角色") + "&f=" + enc(c.file || "") }, "先建立視覺卡")))))
+              : h("a", { href: "#/b/" + enc(S.book) + "/bible?t=characters&f=" + enc(c.file || "") }, "先建立視覺卡")))))
           : null,
         places.length
           ? [h("div", { class: "small muted", style: "margin:8px 0 4px" }, "地點、物件（有視覺卡的會帶入場景）"),
@@ -623,7 +623,7 @@
     const o = await FE.api(B("/illust/overview"), { signal });
     const link = (it) => (it.target === "cover" ? "#/b/" + enc(S.book) + "/illust?t=" + enc("封面")
       : it.target.startsWith("chapter:") ? "#/b/" + enc(S.book) + "/ch/" + it.target.split(":")[1] + "?tab=illust"
-        : "#/b/" + enc(S.book) + "/bible?t=" + enc(it.target.split("/")[1]) + "&f=" + enc(it.target.slice(7)));
+        : "#/b/" + enc(S.book) + "/bible?t=" + enc(nsShared.normId("bible_tab", it.target.split("/")[1])) + "&f=" + enc(it.target.slice(7)));
     body.replaceChildren(o.items.length
       ? h("div", { class: "ill-overview" }, o.items.map((it) => h("a", { class: "ill-ov", href: link(it) },
         h("img", { loading: "lazy", src: imgUrl(it.main), alt: "" }),

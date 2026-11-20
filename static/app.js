@@ -825,7 +825,7 @@ const Panel = {
     if (!box) return;
     try {
       const b = await api("GET", B("/bible"));
-      const list = b["草稿"] || [];
+      const list = b.drafts || [];
       if (!list.length) { box.replaceChildren(FE.h("span", { class: "muted" }, "目前沒有草稿。")); return; }
       box.replaceChildren(...list.map((e) => FE.h("label", { class: "cb" },
         FE.h("input", { type: "checkbox", "data-draft": e.name }), " " + e.name,

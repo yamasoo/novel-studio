@@ -19,9 +19,12 @@ import time
 
 from . import context, enums, project, prompts, tracking
 from . import layout
+from . import ids
 
 DIR = os.path.join(*layout.parts(layout.STUDIO_REVERSE))
-GROUPS = ("設定", "大綱", "章綱", "追蹤")  # literal-ok: API 的分組鍵（前端也用），P2 才換
+GROUPS = ids.REVERSE_GROUPS
+# 訊息裡顯示的分組名稱（介面文字；API 一律用 ids.REVERSE_GROUPS）
+GROUP_LABEL = {"bible": "設定", "outline": "大綱", "cards": "章綱", "tracking": "追蹤"}  # literal-ok: 顯示標籤
 MAX_PER_BATCH = 3
 CORE_MIN_CHAPTERS = 3      # 出場 3 章以上才建角色檔；其他列進名詞表
 MAX_CORE = 40
@@ -711,17 +714,29 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
     return ("**從正文建立設定完成**（第1～%d章）\n\n草稿：設定 %d 份、大綱 %d 份、章綱 %d 份、追蹤 %d 份。\n"
             "人物 %d 位（建角色檔 %d 位，其餘列進名詞表）、名詞 %d 個、伏筆 %d 條、時間線 %d 條、讀者認知 %d 條。\n%s\n\n"
             "請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。" % (
-                last, len(g["設定"]), len(g["大綱"]), len(g["章綱"]), len(g["追蹤"]), len(acc.get("chars") or {}), len(core),  # literal-ok: 分組鍵
+                last, len(g["bible"]), len(g["outline"]), len(g["cards"]), len(g["tracking"]), len(acc.get("chars") or {}), len(core),
                 len(acc.get("terms") or {}), len(acc.get("fs") or []), len(acc.get("events") or []), len(acc.get("reader") or []), org))
 
 
 # ---------------------------------------------------------------------------
 # 草稿採用
 # ---------------------------------------------------------------------------
+_FOLDER_GROUP = {folder: g for g, folder in ids.REVERSE_GROUP_FOLDER.items()}
+
+
 def _group_of(rel):
+    """草稿的相對路徑 → 分組 ID（章綱另成一組；其他看第一層資料夾）。"""
     if rel.startswith(layout.CHAPTER_CARDS + "/"):
-        return "章綱"
-    return rel.split("/", 1)[0] if rel.split("/", 1)[0] in GROUPS else None
+        return "cards"
+    return _FOLDER_GROUP.get(rel.split("/", 1)[0])
+
+
+def _group(group):
+    """API 傳進來的分組：新 ID、舊的中文 ID 都接受；認不得就報錯。"""
+    g = ids.norm("reverse_group", group)
+    if g not in GROUPS:
+        raise project.ProjectError("不認得的分組：%s" % group)
+    return g
 
 
 def draft_groups(book_dir):
@@ -742,9 +757,9 @@ def draft_groups(book_dir):
     return out
 
 
-DEFAULT_MODE = {"設定": "merge", "大綱": "keep", "章綱": "copy", "追蹤": "keep"}  # literal-ok: 分組鍵
-ALLOWED_MODES = {"設定": ("merge", "replace", "keep"), "大綱": ("merge", "replace", "keep"),  # literal-ok: 分組鍵
-                 "章綱": ("copy",), "追蹤": ("replace", "keep")}  # literal-ok: 分組鍵
+DEFAULT_MODE = {"bible": "merge", "outline": "keep", "cards": "copy", "tracking": "keep"}
+ALLOWED_MODES = {"bible": ("merge", "replace", "keep"), "outline": ("merge", "replace", "keep"),
+                 "cards": ("copy",), "tracking": ("replace", "keep")}
 # 表格類設定檔：沒有「## 段落」，merge_entry 併不進任何一列（整份反推內容會被丟掉），
 # 所以當機器快照處理——預設／被要求 merge 時一律整份取代，一樣先備份；「保留現有」照舊可用。
 SNAPSHOT_RELS = (layout.GLOSSARY,)
@@ -756,16 +771,16 @@ def _mode_for(group, rel, mode=None):
     if _canon_rel(group, rel) in SNAPSHOT_RELS:
         m = "keep" if m == "keep" else "replace"
     if m not in ALLOWED_MODES[group]:
-        raise project.ProjectError("「%s」不支援「%s」模式" % (group, m))
+        raise project.ProjectError("「%s」不支援「%s」模式" % (GROUP_LABEL.get(group, group), m))
     return m
 CHAPTER_DRAFT_DIR = layout.REVERSE_CARDS
 
 
 def _canon_rel(group, rel):
     """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 大綱/章綱/反推/。"""
-    if group == "章綱":
+    if group == "cards":
         return "%s/%s" % (CHAPTER_DRAFT_DIR, os.path.basename(rel))
-    if group == "大綱" and rel.startswith(layout.OUTLINE + "/" + layout.VOLUME_PREFIX):  # literal-ok: group 是分組鍵
+    if group == "outline" and rel.startswith(layout.OUTLINE + "/" + layout.VOLUME_PREFIX):
         no = project._vol_order(os.path.basename(rel))
         if no != 99:
             return layout.volume_file(int(no))
@@ -774,7 +789,7 @@ def _canon_rel(group, rel):
 
 def _existing_rel(book_dir, group, rel):
     """這份草稿和哪個正式檔比對。章綱看章號對應的正式章綱，其餘看落點本身。"""
-    if group != "章綱":
+    if group != "cards":
         return _canon_rel(group, rel)
     no = project.chapter_no(os.path.basename(rel))
     if no is None:
@@ -807,8 +822,7 @@ def chapter_cards(book_dir):
 
 def plan_group(book_dir, group):
     """每份草稿的採用決策資料（給前端畫新舊對照；相似度只在後端算）。"""
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     out = []
     for it in draft_groups(book_dir)[group]:
         rel = it["rel"]
@@ -831,10 +845,9 @@ def plan_group(book_dir, group):
 
 def diff_group(book_dir, group, rel):
     """一份草稿和它會動到的正式檔的逐段差異（給對照視窗）。"""
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     if not any(x["rel"] == rel for x in draft_groups(book_dir)[group]):
-        raise project.ProjectError("「%s」沒有這份草稿：%s" % (group, rel))
+        raise project.ProjectError("「%s」沒有這份草稿：%s" % (GROUP_LABEL.get(group, group), rel))
     old_rel = _existing_rel(book_dir, group, rel)
     new = project.read_text(_p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/")))
     old = _read_rel(book_dir, old_rel)
@@ -855,8 +868,7 @@ def adopt(book_dir, group, mode=None, files=None):
 
     回傳 adopted（實際寫入份數）、merged、kept、backed_up、conflicts、backups（備份檔名）、targets。
     """
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     items = draft_groups(book_dir)[group]
     if not items:
         raise project.ProjectError("「%s」沒有草稿" % group)
@@ -907,8 +919,7 @@ def adopt(book_dir, group, mode=None, files=None):
 
 
 def discard(book_dir, group):
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     for it in draft_groups(book_dir)[group]:
         os.remove(_p(book_dir, layout.REVERSE_DRAFTS, *it["rel"].split("/")))
     return {"ok": True}

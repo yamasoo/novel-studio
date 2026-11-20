@@ -26,6 +26,7 @@ from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from studio import layout
+from studio import ids
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -2033,7 +2034,7 @@ async def contract_build(book_id: str, req: Request):
 
 @app.get("/api/books/{book_id}/search")
 def book_search(book_id: str, q: str = "", scopes: str = ""):
-    """前文全文搜尋（本機，不用模型）。scopes：正文,候選,章綱,設定,追蹤。"""
+    """前文全文搜尋（本機，不用模型）。scopes：manuscript,candidates,outline,bible,tracking（舊的中文 ID 也接受）。"""
     return search.search(book_dir(book_id), q, [s for s in scopes.split(",") if s] or None)
 
 
@@ -2583,9 +2584,13 @@ for _sub in ("css", "fe", "vendor"):
 
 
 def layout_script():
-    """studio/layout.py 的路徑常數 → <script>window.LAYOUT = {...}</script>（只含字串常數）。"""
+    """給前端的兩份對照表（後端是唯一來源）：
+    window.LAYOUT：studio/layout.py 的路徑常數（只含字串常數）
+    window.NS_IDS：studio/ids.py 的識別值與舊 ID 別名（舊網址、瀏覽器存的舊值換成新 ID 用）"""
     data = {k: v for k, v in layout.all_constants().items() if isinstance(v, str)}
-    return "<script>window.LAYOUT = Object.freeze(%s);</script>\n" % json.dumps(data, ensure_ascii=True, sort_keys=True)
+    id_data = {"aliases": ids.aliases_for_frontend(), "valid": {k: list(v) for k, v in ids.VALID.items()}}
+    return ("<script>window.LAYOUT = Object.freeze(%s);\nwindow.NS_IDS = %s;</script>\n"
+            % (json.dumps(data, ensure_ascii=True, sort_keys=True), json.dumps(id_data, ensure_ascii=True, sort_keys=True)))
 
 
 @app.get("/")

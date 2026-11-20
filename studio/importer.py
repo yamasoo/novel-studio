@@ -14,6 +14,7 @@ from xml.etree import ElementTree as ET
 
 from . import lang as lang_mod, project
 from . import layout
+from . import ids
 
 NUM = r"[0-9０-９一二三四五六七八九十百千零〇兩]+"
 SEP = r"(?:\s*$|[\s:：、.．·\-—　]+(.*?)\s*$)"
@@ -479,9 +480,10 @@ def _backup_name(name, stamp):
 
 
 def commit(book_dir, payload, opts, checker=None):
-    """寫入書目錄。opts: target（"正文"|"候選"）、conflict（"skip"|"overwrite"）、fix_punct。"""
+    """寫入書目錄。opts: target（ids.IMPORT_TARGETS："manuscript"|"candidates"，舊的「正文」「候選」也接受）、conflict（"skip"|"overwrite"）、fix_punct。"""
     r = plan(payload, opts)
-    target = layout.CANDIDATES if opts.get("target") == "候選" else layout.MANUSCRIPT  # literal-ok: opts.target 是 API 參數
+    target_id = "candidates" if ids.norm("import_target", opts.get("target")) == "candidates" else "manuscript"
+    target = ids.IMPORT_TARGET_FOLDER[target_id]
     tdir = os.path.join(book_dir, target)
     os.makedirs(tdir, exist_ok=True)
     existing = project._scan_dir(tdir)
@@ -510,7 +512,7 @@ def commit(book_dir, payload, opts, checker=None):
         name = layout.chapter_file(no, _fname_title(title))
         project.write_atomic(os.path.join(tdir, name), text)
         written.append({"no": no, "file": target + "/" + name, "chars": c["chars"]})
-    return {"target": target, "written": written, "skipped": skipped, "replaced": replaced,
+    return {"target": target_id, "written": written, "skipped": skipped, "replaced": replaced,
             "chars": sum(w["chars"] for w in written)}
 
 

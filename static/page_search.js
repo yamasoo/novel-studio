@@ -8,12 +8,18 @@
   const enc = encodeURIComponent;
   const bookPath = (rest) => "#/b/" + encodeURIComponent(S.book) + rest;
 
-  const SEARCH_SCOPES = [["正文", "正文"], ["候選", "候選稿"], ["章綱", "大綱與章綱"], ["設定", "設定集"], ["追蹤", "追蹤"]];
+  // [範圍 ID（studio/ids.py 的 SEARCH_SCOPES）, 顯示文字]
+  const SEARCH_SCOPES = [["manuscript", "正文"], ["candidates", "候選稿"], ["outline", "大綱與章綱"], ["bible", "設定集"], ["tracking", "追蹤"]];
 
   function searchScopes() {
     const v = FE.store.get("search-scopes", null);
-    if (Array.isArray(v) && v.length) return v;
-    return ["正文"];
+    if (Array.isArray(v) && v.length) {
+      // 舊版存的是中文 ID（正文、候選…）：換成新 ID，有變就寫回
+      const n = [...new Set(v.map((x) => nsShared.normId("search_scope", x)))];
+      if (n.join() !== v.join()) FE.store.set("search-scopes", n);
+      return n;
+    }
+    return ["manuscript"];
   }
 
   // 舊版是 SEARCH_SCOPES.find((z) => z[0] === x.scope)[1]，遇到不認識的範圍會炸；這裡查不到就退回原文。
@@ -94,7 +100,7 @@
     }
 
     const openResult = async (x) => {
-      const tab = x.scope === "正文" ? "text" : x.scope === "候選" ? "candidate"
+      const tab = x.scope === "manuscript" ? "text" : x.scope === "candidates" ? "candidate"
         : x.no && x.path.startsWith(LAYOUT.CHAPTER_CARDS + "/") ? "card"
           : x.no && x.path.startsWith(LAYOUT.SUMMARIES + "/") ? "summary" : null;
       if (tab) { S.hl = r.terms; FE.go(bookPath("/ch/" + x.no + "?tab=" + tab)); return; }
@@ -119,9 +125,9 @@
             onclick: () => openResult(x),
             onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openResult(x); } },
           },
-            x.scope === "正文" ? null : h("span", { class: "badge" }, scopeLabel(x.scope)),
+            x.scope === "manuscript" ? null : h("span", { class: "badge" }, scopeLabel(x.scope)),
             // 舊版是「標籤＋一個空白＋標題」的同一段文字；這裡也併成一個字串。
-            (x.scope === "正文" ? "" : " ") + (x.kind === "chapter" ? "第" + x.no + "章　" + x.title : x.path)),
+            (x.scope === "manuscript" ? "" : " ") + (x.kind === "chapter" ? "第" + x.no + "章　" + x.title : x.path)),
           h("span", { class: "grow" }),
           h("span", { class: "muted small" }, x.count + " 處")),
         snippets);

@@ -142,6 +142,10 @@ class DemoSnapshotTest(unittest.TestCase):
         want = {k: v for k, v in layout.all_constants().items() if isinstance(v, str)}
         self.assertEqual(want, got)
         self.assertLess(html.index("window.LAYOUT"), html.index('<script src="/static/'), "LAYOUT 要比 /static 腳本先載入")
+        from studio import ids
+        m2 = re.search(r"window\.NS_IDS = (\{.*?\});</script>", html)
+        self.assertIsNotNone(m2, "首頁沒有 window.NS_IDS")
+        self.assertEqual(ids.aliases_for_frontend(), json.loads(m2.group(1))["aliases"])
 
     def test_demo_books_match_snapshot(self):
         got = json.loads(json.dumps(self.collect(), ensure_ascii=False, default=str))

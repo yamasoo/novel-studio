@@ -41,5 +41,14 @@
     fmtNum(n) { return fmtNum(n); },
     unitCh(unit) { return unitCh(unit); },
     unitOfBook(id) { return unitOfBook(id); },
+    // 舊識別值（中文 ID、v2 資料夾名稱）→ 新 ID；kind 見 studio/ids.py（bible_tab、reverse_group、search_scope、import_target）。
+    // 認不得的原樣回傳，交給呼叫端判斷。
+    normId(kind, v) {
+      if (v === null || v === undefined) return v;
+      const ids = window.NS_IDS || { aliases: {}, valid: {} };
+      if ((ids.valid[kind] || []).includes(v)) return v;
+      const a = ids.aliases[kind] || {};
+      return Object.prototype.hasOwnProperty.call(a, v) ? a[v] : v;
+    },
   };
 })();

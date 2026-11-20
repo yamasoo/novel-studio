@@ -155,8 +155,8 @@
               h("span", {}, "書"), h("select", { id: "im-book" }, bookOptions(info.books, S.book))),
             h("label", { class: "f" },
               h("span", {}, "放進"), h("select", { id: "im-target" },
-                h("option", { value: "正文" }, "正文（直接當成定稿）"),
-                h("option", { value: "候選" }, "候選稿（逐章審閱後再採用）"))),
+                h("option", { value: "manuscript" }, "正文（直接當成定稿）"),
+                h("option", { value: "candidates" }, "候選稿（逐章審閱後再採用）"))),
             h("label", { class: "f", "data-dest": "old" },
               h("span", {}, "書裡已經有同一章時"), h("select", { id: "im-conflict" },
                 h("option", { value: "skip" }, "跳過，保留書裡的"),
@@ -190,7 +190,7 @@
         try {
           const res = await FE.api("/api/import/commit", { method: "POST", body, signal });
           S.books = (await FE.api("/api/books", { signal })).books;
-          const nextStep = res.target === "正文"
+          const nextStep = res.target === "manuscript"
             ? ["已經寫好的書，可以用 ",
               h("a", { href: "#/b/" + enc(res.book) + "/reverse" }, "從正文建立設定"),
               " 讓 AI 從正文反推角色、世界觀、名詞表、大綱、章綱、伏筆與時間線（先存成草稿，不需要開書訪談）；文風可以到「共用庫 → 文風」用這本書的正文分析。"]
@@ -199,7 +199,7 @@
             h("div", { class: "alert ok", style: "margin-top:12px" },
               h("span", { class: "k" }, "完成"),
               h("span", { class: "t" },
-                "匯入 " + res.written.length + " 章（" + fmtNum(res.chars) + " " + unitCh(unitOfLang(IMP.lang)) + "）到《" + res.book + "》的" + res.target + "。" +
+                "匯入 " + res.written.length + " 章（" + fmtNum(res.chars) + " " + unitCh(unitOfLang(IMP.lang)) + "）到《" + res.book + "》的" + ({ manuscript: "正文", candidates: "候選" }[res.target] || res.target) + "。" +
                 (res.skipped.length ? "跳過已存在的第 " + res.skipped.join("、") + " 章。" : "") +
                 (res.replaced.length ? "覆蓋了第 " + res.replaced.join("、") + " 章（原檔已備份）。" : "")),
               h("button", { class: "sm primary", onclick: () => FE.go("#/b/" + enc(res.book)) }, "開啟這本書")),

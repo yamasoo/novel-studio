@@ -192,7 +192,7 @@
             : h("div", { class: "muted" }, "還沒有大綱。"),
           h("div", {
             class: "item",
-            onclick: () => FE.go("#/b/" + encodeURIComponent(S.book) + "/bible?t=" + encodeURIComponent("核心") + "&f=" + encodeURIComponent(LAYOUT.STORY_CORE)),
+            onclick: () => FE.go("#/b/" + encodeURIComponent(S.book) + "/bible?t=core&f=" + encodeURIComponent(LAYOUT.STORY_CORE)),
           },
             h("div", { class: "nm" }, "故事核心"),
             h("div", { class: "ds" }, LAYOUT.STORY_CORE))),

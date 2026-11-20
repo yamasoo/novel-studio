@@ -13,12 +13,15 @@
   const bookPath = (rest) => "#/b/" + encodeURIComponent(S.book) + rest;
 
   // 三選的順序照計畫：保留現有（預設）／用反推版／併入缺的段落。
+  // 鍵是分組 ID（studio/ids.py 的 REVERSE_GROUPS）
   const MODES = {
-    設定: [["keep", "保留現有"], ["replace", "用反推版"], ["merge", "併入缺的段落"]],
-    大綱: [["keep", "保留現有"], ["replace", "用反推版"], ["merge", "併入缺的段落"]],
-    追蹤: [["keep", "保留現有"], ["replace", "用反推版"]],
+    bible: [["keep", "保留現有"], ["replace", "用反推版"], ["merge", "併入缺的段落"]],
+    outline: [["keep", "保留現有"], ["replace", "用反推版"], ["merge", "併入缺的段落"]],
+    tracking: [["keep", "保留現有"], ["replace", "用反推版"]],
   };
-  const FALLBACK = { 設定: "merge", 大綱: "keep", 追蹤: "keep", 章綱: "copy" };
+  const FALLBACK = { bible: "merge", outline: "keep", tracking: "keep", cards: "copy" };
+  // 分組在畫面上顯示的名稱（介面文字，由 i18n 翻譯）
+  const GROUP_LABEL = { bible: "設定", outline: "大綱", cards: "章綱", tracking: "追蹤" };
 
   const modeOf = (g, x) => (MODES[g] || []).some(([v]) => v === x.default_mode) ? x.default_mode : FALLBACK[g];
   const pct = (x) => Math.round((Number(x) || 0) * 100) + "%";
@@ -33,7 +36,7 @@
 
   function summary(g, t) {
     const parts = [];
-    parts.push(g === "章綱"
+    parts.push(g === "cards"
       ? "已存 " + t.adopted + " 份反推章綱到 大綱/章綱/反推/"
       : "已採用 " + t.adopted + " 份");
     if (t.merged) {
@@ -50,18 +53,18 @@
   }
 
   async function adoptGroup(g, items, picks, signal) {
-    const how = g === "章綱"
+    const how = g === "cards"
       ? "反推的章綱會存到 大綱/章綱/反推/，正式章綱一個字都不動。"
-      : g === "設定"
+      : g === "bible"
         ? "選「保留現有」的不會被動到；「用反推版」會先備份再整份取代；「併入缺的段落」只補原檔空白的欄位與段落，有衝突的收在檔尾「從正文反推（未併入，請核對）」。"
         : "預設不覆蓋；選「用反推版」的檔案才會先備份再取代"
-          + (g === "大綱" ? "；選「併入缺的段落」的只補缺的段落" : "") + "。";
-    if (!(await FE.confirm("採用「" + g + "」的草稿？" + how))) return;
+          + (g === "outline" ? "；選「併入缺的段落」的只補缺的段落" : "") + "。";
+    if (!(await FE.confirm("採用「" + GROUP_LABEL[g] + "」的草稿？" + how))) return;
     try {
       // 後端一次只收一種 mode，所以照選擇把檔案分組，一組打一次（保留現有的也要送，回傳才算得到 kept）。
       const byMode = new Map();
       for (const x of items) {
-        const m = g === "章綱" ? "copy" : (picks[x.rel] || modeOf(g, x));
+        const m = g === "cards" ? "copy" : (picks[x.rel] || modeOf(g, x));
         if (!byMode.has(m)) byMode.set(m, []);
         byMode.get(m).push(x.rel);
       }
@@ -78,7 +81,7 @@
   }
 
   async function discardGroup(g, signal) {
-    if (!(await FE.confirm("捨棄「" + g + "」的草稿？"))) return;
+    if (!(await FE.confirm("捨棄「" + GROUP_LABEL[g] + "」的草稿？"))) return;
     try {
       await FE.api(B("/reverse/discard"), { method: "POST", body: { group: g }, signal });
       await FE.route();
@@ -129,7 +132,7 @@
   }
 
   function modeNode(g, x, picks) {
-    if (g === "章綱") return h("span", { class: "badge" }, "存成反推對照，正式章綱不動");
+    if (g === "cards") return h("span", { class: "badge" }, "存成反推對照，正式章綱不動");
     const cur = picks[x.rel] || modeOf(g, x);
     return (MODES[g] || []).map(([v, label]) => h("label", {
       class: "small", style: "cursor:pointer;white-space:nowrap",
@@ -154,23 +157,23 @@
         h("button", { class: "sm ghost", onclick: () => showDiff(g, x, signal) }, "看差異")),
       h("div", { class: "row", style: "gap:10px;margin-top:4px;flex-wrap:wrap;align-items:center" },
         modeNode(g, x, picks),
-        g === "章綱" ? h("span", { class: "muted small" }, "→ " + x.target) : null));
+        g === "cards" ? h("span", { class: "muted small" }, "→ " + x.target) : null));
   }
 
   function groupCard([g, desc], items, docEl, signal) {
     const picks = {};
     const existing = items.filter((x) => x.exists).length;
-    const note = g === "章綱"
+    const note = g === "cards"
       ? items.length + " 份；一律存到 大綱/章綱/反推/，正式章綱不動"
         + (existing ? "（其中 " + existing + " 份對得到正式章綱，可以看差異）" : "")
       : items.length + " 份" + (existing ? "，其中 " + existing + " 份有現有檔案" : "")
         + "；預設保留現有，要動的逐檔選";
     return h("div", { class: "card", style: "margin:10px 0;padding:12px 14px" },
       h("div", { class: "row", style: "align-items:baseline;flex-wrap:wrap" },
-        h("b", {}, g),
+        h("b", {}, GROUP_LABEL[g]),
         h("span", { class: "muted small", style: "margin-left:8px" }, desc + "　·　" + note),
         h("span", { class: "grow" }),
-        h("button", { class: "sm primary", "data-adopt": g, onclick: () => adoptGroup(g, items, picks, signal) }, "採用" + g),
+        h("button", { class: "sm primary", "data-adopt": g, onclick: () => adoptGroup(g, items, picks, signal) }, "採用" + GROUP_LABEL[g]),
         h("button", { class: "sm danger", "data-discard": g, onclick: () => discardGroup(g, signal) }, "捨棄")),
       h("details", { style: "margin-top:6px" },
         h("summary", { class: "small" }, "看清單與逐檔選擇"),
@@ -186,10 +189,10 @@
     const busy = !!(S.job && S.job.status === "running");
     const cost = est.cost != null ? "約 US$" + est.cost.toFixed(2) : (Panel.isClaude() ? "用 Claude 訂閱額度" : "依你設定的價格（沒填價格就不顯示）");
     const groups = [
-      ["設定", "角色、勢力、世界觀、故事核心、名詞表"],
-      ["大綱", "全書大綱、卷綱"],
-      ["章綱", "每章的章綱（反向整理，狀態「已寫」；採用後另存反推對照）"],
-      ["追蹤", "章節摘要、伏筆、時間線、讀者認知、角色關係、角色狀態、狀態卡"],
+      ["bible", "角色、勢力、世界觀、故事核心、名詞表"],
+      ["outline", "全書大綱、卷綱"],
+      ["cards", "每章的章綱（反向整理，狀態「已寫」；採用後另存反推對照）"],
+      ["tracking", "章節摘要、伏筆、時間線、讀者認知、角色關係、角色狀態、狀態卡"],
     ];
     const nDraft = groups.reduce((a, [g]) => a + (dr[g] || []).length, 0);
 

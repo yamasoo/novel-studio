@@ -311,6 +311,11 @@ def key_status(home, prov):
     return ""
 
 
+def needs_key(prov):
+    """本機服務（llama.cpp 等，網址是 127.0.0.1／localhost）不一定要金鑰；有設就照樣帶上。"""
+    return not _is_local(prov.get("base_url") or "")
+
+
 # ---------------------------------------------------------------------------
 def _is_local(url):
     host = urllib.parse.urlparse(url).hostname or ""

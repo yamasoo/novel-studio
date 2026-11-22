@@ -327,8 +327,8 @@ def real_provider(pid):
     if not str(prov.get("model") or "").strip():
         raise SystemExit("執行者「%s」還沒選模型。先到工作台「設定 → AI 執行者」按「測試連線／抓模型清單」選一個，\n"
                          "或用 --provider %s/<模型 id> 指定。" % (prov.get("id"), prov.get("id")))
-    if not providers.key_status(ROOT, prov):
-        env = prov.get("key_env") or "DEEPSEEK_API_KEY"
+    if providers.needs_key(prov) and not providers.key_status(ROOT, prov):
+        env = prov.get("key_env") or "（這個執行者沒設 key_env，請用 1 或 3）"
         hint = ""
         if not providers._keyring():
             hint = ("\n這支 python 讀不到系統金鑰庫（多半是沒安裝 keyring、或不是工作台用的那個 venv）。"

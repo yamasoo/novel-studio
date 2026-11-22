@@ -60,7 +60,7 @@ def provider(pid=None):
         raise SystemExit("Claude Code 不能用在這裡（要走 API），請用 --provider 指定 API 執行者。")
     if not str(prov.get("model") or "").strip():
         raise SystemExit("執行者「%s」沒有 model。" % prov.get("id"))
-    if not providers.key_status(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), prov):
+    if providers.needs_key(prov) and not providers.key_status(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), prov):
         raise SystemExit("執行者「%s」還沒有 API 金鑰（設定頁 → AI 執行者，或環境變數）。" % prov.get("id"))
     return prov
 

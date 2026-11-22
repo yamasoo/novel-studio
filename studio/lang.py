@@ -99,5 +99,5 @@ def set_book_lang(book_dir, value):
         with open(p, encoding="utf-8") as f:
             text = f.read()
         if text.startswith("---"):
-            project.write_atomic(p, shared.set_fm(text, "語言", lang))
+            project.write_atomic(p, shared.set_fm(text, "lang", lang))
     return lang

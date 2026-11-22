@@ -99,9 +99,9 @@ def list_volumes(book_dir):
                 fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
             except OSError:
                 continue
-            nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+            nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
             lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-            out.append({"rel": rel, "name": str(fm.get("卷名") or f), "status": str(fm.get("狀態") or ""),
+            out.append({"rel": rel, "name": str(fm.get("title") or f), "status": str(fm.get("status") or ""),
                         "lo": lo, "hi": hi, "no": _num_from_name(f),
                         "kind": _kind(f)})
     # 同一章同時被「卷」和「幕」覆蓋時，卷優先（卷末承諾要的是卷，不是幕）
@@ -159,10 +159,10 @@ def drafts(book_dir):
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
         except OSError:
             continue
-        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
         lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
-                    "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("title") or f),
+                    "status": str(fm.get("status") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
     return out
 
@@ -222,11 +222,11 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
     if start is None:
         return ["全書大綱沒有「分卷」段，這次沒有同步（避免把內容塞錯地方）。"]
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-    rng = str(fm.get("章節範圍") or "")
+    rng = str(fm.get("chapter_range") or "")
     nums = [int(x) for x in re.findall(r"\d+", rng)]
     lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
     bullets = [b for b in (bullets or []) if b]
-    name = str(fm.get("卷名") or ("第%d卷" % no))
+    name = str(fm.get("title") or ("第%d卷" % no))
 
     for i in range(start, end):
         if _heading_volume(lines[i]) != no:
@@ -293,13 +293,13 @@ def adopt(book_dir, no):
     fm, _body = project.split_frontmatter(text)
     if not fm:
         raise project.ProjectError("草稿沒有 frontmatter（類型、卷名、章節範圍），不能採用。")
-    if not str(fm.get("章節範圍") or "").strip():
+    if not str(fm.get("chapter_range") or "").strip():
         raise project.ProjectError("草稿沒有「章節範圍」，不能採用；先補上第幾章到第幾章。")
     dst_rel = layout.volume_file(no)
     dst = project.safe_path(book_dir, dst_rel)
     if os.path.isfile(dst):
         raise project.ProjectError("正式的 %s 已經存在，先確認是不是已經採用過。" % dst_rel)
-    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "狀態", "已確認"))
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "已確認"))
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
@@ -331,10 +331,10 @@ def revisions(book_dir):
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
         except OSError:
             continue
-        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
         lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
-                    "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("title") or f),
+                    "status": str(fm.get("status") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["no"] or 0, v["rel"]))
     return out
 
@@ -375,7 +375,7 @@ def apply_revision(book_dir, no):
         raise project.ProjectError("找不到第 %s 卷的修訂草稿（%s）。" % (no, rel))
     text = project.read_text(src)
     fm, _body = project.split_frontmatter(text)
-    if not str(fm.get("章節範圍") or "").strip():
+    if not str(fm.get("chapter_range") or "").strip():
         raise project.ProjectError("修訂草稿沒有「章節範圍」，先補上第幾章到第幾章再套用。")
     dst = project.safe_path(book_dir, v["rel"])
     try:
@@ -383,7 +383,7 @@ def apply_revision(book_dir, no):
         tracking.backup(book_dir, dst, "卷綱修訂前")
     except Exception:
         pass
-    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "狀態", "已確認"))
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "已確認"))
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(new_text if new_text.endswith("\n") else new_text + "\n")

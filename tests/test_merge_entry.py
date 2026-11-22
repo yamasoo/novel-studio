@@ -58,11 +58,11 @@ class EnsureRoleTest(unittest.TestCase):
     def test_blank_role_gets_default(self):
         text = "---\n類型: 角色\n名稱: 甲\n定位:\n狀態: 草稿\n---\n\n# 甲\n"
         out = project.ensure_role(text)
-        self.assertEqual(project.split_frontmatter(out)[0]["定位"], project.DEFAULT_ROLE)
+        self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_missing_role_is_inserted(self):
         out = project.ensure_role("---\n類型: 角色\n名稱: 甲\n---\n\n# 甲\n")
-        self.assertEqual(project.split_frontmatter(out)[0]["定位"], project.DEFAULT_ROLE)
+        self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_existing_role_is_kept(self):
         text = "---\n類型: 角色\n名稱: 甲\n定位: 主角\n---\n\n# 甲\n"
@@ -79,12 +79,12 @@ class MergeEntryTest(unittest.TestCase):
         self.fm = project.split_frontmatter(self.text)[0]
 
     def test_frontmatter_fills_only_blank(self):
-        self.assertEqual(self.fm["別名"], ["沙耶"])
-        self.assertEqual(self.fm["定位"], "配角")
-        self.assertEqual(self.fm["首次登場"], 3)
+        self.assertEqual(self.fm["aliases"], ["沙耶"])
+        self.assertEqual(self.fm["role"], "配角")
+        self.assertEqual(self.fm["first_appearance"], 3)
 
     def test_status_and_source_not_overwritten(self):
-        self.assertEqual(self.fm["狀態"], "正式")
+        self.assertEqual(self.fm["status"], "正式")
         self.assertNotIn("來源", self.fm)
 
     def test_blank_section_gets_draft_content(self):

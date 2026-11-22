@@ -159,7 +159,7 @@ def _core_target(book_dir):
     """bible/story-core.md 開頭資料區的「每章字數: 2500-3500」（或單一數字）；沒有或看不懂回傳 None。
     單位跟著書的語言：中日文是字數、英文是單詞數。"""
     core = context.read(book_dir, layout.STORY_CORE)
-    v = project.split_frontmatter(core)[0].get("每章字數") if core else None
+    v = project.split_frontmatter(core)[0].get("chapter_length") if core else None
     if v is None or v == "":
         return None
     s = str(v).replace("，", ",")
@@ -177,8 +177,8 @@ def _target_chars(book_dir, no):
     _, card = context.card_text(book_dir, no)
     fm, _ = project.split_frontmatter(card)
     try:
-        if fm.get("字數目標"):
-            return int(fm["字數目標"])
+        if fm.get("target_length"):
+            return int(fm["target_length"])
     except (TypeError, ValueError):
         pass
     t = _core_target(book_dir)          # 先看故事核心的「每章字數」，再退回 CLAUDE.md 的中文寫法
@@ -193,7 +193,7 @@ def _target_chars(book_dir, no):
 def _card_title(book_dir, no):
     _, card = context.card_text(book_dir, no)
     fm, _ = project.split_frontmatter(card)
-    return str(fm.get("章名") or "").strip()
+    return str(fm.get("title") or "").strip()
 
 
 def _split_output(text, no, fallback_title):
@@ -561,7 +561,7 @@ def act_accept(c, p):
 
 def act_sync(c, p):
     fm, _ = project.split_frontmatter(context.read(c.book, layout.STATE_CARD))
-    m = re.search(r"\d+", str(fm.get("更新至") or ""))
+    m = re.search(r"\d+", str(fm.get("updated_through") or ""))
     done = int(m.group(0)) if m else 0
     todo = sorted(n for n in project._scan_dir(layout.path(c.book, layout.MANUSCRIPT)) if n > done)
     if not todo:

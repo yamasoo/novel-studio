@@ -37,7 +37,7 @@ def plan_names(book, sub):
         if not (os.path.isfile(p) and f.endswith(".md")) or f.startswith("_") or f.startswith("."):
             continue
         fm, _ = project.split_frontmatter(project.read_text(p))
-        name = str(fm.get("名稱") or "").strip()
+        name = str(fm.get("name") or "").strip()
         if not name:
             out.append((sub, f, None, "frontmatter 沒有「名稱」，略過"))
             continue

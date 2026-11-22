@@ -177,7 +177,7 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
         if not os.path.isfile(src):
             continue
         text = project.read_text(src)
-        text = project.set_frontmatter_field(text, "狀態", "草稿") if "---" in text[:10] else text  # literal-ok: frontmatter 狀態值，P2 換
+        text = project.set_frontmatter_field(text, "status", "草稿") if "---" in text[:10] else text  # literal-ok: frontmatter 狀態值，P2 換
         _write(os.path.join(target, *rel.split("/")), text)
         created.append(rel)
 

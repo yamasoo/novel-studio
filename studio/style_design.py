@@ -135,7 +135,7 @@ def finish(library, info, out, truncated=False):
     text = m.group(1).strip() + "\n"
     if "## 範例段落" not in text:
         text = text.rstrip() + "\n\n## 範例段落\n"
-    text = shared.set_fm(shared.set_fm(text, "名稱", info["name"]), "類型", "文風")  # literal-ok: frontmatter 類型值，P2 換
+    text = shared.set_fm(shared.set_fm(text, "name", info["name"]), "type", "文風")  # literal-ok: frontmatter 類型值，P2 換
     if re.search(r"(?m)^# ", text):
         text = re.sub(r"(?m)^# .*$", lambda _m: "# 文風：%s" % info["name"], text, count=1)
     else:

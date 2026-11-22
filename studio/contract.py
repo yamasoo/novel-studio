@@ -100,7 +100,7 @@ def characters(book_dir):
         name = e.get("name") or ""
         fm = e.get("frontmatter") or _front(book_dir, e.get("file") or "")
         st = _front(book_dir, layout.entry(layout.CHARACTER_STATES, name))
-        out.append((name, fm.get("定位") or "", fm.get("首次登場") or "", st.get("最後登場") or ""))
+        out.append((name, fm.get("role") or "", fm.get("first_appearance") or "", st.get("last_appearance") or ""))
     return out
 
 
@@ -251,7 +251,7 @@ def ensure(book_dir, force=False, notes=None):
     no = last_chapter(book_dir)
     if existing and not force:
         fm = project.split_frontmatter(existing)[0]
-        if (fm.get("更新至") or "").strip() == "第%03d章" % no:
+        if (fm.get("updated_through") or "").strip() == "第%03d章" % no:
             return None                     # 章數沒變：作者可能改過，不動它
     content = build(book_dir, keep_of(existing))
     content, note = textguard.guard_text(book_dir, content)

@@ -593,7 +593,7 @@ def cards_brief(c, limit=60):
         m = re.search(r"##\s*一句話\s*\n(.*?)(?=\n##|\Z)", body, re.S)
         if m:
             one = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip().split("\n")[0]
-        title = ("《%s》" % fm.get("章名")) if fm.get("章名") else ""
+        title = ("《%s》" % fm.get("title")) if fm.get("title") else ""
         lines.append("第%d章%s：%s" % (no, title, one))
     more = "（只列前 %d 章）" % limit if len(cards) > limit else ""
     return "\n".join(lines) + more
@@ -820,7 +820,7 @@ def act_review_all(c, p, system):
     roles = []
     for e in project.list_entries(c.book, layout.CHARACTER_STATES):
         fm, _ = project.split_frontmatter(context.read(c.book, e["file"]))
-        roles.append("- %s：最後登場 %s" % (e["name"], fm.get("最後登場") or "—"))
+        roles.append("- %s：最後登場 %s" % (e["name"], fm.get("last_appearance") or "—"))
     pk.add(2, "角色最後登場", "\n".join(roles))
     add_book_core(pk, c)
     from . import native

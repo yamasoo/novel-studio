@@ -847,7 +847,7 @@ def chapter_cards(book_dir):
             no = project.chapter_no(f)
             fm = project.split_frontmatter(project.read_text(os.path.join(root, f)))[0]
             out.append({"rel": "%s/%s" % (CHAPTER_DRAFT_DIR, f), "no": no or 0,
-                        "name": str(fm.get("章名") or "") or project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
+                        "name": str(fm.get("title") or "") or project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
     out.sort(key=lambda x: (x["no"] or 10 ** 9, x["rel"]))
     return out
 

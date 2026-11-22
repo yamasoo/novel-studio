@@ -821,7 +821,7 @@ def book_structures(book_id: str, chapter: int = None):
         name, _, src = shared.structure_for(d, chapter)
         _, card = context.card_text(d, chapter)
         fm = project.split_frontmatter(card)[0] if card else {}
-        out["chapter"] = {"assigned": str(fm.get("結構") or ""), "effective": name, "from": src, "has_card": bool(card)}  # literal-ok: frontmatter 鍵，P2 換
+        out["chapter"] = {"assigned": str(fm.get("structure") or ""), "effective": name, "from": src, "has_card": bool(card)}  # literal-ok: frontmatter 鍵，P2 換
     return out
 
 
@@ -1995,8 +1995,8 @@ def book_tracking(book_id: str):
     chars = project.list_entries(d, layout.CHARACTER_STATES) if os.path.isdir(cs_dir) else []
     for c in chars:
         fm, _ = project.split_frontmatter(project.read_text(os.path.join(d, c["file"])))
-        c["last"] = fm.get("最後登場")
-        c["updated_to"] = fm.get("更新至")
+        c["last"] = fm.get("last_appearance")
+        c["updated_to"] = fm.get("updated_through")
     ov = project.overview(d)
     return {
         "foreshadow": tables.read(d, "foreshadow", layout.FORESHADOWING),
@@ -2204,11 +2204,11 @@ async def bible_set_category(book_id: str, req: Request):
     for p in targets:
         text = project.read_text(p)
         if cat is not None:
-            text = project.set_frontmatter_field(text, "分類", cat)
+            text = project.set_frontmatter_field(text, "category", cat)
         if role is not None:
-            text = project.set_frontmatter_field(text, "定位", role)
+            text = project.set_frontmatter_field(text, "role", role)
         if status is not None:
-            text = project.set_frontmatter_field(text, "狀態", status)
+            text = project.set_frontmatter_field(text, "status", status)
         native.tracking.backup(d, p, "改分類前")
         project.write_atomic(p, text)
     return {"ok": True, "updated": len(targets)}

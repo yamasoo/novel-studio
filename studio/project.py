@@ -89,7 +89,14 @@ def normalize_frontmatter(text):
 
 
 def split_frontmatter(text):
-    """回傳 (dict, body)。frontmatter 格式錯誤時回傳空 dict。
+    """回傳 (dict, body)，dict 的鍵一律英文（type、status、name…，見 fmkeys）。frontmatter 格式錯誤時回傳空 dict。"""
+    from . import fmkeys
+    fm, body = split_frontmatter_raw(text)
+    return fmkeys.to_en(fm), body
+
+
+def split_frontmatter_raw(text):
+    """回傳 (dict, body)，鍵照檔案裡的寫法。frontmatter 格式錯誤時回傳空 dict。
 
     欄名寫成全形冒號的舊檔（標點轉換吃進 frontmatter）先在這裡修好再解析，
     不然名稱、定位、狀態會整份讀不到；寫回檔案由 normalize_frontmatter 負責。
@@ -381,9 +388,9 @@ def scan_chapters(book_dir):
             p = layout.path(book_dir, layout.CHAPTER_CARDS, cards[n])
             fm, body = split_frontmatter(card_text)
             row["card_file"] = rel_of(book_dir, p)
-            row["card_status"] = fm.get("狀態")
-            row["card_target"] = fm.get("字數目標")
-            row["title"] = str(fm.get("章名") or "")
+            row["card_status"] = fm.get("status")
+            row["card_target"] = fm.get("target_length")
+            row["title"] = str(fm.get("title") or "")
             m = re.search(r"-\s*功能：([^\n<]*)", body)
             if m:
                 row["func"] = m.group(1).strip()
@@ -452,31 +459,38 @@ REV_SECTION = "從正文反推（未併入，請核對）"
 
 
 def set_frontmatter_field(text, key, value):
-    """只改 frontmatter 裡 key 那一行；沒有就插在「類型」後面；沒有 frontmatter 就補一段。其他內容不動。"""
+    """只改 frontmatter 裡 key 那一行；沒有就插在 type 後面；沒有 frontmatter 就補一段。其他內容不動。
+
+    key 是英文鍵（中文鍵也收）。檔案裡已有那一行就照原本的寫法（中文或英文）改，新加的行由 fmkeys 決定寫法。"""
+    from . import fmkeys
+    key = fmkeys.en(key)
     text = normalize_frontmatter(text)
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
-        return "---\n%s: %s\n---\n\n%s" % (key, value, text)
+        return "---\n%s: %s\n---\n\n%s" % (fmkeys.write_key(key), value, text)
     end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
     if end is None:
         raise ProjectError("frontmatter 格式錯誤，無法寫入分類")
     for i in range(1, end):
-        if lines[i].startswith(key + ":"):
-            lines[i] = "%s: %s" % (key, value)
-            return "\n".join(lines)
-    pos = next((i + 1 for i in range(1, end) if lines[i].startswith("類型:")), 1)
-    lines.insert(pos, "%s: %s" % (key, value))
+        for k in fmkeys.file_keys(key):
+            if lines[i].startswith(k + ":"):
+                lines[i] = "%s: %s" % (k, value)
+                return "\n".join(lines)
+    types = fmkeys.file_keys("type")
+    pos = next((i + 1 for i in range(1, end) if lines[i].split(":", 1)[0] in types), 1)
+    doc_type = split_frontmatter(text)[0].get("type", "")
+    lines.insert(pos, "%s: %s" % (fmkeys.write_key(key, doc_type), value))
     return "\n".join(lines)
 
 
 def ensure_role(text):
     """類型: 角色 但「定位」空白的設定檔補上預設定位；其他內容不動。"""
     fm, _ = split_frontmatter(text)
-    if fm.get("類型") != "角色":
+    if fm.get("type") != "角色":
         return text
-    if str(fm.get("定位") or "").strip():
+    if str(fm.get("role") or "").strip():
         return text
-    return set_frontmatter_field(text, "定位", DEFAULT_ROLE)
+    return set_frontmatter_field(text, "role", DEFAULT_ROLE)
 
 
 def _fm_text(v):
@@ -527,7 +541,7 @@ def merge_entry(old, new):
     nfm, nbody = split_frontmatter(new)
     text = old
     fill = [k for k, v in nfm.items()
-            if k not in ("狀態", "來源") and _fm_text(v).strip() and not str(ofm.get(k) or "").strip()]
+            if k not in ("status", "source") and _fm_text(v).strip() and not str(ofm.get(k) or "").strip()]
     for k in reversed(fill):            # set_frontmatter_field 插在「類型」後面，倒著補才會照 new 的順序
         text = set_frontmatter_field(text, k, _fm_text(nfm[k]))
     _, obody = split_frontmatter(text)
@@ -568,19 +582,19 @@ def list_entries(book_dir, rel_dir):
             m = re.search(r"##\s*一句話\s*\n(.*?)(?=\n##|\Z)", body, re.S)
             if m:
                 one = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip().split("\n")[0]
-            tags = fm.get("標籤") or []
+            tags = fm.get("tags") or []
             if isinstance(tags, str):
                 tags = re.split(r"[,，、]", tags)
             out.append({
                 "file": rel_of(book_dir, p),
-                "name": str(fm.get("名稱") or os.path.splitext(f)[0]),
-                "type": fm.get("類型"),
-                "status": fm.get("狀態"),
-                "role": fm.get("定位"),
-                "category": str(fm.get("分類") or "").strip() or None,
+                "name": str(fm.get("name") or os.path.splitext(f)[0]),
+                "type": fm.get("type"),
+                "status": fm.get("status"),
+                "role": fm.get("role"),
+                "category": str(fm.get("category") or "").strip() or None,
                 "tags": [str(x).strip() for x in tags if str(x).strip()],
-                "aliases": fm.get("別名") or [],
-                "first": fm.get("首次登場"),
+                "aliases": fm.get("aliases") or [],
+                "first": fm.get("first_appearance"),
                 "summary": one[:80],
                 "mtime": os.path.getmtime(p),
             })
@@ -666,7 +680,7 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
     state_p = layout.path(book_dir, layout.STATE_CARD)
     state_text = read_text(state_p) if os.path.isfile(state_p) else ""
     fm, _ = split_frontmatter(state_text)
-    updated_to = _ch(fm.get("更新至"))
+    updated_to = _ch(fm.get("updated_through"))
     if latest and (updated_to or 0) < latest:
         alerts.append({"level": "warn", "kind": "追蹤落後",
                        "text": "正文已寫到第%d章，但狀態卡只更新到%s。" % (
@@ -719,10 +733,10 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
             if not f.endswith(".md"):
                 continue
             cfm, _ = split_frontmatter(read_text(os.path.join(cs_dir, f)))
-            name = str(cfm.get("名稱") or os.path.splitext(f)[0])
+            name = str(cfm.get("name") or os.path.splitext(f)[0])
             if any(w in name or w in f for w in ONE_OFF_MARKS):
                 continue
-            last = _ch(cfm.get("最後登場"))
+            last = _ch(cfm.get("last_appearance"))
             if last and latest - last > stale_character:
                 stale.append((latest - last, name, last))
         if stale:

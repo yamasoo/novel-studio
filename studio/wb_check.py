@@ -64,7 +64,7 @@ def check(book_dir, no, revision=False, data=None):
             if not os.path.isfile(p):
                 continue
             fm, _ = project.split_frontmatter(project.read_text(p))
-            if _ch(fm.get("最後登場")) < no:
+            if _ch(fm.get("last_appearance")) < no:
                 miss.append("%s（出現 %d 次）" % (e["name"], n))
         if miss:
             issues.append("正文有出場、角色狀態沒更新：" + "、".join(miss))
@@ -101,7 +101,7 @@ def check(book_dir, no, revision=False, data=None):
     # 章綱狀態
     if card:
         fm, _ = project.split_frontmatter(card)
-        st = str(fm.get("狀態") or "")
+        st = str(fm.get("status") or "")
         if not any(w in st for w in _DONE_CARD):
             issues.append("章綱狀態還是「%s」" % (st or "空白"))
 

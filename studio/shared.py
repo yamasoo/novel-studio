@@ -16,7 +16,7 @@ import time
 from collections import Counter
 
 from . import lang as lang_mod, project
-from . import layout
+from . import fmkeys, layout
 from . import tables
 
 SHARED = layout.SHARED
@@ -104,14 +104,17 @@ def _backup(book_dir, path, tag):
 
 
 def set_fm(text, key, value):
-    """在 frontmatter 設定（value=None 時刪除）一個鍵；沒有 frontmatter 就新增。只處理單行值。"""
-    line = None if value is None else "%s: %s" % (key, value)
+    """在 frontmatter 設定（value=None 時刪除）一個鍵；沒有 frontmatter 就新增。只處理單行值。
+    key 是英文鍵；檔案裡中文、英文寫法都會被換掉，新的一行由 fmkeys 決定寫法。"""
+    key = fmkeys.en(key)
+    line = None if value is None else "%s: %s" % (fmkeys.write_key(key), value)
     if text.startswith("---"):
         lines = text.split("\n")
         for i in range(1, len(lines)):
             if lines[i].strip() == "---":
                 fm = lines[1:i]
-                fm = [x for x in fm if not re.match(r"%s\s*:" % re.escape(key), x)]
+                pat = "|".join(re.escape(k) for k in fmkeys.file_keys(key))
+                fm = [x for x in fm if not re.match(r"(?:%s)\s*:" % pat, x)]
                 if line:
                     fm.append(line)
                 return "\n".join(["---"] + fm + lines[i:])
@@ -168,7 +171,7 @@ def list_styles(library):
 def text_lang(text):
     """共用文風、結構檔 frontmatter 的「語言」；舊檔沒標＝繁體中文。"""
     fm, _ = project.split_frontmatter(text or "")
-    return lang_mod.normalize(fm.get("語言"))
+    return lang_mod.normalize(fm.get("lang"))
 
 
 def _core_line(text):
@@ -210,7 +213,7 @@ def create_style(library, name, source=None, sample_text=None, exclude=(), lang=
                           "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
         st = st if os.path.isfile(st) else STYLE_TEMPLATE
         text = project.read_text(st) if os.path.isfile(st) else "---\n類型: 文風\n---\n\n# 文風\n"
-    text = set_fm(set_fm(set_fm(text, "名稱", name), "類型", "文風"), "語言", lang)  # literal-ok: frontmatter 類型值，P2 換
+    text = set_fm(set_fm(set_fm(text, "name", name), "type", "文風"), "lang", lang)  # literal-ok: frontmatter 類型值，第四批後半換
     text = re.sub(r"(?m)^# 本書文風\s*$", "# 文風：%s" % name, text, count=1)
     if sample_text:
         text = put_metrics(text, analyze(sample_text, exclude))
@@ -237,7 +240,7 @@ def apply_style(library, name, book_dir):
     dst = layout.path(book_dir, layout.STYLE)
     _backup(book_dir, dst, layout.SHARED_STYLES)
     text = project.read_text(src)
-    text = set_fm(set_fm(set_fm(set_fm(text, "類型", "文風"), "來源", "共用文風「%s」" % name), "名稱", None), "語言", None)  # literal-ok: frontmatter 類型值，P2 換
+    text = set_fm(set_fm(set_fm(set_fm(text, "type", "文風"), "source", "共用文風「%s」" % name), "name", None), "lang", None)  # literal-ok: frontmatter 類型值，第四批後半換
     project.write_atomic(dst, text)
     return layout.STYLE
 
@@ -451,8 +454,8 @@ def _structure_info(path, origin):
     text = project.read_text(path)
     fm, _ = project.split_frontmatter(text)
     name = os.path.splitext(os.path.basename(path))[0]
-    return {"name": name, "origin": origin, "scope": str(fm.get("適用") or ""), "summary": _summary(text),
-            "default": str(fm.get("預設") or "") in ("是", "true", "True", "yes"), "lang": text_lang(text)}
+    return {"name": name, "origin": origin, "scope": str(fm.get("scope") or ""), "summary": _summary(text),
+            "default": str(fm.get("default") or "") in ("是", "true", "True", "yes"), "lang": text_lang(text)}
 
 
 def _summary(text):
@@ -557,7 +560,7 @@ def apply_structure(library, name, origin, book_dir, make_default=False):
     os.makedirs(d, exist_ok=True)
     dst = os.path.join(d, name + ".md")
     _backup(book_dir, dst, "章節結構")
-    text = set_fm(set_fm(set_fm(project.read_text(src), "預設", None), "名稱", None), "語言", None)
+    text = set_fm(set_fm(set_fm(project.read_text(src), "default", None), "name", None), "lang", None)
     project.write_atomic(dst, text)
     if make_default or not any(s["default"] for s in book_structures(book_dir)):
         set_book_default(book_dir, name)
@@ -569,7 +572,7 @@ def set_book_default(book_dir, name):
     for s in book_structures(book_dir):
         p = os.path.join(book_dir, s["file"])
         text = project.read_text(p)
-        new = set_fm(text, "預設", "是" if s["name"] == name else None)
+        new = set_fm(text, "default", "是" if s["name"] == name else None)
         found = found or s["name"] == name
         if new != text:
             _backup(book_dir, p, "改預設結構前")
@@ -587,7 +590,7 @@ def set_chapter_structure(book_dir, no, name):
         raise SharedError("這本書沒有「%s」這個結構，請先從共用庫套用" % name)
     p = os.path.join(book_dir, card_path)
     from . import tracking
-    text = set_fm(project.read_text(p), "結構", name or None)  # literal-ok: frontmatter 鍵，P2 換
+    text = set_fm(project.read_text(p), "structure", name or None)
     tracking.backup(book_dir, p, "章綱結構前")
     project.write_atomic(p, text)
 
@@ -600,7 +603,7 @@ def structure_for(book_dir, no=None):
         card_path, card = context.card_text(book_dir, no)
         if card:
             fm, _ = project.split_frontmatter(card)
-            name = str(fm.get("結構") or "").strip() or None  # literal-ok: frontmatter 鍵，P2 換
+            name = str(fm.get("structure") or "").strip() or None
     if name:
         p = os.path.join(book_dir, BOOK_STRUCT_DIR, name + ".md")
         if os.path.isfile(p):

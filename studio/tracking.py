@@ -98,7 +98,7 @@ def tracked_to(book_dir):
     if not os.path.isfile(p):
         return 0
     fm, _ = project.split_frontmatter(project.read_text(p))
-    return _chno(fm.get("更新至"))
+    return _chno(fm.get("updated_through"))
 
 
 def _bump_updated(text, label):

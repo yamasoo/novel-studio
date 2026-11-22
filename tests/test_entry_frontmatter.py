@@ -26,8 +26,8 @@ class FrontmatterTest(unittest.TestCase):
 
     def test_split_reads_broken_frontmatter(self):
         fm, _ = project.split_frontmatter(BAD)
-        self.assertEqual(fm["名稱"], "甲")
-        self.assertEqual(fm["定位"], "主角")
+        self.assertEqual(fm["name"], "甲")
+        self.assertEqual(fm["role"], "主角")
 
     def test_normalize_repairs_only_frontmatter(self):
         text = "---\n類型： 角色\n名稱： 甲：乙\n---\n\n# 甲\n\n他說: 走吧。\n"
@@ -42,8 +42,8 @@ class FrontmatterTest(unittest.TestCase):
     def test_set_field_repairs_the_file(self):
         out = project.set_frontmatter_field(BAD, "定位", "配角")
         fm, _ = project.split_frontmatter(out)
-        self.assertEqual(fm["定位"], "配角")
-        self.assertEqual(fm["名稱"], "甲")
+        self.assertEqual(fm["role"], "配角")
+        self.assertEqual(fm["name"], "甲")
         self.assertEqual(out.count("定位"), 1)
 
     def test_guard_does_not_touch_frontmatter(self):
@@ -59,8 +59,8 @@ class FrontmatterTest(unittest.TestCase):
         with open(os.path.join(self.book, *rel.split("/")), encoding="utf-8") as f:
             raw = f.read()
         fm, _ = project.split_frontmatter(raw)
-        self.assertEqual(fm["類型"], "角色")
-        self.assertEqual(fm["定位"], project.DEFAULT_ROLE)
+        self.assertEqual(fm["type"], "角色")
+        self.assertEqual(fm["role"], project.DEFAULT_ROLE)
         self.assertIn("他說： 走吧。", raw)
 
 

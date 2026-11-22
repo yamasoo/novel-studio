@@ -93,8 +93,8 @@ def book_title(book_dir):
     p = layout.path(book_dir, layout.STORY_CORE)
     if os.path.isfile(p):
         fm, _ = project.split_frontmatter(project.read_text(p))
-        if fm.get("書名"):
-            return str(fm["書名"]).strip()
+        if fm.get("title"):
+            return str(fm["title"]).strip()
     return os.path.basename(os.path.normpath(book_dir))
 
 
@@ -177,7 +177,7 @@ def _docs(book_dir, rels):
             if not re.sub(r"[#\s\-|:]", "", body):
                 continue
             fm = project.split_frontmatter(project.read_text(p))[0]
-            title = str(fm.get("名稱") or fm.get("章名") or "")
+            title = str(fm.get("name") or fm.get("title") or "")
             m = re.match(r"\s*#\s+(.+?)\s*(?:\n|$)", body)
             if m:
                 title = title or m.group(1).strip()

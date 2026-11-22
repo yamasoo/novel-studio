@@ -76,7 +76,7 @@ def apply(rows, dry=False):
         try:
             tracking.backup(d, p, "卷綱狀態轉正前")
             text = project.read_text(p)
-            new = project.set_frontmatter_field(text, "狀態", "已確認")
+            new = project.set_frontmatter_field(text, "status", "已確認")
             tmp = p + ".tmp"
             with open(tmp, "w", encoding="utf-8", newline="\n") as f:
                 f.write(new if new.endswith("\n") else new + "\n")

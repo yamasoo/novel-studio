@@ -294,7 +294,7 @@ def faction_members(book_dir, amap=None):
         fname = merge.get(str(e["name"]).strip(), str(e["name"]).strip())
         mem = out.setdefault(fname, {})
         fm, body = project.split_frontmatter(project.read_text(_path(book_dir, e["file"])))
-        rel = fm.get("相關角色")
+        rel = fm.get("related_characters")
         cand = [(2, n) for n in _names_in("、".join(str(x) for x in rel) if isinstance(rel, list) else str(rel or ""), amap)]
         for line in body.split("\n"):
             m = re.match(r"^\s*[-*]\s*(首領|領袖|主要成員|成員)\s*[：:]\s*(.+?)\s*$", line)

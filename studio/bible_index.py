@@ -71,14 +71,14 @@ def _setting_rows(book_dir):
                 continue
             fm, body = project.split_frontmatter(project.read_text(p))
             stem = os.path.splitext(f)[0]
-            aliases = fm.get("別名") or []
+            aliases = fm.get("aliases") or []
             if isinstance(aliases, str):
                 aliases = [a.strip() for a in ALIAS_SPLIT_RE.split(aliases) if a.strip()]
             rows.append({
-                "name": str(fm.get("名稱") or stem),
+                "name": str(fm.get("name") or stem),
                 "aliases": [str(a) for a in aliases],
-                "category": str(fm.get("分類") or "").strip(),
-                "status": str(fm.get("狀態") or "").strip(),
+                "category": str(fm.get("category") or "").strip(),
+                "status": str(fm.get("status") or "").strip(),
                 "summary": _first_line(body, "一句話")[:80],
                 "file": project.rel_of(book_dir, p),
                 "sub": sub,
@@ -232,7 +232,7 @@ def _check_setting_file(book_dir, rel):
 
 
 def _aliases_of(fm):
-    raw = fm.get("別名")
+    raw = fm.get("aliases")
     if not raw:
         return []
     if isinstance(raw, str):
@@ -290,13 +290,13 @@ def merge(book_dir, canonical, duplicates_rel):
     today = datetime.date.today().isoformat()
     canon_text = project.read_text(canon_path)
     cfm, _ = project.split_frontmatter(canon_text)
-    cname = str(cfm.get("名稱") or os.path.splitext(os.path.basename(canon_rel))[0])
+    cname = str(cfm.get("name") or os.path.splitext(os.path.basename(canon_rel))[0])
     aliases = _aliases_of(cfm)
 
     sections = []
     for r, p in dups:
         fm, body = project.split_frontmatter(project.read_text(p))
-        dname = str(fm.get("名稱") or os.path.splitext(os.path.basename(r))[0])
+        dname = str(fm.get("name") or os.path.splitext(os.path.basename(r))[0])
         for a in [dname] + _aliases_of(fm):
             if a and a != cname and a not in aliases:
                 aliases.append(a)

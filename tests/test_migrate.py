@@ -64,7 +64,7 @@ class BookMetaTest(unittest.TestCase):
         self.assertEqual("ja", lang_mod.book_lang(d), "book.json 沒有語言：看故事核心")
         lang_mod.set_book_lang(d, "en")
         self.assertEqual("en", bookmeta.read(d)["lang"])
-        self.assertIn("lang: en", project.read_text(layout.path(d, layout.STORY_CORE)), "故事核心照舊同步（技能還會讀）")
+        self.assertNotIn("en", project.read_text(layout.path(d, layout.STORY_CORE)), "故事核心不再同步語言（技能改看 book.json）")
         self.assertFalse(os.path.exists(layout.path(d, layout.STUDIO, "lang")))
         with open(layout.path(d, layout.STORY_CORE), "w", encoding="utf-8") as f:
             f.write("---\n語言: ja\n---\n")

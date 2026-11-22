@@ -68,7 +68,7 @@ Only list fragments the author agreed to. Do not add a whitelist entry just beca
    3. **Return it to the character**: comparisons, word choice and rhythm that this point-of-view character would actually have.
 4. **Don't change the facts.** No new plot, no changed attitudes, no change in how much is revealed. A rewrite changes how it is said, not what happens.
 5. **Run the script again** and confirm no 必須修 remain.
-6. **Report to the author** with a table, one row per change: `| 原句 | 為什麼改 | 改成什麼 |` (keep these three header cells exactly). Put the original sentence in "原句" (first 30 words if long), the category in "為什麼改" (canned reaction, telling the reader what to feel, stock simile…), and write "(deleted)" if cut. At most 40 rows; merge many of one kind into "N other cases of the same". After the table add a line or two on what you deliberately kept and why. When running inside the workbench, write the revised full text to the designated temp file and leave the original untouched; the author compares and applies it.
+6. **Report to the author** with a table, one row per change: `| Original sentence | Why changed | Changed to |` (keep these three header cells exactly). Put the original sentence in "Original sentence" (first 30 words if long), the category in "Why changed" (canned reaction, telling the reader what to feel, stock simile…), and write "(deleted)" if cut. At most 40 rows; merge many of one kind into "N other cases of the same". After the table add a line or two on what you deliberately kept and why. When running inside the workbench, write the revised full text to the designated temp file and leave the original untouched; the author compares and applies it.
 
 ## Scope
 

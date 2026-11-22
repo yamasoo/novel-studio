@@ -11,6 +11,7 @@ The folder names, file names, frontmatter keys and table headers of the project 
 
 ## Before you start
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Read [references/project-layout.md](references/project-layout.md) in full; it is the only specification of folder structure and file formats.
 2. Look at the current folder:
    - **Already has a CLAUDE.md and looks like a novel project** → do not rebuild. Go to "Check an existing project" below.
@@ -33,7 +34,7 @@ Create the folders per project-layout.md. Then:
   - `outline/book.md`
   - `tracking/state-card.md`, `tracking/foreshadowing.md`, `tracking/timeline.md`
 - Create empty folders: `bible/world/`, `bible/characters/`, `bible/factions/`, `bible/drafts/`, `outline/chapters/`, `manuscript/`, `candidates/`, `tracking/characters/`, `tracking/summaries/`, `samples/`. Put a `.gitkeep` in each empty folder.
-- Put `lang: en` in the frontmatter of `bible/story-core.md` (this tells the studio the book is written in English).
+- Create `book.json` in the project root (the book's ID card; the studio reads the language and format version from it): `{"schema_version": 3, "title": "Book title", "lang": "en", "created": "YYYY-MM-DD"}`.
 
 ### Step 3: fill in the interview results
 

@@ -9,6 +9,7 @@ description: 小說規劃：故事核心診斷（點子值不值得寫、賣點�
 
 ## 開始前
 
+0. 專案若還是舊格式（有 `設定/`、`正文/` 這類中文資料夾，或 `book.json` 的 `schema_version` 小於 3），請作者先在小說工作台的書架上按「轉換」，然後停下；不要自己搬檔或改名。
 1. 讀專案 `CLAUDE.md`。沒有專案時請作者先用 novel-setup，然後停下。
 2. 讀 `bible/story-core.md`、`bible/author-prefs.md`，以及書庫的 `_shared/author-prefs.md`（書目錄的上一層；存在的話）。排章綱時，若 `bible/structure/` 有標「default: 是」的結構，用它安排每章節拍；某章適合別的結構時，在該章 frontmatter 寫「structure: 名稱」（只能用 `bible/structure/` 裡已有的）。
 3. 依任務另讀對應 reference（見下表），只讀需要的。

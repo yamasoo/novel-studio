@@ -11,6 +11,7 @@ Folder and file names, frontmatter keys and fixed words (正式, 草稿, 主角 
 
 ## Before you start
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Read the project's `CLAUDE.md`. If there is no CLAUDE.md or `_templates/`, tell the author to build or check the project with novel-setup first, then stop.
 2. When you need to confirm a path or format, read `_templates/project-rules.md`.
 3. Read [references/intake-rules.md](references/intake-rules.md): how the three sources are filed, the line between draft and official, and how conflicts are handled. Follow these rules every time.

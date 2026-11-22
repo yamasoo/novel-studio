@@ -11,6 +11,7 @@ The file's section headings (the ones in the template) and the two headings "## 
 
 ## Before you start
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Read [references/style-dimensions.md](references/style-dimensions.md) in full: the thirteen dimensions, requirements for example passages, length advice.
 2. When the author mentions a genre, read the matching part of [references/genre-cues.md](references/genre-cues.md).
 3. The template is `../novel-setup/templates/style.md` (in a project it is `_templates/style.md`). Write a new file in the template's section order; keep an old file's sections as the author wrote them and fill in what is missing.

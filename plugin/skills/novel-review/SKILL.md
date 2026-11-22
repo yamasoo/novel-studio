@@ -27,6 +27,7 @@ description: 小說一致性審查：檢查章節的劇情邏輯、人物目標�
 
 ## 審查步驟
 
+0. 專案若還是舊格式（有 `設定/`、`正文/` 這類中文資料夾，或 `book.json` 的 `schema_version` 小於 3），請作者先在小說工作台的書架上按「轉換」，然後停下；不要自己搬檔或改名。
 1. 讀專案 `CLAUDE.md`、`bible/style.md`、`bible/story-core.md`，以及書庫的 `_shared/author-prefs.md`（書目錄的上一層；存在的話）——其中「常犯的毛病」要特別檢查。
 2. 讀 [references/checklist.md](references/checklist.md)。
 3. 讀要審的正文與它們的章綱。

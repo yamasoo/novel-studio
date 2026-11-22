@@ -11,6 +11,7 @@ Folder and file names, frontmatter keys and table headers stay in Chinese as the
 
 ## Before you start
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Read the project's `CLAUDE.md`. If there is no project, ask the author to use novel-setup first, then stop.
 2. Read `bible/story-core.md`, `bible/author-prefs.md`, and the library's `_shared/author-prefs.md` (one level above the book folder, if it exists). When laying out cards, if `bible/structure/` has a structure marked `default: 是`, use it to place each chapter's beats; when a chapter suits another structure, write `structure: <name>` in that card's frontmatter (only names that exist in `bible/structure/`).
 3. Read the reference for the task (see the table below); read only what you need.

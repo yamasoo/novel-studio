@@ -29,6 +29,7 @@ For a whole-book check with many chapters, do not read all the text: work from t
 
 ## Steps
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Read the project's `CLAUDE.md`, `bible/style.md`, `bible/story-core.md` and the library's `_shared/author-prefs.md` (one level above the book folder, if it exists); check the "recurring faults" there especially.
 2. Read [references/checklist.md](references/checklist.md).
 3. Read the chapter text under review and its cards.

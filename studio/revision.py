@@ -257,7 +257,7 @@ def parse_change_table(report):
         if not s.startswith("|") or re.match(r"^\|[\s:\-|]+\|$", s):
             continue
         cells = [c.strip() for c in s.strip("|").split("|")]
-        if len(cells) < 3 or cells[0] in ("原句", "原文", "Original", "original", "元の文") or not cells[0]:
+        if len(cells) < 3 or cells[0] in ("原句", "原文", "Original", "original", "Original sentence", "元の文") or not cells[0]:
             continue
         items.append({"old": cells[0], "why": cells[1], "new": "｜".join(cells[2:])})
     return items

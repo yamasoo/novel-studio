@@ -9,6 +9,7 @@ description: 設計、分析、修改繁體中文小說的文風檔（bible/styl
 
 ## 開始前
 
+0. 專案若還是舊格式（有 `設定/`、`正文/` 這類中文資料夾，或 `book.json` 的 `schema_version` 小於 3），請作者先在小說工作台的書架上按「轉換」，然後停下；不要自己搬檔或改名。
 1. 完整讀 [references/style-dimensions.md](references/style-dimensions.md)——十三個面向、範例段落的要求、長度建議。
 2. 作者提到類型時，讀 [references/genre-cues.md](references/genre-cues.md) 對應的段落。
 3. 範本在 `../novel-setup/templates/style.md`（專案裡是 `_templates/style.md`）。新檔照範本的章節順序寫；舊檔保留作者原本的章節，缺的再補。

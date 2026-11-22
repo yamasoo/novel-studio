@@ -86,18 +86,12 @@ def book_unit(book_dir):
 
 
 def set_book_lang(book_dir, value):
-    """設定書的語言：寫 book.json。舊的 .studio/lang 拿掉（免得兩邊不一致）。
-    故事核心檔已存在的話，也同步改裡面的「語言」（Claude Code 技能還會讀它；P4 改完技能再拿掉）。"""
-    from . import bookmeta, shared
+    """設定書的語言：只寫 book.json。舊的 .studio/lang 拿掉（免得兩邊不一致）。
+    故事核心 frontmatter 的 lang 是舊書留下的，只在沒有 book.json 時當後備讀，不再寫。"""
+    from . import bookmeta
     lang = normalize(value)
     bookmeta.write(book_dir, lang=lang)
     old = layout.path(book_dir, layout.STUDIO, "lang")
     if os.path.isfile(old):
         os.remove(old)
-    p = layout.path(book_dir, layout.STORY_CORE)
-    if os.path.isfile(p):
-        with open(p, encoding="utf-8") as f:
-            text = f.read()
-        if text.startswith("---"):
-            project.write_atomic(p, shared.set_fm(text, "lang", lang))
     return lang

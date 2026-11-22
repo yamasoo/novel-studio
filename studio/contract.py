@@ -28,6 +28,9 @@ STATUS_DONE = {"已回收", "已解", "回收"}
 
 
 # ---------------------------------------------------------------------------
+UNREVEALED = {"not yet", "not revealed", "unrevealed", "未開示", "未公開"}
+
+
 def _rows(text):
     """把 markdown 表格抓成 list[dict]，第一列當表頭。"""
     rows, head = [], None
@@ -127,7 +130,7 @@ def secrets(book_dir):
     for r in rows:
         revealed = (r.get("revealed_in") or "").strip()
         item = (r.get("id") or "", (r.get("what_really_happened") or "").strip(), revealed)
-        if revealed and revealed not in ("未揭示", "未"):
+        if revealed and revealed not in ("未揭示", "未") and revealed.lower() not in UNREVEALED:     # 英文、日文書的「not yet」「未開示」
             known.append(item)
         else:
             hidden.append(item)

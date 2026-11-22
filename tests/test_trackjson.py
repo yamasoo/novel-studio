@@ -178,3 +178,27 @@ class TableLanguageTest(unittest.TestCase):
             self.assertEqual("已埋", tables.read(b, "foreshadow", FS)["rows"][-1]["status"])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class EnglishModelOutputTest(unittest.TestCase):
+    """v3 P4：英文書的模型照新提示詞寫「Ch. 3」「not revealed」，回寫、續寫合約都讀得懂。"""
+
+    def test_ch_and_not_revealed(self):
+        from studio import contract
+        tmp = tempfile.mkdtemp()
+        try:
+            b = os.path.join(tmp, "b")
+            shutil.copytree(os.path.join(ROOT, "demo", "en_TheLanternRoad"), b)
+            tracking.apply_writeback(b, 3, "t", 100, {
+                "foreshadow": [{"id": "新", "content": "a key", "planted_in": "Ch. 3", "planned_payoff": "Ch. 9",
+                                "last_seen": "Ch. 3", "status": "planted", "priority": "high"}],
+                "timeline": [{"id": "新", "story_time": "dawn", "what_really_happened": "the key was swapped",
+                              "reader_knows_now": "nothing", "revealed_in": "not revealed", "related_characters": "Wren"}]})
+            fs = tables.read(b, "foreshadow", FS)["rows"][-1]
+            self.assertEqual(("第003章", "第009章", "已埋"), (fs["planted_in"], fs["planned_payoff"], fs["status"]))
+            self.assertIn("| a key | Ch. 3 | Ch. 9 | Ch. 3 | planted | high |", project.read_text(layout.path(b, FS)))
+            known, hidden = contract.secrets(b)
+            self.assertIn("the key was swapped", [x[1] for x in hidden])
+            self.assertNotIn("the key was swapped", [x[1] for x in known])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

@@ -23,6 +23,7 @@ Folder names, file names, frontmatter keys and section headings in this project 
 
 ## Step 1: preconditions (stop if any fails)
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Is there a `CLAUDE.md`? If not, ask the author to run novel-setup first.
 2. Does this chapter have a card at `outline/chapters/ch-NNNN.md`?
    - No: stop and ask whether to lay out chapter cards with novel-outline first. (If the author says "just write it", you may draft a minimal card for them to see first: the four questions, plot points, chapter-ending hook; write only after they nod.)

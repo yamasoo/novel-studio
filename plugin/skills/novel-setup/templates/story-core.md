@@ -2,7 +2,6 @@
 type: story-core
 title:
 status: draft
-lang: zh-TW
 ---
 
 # 故事核心

@@ -102,13 +102,20 @@ def read(book_dir, kind, rel):
     return out
 
 
-def md(kind, ks, rows):
-    """英文鍵的列 → Markdown 表格（表頭用檔案的中文表頭），和以前 context.table_md(中文表頭, 中文鍵的列) 逐字相同。"""
+def md(kind, ks, rows, lang=None):
+    """英文鍵的列 → 送給模型的 Markdown 表格。表頭與固定值依目前任務的語言（v3 P4）；
+    繁中和以前 context.table_md(中文表頭, 中文鍵的列) 逐字相同。"""
     if not rows:
         return ""
-    hs = [header_of(kind, k) for k in ks]
+    if lang is None:
+        from . import prompts, sections
+        lang = sections.write_lang(prompts.cur_lang())
+    hs = [label(kind, k, lang) for k in ks]
     out = ["| " + " | ".join(hs) + " |", "|" + "---|" * len(hs)]
-    out += ["| " + " | ".join(r.get(k, "") for k in ks) + " |" for r in rows]
+    if lang in _LI:
+        out += ["| " + " | ".join(display(kind, k, r.get(k, ""), lang) for k in ks) + " |" for r in rows]
+    else:
+        out += ["| " + " | ".join(r.get(k, "") for k in ks) + " |" for r in rows]
     return "\n".join(out)
 
 

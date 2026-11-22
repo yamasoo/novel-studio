@@ -205,7 +205,7 @@ Use only the descriptions and text excerpts provided. Write "{unknown}" for anyt
 # ---- API mode (tasks the studio assembles for OpenAI-compatible models) ----
 T.update({
     "writeback_schema": """Output exactly one JSON object in the format below (list only the items that changed; use empty arrays for none).
-Copy the JSON keys exactly as written. For fields with listed options (such as planted|developing|paid off|dropped), pick one of the options. Chapter references are written as 第NNN章 (e.g. 第007章). Write every free-text value in English, keeping names as they appear in the text.
+Copy the JSON keys exactly as written. For fields with listed options (such as planted|developing|paid off|dropped), pick one of the options. Chapter references are written as Ch. N (e.g. Ch. 7). Write every free-text value in English, keeping names as they appear in the text.
 {
   "summary": {"what_happened": "2-4 sentences", "situation_change": "…", "new_elements": "write none if none", "ends_on": "…"},
   "state_card": {
@@ -218,13 +218,13 @@ Copy the JSON keys exactly as written. For fields with listed options (such as p
     "active_foreshadowing": ["F001 one-line description"]
   },
   "foreshadow": [
-    {"id": "existing ID; write new for a new foreshadowing", "content": "…", "planted_in": "第NNN章", "planned_payoff": "the chapter in which you intend to pay it off, written only as 第NNN章; leave empty if not decided (chapters that merely advance or echo it do not go here)", "last_seen": "第NNN章", "status": "planted|developing|paid off|dropped", "priority": "high|medium|low"}
+    {"id": "existing ID; write new for a new foreshadowing", "content": "…", "planted_in": "Ch. N", "planned_payoff": "the chapter in which you intend to pay it off, written only as Ch. N; leave empty if not decided (chapters that merely advance or echo it do not go here)", "last_seen": "Ch. N", "status": "planted|developing|paid off|dropped", "priority": "high|medium|low"}
   ],
   "timeline": [
-    {"id": "existing ID; write new for a new event", "story_time": "…", "what_really_happened": "the author's truth: …", "reader_knows_now": "…", "revealed_in": "第NNN章, or 未揭示 if not revealed yet", "related_characters": "…"}
+    {"id": "existing ID; write new for a new event", "story_time": "…", "what_really_happened": "the author's truth: …", "reader_knows_now": "…", "revealed_in": "Ch. N, or not revealed", "related_characters": "…"}
   ],
   "reader": [
-    {"id": "existing ID; write new for a new entry", "type": "known|question|misbelief", "content": "what the reader knows / the question they are waiting to have answered / what they wrongly believe", "author_truth": "the truth or the answer (leave empty if the author has not decided)", "planted_chapter": "第NNN章", "resolved_in": "the chapter that reveals or clarifies it; leave empty if not paid off yet", "related_characters": "…"}
+    {"id": "existing ID; write new for a new entry", "type": "known|question|misbelief", "content": "what the reader knows / the question they are waiting to have answered / what they wrongly believe", "author_truth": "the truth or the answer (leave empty if the author has not decided)", "planted_chapter": "Ch. N", "resolved_in": "the chapter that reveals or clarifies it; leave empty if not paid off yet", "related_characters": "…"}
   ],
   "characters": [
     {"name": "character name", "identity": "…", "location": "…", "goal": "…", "physical_state": "…", "emotional_state": "…", "abilities_resources": "…", "relationship_changes": "…", "known_secrets": "…", "unfinished_business": "…"}
@@ -248,7 +248,7 @@ Rules:
     "review_schema": """Output exactly one JSON object:
 {"summary": "one-sentence overall conclusion", "items": [{"severity": "must fix|should fix|note", "category": "plot logic|character|emotion and relationships|physical and information state|transitions|chapter ending|setting|information boundary|prose", "quote": "the sentence from the chapter text where the problem is (copy it verbatim, 8-40 words)", "issue": "what the problem is and which setting or earlier text it rests on", "suggestion": "how exactly to fix it"}]}
 Pick severity and category from the listed options. Rules: every item needs grounds; if there is no problem give an empty array and do not pad; anything the author's style allows is not a problem; quote must be copied from the chapter text unchanged, because the studio compares it character by character; at most 15 items, ordered by severity.""",
-    "change_table_rule": "In your report, list every change in a table, in exactly this format:\n| 原句 | 為什麼改 | 改成什麼 |\n|---|---|---|\nUnder 原句 (original sentence) copy the sentence from the original text (if it is long, copy its first 12 words; it must be findable in the original); under 為什麼改 (why) give a category, for example: stock reaction, naming the theme for the reader, narrator explaining, uplifting chapter ending, stock expression, stock simile, instruction-manual dialogue, staccato sentences, too many em dashes, filler hedge, tidy triplet, punctuation; under 改成什麼 (changed to) give the new sentence, or write （刪除） if it was deleted. At most 40 rows; when there are too many of one kind, make the last row \"others of the same kind: N places\". After the table, add one or two sentences on what you deliberately kept.",
+    "change_table_rule": "In your report, list every change in a table, in exactly this format:\n| Original sentence | Why changed | Changed to |\n|---|---|---|\nUnder \"Original sentence\" copy the sentence from the original text (if it is long, copy its first 12 words; it must be findable in the original); under \"Why changed\" give a category, for example: stock reaction, naming the theme for the reader, narrator explaining, uplifting chapter ending, stock expression, stock simile, instruction-manual dialogue, staccato sentences, too many em dashes, filler hedge, tidy triplet, punctuation; under \"Changed to\" give the new sentence, or write (deleted) if it was deleted. At most 40 rows; when there are too many of one kind, make the last row \"others of the same kind: N places\". After the table, add one or two sentences on what you deliberately kept.",
     "reconcile_schema": "Output exactly one JSON object:\n{\"final_state\": [\"settled facts relevant to this chapter, one sentence each, at most 8\"], \"events\": [{\"event\": \"an event the chapter card requires (as listed)\", \"conflict\": true or false, \"realization\": \"how to write it consistently with the settled facts; if there is no conflict, one sentence on how to carry it out\"}]}\nRules: use only the material provided; a conflict means the chapter card's requirement contradicts the settled facts (state card, character state, timeline, earlier summaries, the end of the previous chapter), for example a character who is not present, an object not in hand, something the reader should not know yet, a timing mismatch. If there is no conflict, set conflict to false.",
     "file_rule": "[Output rules]\nWhen you need to create or change files, output the COMPLETE file content (not only the changed parts) in the format below, one block per file:\n<<<檔案 relative/path>>>\nthe complete content of the file (including the YAML frontmatter)\n<<<結束>>>\nTo delete a draft that has been promoted, write on a line of its own: <<<刪除 bible/drafts/filename.md>>>\n- You may only write CLAUDE.md and .md files under bible/, outline/ and samples/; separate path parts with /, counted from the book folder.\n- The block markers above and the folder names and fixed file names (bible/story-core.md, outline/chapters/ch-NNNN.md ...) stay exactly as written; files about a character, faction or place are named with their English names (bible/characters/Mara.md). Write the file content in English; follow the template format you are given and do not delete frontmatter fields.\n- The glossary (bible/glossary.md) is never rewritten as a whole. For new terms use an append block that lists only the new rows, in the same column order as the glossary, with no header row:\n<<<追加 bible/glossary.md>>>\n| Term | Category | Description | Notes |\n<<<結束>>>\nThe example above only shows the format: do not repeat the header, and do not repeat terms already in the glossary.\n- Text outside the file blocks is a plain-language report for the author: what you did, what went to drafts, what the author must decide.\n- When you need the author to answer, list the questions with numbered options (mark the recommended one) at the end of the report and end this turn.",
     "confirm_rule": "[Proposal only this round] This task needs the author's confirmation first: this round, output only the proposal and the overview and no file blocks. After the author replies with a confirmation (for example \"OK\", \"confirm\", \"write it\"), output the complete files in the next round.",
@@ -463,7 +463,7 @@ T.update({
 {"items": [
   {"type": "known|question|misbelief", "content": "what the reader believes (for question, the question the reader is asking; for misbelief, what the reader wrongly believes)",
    "author_truth": "the answer or the truth (fill it in only if the timeline's actual event says so; otherwise leave it empty and do not invent one)",
-   "planted_chapter": "第NNN章 (the chapter where the reader starts to hold this belief; leave empty if you cannot tell)",
+   "planted_chapter": "Ch. N (the chapter where the reader starts to hold this belief; leave empty if you cannot tell)",
    "resolved_in": "the chapter where it was revealed or cleared up; a planned chapter is fine too; leave empty if not decided",
    "related_characters": "…", "source": "timeline ID"}
 ]}
@@ -482,7 +482,7 @@ Write every free-text value in English.""",
     "rl_recon_schema": """Output a single JSON object only (entries that did not change need not be listed). Keep the JSON keys exactly as given:
 {"changes": [
   {"id": "R005", "action": "pay off|partial|merge",
-   "resolved_in": "when action is pay off: the chapter in which the reader learns the answer (第NNN章)",
+   "resolved_in": "when action is pay off: the chapter in which the reader learns the answer (Ch. N)",
    "content": "when action is partial: rewritten as the part the reader still does not know",
    "merge_into": "when action is merge: the ID of the entry to merge into",
    "grounds": "one sentence giving the grounds (a timeline ID or which chapter summary)"}

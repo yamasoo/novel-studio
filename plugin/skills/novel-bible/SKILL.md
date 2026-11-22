@@ -9,6 +9,7 @@ description: 管理小說設定資料庫（故事聖經）：建立與修改角�
 
 ## 開始前
 
+0. 專案若還是舊格式（有 `設定/`、`正文/` 這類中文資料夾，或 `book.json` 的 `schema_version` 小於 3），請作者先在小說工作台的書架上按「轉換」，然後停下；不要自己搬檔或改名。
 1. 讀專案的 `CLAUDE.md`。沒有 CLAUDE.md 或 `_templates/` 時，告訴作者先用 novel-setup 建專案（或檢查專案），然後停下。
 2. 需要確認路徑或格式時，讀 `_templates/project-rules.md`。
 3. 讀 [references/intake-rules.md](references/intake-rules.md)：三種來源怎麼入庫、草稿與正式的分界、衝突怎麼處理。這份規則每次都要遵守。

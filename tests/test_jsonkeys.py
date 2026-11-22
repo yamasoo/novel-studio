@@ -44,3 +44,27 @@ class ToKeysTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SchemaKeysTest(unittest.TestCase):
+    """v3 P4：三語提示詞的 JSON schema 一律英文鍵（第 6 節）；繁中與英文的鍵完全一樣。"""
+
+    def test_no_chinese_keys(self):
+        import re
+        from studio.prompts import en, ja, zh_TW
+        rx = re.compile(r'"([^"\\]{1,30})"\s*:')
+        for name, mod in (("zh_TW", zh_TW), ("en", en), ("ja", ja)):
+            for k, v in mod.T.items():
+                if isinstance(v, str) and k.endswith("_schema"):
+                    bad = [x for x in rx.findall(v) if re.search(r"[\u4e00-\u9fff\u3040-\u30ff]", x)]
+                    self.assertEqual([], bad, "%s.%s" % (name, k))
+
+    def test_zh_keys_match_en(self):
+        import re
+        from studio.prompts import en, zh_TW
+        rx = re.compile(r'\{"([a-z_]+)"|, "([a-z_]+)"\s*:|\n\s*"([a-z_]+)"\s*:')
+        for k, v in zh_TW.T.items():
+            if isinstance(v, str) and k.endswith("_schema") and k in en.T:
+                zk = {x for t in rx.findall(v) for x in t if x}
+                ek = {x for t in rx.findall(en.T[k]) for x in t if x}
+                self.assertEqual(ek, zk, k)

@@ -248,7 +248,7 @@ _PARTIAL = (r"只知道|不知道|未知|尚未|還沒|以為|誤會|誤認|懷�
             r"|(?i:only knows|does not know|doesn't know|unaware|unknown|not yet|believes|mistakenly|suspects|unclear|unsure|guess|partial)"
             r"|知らない|まだ|誤解|疑って|不明|一部")
 _UNREVEALED = ("未揭示", "未知", "不知道", "尚未", "還不知道", "無", "-", "—", "－", "？", "?",
-               "unrevealed", "unknown", "not yet", "none", "n/a", "N/A", "未公開", "不明", "なし")
+               "unrevealed", "unknown", "not yet", "not revealed", "none", "n/a", "N/A", "未公開", "未開示", "不明", "なし")
 
 
 def _nums(s):

@@ -9,6 +9,7 @@ description: 建立繁體中文小說寫作專案：開書訪談、建資料夾�
 
 ## 開始前
 
+0. 專案若還是舊格式（有 `設定/`、`正文/` 這類中文資料夾，或 `book.json` 的 `schema_version` 小於 3），請作者先在小說工作台的書架上按「轉換」，然後停下；不要自己搬檔或改名。
 1. 完整讀 [references/project-layout.md](references/project-layout.md)，這是資料夾結構與檔案格式的唯一規範。
 2. 看目前所在資料夾：
    - **已經有 CLAUDE.md 且像小說專案** → 不重建。改走下方「檢查既有專案」。
@@ -30,6 +31,7 @@ description: 建立繁體中文小說寫作專案：開書訪談、建資料夾�
   - `bible/story-core.md`、`bible/style.md`、`bible/author-prefs.md`、`bible/glossary.md`
   - `outline/book.md`
   - `tracking/state-card.md`、`tracking/foreshadowing.md`、`tracking/timeline.md`
+- 在專案根目錄建立 `book.json`（書的身分證，工作台靠它判斷語言與格式版本）：`{"schema_version": 3, "title": "書名", "lang": "zh-TW", "created": "YYYY-MM-DD"}`。
 - 建立空資料夾：`bible/world/`、`bible/characters/`、`bible/factions/`、`bible/drafts/`、`outline/chapters/`、`manuscript/`、`candidates/`、`tracking/characters/`、`tracking/summaries/`、`samples/`。空資料夾放一個 `.gitkeep`。
 
 ### 步驟 3：填入訪談結果

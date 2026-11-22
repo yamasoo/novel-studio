@@ -316,6 +316,23 @@ def check_readme():
 # ---------------------------------------------------------------------------
 # 5. 介面翻譯覆蓋率
 # ---------------------------------------------------------------------------
+_SRC_BLOB = None
+
+
+def _src_blob():
+    """前後端原始碼全文：語言檔裡的鍵若還出現在程式字串裡（例如表格欄名、kit 的介面字），就不算失效。"""
+    global _SRC_BLOB
+    if _SRC_BLOB is None:
+        import glob
+        pats = ("app.py", "studio/*.py", "static/*.js", "static/index.html", "vendor/fekit/fe/*.js", "vendor/fekit/py/**/*.py")
+        parts = []
+        for pat in pats:
+            for p in glob.glob(os.path.join(ROOT, pat), recursive=True):
+                parts.append(read(p))
+        _SRC_BLOB = "\n".join(parts)
+    return _SRC_BLOB
+
+
 def check_locales():
     inv_path = os.path.join(ROOT, "tools", "i18n_keys.json")
     if not os.path.isfile(inv_path):
@@ -331,7 +348,7 @@ def check_locales():
         d = json.loads(read(p))
         d = {x: y for x, y in d.items() if not x.startswith("_")}
         miss = sorted(inv - set(d))
-        stale = sorted(set(d) - inv)
+        stale = sorted(x for x in set(d) - inv if x not in _src_blob())   # 程式裡還有這段字（執行期顯示的資料標籤）不算失效
         empty = [x for x in inv & set(d) if isinstance(d[x], str) and not d[x].strip() and len(x.strip()) > 4]
         pathlike = [x for x in miss if "/" in x or x.endswith(".md")]
         real = [x for x in miss if x not in pathlike]

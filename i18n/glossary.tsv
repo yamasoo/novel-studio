@@ -15,7 +15,7 @@ zh	en	ja	禁用譯法	備註
 角色	Characters	キャラクター	en:personas	介面清單標題用複數；單數人物在句中用 character
 角色狀態	Character states	キャラ状態	en:character status	介面與提示詞沿用「キャラ状態」，不要寫成 キャラクターの状態
 章綱	Chapter cards	章カード	en:chapter outlines; ja:章のあらすじ	章節級大綱＝章カード；「章のあらすじ」是本專案給「章節摘要」的譯法，別混用
-卷綱	Volume outline	巻のあらすじ	en:volume summary; ja:巻アウトライン	卷級大綱
+卷綱	Volume outline	巻プロット	en:volume summary; ja:巻アウトライン|巻のあらすじ	卷級大綱；ja 改用巻プロット（提示詞、介面、段落標題都用這個；「あらすじ」留給章節摘要）
 全書大綱	Book outline	全体あらすじ	en:full outline; ja:全書アウトライン	整本書的大綱
 大綱	Outline	あらすじ	ja:アウトライン	泛指「大綱」這個資料夾
 伏筆	Threads	伏線	en:hooks; ja:伏線一覧	程式與介面一律用 Threads；說明文裡的 foreshadowing 是普通英文，不算術語

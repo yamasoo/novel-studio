@@ -70,8 +70,8 @@ Output: `outline/book.md` (≥ 500 characters).
 
 The **volume card** at the top of the Outline page → "New volume" → fill the volume number and its **chapter range** (this range is what decides "which chapters belong to this volume"; 20 chapters is fine to start, it can change later).
 
-1. What you get is a **draft**: `outline/drafts/卷綱_第1卷.md`, editable by hand
-2. Happy with it, press "**Adopt**": it becomes the real outline `outline/卷綱_第1卷.md`, status "confirmed", and is appended to `outline/book.md`
+1. What you get is a **draft**: `outline/drafts/vol-01.md`, editable by hand
+2. Happy with it, press "**Adopt**": it becomes the real outline `outline/volumes/vol-01.md`, status "confirmed", and is appended to `outline/book.md`
 3. The "volume contract" inside is this volume's promise to the reader and is injected first when writing
 
 **If it gets stuck:** the real outline is only written by "Adopt" or "Apply revision". If the volume card is missing, the book usually has no `outline/book.md` yet.
@@ -168,7 +168,7 @@ The last volume gets the same end-of-volume check and settings backfill, which l
 | Content | Location |
 |---|---|
 | Whole-book outline | `outline/book.md` |
-| Volume outline | `outline/卷綱_第N卷.md` (drafts in `outline/drafts/`) |
+| Volume outline | `outline/volumes/vol-NN.md` (drafts in `outline/drafts/`) |
 | Chapter cards | `outline/chapters/ch-NNNN.md` |
 | Manuscript | `manuscript/ch-NNNN.md` |
 | Candidate drafts | `candidates/` |

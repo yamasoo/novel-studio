@@ -58,11 +58,11 @@ class ReverseApiTest(unittest.TestCase):
         self.book_id = "測試書"
         self.book = os.path.join(self.lib, self.book_id)
         _write(self.book, "outline/book.md", OLD_OUTLINE)
-        _write(self.book, "outline/卷綱_第1卷.md", OLD_VOL)
+        _write(self.book, "outline/volumes/vol-01.md", OLD_VOL)
         _write(self.book, "outline/chapters/ch-0001.md", OLD_CARD)
         _write(self.book, "manuscript/ch-0001.md", "# 第1章 大夜班\n\n第一章正文。\n")
         _write(self.book, ".studio/reverse/drafts/outline/book.md", NEW_OUTLINE)
-        _write(self.book, ".studio/reverse/drafts/outline/卷綱_第一卷.md", NEW_VOL)
+        _write(self.book, ".studio/reverse/drafts/outline/volumes/vol-01.md", NEW_VOL)
         _write(self.book, ".studio/reverse/drafts/outline/chapters/ch-0001.md", NEW_CARD)
         _write(self.book, "outline/chapters/_reverse/ch-0002.md", NEW_CARD.replace("大夜班", "兩邊"))
 
@@ -90,7 +90,7 @@ class ReverseApiTest(unittest.TestCase):
         self.assertTrue(outline["exists"])
         self.assertEqual("keep", outline["default_mode"])
         self.assertLess(outline["similarity"], 1.0)
-        self.assertEqual("outline/卷綱_第1卷.md", plan["outline/卷綱_第一卷.md"]["target"])
+        self.assertEqual("outline/volumes/vol-01.md", plan["outline/volumes/vol-01.md"]["target"])
         chapter = drafts["cards"][0]
         self.assertEqual("copy", chapter["default_mode"])
         self.assertEqual("outline/chapters/_reverse/ch-0001.md", chapter["target"])
@@ -120,7 +120,7 @@ class ReverseApiTest(unittest.TestCase):
 
     def test_adopt_route_honours_mode_and_files(self):
         r = self.client.post(self.url("/reverse/adopt"), headers=self.headers,
-                             json={"group": "大綱", "mode": "keep", "files": ["outline/book.md", "outline/卷綱_第一卷.md"]})
+                             json={"group": "大綱", "mode": "keep", "files": ["outline/book.md", "outline/volumes/vol-01.md"]})
         self.assertEqual(200, r.status_code, r.text)
         self.assertEqual(2, r.json()["kept"])
         self.assertEqual(0, r.json()["adopted"])

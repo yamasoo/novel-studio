@@ -20,7 +20,7 @@ This specification is the common foundation of the whole novel-* skill set. nove
 │   └── drafts/                unconfirmed settings (AI-generated, extracted from conversation); moved to the official folders once confirmed
 ├── outline/                   ← plans: what has not yet happened
 │   ├── book.md
-│   ├── 卷綱_第一卷.md
+│   ├── volumes/vol-01.md      one file per volume: volume contract and plot units
 │   └── chapters/ch-0001.md    one file per chapter
 ├── manuscript/
 │   └── ch-0001.md

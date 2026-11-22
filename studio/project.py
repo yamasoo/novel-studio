@@ -609,43 +609,29 @@ def _single(book_dir, rel, name):
     return {"file": rel, "name": name, "mtime": os.path.getmtime(p)}
 
 
-CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
-
-
-def _vol_order(name):
-    """卷綱的排序鍵：抽「第X卷」的數字（中文或阿拉伯都可以）。"""
-    m = re.search(r"第([0-9]+|[一二三四五六七八九十]+)卷", name)
-    if not m:
-        return 99
-    tok = m.group(1)
-    if tok.isdigit():
-        return int(tok)
-    if "十" in tok:
-        left, _, right = tok.partition("十")
-        return (CN_NUM.get(left, 1) if left else 1) * 10 + (CN_NUM.get(right, 0) if right else 0)
-    return CN_NUM.get(tok, 99)
-
-
 def outline_files(book_dir):
-    """大綱檔清單：全書大綱最前，卷綱依「第一卷、第二卷、第三卷」排序。
+    """大綱檔清單：全書大綱最前，接著 `outline/volumes/` 的卷綱依卷號排序，最後是 `outline/` 裡其他的檔。
 
     以前直接用檔名排序，中文字會排成「一、三、二」（碼位順序），看起來像亂的。
     """
-    d = layout.path(book_dir, layout.OUTLINE)
+    from . import volume
     rows = []
-    if os.path.isdir(d):
+    for sub in (layout.OUTLINE, layout.VOLUMES_SUBDIR):
+        d = layout.path(book_dir, sub)
+        if not os.path.isdir(d):
+            continue
         for f in os.listdir(d):
             if not f.endswith(".md"):
                 continue
             name = os.path.splitext(f)[0]
-            if layout.OUTLINE + "/" + f == layout.BOOK_OUTLINE:
+            if sub + "/" + f == layout.BOOK_OUTLINE:
                 key = (0, 0)
                 name = "全書大綱"   # literal-ok: 顯示名稱（v3 檔名是 book.md），介面文字在 P5 處理
-            elif name.startswith("卷綱"):
-                key = (1, _vol_order(name))
+            elif sub == layout.VOLUMES_SUBDIR:
+                key = (1, volume._num_from_name(f) or 99)       # vol-01、vol-02…；作者自己取名的照「第N卷」
             else:
                 key = (2, 0)
-            rows.append((key, {"file": layout.OUTLINE + "/" + f, "name": name}))
+            rows.append((key, {"file": sub + "/" + f, "name": name}))
     rows.sort(key=lambda x: (x[0], x[1]["name"]))
     return [r[1] for r in rows]
 

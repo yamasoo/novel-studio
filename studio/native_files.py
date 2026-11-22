@@ -434,16 +434,17 @@ def spec_master_outline(c, p):
 
 def spec_volume_outline(c, p):
     v = (p.get("volume") or "一").strip()
+    f = layout.volume_file(volume.no_of(v, 1))
     pk = context.Pack(c.budget(int(c.prov.get("max_output") or 8192)))
     pk.add(0, "長篇結構與節奏", ref(c, "novel-outline/references/structure.md"))
     pk.add(0, "全書大綱", context.body(context.read(c.book, layout.BOOK_OUTLINE)))
     pk.add(1, "卷綱範本", tpl(c, layout.TPL_VOLUME_OUTLINE))
-    pk.add(1, "目前的 outline/卷綱_第%s卷.md" % v, context.body(context.read(c.book, layout.volume_file(v))))
+    pk.add(1, "目前的 %s" % f, context.body(context.read(c.book, f)))
     pk.add(2, "其他卷綱", outline_files_text(c))
     pk.add(2, "伏筆總表", context.body(context.read(c.book, layout.FORESHADOWING)))
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
-    task = prompts.cur()["task_volume_outline"].format(v=v, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
+    task = prompts.cur()["task_volume_outline"].format(v=v, file=f, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
     return "第%s卷卷綱" % v, task, pk, True
 
 
@@ -501,7 +502,7 @@ def spec_volume_draft(c, p):
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_volume_draft"].format(
-        v=v, a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
+        v=v, a=a, b=b, file=layout.volume_file(volume.no_of(v, 1), base=layout.VOLUME_DRAFTS), note=prompts.cur()["note_line_files"].format(note=note) if note else "")
     return "第%s卷卷綱草稿" % v, task + "\n\n" + prompts.cur()["contract_rule"], pk, True
 
 
@@ -529,7 +530,7 @@ def spec_volume_revise(c, p):
     add_book_core(pk, c)
     note = (p.get("note") or "").strip()
     task = prompts.cur()["task_volume_revise"].format(
-        v=no, a=a, b=b, note=prompts.cur()["note_line_files"].format(note=note) if note else "")
+        v=no, a=a, b=b, file=layout.volume_revision_file(no), note=prompts.cur()["note_line_files"].format(note=note) if note else "")
     return "修訂第%d卷卷綱" % no, task, pk, True
 
 

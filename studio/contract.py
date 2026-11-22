@@ -216,10 +216,10 @@ def build(book_dir, keep=""):
         if volume.has_volumes(book_dir):
             last = max([v["hi"] for v in volume.list_volumes(book_dir) if v["hi"]] or [0])
             L.append("- 第 %d 章不在任何卷綱的章節範圍內（現有卷綱只到第 %d 章）；"
-                     "先補對應的 `outline/卷綱_第N卷.md`，續寫才對得上整卷走向（見 `docs/卷先行.md`）。"
+                     "先補對應的 `outline/volumes/vol-NN.md`，續寫才對得上整卷走向（見 `docs/卷先行.md`）。"
                      % (no + 1, last))
         else:
-            L.append("- 還沒有卷綱；先寫 `outline/卷綱_第N卷.md`，續寫才對得上整卷走向。")
+            L.append("- 還沒有卷綱；先寫 `outline/volumes/vol-NN.md`，續寫才對得上整卷走向。")
     L += ["", "## 5. 禁區", ""]
     L.append("- 作者的硬性偏好（`bible/author-prefs.md`）與本書規則（`CLAUDE.md`）優先於任何寫作技法；違反就重寫。")
     if prefs:

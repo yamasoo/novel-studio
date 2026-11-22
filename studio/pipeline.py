@@ -120,7 +120,7 @@ class Pipeline:
             missing = volume.cover(book_dir, start, end)
             if missing:
                 raise PipelineError(
-                    "%s不在任何卷綱的章節範圍內；先補對應的 outline/卷綱_第N卷.md 再開流程"
+                    "%s不在任何卷綱的章節範圍內；先補對應的 outline/volumes/vol-NN.md 再開流程"
                     "（見 docs/卷先行.md）。" % volume.brief(missing))
             # 卷先行（第二段）：章綱要先排好，不然還是一章一章臨場接
             no_card = [n for n in range(int(start), int(end) + 1) if not context.card_text(book_dir, n)[1]]

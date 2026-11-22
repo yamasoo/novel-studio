@@ -3,6 +3,7 @@
 標題一律用中文（介面靠 i18n 翻譯）；提示詞依書的語言取自 studio/prompts/。"""
 from . import prompts
 from . import layout
+from . import volume
 
 
 def _r(a, b):
@@ -170,10 +171,12 @@ def build(action, p, book_name, lang="zh-TW"):
     if action == "volume_draft":
         v = str(p.get("volume") or "一").strip()
         a, b = _r(p.get("from") or 1, p.get("to"))
-        return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, extra=extra))
+        f = layout.volume_file(volume.no_of(v, 1), base=layout.VOLUME_DRAFTS)
+        return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, file=f, extra=extra))
     if action == "volume_revise":
         v = str(p.get("volume") or "").strip()
-        return ("修訂第%s卷卷綱" % v, tpl("volume_revise", v=v, extra=extra))
+        f = layout.volume_revision_file(volume.no_of(v, 1))
+        return ("修訂第%s卷卷綱" % v, tpl("volume_revise", v=v, file=f, extra=extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
         if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入

@@ -18,7 +18,7 @@
 │   └── drafts/                尚未確認的設定（AI 生成、對話萃取），確認後才移進正式資料夾
 ├── outline/                   ← 計畫：還沒發生的事
 │   ├── book.md
-│   ├── 卷綱_第一卷.md
+│   ├── volumes/vol-01.md      一卷一檔：卷契約與劇情單元
 │   └── chapters/ch-0001.md    一章一檔
 ├── manuscript/
 │   └── ch-0001.md

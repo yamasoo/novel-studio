@@ -70,8 +70,8 @@
 
 大綱頁上方的**卷況卡** →「開新卷」→ 填卷號與**章節範圍**（這個範圍之後決定「哪幾章算這一卷」，先填 20 章也行，之後可以改）。
 
-1. 產生的是**草稿** `outline/drafts/卷綱_第1卷.md`，可以直接編輯
-2. 看過按「**採用**」→ 搬成正式卷綱 `outline/卷綱_第1卷.md`、狀態改「已確認」，並自動把這一卷補進 `outline/book.md`
+1. 產生的是**草稿** `outline/drafts/vol-01.md`，可以直接編輯
+2. 看過按「**採用**」→ 搬成正式卷綱 `outline/volumes/vol-01.md`、狀態改「已確認」，並自動把這一卷補進 `outline/book.md`
 3. 卷綱裡的「卷契約」＝這一卷對讀者的承諾，續寫時優先注入
 
 **卡住時**：正式卷綱只會由「採用」或「套用修訂」寫入；卷況卡沒出現，通常是這本書連 `outline/book.md` 都還沒有。
@@ -168,7 +168,7 @@
 | 內容 | 位置 |
 |---|---|
 | 全書大綱 | `outline/book.md` |
-| 卷綱 | `outline/卷綱_第N卷.md`（草稿在 `outline/drafts/`） |
+| 卷綱 | `outline/volumes/vol-NN.md`（草稿在 `outline/drafts/`） |
 | 章綱 | `outline/chapters/ch-NNNN.md` |
 | 正文 | `manuscript/ch-NNNN.md` |
 | 候選稿 | `candidates/` |

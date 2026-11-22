@@ -812,13 +812,9 @@ CHAPTER_DRAFT_DIR = layout.REVERSE_CARDS
 
 
 def _canon_rel(group, rel):
-    """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 outline/chapters/_reverse/。"""
+    """草稿要落到哪個正式路徑：章綱一律落 outline/chapters/_reverse/；卷綱草稿本來就用正式檔名（vol-01.md）。"""
     if group == "cards":
         return "%s/%s" % (CHAPTER_DRAFT_DIR, os.path.basename(rel))
-    if group == "outline" and rel.startswith(layout.OUTLINE + "/" + layout.VOLUME_PREFIX):
-        no = project._vol_order(os.path.basename(rel))
-        if no != 99:
-            return layout.volume_file(int(no))
     return rel
 
 

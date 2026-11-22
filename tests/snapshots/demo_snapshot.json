@@ -297,7 +297,7 @@
       "summary": "The official map authority of the Marches, which has quietly struck one road fro"
      }
     ],
-    "today": "2026-11-20"
+    "today": "<volatile>"
    },
    "status": 200
   },
@@ -489,8 +489,8 @@
      "name": "全書大綱"
     },
     {
-     "file": "outline/卷綱_第一卷.md",
-     "name": "卷綱_第一卷"
+     "file": "outline/volumes/vol-01.md",
+     "name": "vol-01"
     }
    ],
    "status": 200
@@ -613,7 +613,7 @@
      "next_no": 3,
      "no": 1,
      "planned": 5,
-     "rel": "outline/卷綱_第一卷.md",
+     "rel": "outline/volumes/vol-01.md",
      "total": 30,
      "written": 2
     },
@@ -1392,7 +1392,7 @@
       "lo": 1,
       "name": "The Erased Road",
       "no": 1,
-      "rel": "outline/卷綱_第一卷.md",
+      "rel": "outline/volumes/vol-01.md",
       "status": "已確認"
      }
     ]
@@ -2298,7 +2298,7 @@
       "summary": "王国の薬を一手に管理する機関で、竜の血を使った秘薬を隠している。"
      }
     ],
-    "today": "2026-11-20"
+    "today": "<volatile>"
    },
    "status": 200
   },
@@ -2490,8 +2490,8 @@
      "name": "全書大綱"
     },
     {
-     "file": "outline/卷綱_第一卷.md",
-     "name": "卷綱_第一卷"
+     "file": "outline/volumes/vol-01.md",
+     "name": "vol-01"
     }
    ],
    "status": 200
@@ -2614,7 +2614,7 @@
      "next_no": 3,
      "no": 1,
      "planned": 5,
-     "rel": "outline/卷綱_第一卷.md",
+     "rel": "outline/volumes/vol-01.md",
      "total": 30,
      "written": 2
     },
@@ -3366,7 +3366,7 @@
       "lo": 1,
       "name": "三つの薬草",
       "no": 1,
-      "rel": "outline/卷綱_第一卷.md",
+      "rel": "outline/volumes/vol-01.md",
       "status": "已確認"
      }
     ]
@@ -3602,7 +3602,7 @@
       "summary": "青州最大的鹽商，三年前吞下了林家的鹽引。"
      }
     ],
-    "today": "2026-11-20"
+    "today": "<volatile>"
    },
    "status": 200
   },
@@ -3794,8 +3794,8 @@
      "name": "全書大綱"
     },
     {
-     "file": "outline/卷綱_第一卷.md",
-     "name": "卷綱_第一卷"
+     "file": "outline/volumes/vol-01.md",
+     "name": "vol-01"
     }
    ],
    "status": 200
@@ -3918,7 +3918,7 @@
      "next_no": 3,
      "no": 1,
      "planned": 5,
-     "rel": "outline/卷綱_第一卷.md",
+     "rel": "outline/volumes/vol-01.md",
      "total": 30,
      "written": 2
     },
@@ -4671,7 +4671,7 @@
       "lo": 1,
       "name": "舊帳",
       "no": 1,
-      "rel": "outline/卷綱_第一卷.md",
+      "rel": "outline/volumes/vol-01.md",
       "status": "已確認"
      }
     ]

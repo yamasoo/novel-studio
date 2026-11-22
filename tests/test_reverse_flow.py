@@ -302,7 +302,7 @@ class ReverseFlowTest(unittest.TestCase):
             for step in ("chars", "world", "arc", "book", "state", "cls", "fac", "topic", "own"):
                 self.assertIn(step, got[k]["steps"], (k, step))
             self.assertTrue(any(p.startswith(layout.CHARACTER_STATES + "/") for p in d), k)
-            self.assertTrue(any("第2卷" in p for p in d), (k, sorted(d)))
+            self.assertTrue(any(p.endswith("vol-02.md") for p in d), (k, sorted(d)))
         zd = got["zh"]["drafts"]
         fs = next(v for p, v in zd.items() if p == layout.FORESHADOWING)
         self.assertIn("已回收", fs)

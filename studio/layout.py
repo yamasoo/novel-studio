@@ -4,7 +4,7 @@
 v3 結構英文化（見專案文件「15_v3結構英文化規格」）：
 程式其他地方不寫 "bible/style.md" 這類字串，一律引用這裡的常數。
 P3 第二批起，資料夾與系統檔名是英文（v2 的中文名稱對照在 studio/migrate.py，移轉工具靠它認舊書）。
-還沒換的：範本檔名（TPL_*）、卷綱與章節的檔名規則（第三、七批）。
+還沒換的：範本檔名（TPL_*，第七批）。
 
 慣例
 - 常數一律是書資料夾底下的相對路徑，用 "/" 分隔（跟 project.rel_of 回傳的格式一致）。
@@ -57,7 +57,7 @@ BOOK_STRUCTURE = BIBLE_STRUCTURE + "/structure.md"
 CHAPTER_CARDS = OUTLINE + "/chapters"
 REVERSE_CARDS = CHAPTER_CARDS + "/_reverse"
 VOLUME_DRAFTS = OUTLINE + "/drafts"
-VOLUMES_SUBDIR = OUTLINE + "/volumes"          # spawn 建書時卷綱放這層（卷綱檔名規則在 P3 第三批統一）
+VOLUMES_SUBDIR = OUTLINE + "/volumes"          # 正式卷綱都放這層：vol-01.md（作者自己加的「幕」是 act-01.md）
 BOOK_OUTLINE = OUTLINE + "/book.md"
 
 # ---------------------------------------------------------------------------
@@ -152,17 +152,18 @@ SHARED_PREFS = "author-prefs.md"    # _shared/ 底下的共用作者偏好
 # ---------------------------------------------------------------------------
 # 檔名規則（使用者內容的名稱由呼叫端給；這裡只管格式）
 # ---------------------------------------------------------------------------
-VOLUME_PREFIX = "卷綱_第"                     # 正式卷綱檔名的開頭（掃描、比對用）
-VOLUME_ONE_ALIASES = (OUTLINE + "/卷綱_第1卷.md", OUTLINE + "/卷一卷綱.md", OUTLINE + "/卷綱_第一卷.md")
-SPAWN_VOLUME_ONE = VOLUMES_SUBDIR + "/卷綱_第一卷.md"
+VOLUME_STEM = "vol-%02d"                      # 卷綱：vol-01（卷號 2 位數，100 卷以上自然變 3 位）
+ACT_STEM = "act-%02d"                         # 「幕」：act-01（一卷裡再分的段落；卷末承諾以卷為準）
+VOLUME_REVISION_SUFFIX = ".revision.md"       # 既有卷的修訂草稿：outline/drafts/vol-01.revision.md
+VOLUME_UPDATE_PREFIX = "volume-update_"       # 卷末體檢的卷綱更新草稿：outline/drafts/volume-update_ch-0001-0060.md
+OUTLINE_VOLUME_ONE = VOLUMES_SUBDIR + "/" + VOLUME_STEM % 1 + ".md"      # 第一卷（開新書、spawn、設定流程用）
 
 # 建書時「活檔」的範本：目的地 → 範本檔名（v3 起兩邊的檔名不一樣，不能再用同名對應）
 LIVE_TEMPLATES = {
     STORY_CORE: TPL_STORY_CORE, STYLE: TPL_STYLE, AUTHOR_PREFS: TPL_AUTHOR_PREFS, GLOSSARY: TPL_GLOSSARY,
     BOOK_OUTLINE: TPL_BOOK_OUTLINE, STATE_CARD: TPL_STATE_CARD, FORESHADOWING: TPL_FORESHADOWING, TIMELINE: TPL_TIMELINE,
-    READER_KNOWLEDGE: TPL_READER_KNOWLEDGE, RELATIONS: TPL_RELATIONS, SPAWN_VOLUME_ONE: TPL_VOLUME_OUTLINE,
+    READER_KNOWLEDGE: TPL_READER_KNOWLEDGE, RELATIONS: TPL_RELATIONS, OUTLINE_VOLUME_ONE: TPL_VOLUME_OUTLINE,
 }
-VOLUME_REVISION_PREFIX = "卷綱修訂"
 
 
 CHAPTER_STEM = "ch-%04d"     # 逐章檔案的名稱：ch-0001（章號 4 位數；章名不放檔名，見 project.chapter_title）
@@ -201,18 +202,23 @@ def revision_backup_file(no, stamp):
     return "revision_%s.%d.json" % (chapter_stem(no), int(stamp))
 
 
-def volume_file(no, base=OUTLINE):
-    """卷綱：大綱/卷綱_第1卷.md（base 可換成草稿資料夾）"""
-    return "%s/%s%s卷.md" % (base, VOLUME_PREFIX, no)
+def volume_stem(no):
+    return VOLUME_STEM % int(no)
+
+
+def volume_file(no, base=VOLUMES_SUBDIR):
+    """卷綱：outline/volumes/vol-01.md（base 可換成草稿資料夾：outline/drafts/vol-01.md）"""
+    return "%s/%s.md" % (base, volume_stem(no))
 
 
 def volume_revision_file(no, base=VOLUME_DRAFTS):
-    return "%s/%s_第%d卷.md" % (base, VOLUME_REVISION_PREFIX, int(no))
+    """既有卷的修訂草稿：outline/drafts/vol-01.revision.md"""
+    return "%s/%s%s" % (base, volume_stem(no), VOLUME_REVISION_SUFFIX)
 
 
 def volume_update_draft(a, b):
-    """卷綱更新草稿：大綱/草稿/卷綱更新_第1-60章.md"""
-    return VOLUME_DRAFTS + "/卷綱更新_第%d-%d章.md" % (int(a), int(b))
+    """卷末體檢的卷綱更新草稿：outline/drafts/volume-update_ch-0001-0060.md"""
+    return VOLUME_DRAFTS + "/%sch-%04d-%04d.md" % (VOLUME_UPDATE_PREFIX, int(a), int(b))
 
 
 def entry(folder, name):

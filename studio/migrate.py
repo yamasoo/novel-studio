@@ -13,7 +13,7 @@ import unicodedata
 import shutil
 import zipfile
 
-from . import bookmeta, context, layout, project
+from . import bookmeta, context, layout, project, volume
 
 SKIP_DIRS = (".git",)                       # 不備份、不還原（作者自己的版本控制）
 
@@ -215,6 +215,7 @@ def stats(book_dir, view=None):
         "讀者認知": n_rows("READER_KNOWLEDGE"),
         "角色關係": n_rows("RELATIONS"),
         "名詞表": n_rows("GLOSSARY"),
+        "卷綱": len(_volume_files(book_dir, L)),
     }
 
 
@@ -296,7 +297,7 @@ def needs_migration(book_dir):
     """要先轉換的舊書：還有 v2 的資料夾，或逐章資料夾裡還有舊檔名（第001章_…）。
     只看資料夾與檔名（書架每次都會問，不能讀檔）。"""
     return rename_enabled() and (any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
-                                 or _old_chapter_files(book_dir) or _docs_needed(book_dir))
+                                 or _old_chapter_files(book_dir) or _old_volume_files(book_dir) or _docs_needed(book_dir))
 
 
 def library_needs_migration(library):
@@ -468,8 +469,11 @@ def _ch_moves(book_dir):
 
 
 def map_v3(rel):
-    """v2 路徑 → 完整的 v3 路徑（資料夾名稱＋逐章檔名）。給測試與快照比對用；實際搬檔時撞名會另加 .v2。"""
+    """v2 路徑 → 完整的 v3 路徑（資料夾名稱＋逐章檔名＋卷綱檔名）。給測試與快照比對用；實際搬檔時撞名會另加 .v2。"""
     rel = map_rel(rel)
+    vol = _vol_target(rel)
+    if vol:
+        return vol
     if not _ch_scope(rel):
         return rel
     parts = rel.split("/")
@@ -521,12 +525,21 @@ def _chapters_apply(book_dir):
         os.renames(src, os.path.join(book_dir, *new.split("/")))
     if headed:
         out.append("章名原本只在檔名裡，已在正文第一行補上標題：%s" % "、".join(headed))
-    # 紀錄檔裡指向舊檔名的路徑
-    rel_map = {old: new for old, new, _ in moves}
+    fixed = _fix_json_refs(book_dir, [(old, new) for old, new, _ in moves])
+    if fixed:
+        out.append("改寫紀錄檔裡的路徑：%d 個檔" % fixed)
+    return out
+
+
+def _fix_json_refs(book_dir, moves, dirs=True):
+    """搬過的檔：紀錄檔（.json）裡指向舊位置的路徑改成新位置。回傳改了幾個檔。
+    dirs：資料夾本身也改了名（逐章資料夾），底下其他路徑跟著換；只搬檔案時不要開。"""
+    import json
+    rel_map = dict(moves)
     dir_map = {}
-    for old, new, _ in moves:
+    for old, new in moves:
         od, nd = os.path.dirname(old), os.path.dirname(new)
-        if od != nd:
+        if dirs and od != nd:
             dir_map[od] = nd
 
     def fix(v):
@@ -553,6 +566,118 @@ def _chapters_apply(book_dir):
             if new != data:
                 project.write_atomic(full, json.dumps(new, ensure_ascii=False, indent=1) + "\n")
                 fixed += 1
+    return fixed
+
+
+# --- 卷綱檔名換成 vol-01（正式卷綱一律放 outline/volumes/） ---------------------------
+_VOL_NUM = r"([〇零一二兩三四五六七八九十百\d]+)"
+_OLD_VOL = re.compile(r"^卷綱_第" + _VOL_NUM + r"([卷幕])(.*)\.md$")           # 卷綱_第1卷.md、卷綱_第一卷.md、卷綱_第二幕.md
+_OLD_VOL_ALT = re.compile(r"^卷" + _VOL_NUM + r"卷綱\.md$")                     # 卷一卷綱.md（早期的寫法）
+_OLD_VOL_REV = re.compile(r"^卷綱修訂_第" + _VOL_NUM + r"卷\.md$")              # 修訂草稿
+_OLD_VOL_UPD = re.compile(r"^卷綱更新_第0*(\d+)-0*(\d+)章\.md$")               # 卷末體檢的卷綱更新草稿
+
+
+def _is_old_volume(name):
+    return name.endswith(".md") and (name.startswith("卷綱") or bool(_OLD_VOL_ALT.match(name)))
+
+
+def _volume_files(book_dir, view):
+    """正式卷綱的檔：outline/ 第一層的舊式卷綱，加上 outline/volumes/ 裡全部（統計用，哪一版的資料夾都能數）。"""
+    out = []
+    for sub, every in ((view["OUTLINE"], False), (view["VOLUMES_SUBDIR"], True)):
+        d = os.path.join(book_dir, *sub.split("/"))
+        if os.path.isdir(d):
+            out += [sub + "/" + f for f in sorted(os.listdir(d))
+                    if os.path.isfile(os.path.join(d, f)) and (f.endswith(".md") if every else _is_old_volume(f))]
+    return out
+
+
+def _vol_name(name, draft=False):
+    """舊卷綱檔名 → 新檔名；認不出卷號的回 None（照原名搬）。"""
+    m = _OLD_VOL_UPD.match(name)
+    if m and draft:
+        return layout.VOLUME_UPDATE_PREFIX + "ch-%04d-%04d.md" % (int(m.group(1)), int(m.group(2)))
+    m = _OLD_VOL_REV.match(name)
+    if m and draft:
+        no = volume.no_of("第%s卷" % m.group(1))       # literal-ok: 舊檔名的卷號寫法
+        return layout.volume_stem(no) + layout.VOLUME_REVISION_SUFFIX if no else None
+    m = _OLD_VOL.match(name)
+    if m:
+        no = volume.no_of("第%s卷" % m.group(1))       # literal-ok: 舊檔名的卷號寫法
+        stem = (layout.ACT_STEM if m.group(2) == "幕" else layout.VOLUME_STEM) % no if no else None
+        return stem + m.group(3) + ".md" if stem else None
+    m = _OLD_VOL_ALT.match(name)
+    if m:
+        no = volume.no_of(m.group(1))
+        return layout.volume_stem(no) + ".md" if no else None
+    return None
+
+
+def _vol_target(rel):
+    """這個檔要搬去哪；不是舊卷綱回 None。反推草稿資料夾裡的大綱也一樣處理。"""
+    v3 = v3_view()
+    rel = map_rel(rel)
+    pre = _REV_DRAFTS if rel.startswith(_REV_DRAFTS) else ""
+    inner = rel[len(pre):]
+    d, name = os.path.dirname(inner), os.path.basename(inner)
+    if d in (v3["OUTLINE"], v3["VOLUMES_SUBDIR"]) and _is_old_volume(name):
+        return pre + v3["VOLUMES_SUBDIR"] + "/" + (_vol_name(name) or name)
+    if d == v3["VOLUME_DRAFTS"] and name.startswith("卷綱") and name.endswith(".md"):
+        new = _vol_name(name, draft=True)
+        return pre + d + "/" + new if new else None
+    return None
+
+
+def map_volume(rel):
+    """v2（或還沒改卷綱檔名的 v3）路徑 → 新的卷綱路徑；不是卷綱就原樣。"""
+    return _vol_target(rel) or rel
+
+
+def _vol_moves(book_dir):
+    moves, taken = [], set()
+    for _, rel in _walk_files(book_dir):
+        if rel.startswith((PATHS["STUDIO_BACKUP"][1] + "/", layout.MIGRATE_DIR + "/", ".studio/jobs/")):
+            continue
+        new = _vol_target(rel)
+        if not new or new == rel:
+            continue
+        stem, ext = new[:-3], ".md"
+        k = 2
+        while new in taken or os.path.exists(os.path.join(book_dir, *new.split("/"))):
+            new = "%s.v%d%s" % (stem, k, ext)
+            k += 1
+        taken.add(new)
+        moves.append((rel, new))
+    return moves
+
+
+def _old_volume_files(book_dir):
+    """書架偵測用：outline/、outline/volumes/、outline/drafts/ 裡還有舊式卷綱檔名（只列資料夾、不讀檔）。"""
+    v3 = v3_view()
+    checks = (("OUTLINE", _is_old_volume), ("VOLUMES_SUBDIR", _vol_name),
+              ("VOLUME_DRAFTS", lambda f: f.startswith("卷綱") and _vol_name(f, draft=True)))
+    for k, old in checks:
+        d = os.path.join(book_dir, *v3[k].split("/"))
+        if os.path.isdir(d) and any(old(f) for f in os.listdir(d)):
+            return True
+    return False
+
+
+def _volumes_needed(book_dir):
+    return rename_enabled() and bool(_vol_moves(book_dir))
+
+
+def _volumes_plan(book_dir):
+    out = ["%s → %s" % (map_rel(old), new) for old, new in _vol_moves(book_dir)]
+    return out or ["沒有要改名的卷綱"]
+
+
+def _volumes_apply(book_dir):
+    out = _volumes_plan(book_dir)
+    moves = _vol_moves(book_dir)
+    for old, new in moves:
+        os.renames(os.path.join(book_dir, *old.split("/")), os.path.join(book_dir, *new.split("/")))
+    fixed = _fix_json_refs(book_dir, moves, dirs=False)
     if fixed:
         out.append("改寫紀錄檔裡的路徑：%d 個檔" % fixed)
     return out
@@ -569,7 +694,11 @@ _TREE_NAMES = [("故事核心.md", "story-core.md"), ("文風.md", "style.md"), 
          ("世界觀/", "world/"), ("角色狀態/", "characters/"), ("角色/", "characters/"), ("勢力/", "factions/"), ("草稿/", "drafts/"),
          ("全書大綱.md", "book.md"), ("章綱/第001章.md", "chapters/ch-0001.md"), ("狀態卡.md", "state-card.md"),
          ("伏筆.md", "foreshadowing.md"), ("時間線.md", "timeline.md"), ("讀者認知.md", "reader-knowledge.md"), ("關係.md", "relations.md"),
-         ("章節摘要/第001章.md", "summaries/ch-0001.md")]
+         ("章節摘要/第001章.md", "summaries/ch-0001.md"),
+         ("卷綱_第一卷.md", "volumes/vol-01.md")]
+_DOC_VOL = [(re.compile(r"(?<![\w/])outline/drafts/卷綱修訂_第[NX{][^/`\s]*?卷\.md"), "outline/drafts/vol-NN.revision.md"),   # literal-ok: 舊檔名樣板
+             (re.compile(r"(?<![\w/])outline/drafts/卷綱_第[NX{][^/`\s]*?卷\.md"), "outline/drafts/vol-NN.md"),
+             (re.compile(r"(?<![\w/])outline/卷綱_第[NX{][^/`\s]*?卷\.md"), "outline/volumes/vol-NN.md")]
 _TREE_CH_TEXT = re.compile(r"第001章_(?:<[^>]+>|章名)\.md")
 _TREE_COL = 31
 
@@ -612,16 +741,20 @@ def _doc_rewrite(text):
         new = map_ref(t)
         if "/" in new and re.search(r"第\d+章", new):         # 具體的章節檔：outline/chapters/第001章.md → ch-0001.md
             new = map_v3(new)
+        if "/" in new and "卷綱" in new:                       # 具體的卷綱：outline/卷綱_第1卷.md → outline/volumes/vol-01.md
+            new = map_volume(new)
         nxt = text[m.end():m.end() + 1]
         if new == t and t.startswith(tuple(x + "/" for x in TOP_V2)) and nxt and nxt in "<{*%":
             new = map_rel(t.rstrip("/")) + ("/" if t.endswith("/") else "")      # 第一層資料夾＋檔名樣板
         return new + tail
+    for pat, new in _DOC_VOL:
+        text = pat.sub(new, text)
     return _fix_tree(_CH_PATTERN.sub("ch-NNNN.md", _DOC_TOKEN.sub(tok, text)))
 
 
 def _doc_files(book_dir):
     v3 = v3_view()
-    out = ["CLAUDE.md", v3["GLOSSARY"], v3["BIBLE_INDEX"]]
+    out = ["CLAUDE.md", v3["GLOSSARY"], v3["BIBLE_INDEX"], v3["BOOK_OUTLINE"]]     # 全書大綱「分卷」裡有卷綱的連結
     d = os.path.join(book_dir, *v3["TEMPLATES"].split("/"))
     if os.path.isdir(d):
         out += [v3["TEMPLATES"] + "/" + f for f in sorted(os.listdir(d)) if f.endswith(".md")]
@@ -658,6 +791,7 @@ STEPS = [
     Step("book_meta", "書的身分證 book.json", _meta_needed, _meta_plan, _meta_apply),
     Step("rename", "資料夾與系統檔名換成英文", _rename_needed, _rename_plan, _rename_apply),
     Step("chapters", "逐章檔名換成 ch-0001", _chapters_needed, _chapters_plan, _chapters_apply),
+    Step("volumes", "卷綱檔名換成 vol-01", _volumes_needed, _volumes_plan, _volumes_apply),
     Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
 ]
 

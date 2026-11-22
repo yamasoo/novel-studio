@@ -47,7 +47,7 @@ SEARCH_WORDS = {"zh-TW": "玉珮", "en": "lantern", "ja": "竜"}
 
 # 會隨時間、機器變動的欄位：一律換成固定字
 VOLATILE_KEYS = {"mtime", "mtime_ms", "mtimeMs", "updated", "updated_at", "created", "created_at",
-                 "time", "ts", "token", "pid", "elapsed", "age", "modified"}
+                 "time", "ts", "token", "pid", "elapsed", "age", "modified", "today"}
 
 
 def _plugin_dir():

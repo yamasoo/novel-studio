@@ -1390,7 +1390,7 @@
  "卷綱決定這一卷的邊界；不在任何卷綱範圍內的章節，整章自動流程會拒絕。": "The volume outline defines this volume's boundaries; the whole-chapter pipeline refuses any chapter outside every volume.",
  "採用後會寫到正式卷綱（狀態改成「已確認」），草稿會被移除。": "Adopting writes it into the official outline (status becomes 已確認) and removes the draft.",
  "還沒有卷綱。": "No volume outline yet.",
- "{0}不在任何卷綱的章節範圍內；先補對應的 outline/卷綱_第N卷.md 再開流程（見 docs/卷先行.md）。": "{0} is not within any volume outline's chapter range; add the matching outline/卷綱_第N卷.md before starting the pipeline (see docs/卷先行.md).",
+ "{0}不在任何卷綱的章節範圍內；先補對應的 outline/volumes/vol-NN.md 再開流程（見 docs/卷先行.md）。": "{0} is not within any volume outline's chapter range; add the matching outline/volumes/vol-NN.md before starting the pipeline (see docs/卷先行.md).",
  "找不到第 {0} 卷的卷綱草稿（{1}）。": "No volume-outline draft found for volume {0} ({1}).",
  "正式的 {0} 已經存在，先確認是不是已經採用過。": "The official {0} already exists; check whether it was already adopted.",
  "草稿沒有 frontmatter（類型、卷名、章節範圍），不能採用。": "The draft has no frontmatter (type, volume title, chapter range), so it cannot be adopted.",

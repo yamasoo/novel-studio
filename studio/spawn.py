@@ -19,7 +19,7 @@ KEY_DIRS = (layout.MANUSCRIPT, layout.CANDIDATES, layout.CHAPTER_CARDS, layout.V
 LIVE_FILES = (layout.STORY_CORE, layout.GLOSSARY, layout.AUTHOR_PREFS,
               layout.FORESHADOWING, layout.TIMELINE, layout.STATE_CARD,
               layout.READER_KNOWLEDGE, layout.RELATIONS,
-              layout.BOOK_OUTLINE, layout.SPAWN_VOLUME_ONE)
+              layout.BOOK_OUTLINE, layout.OUTLINE_VOLUME_ONE)
 CARD_SECTIONS = """## 本章四問
 1. 主角這章想做什麼：
 2. 誰或什麼阻止他：

@@ -10,7 +10,7 @@
 
 卷層（第二卷之後）：範圍一律以正式卷綱 frontmatter 的「章節範圍」為準（`volume.find`），
 沒有卷綱就當單卷、開放到最後一章；「卷末體檢做過了嗎」只看卷綱檔尾的更新草稿或
-`outline/drafts/卷綱更新_第a-b章.md`，不另外存狀態檔。
+`outline/drafts/volume-update_ch-aaaa-bbbb.md`，不另外存狀態檔。
 """
 import json
 import os
@@ -21,7 +21,7 @@ from . import layout
 CORE = layout.STORY_CORE
 STYLE = layout.STYLE
 MASTER = layout.BOOK_OUTLINE
-VOLUME_FILES = layout.VOLUME_ONE_ALIASES
+VOLUME_FILES = (layout.OUTLINE_VOLUME_ONE,)
 CARD_DIR = layout.CHAPTER_CARDS
 CHAR_DIR = layout.CHARACTERS
 FACTION_DIR = layout.FACTIONS

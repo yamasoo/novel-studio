@@ -2,8 +2,10 @@
 """卷綱的唯一解析入口：找某章屬於哪一卷、哪幾章沒有卷綱、下一個卷號。
 
 為什麼要集中：續寫合約與漂移工具原本各有一套（一個找不到退回第一卷、一個退回最後一卷），
-兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`outline/`、`outline/volumes/` 的 `卷綱*.md`）；
-草稿放在 `outline/drafts/`，不會被當成正式卷綱（見 `docs/卷先行.md`）。
+兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`outline/volumes/` 裡的 `.md`：`vol-01.md`，「幕」是 `act-01.md`；
+作者自己取名的檔也算，卷號看檔名或卷名裡的「第N卷」）。
+草稿放在 `outline/drafts/`（`vol-01.md`、修訂 `vol-01.revision.md`、卷綱更新 `volume-update_ch-…`），
+不會被當成正式卷綱（見 `docs/卷先行.md`）。
 """
 import difflib
 import os
@@ -12,8 +14,17 @@ import re
 from . import project, textguard
 from . import layout
 
-DIRS = (layout.OUTLINE, layout.VOLUMES_SUBDIR)
-DRAFT_DIR = layout.VOLUME_DRAFTS      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的 卷綱*.md
+DIRS = (layout.VOLUMES_SUBDIR,)
+DRAFT_DIR = layout.VOLUME_DRAFTS      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的檔
+_STEM = re.compile(r"^(vol|act)-0*(\d+)(?=[.\-_]|$)", re.I)
+
+
+def _kind(f):
+    """卷 或 幕：act-01.md、或舊式檔名裡有「幕」。"""
+    m = _STEM.match(f)
+    if m:
+        return "幕" if m.group(1).lower() == "act" else "卷"
+    return "幕" if "幕" in f else "卷"
 CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 
 
@@ -33,6 +44,14 @@ def _cn_int(s):
     return total or None
 
 
+def no_of(raw, default=None):
+    """表單或參數給的卷號（「3」「三」「第三卷」「vol-03」）→ 整數；認不出回 default。"""
+    raw = str(raw if raw is not None else "").strip()
+    if raw.isdigit():
+        return int(raw)
+    return _num_from_name(raw) or _cn_int(raw) or default
+
+
 def cn_no(n):
     """卷號轉中文寫法：1→一、10→十、11→十一、20→二十；0 或 100 以上退回數字。"""
     digits = "〇一二三四五六七八九"
@@ -49,6 +68,9 @@ def cn_no(n):
 
 
 def _num_from_name(name):
+    m = _STEM.match(name)
+    if m:
+        return int(m.group(2))
     m = re.search(r"第([〇零一二兩三四五六七八九十百\d]+)[卷幕]", name)
     if not m:
         return None
@@ -70,7 +92,7 @@ def list_volumes(book_dir):
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
-            if not (f.endswith(".md") and f.startswith("卷綱")):
+            if not f.endswith(".md"):
                 continue
             rel = "%s/%s" % (sub, f)
             try:
@@ -81,7 +103,7 @@ def list_volumes(book_dir):
             lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
             out.append({"rel": rel, "name": str(fm.get("卷名") or f), "status": str(fm.get("狀態") or ""),
                         "lo": lo, "hi": hi, "no": _num_from_name(f),
-                        "kind": "幕" if "幕" in f else "卷"})
+                        "kind": _kind(f)})
     # 同一章同時被「卷」和「幕」覆蓋時，卷優先（卷末承諾要的是卷，不是幕）
     out.sort(key=lambda v: (v["kind"] != "卷", v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
     return out
@@ -131,7 +153,7 @@ def drafts(book_dir):
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith("卷綱") and not f.startswith("卷綱更新")):
+        if not (f.endswith(".md") and _STEM.match(f) and not f.endswith(layout.VOLUME_REVISION_SUFFIX)):
             continue
         try:
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
@@ -152,7 +174,7 @@ def plan_drafts(book_dir):
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith("卷綱更新")):
+        if not (f.endswith(".md") and f.startswith(layout.VOLUME_UPDATE_PREFIX)):
             continue
         nums = [int(x) for x in re.findall(r"\d+", f)]
         lo, hi = (nums[0], nums[1]) if len(nums) >= 2 else (None, None)
@@ -226,7 +248,7 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
 
     block = ["### 第 %d 卷：%s" % (no, name), "",
              "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0)] + bullets + \
-            ["- 卷綱：`outline/卷綱_第%d卷.md`（已確認）" % no, ""]
+            ["- 卷綱：`%s`（已確認）" % layout.volume_file(no), ""]
     return _write_outline(book_dir, p, lines[:end] + [""] + block + lines[end:])
 
 
@@ -257,7 +279,7 @@ def sync_outline(book_dir, no):
 
 
 def adopt(book_dir, no):
-    """把 `outline/drafts/卷綱_第N卷.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
+    """把 `outline/drafts/vol-01.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
 
     採用前只檢查最基本的東西（有 frontmatter、有章節範圍、正式檔不存在）：
     章節範圍要不要和前一卷接得起來、內容好不好，是作者看過才算的事，不在這裡自動判斷。
@@ -292,9 +314,6 @@ def adopt(book_dir, no):
             "warnings": warnings + list(_sync_book_outline(book_dir, no, fm, contract_bullets(text)) or [])}
 
 
-REVISION_PREFIX = layout.VOLUME_REVISION_PREFIX
-
-
 def revision_rel(no):
     return layout.volume_revision_file(no, base=DRAFT_DIR)
 
@@ -306,7 +325,7 @@ def revisions(book_dir):
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith(REVISION_PREFIX)):
+        if not f.endswith(layout.VOLUME_REVISION_SUFFIX):
             continue
         try:
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}

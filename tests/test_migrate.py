@@ -105,7 +105,7 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename", "chapters"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename", "chapters", "volumes"], [s["key"] for s in r["steps"]])
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
 
@@ -121,7 +121,7 @@ class MigrateTest(unittest.TestCase):
             self.assertEqual(layout.SCHEMA_VERSION, m["schema_version"])
             self.assertEqual(lang, lang_mod.book_lang(b))
             after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
-            rewritten = {"CLAUDE.md", layout.GLOSSARY, layout.BIBLE_INDEX}    # 內容裡有路徑的系統檔（＋_templates 底下的範本）
+            rewritten = {"CLAUDE.md", layout.GLOSSARY, layout.BIBLE_INDEX, layout.BOOK_OUTLINE}    # 內容裡有路徑的系統檔（＋_templates 底下的範本）
             moved = {migrate.map_v3(k): v for k, v in before.items() if k != ".studio/lang"}
             self.assertEqual(set(moved) | {"book.json"}, set(after), "只多 book.json，其他都是搬到新位置")
             for k, v in moved.items():
@@ -334,7 +334,7 @@ class PathTableTest(unittest.TestCase):
     def test_table_covers_every_layout_path(self):
         """layout 裡每一個 v2 路徑常數都要在對照表裡（漏了就會留在舊名稱）。"""
         skip = {"STUDIO", "BOOK_META", "PROJECT_RULES", "TEMPLATES_IN_SKILLS", "MIGRATE_DIR", "MIGRATE_BACKUP_PREFIX", "CHAPTER_STEM",
-                "SPAWN_VOLUME_ONE", "VOLUME_PREFIX", "VOLUME_REVISION_PREFIX"}   # 範本檔名、卷綱檔名規則：之後的批次
+                "OUTLINE_VOLUME_ONE", "VOLUME_REVISION_SUFFIX", "VOLUME_UPDATE_PREFIX", "VOLUME_STEM", "ACT_STEM"}   # 範本檔名（第七批）、卷綱檔名規則（卷綱步驟）
         names = set(migrate.PATHS) | set(migrate.NAMES) | set(migrate.SHARED_PATHS)
         for k, v in layout.all_constants().items():
             if not isinstance(v, str) or k in skip or k.startswith("TPL_"):
@@ -518,3 +518,100 @@ class LegacyChapterNamesTest(unittest.TestCase):
             with open(os.path.join(man, name), "w", encoding="utf-8") as f:
                 f.write("# 第1章 另一份\n")
         self.assertEqual("ch-0001.md", project._scan_dir(man)[1])
+
+
+class VolumeStepTest(unittest.TestCase):
+    """卷綱檔名換成 vol-01，正式卷綱一律放 outline/volumes/（v3 P3 第三批後半）。"""
+
+    VOL = "---\n類型: 卷綱\n卷名: %s\n章節範圍: 第%d章～第%d章\n狀態: 已確認\n---\n\n# 卷綱：%s\n"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.book = os.path.join(self.tmp, "b")
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)    # 已是 v3 資料夾、vol-01
+
+        def w(rel, text):
+            p = os.path.join(self.book, *rel.split("/"))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        self.w = w
+        shutil.rmtree(layout.path(self.book, layout.VOLUMES_SUBDIR))
+        w("outline/卷綱_第一卷.md", self.VOL % ("舊帳", 1, 30, "舊帳"))
+        w("outline/卷綱_第2卷.md", self.VOL % ("新帳", 31, 60, "新帳"))
+        w("outline/卷綱_第三幕.md", self.VOL % ("幕", 61, 70, "幕"))
+        w("outline/卷綱.md", self.VOL % ("沒卷號", 71, 80, "沒卷號"))                 # 認不出卷號：照原名搬
+        w("outline/volumes/卷綱_第一卷.md", self.VOL % ("spawn 建的", 1, 10, "x"))    # 撞名 → vol-01.v2.md
+        w("outline/drafts/卷綱_第3卷.md", self.VOL % ("新卷草稿", 61, 90, "新卷"))
+        w("outline/drafts/卷綱修訂_第2卷.md", self.VOL % ("修訂", 31, 60, "修訂"))
+        w("outline/drafts/卷綱更新_第1-30章.md", "# 卷綱更新草稿（第1–30 章體檢）\n")
+        w(".studio/reverse/drafts/outline/卷綱_第1卷.md", "反推\n")
+        w(".studio/pipeline/current.json", json.dumps({"volume": "outline/卷綱_第2卷.md", "dir": "outline"}, ensure_ascii=False))
+        w(".studio/backup/卷綱_第1卷.1700000000.md", "舊\n")                         # 備份不改名
+        book = project.read_text(layout.path(self.book, layout.BOOK_OUTLINE))
+        w(layout.BOOK_OUTLINE, book + "\n- 卷綱：`outline/卷綱_第1卷.md`（已確認）\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_needs_migration_on_old_volume_names(self):
+        self.assertTrue(migrate.needs_migration(self.book))
+
+    def test_map(self):
+        for old, new in (("大綱/卷綱_第1卷.md", "outline/volumes/vol-01.md"), ("大綱/卷一卷綱.md", "outline/volumes/vol-01.md"),
+                         ("大綱/卷綱/卷綱_第一卷.md", "outline/volumes/vol-01.md"), ("outline/卷綱_第十二卷.md", "outline/volumes/vol-12.md"),
+                         ("大綱/草稿/卷綱更新_第1-60章.md", "outline/drafts/volume-update_ch-0001-0060.md"),
+                         ("outline/drafts/卷綱草稿.md", "outline/drafts/卷綱草稿.md"), ("outline/book.md", "outline/book.md")):
+            self.assertEqual(new, migrate.map_v3(old), old)
+
+    def test_migrate(self):
+        from studio import volume
+        before = migrate.stats(self.book)
+        self.assertEqual(5, before["卷綱"])
+        r = migrate.migrate(self.book)
+        self.assertEqual("done", r["status"], r.get("message"))
+        self.assertEqual(["volumes", "docs"], [s["key"] for s in r["steps"]])
+        self.assertEqual(before, migrate.stats(self.book))
+        self.assertEqual(["act-03.md", "vol-01.md", "vol-01.v2.md", "vol-02.md", "卷綱.md"],
+                         sorted(os.listdir(layout.path(self.book, layout.VOLUMES_SUBDIR))))
+        self.assertEqual(["vol-02.revision.md", "vol-03.md", "volume-update_ch-0001-0030.md"],
+                         sorted(os.listdir(layout.path(self.book, layout.VOLUME_DRAFTS))))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "reverse", "drafts", "outline", "volumes", "vol-01.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.book, ".studio", "backup", "卷綱_第1卷.1700000000.md")))
+        with open(os.path.join(self.book, ".studio", "pipeline", "current.json"), encoding="utf-8") as f:
+            self.assertEqual({"volume": "outline/volumes/vol-02.md", "dir": "outline"}, json.load(f), "只換檔案路徑，不換資料夾")
+        self.assertIn("`outline/volumes/vol-01.md`", project.read_text(layout.path(self.book, layout.BOOK_OUTLINE)))
+        # 工作台讀得到：卷號、範圍、幕、草稿、修訂、更新草稿
+        vols = {v["rel"]: (v["no"], v["lo"], v["hi"], v["kind"]) for v in volume.list_volumes(self.book)}
+        self.assertEqual((1, 1, 30, "卷"), vols["outline/volumes/vol-01.md"])
+        self.assertEqual((3, 61, 70, "幕"), vols["outline/volumes/act-03.md"])
+        self.assertEqual((None, 71, 80, "卷"), vols["outline/volumes/卷綱.md"])
+        self.assertEqual(31, volume.find(self.book, 45)["lo"])
+        self.assertEqual([3], [d["no"] for d in volume.drafts(self.book)])
+        self.assertEqual([2], [d["no"] for d in volume.revisions(self.book)])
+        self.assertEqual([(1, 30)], [(p["lo"], p["hi"]) for p in volume.plan_drafts(self.book)])
+        self.assertFalse(migrate.needs_migration(self.book))
+        self.assertEqual("skipped", migrate.migrate(self.book)["status"])
+
+    def test_dry_run_from_v2(self):
+        """v2 的書試跑：資料夾還沒改名就看得出卷綱要改。"""
+        b = os.path.join(self.tmp, "v2")
+        shutil.copytree(os.path.join(V2_DEMO, "ja_辺境の薬師と竜の約束"), b)
+        r = migrate.migrate(b, dry_run=True)
+        vol = next(s for s in r["steps"] if s["key"] == "volumes")
+        self.assertEqual(["outline/卷綱_第一卷.md → outline/volumes/vol-01.md"], vol["changes"])
+        self.assertEqual("done", migrate.migrate(b)["status"])
+        self.assertTrue(os.path.isfile(os.path.join(b, "outline", "volumes", "vol-01.md")))
+
+
+class VolumeFilesTest(unittest.TestCase):
+    """工作台寫出的卷綱檔名（開新卷、採用、修訂、卷末體檢）。"""
+
+    def test_names(self):
+        self.assertEqual("outline/volumes/vol-01.md", layout.volume_file(1))
+        self.assertEqual("outline/drafts/vol-12.md", layout.volume_file(12, base=layout.VOLUME_DRAFTS))
+        self.assertEqual("outline/drafts/vol-02.revision.md", layout.volume_revision_file(2))
+        self.assertEqual("outline/drafts/volume-update_ch-0001-0060.md", layout.volume_update_draft(1, 60))
+        from studio import volume
+        for raw, no in (("3", 3), ("三", 3), ("第十二卷", 12), ("vol-04", 4), ("", None)):
+            self.assertEqual(no, volume.no_of(raw), raw)

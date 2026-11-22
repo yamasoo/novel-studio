@@ -96,7 +96,7 @@ def test_steps_and_next_follow_files(tmp_path):
     _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
     assert setup_flow.next_step(d)["id"] == "volume"
 
-    _write(d, "outline/卷綱_第1卷.md", "---\n狀態: 已確認\n---\n" + ("章" * 200))
+    _write(d, "outline/volumes/vol-01.md", "---\n狀態: 已確認\n---\n" + ("章" * 200))
     assert setup_flow.next_step(d)["id"] == "cards"
 
     for n in range(1, 11):
@@ -345,7 +345,7 @@ def _full_setup(d, volume="第1章～第12章"):
     _write(d, "CLAUDE.md", CLAUDE_MD)
     _write(d, "bible/story-core.md", CORE)
     _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
-    _write(d, "outline/卷綱_第1卷.md",
+    _write(d, "outline/volumes/vol-01.md",
            "---\n類型: 卷綱\n卷名: 測試卷\n章節範圍: %s\n狀態: 已確認\n---\n" % volume + ("卷" * 300))
     for n in range(1, 13):
         _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
@@ -389,13 +389,13 @@ def test_volume_state_full_volume_then_reverse_then_next_volume(tmp_path):
     assert nxt["id"] == "volume_end" and nxt["go"] == "/drift?from=1&to=12"   # 體檢預設掃這一卷
 
     # 卷末體檢的更新草稿落地（還沒套用）：算做過了，換下一卷
-    _write(d, "outline/drafts/卷綱更新_第1-12章.md", "# 卷綱更新草稿（第1–12 章體檢）\n")
+    _write(d, "outline/drafts/volume-update_ch-0001-0012.md", "# 卷綱更新草稿（第1–12 章體檢）\n")
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "volume_next" and nxt["action"] == "volume_draft"
     assert nxt["prefill"] == {"volume": "二", "from": 13, "to": 22}
 
     # 第二卷卷綱落地 → 排第13–22章章綱 → 寫第13章
-    _write(d, "outline/卷綱_第2卷.md", VOL2)
+    _write(d, "outline/volumes/vol-02.md", VOL2)
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "cards" and nxt["prefill"] == {"from": 13, "to": 22}
     for n in range(13, 23):
@@ -410,7 +410,7 @@ def test_short_first_volume_passes_the_cards_step(tmp_path):
     _write(d, "CLAUDE.md", CLAUDE_MD)
     _write(d, "bible/story-core.md", CORE)
     _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
-    _write(d, "outline/卷綱_第1卷.md",
+    _write(d, "outline/volumes/vol-01.md",
            "---\n類型: 卷綱\n卷名: 短卷\n章節範圍: 第1章～第6章\n狀態: 已確認\n---\n" + ("卷" * 300))
     for n in range(1, 6):
         _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
@@ -426,7 +426,7 @@ def test_check_marked_when_volume_outline_already_updated(tmp_path):
     d = _book(tmp_path)
     _full_setup(d)
     _texts(d, 1, 12)
-    _write(d, "outline/卷綱_第1卷.md", VOL1 + "\n# 卷綱更新草稿（第1–12 章體檢）\n- 補一段\n")
+    _write(d, "outline/volumes/vol-01.md", VOL1 + "\n# 卷綱更新草稿（第1–12 章體檢）\n- 補一段\n")
     assert setup_flow.next_step(d)["id"] == "volume_next"
 
 

@@ -23,7 +23,7 @@ import zipfile
 from xml.etree import ElementTree as ET
 
 from . import project, prompts
-from . import layout
+from . import layout, sections
 
 ROOT = layout.ILLUST
 INDEX = layout.ILLUST_INDEX
@@ -340,28 +340,37 @@ def overview(book_dir):
 # ---------------------------------------------------------------------------
 # 視覺卡：設定檔裡的「## 繪圖提示」一節
 # ---------------------------------------------------------------------------
+CARD_HEAD_RX = r"## " + sections.head_rx("common", "illust_prompt")
+# 視覺卡的列點欄位：(鍵, 繁中, English, 日本語)
+CARD_FIELDS = (("tags", "標籤", "Tags", "タグ"), ("description", "描述", "Description", "説明"),
+               ("position", "預設位置", "Default position", "既定の位置"))
+
+
 def read_card(text):
-    m = re.search(r"(?ms)^" + re.escape(CARD_HEAD) + r"[^\n]*\n(.*?)(?=^## |\Z)", text or "")
+    m = re.search(r"(?msi)^" + CARD_HEAD_RX + r"[^\n]*\n(.*?)(?=^## |\Z)", text or "")
     if not m:
         return None
     sec = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S)
     card = {"tags": "", "description": "", "position": ""}
     for line in sec.split("\n"):
         s = line.strip().lstrip("-").strip()
-        for key, label in (("tags", "標籤"), ("description", "描述"), ("position", "預設位置")):
-            mm = re.match(r"^%s\s*[:：]\s*(.*)$" % label, s)
+        for key, *labs in CARD_FIELDS:
+            mm = re.match(r"^(?:%s)\s*[:：]\s*(.*)$" % "|".join(map(re.escape, labs)), s, re.I)
             if mm:
                 card[key] = mm.group(1).strip()
     return card if (card["tags"] or card["description"]) else None
 
 
 def write_card(text, card):
-    lines = [CARD_HEAD,
+    lang = sections.write_lang(prompts.cur_lang())
+    i = {"zh-TW": 1, "en": 2, "ja": 3}[lang]
+    sep = ": " if lang == "en" else "："
+    lines = ["## " + sections.label("common", "illust_prompt", lang),
              prompts.cur()["il_card_comment"],
-             "- 標籤：%s" % normalize_tags(card.get("tags", "")),
-             "- 描述：%s" % (card.get("description") or "").strip()]
+             "- %s%s%s" % (CARD_FIELDS[0][i], sep, normalize_tags(card.get("tags", ""))),
+             "- %s%s%s" % (CARD_FIELDS[1][i], sep, (card.get("description") or "").strip())]
     sec = "\n".join(lines) + "\n"
-    pat = re.compile(r"(?ms)^" + re.escape(CARD_HEAD) + r"[^\n]*\n.*?(?=^## |\Z)")
+    pat = re.compile(r"(?msi)^" + CARD_HEAD_RX + r"[^\n]*\n.*?(?=^## |\Z)")
     if pat.search(text):
         return pat.sub(sec + "\n", text, count=1).rstrip() + "\n"
     return text.rstrip() + "\n\n" + sec
@@ -384,7 +393,8 @@ def _appearance(text):
     body = project.split_frontmatter(text)[1]
     parts = []
     for m in re.finditer(r"(?ms)^##+\s*([^\n]*)\n(.*?)(?=^## |\Z)", body):
-        if re.search(r"外貌|外觀|長相|形象|樣貌|外表|服裝|特徵|描述|一句話|簡介|概述", m.group(1)):
+        if re.search(r"外貌|外觀|長相|形象|樣貌|外表|服裝|特徵|描述|一句話|簡介|概述"
+                     r"|(?i:looks|appearance|description|one line)|外見|ひとこと", m.group(1)):
             t = re.sub(r"<!--.*?-->", "", m.group(2), flags=re.S).strip()
             if t:
                 parts.append("【%s】%s" % (m.group(1).strip(), t))

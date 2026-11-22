@@ -16,7 +16,7 @@ import sys
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-METRICS_HEAD = "## 文字指標（程式統計）"
+METRICS_HEAD = "## 文章の指標（プログラム集計）"
 JP = r"[぀-ヿ㐀-䶿一-鿿豈-﫿]"
 JP_RE = re.compile(JP)
 SHORT, LONG = 15, 45

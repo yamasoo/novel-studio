@@ -12,7 +12,7 @@ import os
 import shutil
 
 from . import fingerprint, project, sdna
-from . import layout
+from . import layout, sections
 
 KEY_DIRS = (layout.MANUSCRIPT, layout.CANDIDATES, layout.CHAPTER_CARDS, layout.VOLUMES_SUBDIR, layout.SUMMARIES, layout.CHARACTER_STATES,
             layout.CHARACTERS, layout.FACTIONS, layout.WORLD, layout.BIBLE_STRUCTURE, layout.SAMPLES)
@@ -165,9 +165,18 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
     for sub in KEY_DIRS:
         os.makedirs(os.path.join(target, *sub.split("/")), exist_ok=True)
 
-    # 18 份範本
+    lang = (fp or {}).get("語言") or (dna or {}).get("語言") or "zh-TW"
+
+    # 18 份範本（段落標題依書的語言）
     dst_tpl = layout.path(target, layout.TEMPLATES)
     shutil.copytree(tpl, dst_tpl)
+    for f in os.listdir(dst_tpl):
+        fp_ = os.path.join(dst_tpl, f)
+        if f.endswith(".md"):
+            t = project.read_text(fp_)
+            t2 = sections.localize_doc(t, lang)
+            if t2 != t:
+                _write(fp_, t2)
     created.append("_templates/（%d 份）" % len(os.listdir(dst_tpl)))
 
     # 空的「活檔」：從範本複製，狀態改成草稿（目的地與範本檔名的對應在 layout.LIVE_TEMPLATES）
@@ -178,11 +187,10 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
             continue
         text = project.read_text(src)
         text = project.set_frontmatter_field(text, "status", "draft") if "---" in text[:10] else text
-        _write(os.path.join(target, *rel.split("/")), text)
+        _write(os.path.join(target, *rel.split("/")), sections.localize_doc(text, lang))
         created.append(rel)
 
-    lang = (fp or {}).get("語言") or (dna or {}).get("語言") or "zh-TW"
-    _write(layout.path(target, layout.STYLE), style_md(title, fp, dna))
+    _write(layout.path(target, layout.STYLE), sections.localize_doc(style_md(title, fp, dna), lang))
     created.append(layout.STYLE)
     _write(layout.path(target, layout.BOOK_STRUCTURE), structure_md(dna=dna, fp=fp, title=title))
     created.append(layout.BOOK_STRUCTURE)
@@ -201,7 +209,7 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
 
     for i in range(1, max(1, int(cards)) + 1):
         rel = layout.CHAPTER_CARDS + "/" + layout.chapter_md(i)
-        _write(os.path.join(target, *rel.split("/")), card_md("（待填）", i))
+        _write(os.path.join(target, *rel.split("/")), sections.localize_doc(card_md("（待填）", i), lang))
         created.append(rel)
 
     return {"target": target, "created": created, "lang": lang}
@@ -219,7 +227,8 @@ def seed(book_dir, title, fp, dna, source=""):
     text = project.read_text(p) if os.path.isfile(p) else ""
     from . import shared
     if not shared.parse_metrics(text):          # 已經有指標就不覆蓋（尊重作者手填的）
-        _write(p, style_md(title, fp, dna))
+        from . import lang as lang_mod
+        _write(p, sections.localize_doc(style_md(title, fp, dna), lang_mod.book_lang(book_dir)))
         created.append(layout.STYLE)
     _write(layout.path(book_dir, layout.BOOK_STRUCTURE), structure_md(dna=dna, fp=fp, title=title))
     created.append(layout.BOOK_STRUCTURE)

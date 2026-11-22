@@ -10,7 +10,7 @@ import re
 import time
 
 from . import context, project, prompts
-from . import layout
+from . import layout, sections
 
 STATUS_LABEL = {"completed": "已寫到", "unmet": "沒寫到", "unknown": "無法判斷", "unverified": "引文對不上"}
 
@@ -27,15 +27,15 @@ def freeze_goals(card_text):
     _, body = project.split_frontmatter(card_text or "")
     body = context.strip_comments(body)
     goals = []
-    m = re.search(r"##\s*情節點\s*\n(.*?)(?=\n##\s|\Z)", body, re.S)
+    m = re.search(r"##\s*" + sections.head_rx("chapter-card", "plot_points") + r"\s*\n(.*?)(?=\n##\s|\Z)", body, re.S | re.I)
     if m:
         for line in m.group(1).split("\n"):
             mm = re.match(r"\s*(?:\d+[.、．)]|[-*])\s*(.+)", line)
             if mm and mm.group(1).strip() and "待補" not in mm.group(1) and not _todo_other(mm.group(1)):
                 goals.append(mm.group(1).strip())
-    m = re.search(r"##\s*章末鉤子\s*\n(.*?)(?=\n##\s|\Z)", body, re.S)
+    m = re.search(r"##\s*" + sections.head_rx("chapter-card", "ending_hook") + r"\s*\n(.*?)(?=\n##\s|\Z)", body, re.S | re.I)
     if m:
-        mm = re.search(r"停在[：:]\s*(.+)", m.group(1))
+        mm = re.search(r"(?:停在|止める場所|Stops on)[：:]\s*(.+)", m.group(1), re.I)
         if mm and mm.group(1).strip() and "待定" not in mm.group(1) and not _todo_other(mm.group(1)):
             goals.append(prompts.cur()["goal_ending"].format(t=mm.group(1).strip()))
     return [{"id": "G%d" % (i + 1), "text": t} for i, t in enumerate(goals)]

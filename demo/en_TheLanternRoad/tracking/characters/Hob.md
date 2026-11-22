@@ -5,7 +5,7 @@ updated_through: 2
 last_appearance: 2
 ---
 
-# Hob：目前狀態
+# Hob: current state
 
 - Identity: a brass lantern, bound to whoever holds him
 - Location: the drawing table, then Wren's satchel

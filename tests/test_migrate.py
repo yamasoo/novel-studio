@@ -11,7 +11,7 @@ from unittest import mock
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import bookmeta, layout, migrate, project  # noqa: E402
+from studio import bookmeta, layout, migrate, project, sections  # noqa: E402
 from studio import lang as lang_mod  # noqa: E402
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import migrate_v3  # noqa: E402
@@ -20,11 +20,14 @@ DEMOS = ("退婚之後", "en_TheLanternRoad", "ja_辺境の薬師と竜の約束
 V2_DEMO = os.path.join(ROOT, "tests", "fixtures", "v2_demo")      # v2 格式的示範書（P3 第二批轉換前的樣子），測移轉用
 
 
-def _fm(rel, data):
-    """轉換後 .md 的 frontmatter 鍵會換成英文，其他內容不變。"""
+def _fm(rel, data, lang="zh-TW"):
+    """轉換後 .md 的 frontmatter 鍵會換成英文、英日文書的段落標題換成書的語言，其他內容不變。"""
     if not rel.endswith(".md") or rel.startswith((layout.STUDIO_BACKUP + "/", ".studio/jobs/")):
         return data
-    return migrate.fm_rewrite(data.decode("utf-8")).encode("utf-8")
+    text = migrate.fm_rewrite(data.decode("utf-8"))
+    if lang in ("en", "ja") and text.startswith("---"):
+        text = sections.localize_doc(text, lang)
+    return text.encode("utf-8")
 
 
 def _snapshot(d):
@@ -112,7 +115,7 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "docs", "fmkeys"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "docs", "fmkeys", "sections"], [s["key"] for s in r["steps"]])
         self.assertEqual(["資料夾改名後一併處理"], r["steps"][-1]["changes"], "改名後才做的步驟也先列出來")
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
@@ -134,7 +137,7 @@ class MigrateTest(unittest.TestCase):
             self.assertEqual(set(moved) | {"book.json"}, set(after), "只多 book.json，其他都是搬到新位置")
             for k, v in moved.items():
                 if k not in rewritten and not k.startswith(layout.TEMPLATES + "/"):
-                    self.assertEqual(_fm(k, v), after[k], k)
+                    self.assertEqual(_fm(k, v, lang), after[k], k)
             self.assertTrue(os.path.isfile(r["report"]))
             self.assertTrue(os.path.isfile(r["backup"]))
             self.assertEqual("skipped", migrate.migrate(b)["status"], "第二次直接跳過")

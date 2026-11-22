@@ -16,7 +16,7 @@ import time
 from collections import Counter
 
 from . import lang as lang_mod, project
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 from . import tables
 
 SHARED = layout.SHARED
@@ -24,6 +24,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PRESET_DIR = os.path.join(HERE, "presets", "結構")  # literal-ok: repo 內建的預設結構資料夾，P3 隨 repo 檔名一起改
 STYLE_TEMPLATE = os.path.join(os.path.dirname(HERE), "plugin", "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
 METRICS_HEAD = "## 文字指標（程式統計）"
+METRICS_RX = r"## " + sections.head_rx("style", "metrics")       # 三語都認
+SAMPLE_RX = r"## " + sections.head_rx("style", "sample")
 
 PREFS_TEMPLATE = """---
 type: shared-author-prefs
@@ -318,16 +320,21 @@ def frequent_phrases(*a, **k):
     return _metrics_mod().frequent_phrases(*a, **k)
 
 
+def _cur_lang():
+    from . import prompts
+    return prompts.cur_lang()
+
+
 def metrics_md(m):
     return _metrics_mod().metrics_md(m)
 
 
 def put_metrics(text, m):
     sec = metrics_md(m)
-    pat = re.compile(r"(?ms)^" + re.escape(METRICS_HEAD) + r".*?(?=^## |\Z)")
+    pat = re.compile(r"(?msi)^" + METRICS_RX + r".*?(?=^## |\Z)")
     if pat.search(text):
-        return pat.sub(sec + "\n", text, count=1).rstrip() + "\n"
-    anchor = re.search(r"(?m)^## 範例段落", text)
+        return pat.sub(lambda _m: sec + "\n", text, count=1).rstrip() + "\n"
+    anchor = re.search(r"(?mi)^" + SAMPLE_RX, text)
     if anchor:
         return text[:anchor.start()] + sec + "\n" + text[anchor.start():]
     return text.rstrip() + "\n\n" + sec
@@ -345,17 +352,17 @@ def put_samples(text, sample, limit=400, most=6):
     if not pick:
         return text
     block = "\n\n".join(pick)
-    m = re.search(r"(?ms)^## 範例段落\s*\n(.*?)(?=^## |\Z)", text)
+    m = re.search(r"(?msi)^" + SAMPLE_RX + r"\s*\n(.*?)(?=^## |\Z)", text)
     if m:
         existing = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip()
         if existing:
             return text
         return text[:m.start(1)] + "<!-- 從分析樣本擷取的開頭幾段，可以換成你最滿意的段落。 -->\n" + block + "\n\n" + text[m.end(1):]
-    return text.rstrip() + "\n\n## 範例段落\n" + block + "\n"
+    return text.rstrip() + "\n\n## %s\n" % sections.label("style", "sample", _cur_lang()) + block + "\n"
 
 
 def parse_metrics(text):
-    m = re.search(r"(?ms)^" + re.escape(METRICS_HEAD) + r"(.*?)(?=^## |\Z)", text or "")
+    m = re.search(r"(?msi)^" + METRICS_RX + r"(.*?)(?=^## |\Z)", text or "")
     if not m:
         return {}
     out = {}

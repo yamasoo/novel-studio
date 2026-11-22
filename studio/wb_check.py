@@ -8,7 +8,7 @@ import re
 import time
 
 from . import context, project, relations, tracking
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 from . import tables
 
 MIN_MENTIONS = 3        # 正文提到幾次以上的角色，才要求角色狀態更新
@@ -44,7 +44,7 @@ def check(book_dir, no, revision=False, data=None):
     if not os.path.isfile(sp):
         issues.append("沒有產生章節摘要")
     else:
-        blank = project.read_text(sp).count("（無）")
+        blank = sum(project.read_text(sp).count(x) for x in sections.NONE.values())     # 三語的「（無）」
         if blank >= 2:
             issues.append("章節摘要有 %d 段空白" % blank)
 

@@ -18,7 +18,8 @@ import shutil
 import time
 
 from . import context, enums, project, prompts, tracking
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
 from . import tables
 from . import jsonkeys
 from . import ids
@@ -485,6 +486,7 @@ def _v(x):
 
 
 def _write_draft(book_dir, rel, text):
+    text = sections.localize_doc(text, lang_mod.book_lang(book_dir))     # 段落標題與欄位依書的語言
     path = _p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/"))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:

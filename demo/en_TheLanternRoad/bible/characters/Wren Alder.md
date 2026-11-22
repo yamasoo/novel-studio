@@ -9,30 +9,30 @@ status: canon
 
 # Wren Alder
 
-## 一句話
+## One line
 A copyist with a perfect memory for distances, learning to trust her own eyes.
 
-## 外在
+## Outer
 - Age / status: seventeen, apprentice at Vale's map shop
 - Distinguishing looks: a blue-black ink stain that never quite leaves her left thumb
 
-## 內在
+## Inner
 - Wants: to find Master Orrin and bring him home
 - Fears: that the last thing she drew for him was a mistake she cannot undo
 - Flaw: she redraws what she is told and never questions it
 - Bottom line: she will not draw a line she knows is false
 - Secret: last spring she erased a road from the master map on Orrin's order
 
-## 說話方式（聲音卡）
+## Voice card
 - Habitual sentence patterns: short, practical, often a question
 - Catchphrase: none; she counts paces aloud when nervous
 - Reaction when pushed: goes quiet and measures something
 - Polite to officials, easy with people who work with their hands
 
-## 關係
+## Relationships
 - Hob: wary, then amused; he is the first thing in the shop that talks back
 - Master Orrin Vale: loyal, uneasy about what he kept from her
 - Dessa Pike: guarded
 
-## 角色弧線
+## Character arc
 From copying other people's lines to drawing her own; by the end of part one she walks a stretch of road no map shows, and draws it.

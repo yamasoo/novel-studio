@@ -14,7 +14,7 @@ import re
 import shutil
 
 from . import project
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 
 # （資料夾, 顯示用的類別名稱）；類別名稱會出現在 API（sub）與索引檔，介面文字在 P5 處理
 SETTING_SUBDIRS = ((layout.WORLD, "世界觀"), (layout.CHARACTERS, "角色"), (layout.FACTIONS, "勢力"))   # literal-ok: 顯示用的類別名稱
@@ -35,8 +35,8 @@ def _clean(s):
     return str(s or "").replace("|", "/").replace("｜", "/").strip()
 
 
-def _first_line(body, title):
-    m = re.search(r"^##\s*" + re.escape(title) + r"\s*$\n(.*?)(?=^##\s|\Z)", body, re.M | re.S)
+def _first_line(body, doc, sid):
+    m = re.search(r"^##\s*" + sections.head_rx(doc, sid) + r"\s*$\n(.*?)(?=^##\s|\Z)", body, re.M | re.S | re.I)
     if not m:
         return ""
     for line in m.group(1).splitlines():
@@ -79,7 +79,7 @@ def _setting_rows(book_dir):
                 "aliases": [str(a) for a in aliases],
                 "category": str(fmkeys.disp("category", fm.get("category")) or "").strip(),
                 "status": str(fmkeys.disp("status", fm.get("status")) or "").strip(),
-                "summary": _first_line(body, "一句話")[:80],
+                "summary": _first_line(body, fmkeys.value_en("type", fm.get("type")) or "character", "one_line")[:80],
                 "file": project.rel_of(book_dir, p),
                 "sub": sub,
             })

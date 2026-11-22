@@ -9,7 +9,8 @@ import subprocess
 import time
 
 from . import project, prompts, textguard
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
 from . import tables
 
 # 回寫資料（英文鍵）與檔案裡的段落／欄位名稱（中文，檔案格式到 P3 才換）
@@ -209,15 +210,17 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     """回寫一章的追蹤資料。data 是英文鍵（jsonkeys.to_keys 換過）。回傳變更摘要（給匯報用）。"""
     label = chapter_label(no)
     log = []
+    lang = lang_mod.book_lang(book_dir)
     data, note = textguard.guard_data(book_dir, data)
     if note:
         log.append(note)
 
     # 1. 章節摘要
     s = data.get("summary") or {}
-    body = "---\ntype: chapter-summary\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
-    for k, head in SUMMARY_KEYS:
-        body += "\n## %s\n%s\n" % (head, str(s.get(k, "")).strip() or "（無）")
+    body = "---\ntype: chapter-summary\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# %s\n" % (
+        no, title, chars, sections.title("chapter", lang, n=no, title=title))
+    for k, _ in SUMMARY_KEYS:
+        body += "\n## %s\n%s\n" % (sections.label("chapter-summary", k, lang), str(s.get(k, "")).strip() or sections.none(lang))
     _write(layout.path(book_dir, layout.SUMMARIES, layout.chapter_md(no)), body)
     log.append("章節摘要")
 
@@ -225,11 +228,11 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     sc = data.get("state_card") or {}
     if sc and not revision:
         p = layout.path(book_dir, layout.STATE_CARD)
-        text = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % fmkeys.ch_value(label)
-        for i, (k, head) in enumerate(STATE_KEYS, 1):
-            text += "\n## %d. %s\n" % (i, head)
+        text = "---\ntype: state-card\nupdated_through: %s\n---\n\n# %s\n" % (fmkeys.ch_value(label), sections.title("state-card", lang))
+        for i, (k, _) in enumerate(STATE_KEYS, 1):
+            text += "\n## %d. %s\n" % (i, sections.label("state-card", k, lang))
             items = _lines(sc.get(k))
-            text += "".join("- %s\n" % x for x in items) if items else "- （無）\n"
+            text += "".join("- %s\n" % x for x in items) if items else "- %s\n" % sections.none(lang)
         _write(p, text)
         log.append("狀態卡")
 
@@ -282,15 +285,19 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         p = layout.path(book_dir, layout.CHARACTER_STATES, name + ".md")
         old = {}
         if os.path.isfile(p):
-            for m in re.finditer(r"^- (.+?)：(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
-                old[m.group(1)] = m.group(2)
-        text = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n" % (name, fmkeys.ch_value(label), fmkeys.ch_value(label), name)
-        for k, f in CHAR_KEYS:
+            for m in re.finditer(r"^- (.+?)(?:：|: ?)(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
+                k = sections.field_id("character-state", m.group(1))
+                if k and k not in old:
+                    old[k] = m.group(2)
+        text = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s\n\n" % (
+            name, fmkeys.ch_value(label), fmkeys.ch_value(label), sections.title("character-state", lang, name=name))
+        sep = ": " if sections.write_lang(lang) == "en" else "："
+        for k, f in sections.fields("character-state", lang):
             v = c.get(k)
             if isinstance(v, list):
                 v = "；".join(str(x) for x in v)
-            v = str(v).strip() if v not in (None, "") else old.get(f, "")
-            text += "- %s：%s\n" % (f, v)
+            v = str(v).strip() if v not in (None, "") else old.get(k, "")
+            text += ("- %s%s%s" % (f, sep, v)).rstrip() + "\n" if sep == ": " else "- %s%s%s\n" % (f, sep, v)
         _write(p, text)
         names.append(name)
     if names:
@@ -332,8 +339,9 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
             if e.get("type") == "角色":
                 cp = layout.path(book_dir, layout.CHARACTERS, re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
                 if not os.path.exists(cp):
-                    _write(cp, "---\ntype: character\nname: %s\naliases: []\nrole: supporting\nfirst_appearance: %s\nstatus: canon\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
-                           % (nm, fmkeys.ch_value(label), nm, _cell(e.get("explanation", ""))))
+                    _write(cp, sections.localize_doc(
+                        "---\ntype: character\nname: %s\naliases: []\nrole: supporting\nfirst_appearance: %s\nstatus: canon\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n%s\n"
+                        % (nm, fmkeys.ch_value(label), nm, _cell(e.get("explanation", "")), prompts.pack(sections.write_lang(lang))["wb_auto_char_note"]), lang))
         if added:
             sep = "" if before.endswith("\n\n") else "\n"
             _write(gp, before + sep + _render_table(headers, rows) + ("\n" + after if after.strip() else "\n"))

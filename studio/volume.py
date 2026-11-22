@@ -12,7 +12,8 @@ import os
 import re
 
 from . import project, textguard
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
 
 DIRS = (layout.VOLUMES_SUBDIR,)
 DRAFT_DIR = layout.VOLUME_DRAFTS      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的檔
@@ -184,26 +185,39 @@ def plan_drafts(book_dir):
 
 def _heading_volume(line):
     """讀 `### 第N卷：…` 這種標題的卷號；讀不到回 None。"""
-    m = re.match(r"^###\s*第\s*([0-9〇零一二兩三四五六七八九十百]+)\s*卷", (line or "").strip())
+    s = (line or "").strip()
+    m = re.match(r"^###\s*第\s*([0-9〇零一二兩三四五六七八九十百]+)\s*[卷巻]", s) or \
+        re.match(r"^###\s*Volume\s+([0-9]+)\b", s, re.I)
     return _cn_int(m.group(1)) if m else None
+
+
+# 全書大綱「分卷」裡由工作台補上的一節（依書的語言）
+OUTLINE_VOL_HEAD = {"zh-TW": "第 %d 卷：%s", "en": "Volume %d: %s", "ja": "第 %d 巻：%s"}
+OUTLINE_SPAN = {"zh-TW": "篇幅：第 %d 章～第 %d 章", "en": "Length: chapters %d–%d", "ja": "分量：第 %d 章～第 %d 章"}
+OUTLINE_VOL_LINK = {"zh-TW": "卷綱：`%s`（已確認）", "en": "Volume outline: `%s` (approved)", "ja": "巻プロット：`%s`（確定）"}
+
+
+def _is_span(line):
+    return bool(re.match(r"^-\s*(?:篇幅|分量|Length)\s*[：:]", (line or "").strip(), re.I))
 
 
 def contract_bullets(text):
     """從卷綱抓「卷契約」那一段的項目（- 本卷賣點：…），用來帶進全書大綱。"""
-    m = re.search(r"^##\s*卷契約\s*$(.*?)(?=^##\s|\Z)", text or "", re.S | re.M)
+    m = re.search(r"^##\s*" + sections.head_rx("volume-outline", "contract") + r"\s*$(.*?)(?=^##\s|\Z)", text or "", re.S | re.M | re.I)
     if not m:
         return []
     out = []
     for line in m.group(1).splitlines():
         s = line.strip()
-        if s.startswith("- ") and "：" in s:
+        if s.startswith("- ") and re.search(r"[：:]", s):
             out.append(s)
     return out
 
 
 def _bullet_key(line):
     s = (line or "").strip().lstrip("-").strip()
-    return s.split("：", 1)[0].strip() if "：" in s else s
+    parts = re.split(r"[：:]", s, maxsplit=1)
+    return parts[0].strip() if len(parts) > 1 else s
 
 
 def _sync_book_outline(book_dir, no, fm, bullets=None):
@@ -217,8 +231,8 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
         return ["沒有 outline/book.md，這次沒有同步全書大綱。"]
     text = project.read_text(p)
     lines = text.splitlines()
-    head = "## 分卷"
-    start = next((i for i, x in enumerate(lines) if x.strip() == head), None)
+    start = next((i for i, x in enumerate(lines)
+                  if x.startswith("## ") and sections.id_of("book-outline", x[3:]) == "volumes"), None)
     if start is None:
         return ["全書大綱沒有「分卷」段，這次沒有同步（避免把內容塞錯地方）。"]
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
@@ -232,7 +246,7 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
         if _heading_volume(lines[i]) != no:
             continue
         sec_end = next((j for j in range(i + 1, end) if lines[j].startswith(("### ", "## "))), end)
-        span_line = next((x for x in lines[i:sec_end] if x.strip().startswith("- 篇幅")), "")
+        span_line = next((x for x in lines[i:sec_end] if _is_span(x)), "")
         other = [int(x) for x in re.findall(r"\d+", span_line)]
         if lo is not None and len(other) >= 2 and (other[0], other[1]) != (lo, hi):
             return ["全書大綱的第 %d 卷寫的是第 %d–%d 章，這次是第 %d–%d 章；已保留原本內容。"
@@ -242,13 +256,14 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
         if not add:
             return []
         # 插在「篇幅」那行後面（沒有就插在標題後面），卷綱連結留在最後
-        at = next((j for j in range(i + 1, sec_end) if lines[j].strip().startswith("- 篇幅")), i + 1)
+        at = next((j for j in range(i + 1, sec_end) if _is_span(lines[j])), i + 1)
         new = lines[:at + 1] + add + lines[at + 1:]
         return _write_outline(book_dir, p, new)
 
-    block = ["### 第 %d 卷：%s" % (no, name), "",
-             "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0)] + bullets + \
-            ["- 卷綱：`%s`（已確認）" % layout.volume_file(no), ""]
+    lang = sections.write_lang(lang_mod.book_lang(book_dir))
+    block = ["### " + OUTLINE_VOL_HEAD[lang] % (no, name), "",
+             "- " + OUTLINE_SPAN[lang] % (lo or 0, hi or 0)] + bullets + \
+            ["- " + OUTLINE_VOL_LINK[lang] % layout.volume_file(no), ""]
     return _write_outline(book_dir, p, lines[:end] + [""] + block + lines[end:])
 
 

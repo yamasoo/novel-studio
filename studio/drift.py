@@ -14,7 +14,7 @@ import os
 import re
 
 from . import contract, project, prompts, recall, shared, style_loop, textguard, volume
-from . import layout
+from . import layout, sections
 
 IDLE_CHARS = 20      # 幾章沒登場算「消失」
 THREAD_AGE = 30      # 伏筆埋設後幾章還沒回收算「欠帳」
@@ -23,6 +23,7 @@ KEEP_ROLES = ("主角", "主要配角", "配角")     # 反派／怪物／一次
 # 章綱分段：情節點是「要寫到的內容」；出場角色與伏筆操作另外處理（一個查名字、一個是簿記）
 PLOT_HEADS = ("情節點", "章末鉤子", "場景", "衝突", "轉折")
 NAME_HEAD = "出場角色"
+PLOT_IDS = ("plot_points", "ending_hook")      # 英文、日文標題靠段落 ID 認
 META_RX = re.compile(r"章|主角|讀者|目標|禁忌|注意|情緒|場景|資訊|邊界|伏筆|全書|本卷|情節|節奏")
 
 
@@ -42,7 +43,7 @@ def sections_of_card(card):
 def content_of_card(card):
     """只取「要寫到的內容」：情節點、章末鉤子、場景…（不含出場角色名單與伏筆簿記）。"""
     sec = sections_of_card(card)
-    parts = [v for k, v in sec.items() if any(h in k for h in PLOT_HEADS)]
+    parts = [v for k, v in sec.items() if any(h in k for h in PLOT_HEADS) or sections.id_of("chapter-card", k) in PLOT_IDS]
     return "\n".join(parts).strip() or (card or "")
 
 
@@ -50,7 +51,7 @@ def card_names(card):
     """章綱「出場角色」段落點名的角色。"""
     sec = sections_of_card(card)
     for k, v in sec.items():
-        if NAME_HEAD in k:
+        if NAME_HEAD in k or sections.id_of("chapter-card", k) == "cast":
             return [ln.strip().lstrip("-* ").strip() for ln in v.splitlines() if ln.strip()]
     return []
 

@@ -7,7 +7,7 @@ description: Design, analyse and revise the style file (bible/style.md, or a sha
 
 The style file is the highest-priority rule set when writing chapter text (below only the author's request in the moment). Your job is to make it **concrete enough to follow** and **short enough for the AI to remember**.
 
-The file's section headings (the ones in the template) and the two headings "## 範例段落" and "## 文字指標（程式統計）" stay exactly as written because the studio finds content by them; everything you write inside is in English.
+The file's section headings (the ones in the template) and the two headings "## Sample passage" and "## Text metrics (computed)" stay exactly as written because the studio finds content by them; everything you write inside is in English.
 
 ## Before you start
 
@@ -47,7 +47,7 @@ The file's section headings (the ones in the template) and the two headings "## 
    ```
    python scripts/style_metrics.py sample.md [more files] --exclude Name1,Name2
    ```
-   Put the sample in a temp file; put the book's character and place names in `--exclude` so they do not fill up the "frequent phrases". The sample should be at least 300 words; 2,000+ is more reliable. Put the output table into the style file as a whole section (heading "## 文字指標（程式統計）", placed before the example passages; if the section already exists, replace it whole).
+   Put the sample in a temp file; put the book's character and place names in `--exclude` so they do not fill up the "frequent phrases". The sample should be at least 300 words; 2,000+ is more reliable. Put the output table into the style file as a whole section (heading "## Text metrics (computed)", placed before the example passages; if the section already exists, replace it whole).
 2. Then read the sample and look for traits across the thirteen dimensions: where does it differ from ordinary writing? Cite concrete sentences from the sample as evidence (in the report, not in the rules).
 3. Turn the traits into rules. Numbers in the metrics table can become range descriptions in the rules (average sentence length 12 words → "sentences run short, a dozen words in ordinary narration").
 4. Example passages: choose the two or three most representative passages from the sample (excerpts are fine), label the scene type, and write "what I like about it". For scene types the sample lacks, write one from the rules and mark it "(written to fit)".
@@ -75,7 +75,7 @@ The file's section headings (the ones in the template) and the two headings "## 
 - [ ] No copied text, names or proper nouns from reference works?
 - [ ] Total length between 1,000 and 2,000 words?
 - [ ] All in English, in the chosen spelling convention?
-- [ ] Are the two headings "## 範例段落" and "## 文字指標（程式統計）" kept as written? (The studio finds content by these two headings.)
+- [ ] Are the two headings "## Sample passage" and "## Text metrics (computed)" kept as written? (The studio finds content by these two headings.)
 
 ## Notes
 

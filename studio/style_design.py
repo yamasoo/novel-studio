@@ -11,7 +11,7 @@ import re
 import time
 
 from . import context, project, prompts, shared
-from . import layout
+from . import layout, sections
 
 MODES = {"design": "設計文風", "revise": "調整文風", "test": "試寫文風"}
 BLOCK_RE = re.compile(r"<<<\s*文風\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
@@ -133,8 +133,8 @@ def finish(library, info, out, truncated=False):
             msg += "輸出被截斷了，請調高「最大輸出」後再試一次。"
         raise DesignError(msg + ("\n\n模型的回覆：\n" + report[:1500] if report else ""))
     text = m.group(1).strip() + "\n"
-    if "## 範例段落" not in text:
-        text = text.rstrip() + "\n\n## 範例段落\n"
+    if not re.search(r"(?mi)^" + shared.SAMPLE_RX, text):
+        text = text.rstrip() + "\n\n## %s\n" % sections.label("style", "sample", prompts.cur_lang())
     text = shared.set_fm(shared.set_fm(text, "name", info["name"]), "type", "文風")  # literal-ok: frontmatter 類型值，P2 換
     if re.search(r"(?m)^# ", text):
         text = re.sub(r"(?m)^# .*$", lambda _m: "# 文風：%s" % info["name"], text, count=1)
@@ -143,9 +143,9 @@ def finish(library, info, out, truncated=False):
     if info["metrics"]:
         text = shared.put_metrics(text, info["metrics"])
     elif info["current"]:   # 保留舊檔的文字指標
-        old = re.search(r"(?ms)^" + re.escape(shared.METRICS_HEAD) + r".*?(?=^## |\Z)", info["current"])
-        if old and shared.METRICS_HEAD not in text:
-            anchor = re.search(r"(?m)^## 範例段落", text)
+        old = re.search(r"(?msi)^" + shared.METRICS_RX + r".*?(?=^## |\Z)", info["current"])
+        if old and not re.search(r"(?mi)^" + shared.METRICS_RX, text):
+            anchor = re.search(r"(?mi)^" + shared.SAMPLE_RX, text)
             text = text[:anchor.start()] + old.group(0).rstrip() + "\n\n" + text[anchor.start():]
     p = info["path"]
     backup = ""

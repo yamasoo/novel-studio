@@ -19,7 +19,7 @@ import re
 import time
 
 from . import project, textguard, volume
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 from . import tables
 
 REL = layout.CONTRACT
@@ -47,14 +47,15 @@ def _rows(text):
     return rows
 
 
-def _section(text, title):
-    """取出 `## title` 到下一个 `## ` 之间的内文（不含标题行）。"""
+def _section(text, sid, doc="style"):
+    """取出文風某一段（`## 標題` 到下一個 `## `，不含標題行）。標題三語都認；繁中照舊允許前後有別的字。"""
     out, on = [], False
+    zh = [x for x in sections.labels(doc, sid) if re.search(r"[\u4e00-\u9fff]", x)]
     for line in text.splitlines():
         if re.match(r"^##\s+", line):
             if on:
                 break
-            on = title in line
+            on = any(x in line for x in zh) or sections.id_of(doc, line.lstrip("#")) == sid
             continue
         if on:
             out.append(line)
@@ -153,8 +154,8 @@ def build(book_dir, keep=""):
     known, hidden = secrets(book_dir)
     vol_name, vol_body = volume_outline(book_dir, no + 1)
     style = _body(book_dir, layout.STYLE)
-    banned = _section(style, "本書禁忌") or _section(style, "禁忌")
-    style_base = _section(style, "基本設定")
+    banned = _section(style, "dont")
+    style_base = _section(style, "basics")
     prefs = _body(book_dir, layout.AUTHOR_PREFS)
     words = tables.rows_to_keys("glossary", _rows(_body(book_dir, layout.GLOSSARY)))
 

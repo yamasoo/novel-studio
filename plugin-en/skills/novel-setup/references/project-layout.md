@@ -112,19 +112,19 @@ length: 2600
 
 ## 4. How to write the tracking files
 
-### 狀態卡.md (fixed seven sections; keep the whole file under 1,500 words)
+### tracking/state-card.md (fixed seven sections; keep the whole file under 1,500 words)
 
-1. **目前位置**: which volume, which chapter just finished, in-story time, main setting
-2. **主線進度**: how far the main line has got and what the next goal is
-3. **在場角色**: the characters now at the centre of the story, one sentence of news each
-4. **下一章承諾**: what the last chapter's ending leaves for the next chapter to catch
-5. **長期約束**: rules to keep through the whole book (e.g. the lead cannot reveal her identity before volume three)
-6. **連續性風險**: error-prone details (e.g. Callum's left hand is still injured)
-7. **活躍伏筆**: IDs of foreshadowing to advance or pay off now, with one line each
+1. **Where we are**: which volume, which chapter just finished, in-story time, main setting
+2. **Main-line progress**: how far the main line has got and what the next goal is
+3. **Characters present**: the characters now at the centre of the story, one sentence of news each
+4. **Promises for the next chapter**: what the last chapter's ending leaves for the next chapter to catch
+5. **Long-term constraints**: rules to keep through the whole book (e.g. the lead cannot reveal her identity before volume three)
+6. **Continuity risks**: error-prone details (e.g. Callum's left hand is still injured)
+7. **Active foreshadowing**: IDs of foreshadowing to advance or pay off now, with one line each
 
 The state card is a snapshot of "now", not a history. Delete outdated content directly; history stays in the chapter summaries.
 
-### 伏筆.md (one table)
+### tracking/foreshadowing.md (one table)
 
 | 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |
 |---|---|---|---|---|---|---|
@@ -132,7 +132,7 @@ The state card is a snapshot of "now", not a history. Delete outdated content di
 
 Status must be one of: 已埋, 推進中, 已回收, 廢棄. Importance: 高, 中, 低. "Planned payoff" holds only the one chapter you mean to pay it off in (第NNN章); leave it empty if undecided. Arrangements like "advance from chapter N" or "echo in chapter N" go in the content column or the outline, otherwise the studio would treat them as the payoff chapter when judging overdue items (the studio skips such wording, but a bare chapter number is the most reliable).
 
-### 時間線.md (the author's truth and what the reader knows, in separate columns)
+### tracking/timeline.md (the author's truth and what the reader knows, in separate columns)
 
 | 編號 | 故事時間 | 實際發生（作者真相） | 讀者目前知道 | 揭示章 | 相關角色 |
 |---|---|---|---|---|---|
@@ -140,7 +140,7 @@ Status must be one of: 已埋, 推進中, 已回收, 廢棄. Importance: 高, �
 
 "What the reader knows now" is the information boundary while writing: the text must not let a character or the narrator say what the reader should not yet know.
 
-### 讀者認知.md (the reader's state of mind, optional)
+### tracking/reader-knowledge.md (the reader's state of mind, optional)
 
 | 編號 | 類型 | 內容 | 作者真相 | 種下章 | 回收章 | 相關角色 |
 |---|---|---|---|---|---|---|
@@ -149,7 +149,7 @@ Status must be one of: 已埋, 推進中, 已回收, 廢棄. Importance: 高, �
 
 Type must be one of: 已知 (the reader knows, but some characters in the story do not yet), 懸念 (a question the reader waits to have answered), 誤認 (what the reader wrongly believes). A blank resolving chapter means not yet revealed; the author's truth is optional. The timeline records events; this table records the reader's questions and misunderstandings.
 
-### 關係.md (between characters, who toward whom, optional)
+### tracking/relations.md (between characters, who toward whom, optional)
 
 | 編號 | 誰 | 對誰 | 關係 | 態度 | 起始章 | 結束章 | 變化原因 |
 |---|---|---|---|---|---|---|---|
@@ -159,7 +159,7 @@ Type must be one of: 已知 (the reader knows, but some characters in the story 
 
 One direction per row: A toward B and B toward A are separate, and the two views may differ. When a relationship changes, put the changing chapter in the old row's end chapter and open a new row; never overwrite, so the history stays. A blank end chapter means currently valid. When writing, look only at the currently valid rows among characters on stage; when reviewing, read the history too, to catch "changed without a cause" or "slipped back".
 
-### 章節摘要/ch-NNNN.md (100-250 words)
+### tracking/summaries/ch-NNNN.md (100-250 words)
 
 Four things: what happened in the chapter, how the situation changed, what and who newly appeared, where the chapter stops.
 
@@ -169,7 +169,7 @@ Four things: what happened in the chapter, how the situation changed, what and w
 |---|---|---|
 | bible/story-core.md, style.md | novel-setup, novel-outline | at setup, when changing direction |
 | bible/author-prefs.md | any skill | when the author clearly says "from now on …" |
-| bible/characters, 勢力, 世界觀, 名詞表, 草稿 | novel-bible | when building settings, and registering new things after a chapter |
+| bible/characters, factions, world, glossary.md, drafts | novel-bible | when building settings, and registering new things after a chapter |
 | outline/* | novel-outline | when planning |
 | manuscript/* | novel-write | when writing chapters |
 | tracking/* | novel-write (write-back after writing), novel-review (fixing errors) | after the chapter text is done |

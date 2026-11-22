@@ -13,7 +13,7 @@ import json
 import os
 
 from . import fingerprint, project, prompts, providers, sdna, similarity, spawn, tracking
-from . import layout
+from . import layout, sections
 
 REL_DIR = layout.SPINOFF_DRAFTS
 RULE = """你在幫作者開一本新書的骨架。只輸出一個 JSON 物件，不要說明、不要程式碼圍欄。
@@ -387,7 +387,7 @@ def apply_new(book_dir, data, title=None, lang="zh-TW", source=""):
             b = tracking.backup(book_dir, p, "套用骨架前")
             if b:
                 backups.append(project.rel_of(book_dir, b))
-        _write(p, text)
+        _write(p, sections.localize_doc(text, lang))     # 段落標題依書的語言
         files.append(rel)
 
     put(layout.STORY_CORE, _story_core_md(data, title, lang, dna))

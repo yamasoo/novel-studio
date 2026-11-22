@@ -209,7 +209,7 @@ class GlossaryOrgFlowTest(unittest.TestCase):
         self.assertIn("詳見", gl)
         self.assertIn("官府禁止私鑄", "".join(zd.values()))
         ed = got["en"]["drafts"]
-        self.assertIn("## 沿革\nchartered long ago", next(v for p, v in ed.items() if "Surveyors" in p))
+        self.assertIn("## History\nchartered long ago", next(v for p, v in ed.items() if "Surveyors" in p))
         self.assertIn("the erased road", "".join(ed.values()))
         self.assertTrue(any("landmark" in x for x in got["en"]["logs"]), "認不得的選項值要提醒")
         self.assertEqual(got["zh"]["drafts"], {k: v for k, v in got["zh"]["drafts"].items()})

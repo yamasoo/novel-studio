@@ -2,7 +2,7 @@
 type: author-prefs
 ---
 
-# 作者偏好
+# Author preferences
 
 | 編號 | 偏好（原意） | 範圍 | 記錄日期 |
 |---|---|---|---|

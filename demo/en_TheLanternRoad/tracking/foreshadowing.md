@@ -3,7 +3,7 @@ type: foreshadowing
 updated_through: 2
 ---
 
-# 伏筆總表
+# Foreshadowing
 
 | 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |
 |---|---|---|---|---|---|---|

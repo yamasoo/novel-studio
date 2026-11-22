@@ -5,7 +5,7 @@ updated_through: 2
 last_appearance: 2
 ---
 
-# Wren Alder：目前狀態
+# Wren Alder: current state
 
 - Identity: apprentice mapmaker at Vale's shop
 - Location: the shop, Hollin Cross

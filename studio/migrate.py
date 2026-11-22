@@ -13,7 +13,7 @@ import unicodedata
 import shutil
 import zipfile
 
-from . import bookmeta, context, fmkeys, layout, project, volume
+from . import bookmeta, context, fmkeys, layout, project, sections, volume
 
 SKIP_DIRS = (".git",)                       # 不備份、不還原（作者自己的版本控制）
 
@@ -298,7 +298,7 @@ def needs_migration(book_dir):
     只看資料夾與檔名（書架每次都會問，不能讀檔）。"""
     return rename_enabled() and (any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
                                  or _old_chapter_files(book_dir) or _old_volume_files(book_dir) or _docs_needed(book_dir)
-                                 or _fm_pending_quick(book_dir))
+                                 or _fm_pending_quick(book_dir) or _sec_pending_quick(book_dir))
 
 
 def library_needs_migration(library):
@@ -940,6 +940,71 @@ def _docs_apply(book_dir):
     return out
 
 
+# --- 段落標題依書的語言（英文、日文書；繁中書不變） ------------------------------------
+def _sec_lang(book_dir):
+    from . import lang as lang_mod
+    return lang_mod.book_lang(book_dir)
+
+
+def _sec_files(book_dir):
+    """段落標題、範本欄位、文件標題還不是書的語言的 .md（備份、任務紀錄、移轉資料夾除外）。"""
+    lang = _sec_lang(book_dir)
+    if lang not in ("en", "ja"):
+        return []
+    out = []
+    for full, rel in _walk_files(book_dir):
+        if not rel.endswith(".md") or rel.startswith(_FM_SKIP + (layout.MIGRATE_DIR + "/",)):
+            continue
+        try:
+            text = project.read_text(full)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if text.startswith("---") and sections.localize_doc(text, lang) != text:
+            out.append(rel)
+    return out
+
+
+def _sec_pending_quick(book_dir):
+    lang = _sec_lang(book_dir)
+    if lang not in ("en", "ja"):
+        return False
+    v3 = v3_view()
+    for k in _FM_PROBE:
+        p = os.path.join(book_dir, *v3[k].split("/"))
+        if os.path.isfile(p):
+            text = project.read_text(p)
+            if sections.localize_doc(text, lang) != text:
+                return True
+    return False
+
+
+def _sections_needed(book_dir):
+    if not rename_enabled():
+        return False
+    if _has_v2_dirs(book_dir):
+        return _old_lang(book_dir) in ("en", "ja")
+    return bool(_sec_files(book_dir))
+
+
+def _sections_plan(book_dir):
+    if _has_v2_dirs(book_dir):
+        return [_AFTER_RENAME]
+    by_dir = {}
+    for r in _sec_files(book_dir):
+        d = os.path.dirname(r) or "."
+        by_dir[d] = by_dir.get(d, 0) + 1
+    return ["%s/：%d 個檔" % (d, n) for d, n in sorted(by_dir.items())] or ["沒有要改的"]
+
+
+def _sections_apply(book_dir):
+    out = _sections_plan(book_dir)
+    lang = _sec_lang(book_dir)
+    for rel in _sec_files(book_dir):
+        p = os.path.join(book_dir, *rel.split("/"))
+        project.write_atomic(p, sections.localize_doc(project.read_text(p), lang))
+    return out
+
+
 STEPS = [
     Step("book_meta", "書的身分證 book.json", _meta_needed, _meta_plan, _meta_apply),
     Step("rename", "資料夾與系統檔名換成英文", _rename_needed, _rename_plan, _rename_apply),
@@ -947,6 +1012,7 @@ STEPS = [
     Step("volumes", "卷綱檔名換成 vol-01", _volumes_needed, _volumes_plan, _volumes_apply),
     Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
     Step("fmkeys", "frontmatter 的鍵與固定詞換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
+    Step("sections", "段落標題換成書的語言", _sections_needed, _sections_plan, _sections_apply),
 ]
 
 

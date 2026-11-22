@@ -16,7 +16,7 @@ import sys
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-METRICS_HEAD = "## 文字指標（程式統計）"
+METRICS_HEAD = "## Text metrics (computed)"
 
 
 class SampleTooShort(ValueError):

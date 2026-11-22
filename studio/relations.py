@@ -11,7 +11,7 @@ import os
 import re
 
 from . import project, prompts, tracking
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 from . import tables
 
 FILE = layout.RELATIONS
@@ -24,7 +24,7 @@ INTRO = ("> 誰「對」誰的關係，一個方向一列（A 對 B、B 對 A �
          "> 關係改變時舊的那列填「結束章」、另開一列，不要覆蓋；「結束章」空白＝目前有效。起始章空白＝從開頭就是這樣或不確定。\n\n")
 
 _SKIP = re.compile(r"^[（(]?\s*(正文未明確|無|尚無|待補|未定|沒有|不明)\s*[）)]?[。.]?$")
-_TRIVIAL = ("", "無", "（無）", "(無)", "沒有", "無變化", "無新增", "（正文未明確）", "正文未明確", "（無變化）")
+_TRIVIAL = ("", "無", "（無）", "(無)", "(none)", "none", "（なし）", "なし", "沒有", "無變化", "無新增", "（正文未明確）", "正文未明確", "（無變化）")
 
 
 def _norm(s):
@@ -175,7 +175,7 @@ def apply_changes(book_dir, no, items, revision=False):
 # ---------------------------------------------------------------------------
 def _section(body):
     body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
-    m = re.search(r"(?m)^##\s*關係[^\n]*\n(.*?)(?=^##\s|\Z)", body, re.S)
+    m = re.search(r"(?mi)^##\s*(?:關係|" + sections.head_rx("character", "relationships") + r")[^\n]*\n(.*?)(?=^##\s|\Z)", body, re.S)
     return m.group(1) if m else ""
 
 

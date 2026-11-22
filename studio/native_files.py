@@ -16,7 +16,7 @@ import time
 import urllib.request
 
 from . import contract, context, project, prompts, setup_flow, shared, textguard, tracking, volume
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -590,7 +590,7 @@ def cards_brief(c, limit=60):
             continue
         fm, body = project.split_frontmatter(text)
         one = ""
-        m = re.search(r"##\s*一句話\s*\n(.*?)(?=\n##|\Z)", body, re.S)
+        m = re.search(r"##\s*" + sections.head_rx(None, "one_line") + r"\s*\n(.*?)(?=\n##|\Z)", body, re.S | re.I)
         if m:
             one = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip().split("\n")[0]
         title = ("《%s》" % fm.get("title")) if fm.get("title") else ""

@@ -9,7 +9,7 @@ import threading
 import yaml
 
 from . import enums
-from . import fmkeys, layout
+from . import fmkeys, layout, sections
 from . import ids
 
 CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
@@ -323,7 +323,7 @@ def read_hook(book_dir):
     if not os.path.isfile(p):
         return ""
     _, body = split_frontmatter(read_text(p))
-    m = re.search(r"##\s*一句話鉤子\s*\n(.*?)(?=\n##|\Z)", body, re.S)
+    m = re.search(r"##\s*" + sections.head_rx("story-core", "hook") + r"\s*\n(.*?)(?=\n##|\Z)", body, re.S | re.I)
     if not m:
         return ""
     txt = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip()
@@ -529,7 +529,7 @@ def _squash(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def merge_entry(old, new):
+def merge_entry(old, new, lang=None):
     """把 new（通常是從正文反推的草稿）併進既有設定檔 old，old 的內容一律不被覆蓋。
 
     - frontmatter：只補 old 空白的欄位；狀態、來源不動。
@@ -548,10 +548,14 @@ def merge_entry(old, new):
     _, obody = split_frontmatter(text)
     head = text[:len(text) - len(obody)]
     osec = _sections(obody)
-    where = {s[0]: i for i, s in enumerate(osec) if s[0]}
+    doc = fmkeys.value_en("type", nfm.get("type") or ofm.get("type"))
+
+    def key(t):             # 同一段不同語言的標題對得起來（v2 中文標題 ↔ 英文、日文）
+        return sections.id_of(doc, t) or t
+    where = {key(s[0]): i for i, s in enumerate(osec) if s[0]}
     conflicts, tail = [], []
     for title, content in _sections(nbody)[1:]:
-        i = where.get(title)
+        i = where.get(key(title))
         if i is None:
             tail.append([title, content])
         elif _section_blank(osec[i][1]):
@@ -560,9 +564,9 @@ def merge_entry(old, new):
             conflicts.append((title, content))
     if conflicts:
         block = "\n\n".join("### %s\n%s" % (t, c.strip()) for t, c in conflicts)
-        i = where.get(REV_SECTION)
+        i = where.get(key(REV_SECTION))
         if i is None:
-            tail.append([REV_SECTION, "\n" + block])
+            tail.append([sections.label("common", "rev_unmerged", lang), "\n" + block])
         else:
             osec[i][1] = osec[i][1].rstrip("\n") + "\n\n" + block
     parts = [((("## %s" % t) + c) if t else c).strip("\n") for t, c in osec + tail]
@@ -580,7 +584,7 @@ def list_entries(book_dir, rel_dir):
         if os.path.isfile(p) and f.endswith(".md"):
             fm, body = split_frontmatter(read_text(p))
             one = ""
-            m = re.search(r"##\s*一句話\s*\n(.*?)(?=\n##|\Z)", body, re.S)
+            m = re.search(r"##\s*" + sections.head_rx(fmkeys.value_en("type", fm.get("type")), "one_line") + r"\s*\n(.*?)(?=\n##|\Z)", body, re.S | re.I)
             if m:
                 one = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip().split("\n")[0]
             tags = fm.get("tags") or []

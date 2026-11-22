@@ -107,7 +107,7 @@ def _bump_updated(text, label):
     if m and _chno(m.group(1)) >= _chno(label):
         return text
     if m:
-        return text[:m.start()] + "updated_through: %s" % label + text[m.end():]
+        return text[:m.start()] + "updated_through: %s" % fmkeys.ch_value(label) + text[m.end():]
     return text
 
 
@@ -149,7 +149,7 @@ def upsert_table(path, kind, items, prefix, title, ftype, chapter_label):
     if os.path.isfile(path):
         text = project.read_text(path)
     else:
-        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (fmkeys.write_value("type", ftype), chapter_label, title)
+        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (fmkeys.write_value("type", ftype), fmkeys.ch_value(chapter_label), title)
     before, headers, rows, after = _split_table(text)
     headers = headers or tables.headers(kind)
     keys = [tables.key_of(kind, h) for h in headers]
@@ -225,7 +225,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     sc = data.get("state_card") or {}
     if sc and not revision:
         p = layout.path(book_dir, layout.STATE_CARD)
-        text = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % label
+        text = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % fmkeys.ch_value(label)
         for i, (k, head) in enumerate(STATE_KEYS, 1):
             text += "\n## %d. %s\n" % (i, head)
             items = _lines(sc.get(k))
@@ -284,7 +284,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         if os.path.isfile(p):
             for m in re.finditer(r"^- (.+?)：(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
                 old[m.group(1)] = m.group(2)
-        text = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n" % (name, label, label, name)
+        text = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n" % (name, fmkeys.ch_value(label), fmkeys.ch_value(label), name)
         for k, f in CHAR_KEYS:
             v = c.get(k)
             if isinstance(v, list):
@@ -333,7 +333,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
                 cp = layout.path(book_dir, layout.CHARACTERS, re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
                 if not os.path.exists(cp):
                     _write(cp, "---\ntype: character\nname: %s\naliases: []\nrole: supporting\nfirst_appearance: %s\nstatus: canon\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
-                           % (nm, label, nm, _cell(e.get("explanation", ""))))
+                           % (nm, fmkeys.ch_value(label), nm, _cell(e.get("explanation", ""))))
         if added:
             sep = "" if before.endswith("\n\n") else "\n"
             _write(gp, before + sep + _render_table(headers, rows) + ("\n" + after if after.strip() else "\n"))
@@ -389,7 +389,7 @@ def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=Fa
             row["type"] = "懸念"
         rows.append(tables.row_to_headers("reader", row))
     head = "---\ntype: reader-knowledge\nupdated_through: %s\n%s---\n\n# 讀者認知%s\n\n" % (
-        chapter_label_text, "status: draft\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
+        fmkeys.ch_value(chapter_label_text), "status: draft\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
     _write(path, head + prompts.cur()["rp_intro"] + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
     return len(rows)
 

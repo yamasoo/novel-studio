@@ -55,7 +55,7 @@ type: character
 name: 林晚
 aliases: [晚晚, 林家二小姐]
 role: protagonist          # protagonist / main-supporting / supporting / antagonist / minor
-first_appearance: 第001章
+first_appearance: 1
 status: canon          # canon / draft
 ---
 ```
@@ -78,7 +78,7 @@ related_characters: [林晚, 沈既白]
 type: chapter-card
 chapter: 1
 title: 退婚當天
-volume: 第一卷
+volume: 1
 target_length: 3000      # 可留空
 status: approved        # draft / approved / written
 ---
@@ -90,8 +90,8 @@ status: approved        # draft / approved / written
 ---
 type: character-state
 name: 林晚
-updated_through: 第012章
-last_appearance: 第012章
+updated_through: 12
+last_appearance: 12
 ---
 ```
 

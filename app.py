@@ -1995,8 +1995,8 @@ def book_tracking(book_id: str):
     chars = project.list_entries(d, layout.CHARACTER_STATES) if os.path.isdir(cs_dir) else []
     for c in chars:
         fm, _ = project.split_frontmatter(project.read_text(os.path.join(d, c["file"])))
-        c["last"] = fm.get("last_appearance")
-        c["updated_to"] = fm.get("updated_through")
+        c["last"] = fmkeys.ch_disp(fm.get("last_appearance"))
+        c["updated_to"] = fmkeys.ch_disp(fm.get("updated_through"))
     ov = project.overview(d)
     return {
         "foreshadow": tables.read(d, "foreshadow", layout.FORESHADOWING),

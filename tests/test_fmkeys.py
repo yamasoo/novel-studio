@@ -135,3 +135,31 @@ def json_norm(v, root):
     if isinstance(v, list):
         return [json_norm(x, root) for x in v]
     return v.replace(root, "<ROOT>") if isinstance(v, str) else v
+
+
+class ChapterNumberTest(unittest.TestCase):
+    """v3：章號存整數、章節範圍存 [lo, hi]、所屬卷存整數；兩種舊寫法都讀得懂。"""
+
+    def test_ch_int(self):
+        for v in (12, "12", "第012章", "第12章", "ch-0012", " 第 12 章 "):
+            self.assertEqual(12, fmkeys.ch_int(v), v)
+        for v in (None, "", "未知", "第三章前後x"):
+            self.assertIsNone(fmkeys.ch_int(v), v)
+
+    def test_disp_and_value(self):
+        self.assertEqual("第012章", fmkeys.ch_disp(12))
+        self.assertEqual("第012章", fmkeys.ch_disp("第012章"))
+        self.assertEqual(12, fmkeys.ch_value("第012章"))
+        self.assertEqual("[1, 60]", fmkeys.range_value(1, 60))
+
+    def test_volume_int(self):
+        self.assertEqual(1, fmkeys.volume_int("第一卷"))
+        self.assertEqual(12, fmkeys.volume_int("第十二卷"))
+        self.assertEqual(20, fmkeys.volume_int("第二十卷"))
+        self.assertEqual(3, fmkeys.volume_int("3"))
+        self.assertIsNone(fmkeys.volume_int("序卷"))
+
+    def test_read_after_write(self):
+        text = "---\ntype: character\nfirst_appearance: 3\n---\n"
+        fm, _ = project.split_frontmatter(text)
+        self.assertEqual("第003章", fmkeys.ch_disp(fm["first_appearance"]))

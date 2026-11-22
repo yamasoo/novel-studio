@@ -57,7 +57,7 @@ type: character
 name: Ines Marlow
 aliases: [Nessie, Miss Ines]
 role: protagonist          # protagonist / main-supporting / supporting / antagonist / minor
-first_appearance: 第001章
+first_appearance: 1
 status: canon          # canon / draft
 ---
 ```
@@ -80,7 +80,7 @@ related_characters: [Ines Marlow, Callum Brandt]
 type: chapter-card
 chapter: 1
 title: The Day the Engagement Ended
-volume: 第一卷
+volume: 1
 target_length: 2500      # may be empty
 status: approved        # draft / approved / written
 ---
@@ -92,8 +92,8 @@ status: approved        # draft / approved / written
 ---
 type: character-state
 name: Ines Marlow
-updated_through: 第012章
-last_appearance: 第012章
+updated_through: 12
+last_appearance: 12
 ---
 ```
 

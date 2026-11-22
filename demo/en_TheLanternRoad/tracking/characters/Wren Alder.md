@@ -1,8 +1,8 @@
 ---
 type: character-state
 name: Wren Alder
-updated_through: 第002章
-last_appearance: 第002章
+updated_through: 2
+last_appearance: 2
 ---
 
 # Wren Alder：目前狀態

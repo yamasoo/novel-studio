@@ -512,7 +512,7 @@ def render_character(ch, acc, last_label):
     st = ch.get("current_state") or {}
     last = max(info.get("chapters") or [0]) or 0
     stext = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n%s\n\n" % (
-        name, last_label, tracking.chapter_label(last) if last else "", name, _t("rev_state_note"))
+        name, fmkeys.ch_value(last_label), fmkeys.ch_value(last) if last else "", name, _t("rev_state_note"))
     stext += "\n".join("- %s：%s" % (label, _v(st.get(k))) for k, label in tracking.CHAR_KEYS)
     return name, text, stext
 
@@ -587,9 +587,9 @@ def render_outline(book, vols, arcs):
             j + 1, _v(u.get("name")), _clean(u.get("chapter_range")), _v(u.get("starting_situation")), _v(u.get("conflict")),
             _v(u.get("mini_climax")), _v(u.get("outcome_cost"))) for j, u in enumerate(units)) or unknown()
         arcs_in = [x for x in arcs if x["start"] <= b and x["end"] >= a]
-        vt = ("---\ntype: volume-outline\ntitle: %s\nchapter_range: 第%03d章～第%03d章\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：%s\n\n## 卷契約\n- 本卷賣點：%s\n"
+        vt = ("---\ntype: volume-outline\ntitle: %s\nchapter_range: %s\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：%s\n\n## 卷契約\n- 本卷賣點：%s\n"
               "- 主角本卷目標：%s\n- 本卷對手：%s\n- 卷末兌現：%s\n- 卷末新鉤子：%s\n\n## 本卷摘要\n%s\n\n## 劇情單元\n\n%s\n\n## 人物弧線\n%s\n") % (
-            nm, a, b, nm, unknown(), _v(v.get("volume_goal")), _v(v.get("main_opponent")), _v(v.get("volume_climax")),
+            nm, fmkeys.range_value(a, b), nm, unknown(), _v(v.get("volume_goal")), _v(v.get("main_opponent")), _v(v.get("volume_climax")),
             _v(v.get("volume_new_hook")), "\n\n".join(x.get("segment_summary", "") for x in arcs_in) or unknown(), ut,
             "\n".join("- " + _v(x) for x in (v.get("character_arcs") or [])) or "- " + unknown())
         files.append((layout.volume_file(i + 1), vt))
@@ -601,7 +601,7 @@ def render_outline(book, vols, arcs):
 def _vol_of(vols, no):
     for i, v in enumerate(vols):
         if int(v.get("start") or 0) <= no <= int(v.get("end") or 0):
-            return _vol_name(i)
+            return (i + 1) if fmkeys.WRITE_VALUES == "en" else _vol_name(i)      # v3：所屬卷存整數
     return ""
 
 
@@ -627,9 +627,9 @@ def render_summary(no, title, chars, s):
 
 
 def render_tables(acc, last_label, core):
-    fs = ("---\ntype: foreshadowing\nupdated_through: %s\n---\n\n# 伏筆總表\n\n" % last_label +
+    fs = ("---\ntype: foreshadowing\nupdated_through: %s\n---\n\n# 伏筆總表\n\n" % fmkeys.ch_value(last_label) +
           tracking._render_table(tracking.FS_HEADERS, tables.rows_to_headers("foreshadow", acc.get("fs") or [])) + "\n")
-    tl = ("---\ntype: timeline\nupdated_through: %s\n---\n\n# 時間線\n\n%s\n\n" % (last_label, _t("rev_tl_note")) +
+    tl = ("---\ntype: timeline\nupdated_through: %s\n---\n\n# 時間線\n\n%s\n\n" % (fmkeys.ch_value(last_label), _t("rev_tl_note")) +
           tracking._render_table(tracking.TL_HEADERS, tables.rows_to_headers("timeline", acc.get("events") or [])) + "\n")
     rows = []
     terms = acc.get("terms") or {}
@@ -737,7 +737,7 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
     except StopIteration:
         return None
     tracking.write_reader_table(_p(book_dir, layout.REVERSE_DRAFTS, *layout.parts(layout.READER_KNOWLEDGE)), acc.get("reader") or [], label, keep_ids=True)
-    stc = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % label
+    stc = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % fmkeys.ch_value(label)
     for i, (k, head) in enumerate(tracking.STATE_KEYS, 1):
         items = (sc or {}).get(k) or []
         items = items if isinstance(items, list) else [items]

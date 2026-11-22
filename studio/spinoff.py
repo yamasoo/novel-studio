@@ -318,7 +318,7 @@ def _volume_md(row):
     return """---
 type: volume-outline
 title: %(name)s
-chapter_range: 第%(lo)03d章～第%(hi)03d章
+chapter_range: [%(lo)d, %(hi)d]
 status: approved
 ---
 

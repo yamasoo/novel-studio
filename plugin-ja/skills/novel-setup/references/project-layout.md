@@ -57,7 +57,7 @@ type: character
 name: 伊音
 aliases: [イネ, 伊音さん]
 role: protagonist          # protagonist / main-supporting / supporting / antagonist / minor
-first_appearance: 第001章
+first_appearance: 1
 status: canon          # canon / draft
 ---
 ```
@@ -80,7 +80,7 @@ related_characters: [伊音, 嘉楽夢]
 type: chapter-card
 chapter: 1
 title: 婚約が終わった日
-volume: 第一卷
+volume: 1
 target_length: 2500      # 空でもよい
 status: approved        # draft / approved / written
 ---
@@ -92,8 +92,8 @@ status: approved        # draft / approved / written
 ---
 type: character-state
 name: 伊音
-updated_through: 第012章
-last_appearance: 第012章
+updated_through: 12
+last_appearance: 12
 ---
 ```
 

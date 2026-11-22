@@ -694,7 +694,11 @@ _FM_VALUE = re.compile(r"^([A-Za-z_]+):([ \t]*)([^#\n]*?)([ \t]*(?:#.*)?)$")
 def _fm_value_line(l):
     """type、status、role、category、default 那一行：值換成英文 ID；註解裡列出的固定詞也換。作者自己寫的值不動。"""
     m = _FM_VALUE.match(l)
-    if not m or m.group(1) not in fmkeys.VALUES:
+    if not m:
+        return l
+    if m.group(1) in fmkeys.CHAPTER_KEYS + ("chapter_range", "volume"):
+        return _fm_number_line(*m.groups())
+    if m.group(1) not in fmkeys.VALUES:
         return l
     key, sp, val, comment = m.groups()
     q = val[:1] if val[:1] in "\"'" and val[-1:] == val[:1] and len(val) > 1 else ""
@@ -704,6 +708,29 @@ def _fm_value_line(l):
         for e, zh in sorted(fmkeys.VALUES[key], key=lambda p: -len(p[1])):
             comment = re.sub(r"(?<![\w\u4e00-\u9fff])%s(?![\w\u4e00-\u9fff])" % re.escape(zh), e, comment)
     return "%s:%s%s%s%s%s" % (key, sp, q, new if isinstance(new, str) else raw, q, comment)
+
+
+_RANGE_EXAMPLE = re.compile(r"第0*(\d+)章\s*[～~\-－–—至到]\s*第0*(\d+)章")     # literal-ok: v2 的章節範圍寫法
+
+
+def _fm_number_line(key, sp, val, comment):
+    """章號、章節範圍、所屬卷：第012章 → 12、第001章～第060章 → [1, 60]、第一卷 → 1。讀不出數字的原樣。"""
+    raw = val.strip().strip("\"'")
+    new = val
+    if raw:
+        if key == "chapter_range":
+            nums = re.findall(r"\d+", raw)
+            if len(nums) >= 2 and not raw.startswith("["):
+                new = "[%d, %d]" % (int(nums[0]), int(nums[-1]))
+        elif key == "volume":
+            n = fmkeys.volume_int(raw)
+            new = str(n) if n is not None else val
+        else:
+            n = fmkeys.ch_int(raw)
+            new = str(n) if n is not None and re.fullmatch(r"(?:第\s*0*\d+\s*章|0*\d+|ch-?0*\d+)", raw, re.I) else val
+    if comment:
+        comment = _RANGE_EXAMPLE.sub(lambda mm: "[%d, %d]" % (int(mm.group(1)), int(mm.group(2))), comment)
+    return "%s:%s%s%s" % (key, sp, new, comment)
 
 
 def _fm_block(lines):

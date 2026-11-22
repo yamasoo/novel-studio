@@ -1,7 +1,7 @@
 ---
 type: volume-outline
 title: The Erased Road
-chapter_range: 第001章～第030章
+chapter_range: [1, 30]
 status: approved
 ---
 

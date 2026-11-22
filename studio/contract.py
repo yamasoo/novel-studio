@@ -100,7 +100,7 @@ def characters(book_dir):
         name = e.get("name") or ""
         fm = e.get("frontmatter") or _front(book_dir, e.get("file") or "")
         st = _front(book_dir, layout.entry(layout.CHARACTER_STATES, name))
-        out.append((name, fmkeys.disp("role", fm.get("role")) or "", fm.get("first_appearance") or "", st.get("last_appearance") or ""))
+        out.append((name, fmkeys.disp("role", fm.get("role")) or "", fmkeys.ch_disp(fm.get("first_appearance")) or "", fmkeys.ch_disp(st.get("last_appearance")) or ""))
     return out
 
 
@@ -158,7 +158,7 @@ def build(book_dir, keep=""):
     prefs = _body(book_dir, layout.AUTHOR_PREFS)
     words = tables.rows_to_keys("glossary", _rows(_body(book_dir, layout.GLOSSARY)))
 
-    L = ["---", "type: continuation-contract", "updated_through: 第%03d章" % no,
+    L = ["---", "type: continuation-contract", "updated_through: %s" % fmkeys.ch_value(no),
          "產生時間: %s" % time.strftime("%Y-%m-%d %H:%M"), "---", "",
          "# 續寫合約", "",
          "> 這份是「續寫時不能違背的事實」，程式從正文、設定、追蹤與大綱整理出來的，"
@@ -251,7 +251,7 @@ def ensure(book_dir, force=False, notes=None):
     no = last_chapter(book_dir)
     if existing and not force:
         fm = project.split_frontmatter(existing)[0]
-        if (fm.get("updated_through") or "").strip() == "第%03d章" % no:
+        if fmkeys.ch_int(fm.get("updated_through")) == no:
             return None                     # 章數沒變：作者可能改過，不動它
     content = build(book_dir, keep_of(existing))
     content, note = textguard.guard_text(book_dir, content)

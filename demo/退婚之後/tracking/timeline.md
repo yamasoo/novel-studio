@@ -1,6 +1,6 @@
 ---
 type: timeline
-updated_through: 第002章
+updated_through: 2
 ---
 
 # 時間線

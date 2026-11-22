@@ -16,7 +16,7 @@ import time
 import urllib.request
 
 from . import contract, context, project, prompts, setup_flow, shared, textguard, tracking, volume
-from . import layout
+from . import fmkeys, layout
 
 FILE_RE = re.compile(r"<<<\s*檔案\s+(.+?)\s*>>>[ \t]*\r?\n(.*?)\r?\n?[ \t]*<<<\s*結束\s*>>>", re.S)
 DEL_RE = re.compile(r"<<<\s*刪除\s+(.+?)\s*>>>")
@@ -820,7 +820,7 @@ def act_review_all(c, p, system):
     roles = []
     for e in project.list_entries(c.book, layout.CHARACTER_STATES):
         fm, _ = project.split_frontmatter(context.read(c.book, e["file"]))
-        roles.append("- %s：最後登場 %s" % (e["name"], fm.get("last_appearance") or "—"))
+        roles.append("- %s：最後登場 %s" % (e["name"], fmkeys.ch_disp(fm.get("last_appearance")) or "—"))
     pk.add(2, "角色最後登場", "\n".join(roles))
     add_book_core(pk, c)
     from . import native

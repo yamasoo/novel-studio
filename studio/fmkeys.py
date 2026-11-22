@@ -6,6 +6,8 @@
   沒有就寫英文鍵（WRITE）。程式自己組的 frontmatter 一律英文鍵；舊書由移轉工具一次換好。
 - 「章名」「書名」「卷名」在 v3 都叫 title（WRITE 是 zh 時依文件類型挑中文寫法）。
 """
+import re
+
 
 # (英文鍵, 中文鍵)。同一個英文鍵可以有好幾個中文寫法（title）。
 PAIRS = [
@@ -116,3 +118,61 @@ def write_value(key, v):
     if key not in VALUES or v is None:
         return v
     return value_en(key, v) if WRITE_VALUES == "en" else disp(key, v)
+
+
+# ---------------------------------------------------------------------------
+# 章號、章節範圍、所屬卷：v3 存整數（first_appearance: 12、chapter_range: [1, 60]、volume: 1）。
+# 讀的時候「第012章」「12」「ch-0012」都認（各處原本就只抓數字）；交給介面的照舊是「第012章」。
+# ---------------------------------------------------------------------------
+CHAPTER_KEYS = ("first_appearance", "last_appearance", "updated_through")
+_CN_DIGITS = {"〇": 0, "零": 0, "一": 1, "二": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+
+
+def ch_int(v):
+    """章號：12、"12"、"第012章"、"ch-0012" → 12；讀不到回 None。"""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    m = re.search(r"\d+", str(v or ""))
+    return int(m.group(0)) if m else None
+
+
+def ch_disp(v):
+    """交給介面與提示詞的章號：第012章（讀不到數字就原樣）。"""
+    n = ch_int(v)
+    return "第%03d章" % n if n is not None else v       # literal-ok: 介面的章號寫法（P5 改成依語言）
+
+
+def ch_value(v):
+    """寫進 frontmatter 的章號。"""
+    n = ch_int(v)
+    if n is None:
+        return v
+    return n if WRITE_VALUES == "en" else "第%03d章" % n   # literal-ok: v2 的章號寫法
+
+
+def range_value(lo, hi):
+    """寫進 frontmatter 的章節範圍：[1, 60]。"""
+    return "[%d, %d]" % (int(lo), int(hi)) if WRITE_VALUES == "en" else "第%03d章～第%03d章" % (int(lo), int(hi))   # literal-ok: v2 寫法
+
+
+def volume_int(v):
+    """所屬卷：1、"1"、"第一卷"、"第12卷" → 整數；讀不到回 None。"""
+    n = ch_int(v)
+    if n is not None:
+        return n
+    s = re.sub(r"[第卷\s]", "", str(v or ""))      # literal-ok: v2 的卷號寫法
+    if not s or any(c not in _CN_DIGITS and c not in "十百" for c in s):
+        return None
+    total, cur = 0, 0
+    for c in s:
+        if c == "十":
+            total += (cur or 1) * 10
+            cur = 0
+        elif c == "百":
+            total += (cur or 1) * 100
+            cur = 0
+        else:
+            cur = _CN_DIGITS[c]
+    return (total + cur) or None

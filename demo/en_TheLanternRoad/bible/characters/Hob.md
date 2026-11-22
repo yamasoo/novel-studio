@@ -3,7 +3,7 @@ type: character
 name: Hob
 aliases: [the lantern]
 role: main-supporting
-first_appearance: 第001章
+first_appearance: 1
 status: canon
 ---
 

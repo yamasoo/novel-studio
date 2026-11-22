@@ -625,6 +625,26 @@ class VolumeFilesTest(unittest.TestCase):
             self.assertEqual(no, volume.no_of(raw), raw)
 
 
+class FmNumberTest(unittest.TestCase):
+    """章號、章節範圍、所屬卷換成數字（v3 P3 第四批之三）。"""
+
+    def test_numbers(self):
+        t = ("---\ntype: chapter-card\nvolume: 第一卷\nupdated_through: 第012章\nfirst_appearance: 1\n"
+             "last_appearance: 第3章前後\nchapter_range: 第001章～第030章\n---\n\n第001章～第002章 正文不動\n")
+        out = migrate.fm_rewrite(t)
+        self.assertIn("volume: 1\n", out)
+        self.assertIn("updated_through: 12\n", out)
+        self.assertIn("first_appearance: 1\n", out)
+        self.assertIn("last_appearance: 第3章前後\n", out)             # 讀不出單一章號：原樣
+        self.assertIn("chapter_range: [1, 30]\n", out)
+        self.assertIn("第001章～第002章 正文不動", out)
+        self.assertEqual(out, migrate.fm_rewrite(out))                   # 再跑一次不變
+
+    def test_comment_example(self):
+        out = migrate.fm_rewrite("---\nchapter_range:       # 例：第001章～第060章\n---\n")
+        self.assertIn("# 例：[1, 60]", out)
+
+
 class FmKeysStepTest(unittest.TestCase):
     """frontmatter 的鍵換成英文（v3 P3 第四批之二）。"""
 

@@ -595,7 +595,7 @@ def list_entries(book_dir, rel_dir):
                 "category": str(fmkeys.disp("category", fm.get("category")) or "").strip() or None,
                 "tags": [str(x).strip() for x in tags if str(x).strip()],
                 "aliases": fm.get("aliases") or [],
-                "first": fm.get("first_appearance"),
+                "first": fmkeys.ch_disp(fm.get("first_appearance")),
                 "summary": one[:80],
                 "mtime": os.path.getmtime(p),
             })

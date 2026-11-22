@@ -139,7 +139,7 @@ def card_md(title, no):
 type: chapter-card
 chapter: %d
 title: %s
-volume: 第一卷
+volume: 1
 status: draft
 ---
 

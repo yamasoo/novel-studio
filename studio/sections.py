@@ -442,8 +442,12 @@ def localize(text, doc, lang):
         return text
     m = re.match(r"(?s)^---\n.*?\n---[ \t]*\n", text)
     head, body = (text[:m.end()], text[m.end():]) if m else ("", text)
+    from . import tables
+    if doc in tables.DOC_KIND:
+        body = tables.relocalize(body, tables.DOC_KIND[doc], lang)       # 追蹤表：表頭與固定值
     out, fence = [], False
-    for line in body.split("\n"):
+    lines = body.split("\n")
+    for i, line in enumerate(lines):
         if line.lstrip().startswith("```"):
             fence = not fence
             out.append(line)
@@ -451,8 +455,40 @@ def localize(text, doc, lang):
         if fence:
             out.append(line)
             continue
+        if line.strip().startswith("|") and i + 1 < len(lines) and re.match(r"^\s*\|[\s:\-|]+\|\s*$", lines[i + 1]):
+            out.append(_loc_header_row(line, lang))
+            continue
         out.append(_loc_line(line, doc, lang))
     return head + "\n".join(out)
+
+
+# 範本裡其他小表格（全書大綱、卷綱的伏筆規劃、作者偏好）的表頭
+HEADER_CELLS = [("伏筆", "Foreshadowing", "伏線"), ("埋設", "Planted", "仕込み"), ("回收", "Payoff", "回収"),
+                ("編號", "ID", "番号"), ("內容", "Content", "内容"), ("埋設章", "Planted in", "仕込む章"),
+                ("回收章", "Paid off in", "回収する章"), ("偏好（原意）", "Preference (as stated)", "好み（原文どおり）"),
+                ("範圍", "Scope", "範囲"), ("記錄日期", "Date recorded", "記録日")]
+
+
+def _loc_header_row(line, lang):
+    cells = [c.strip() for c in line.strip().strip("|").split("|")]
+    out = []
+    for c in cells:
+        new = c
+        for row in HEADER_CELLS:
+            if c in row:
+                new = row[_LI[lang]]
+                break
+        if new == c and lang != "zh-TW":
+            from . import tables      # 追蹤表的表頭（主要表格以外，例如說明裡的範例表）；繁中不動作者的表
+            for kind in tables.LABELS:
+                k = tables._key_any(kind, c)
+                if k != c:
+                    new = tables.label(kind, k, lang)
+                    break
+        out.append(new)
+    if out == cells:
+        return line
+    return "| " + " | ".join(out) + " |"
 
 
 _NUM_PREFIX = re.compile(r"^((?:[0-9０-９]+|[一二三四五六七八九十]+)\s*[.．、]\s*)?(.*?)\s*$")

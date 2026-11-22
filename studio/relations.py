@@ -12,6 +12,7 @@ import re
 
 from . import project, prompts, tracking
 from . import fmkeys, layout, sections
+from . import lang as lang_mod
 from . import tables
 
 FILE = layout.RELATIONS
@@ -89,21 +90,29 @@ def _path(book_dir, rel):
     return os.path.join(book_dir, *rel.split("/"))
 
 
+def _lang(book_dir):
+    return sections.write_lang(lang_mod.book_lang(book_dir))
+
+
 def _load(book_dir, rel, label=""):
+    """回傳 (表格前的文字, 欄位鍵, 列（英文鍵、內部值）, 表格後的文字)。欄位鍵含作者加的欄。"""
     p = _path(book_dir, rel)
     if os.path.isfile(p):
         before, headers, rows, after = tracking._split_table(project.read_text(p))
-        headers = headers or list(HEADERS)
-        headers = headers + [h for h in HEADERS if h not in headers]
-        return before, headers, tables.rows_to_keys("relations", rows), after
-    return "---\ntype: relations\nupdated_through: %s\n---\n\n# 角色關係\n\n%s" % (fmkeys.ch_value(label), prompts.cur()["rel_intro"]), list(HEADERS), [], ""
+        keys = [tables._key_any("relations", h) for h in (headers or HEADERS)]
+        keys = keys + [k for k in tables.keys("relations") if k not in keys]
+        return before, keys, tables.rows_to_keys("relations", rows), after
+    lang = _lang(book_dir)
+    return ("---\ntype: relations\nupdated_through: %s\n---\n\n# %s\n\n%s" % (
+        fmkeys.ch_value(label), sections.title("relations", lang), prompts.pack(lang)["rel_intro"]),
+        tables.keys("relations"), [], "")
 
 
-def _save(book_dir, rel, before, headers, rows, after, label):
+def _save(book_dir, rel, before, keys, rows, after, label):
     before = tracking._bump_updated(before, label)
     sep = "" if before.endswith("\n\n") else ("\n" if before.endswith("\n") else "\n\n")
-    rows = tables.rows_to_headers("relations", rows)
-    tracking._write(_path(book_dir, rel), before + sep + tracking._render_table(headers, rows) + ("\n" + after if after.strip() else "\n"))
+    tracking._write(_path(book_dir, rel), before + sep + tables.render("relations", keys, rows, _lang(book_dir))
+                    + ("\n" + after if after.strip() else "\n"))
 
 
 def read_rows(book_dir, rel=FILE):
@@ -220,8 +229,10 @@ def build_draft(book_dir):
         raise project.ProjectError("角色檔的「## 關係」裡沒有可以轉換的內容（或都已經在關係表裡）")
     one_way = sorted({(a, b) for a, b in have if b in known and (b, a) not in have})
     p = _path(book_dir, DRAFT)
-    head = "---\ntype: relations\nupdated_through: %s\nstatus: draft\n---\n\n# 角色關係（草稿：確認後按「採用」）\n\n%s" % (fmkeys.ch_value(label), prompts.cur()["rel_intro"])
-    tracking._write(p, head + tracking._render_table(headers, tables.rows_to_headers("relations", rows)) + "\n")
+    lang = _lang(book_dir)
+    head = "---\ntype: relations\nupdated_through: %s\nstatus: draft\n---\n\n# %s%s\n\n%s" % (
+        fmkeys.ch_value(label), sections.title("relations", lang), prompts.pack(lang)["rp_draft_suffix"], prompts.pack(lang)["rel_intro"])
+    tracking._write(p, head + tables.render("relations", headers, rows, lang) + "\n")
     msg = ("**角色關係草稿已建立**（%s）：從 %d 份角色檔轉出 %d 列%s。\n\n"
            % (DRAFT, per_char, len(added), "（原有關係表的 %d 列保留）" % had if had else ""))
     msg += ("這是從角色檔的「## 關係」直接整理的，沒有用模型：起始章先空著，之後回寫時會慢慢補；"

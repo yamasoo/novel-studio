@@ -428,6 +428,8 @@ def demo_units():
     sets = {k: set(walk(v)) for k, v in books.items()}
     out = []
     for rel in sorted(set.intersection(*sets.values())):
+        if rel.endswith(".json") and rel[:-5] + ".md" in sets["zh"]:
+            continue        # 追蹤表的 JSON 正本跟著 .md 產生，翻譯基準看 .md 就夠
         out.append(tuple(os.path.join(books[k], rel.replace("/", os.sep)) for k in ("zh", "en", "ja")))
     return out
 

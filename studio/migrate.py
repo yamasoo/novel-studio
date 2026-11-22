@@ -13,7 +13,7 @@ import unicodedata
 import shutil
 import zipfile
 
-from . import bookmeta, context, fmkeys, layout, project, sections, volume
+from . import bookmeta, context, fmkeys, layout, project, sections, trackjson, volume
 
 SKIP_DIRS = (".git",)                       # 不備份、不還原（作者自己的版本控制）
 
@@ -299,6 +299,7 @@ def needs_migration(book_dir):
     return rename_enabled() and (any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
                                  or _old_chapter_files(book_dir) or _old_volume_files(book_dir) or _docs_needed(book_dir)
                                  or _fm_pending_quick(book_dir) or _sec_pending_quick(book_dir))
+    # 沒有 JSON 不算舊格式：讀取時以 .md 為準，下次回寫（trackjson.sync）就會補上
 
 
 def library_needs_migration(library):
@@ -969,7 +970,7 @@ def _sec_pending_quick(book_dir):
     if lang not in ("en", "ja"):
         return False
     v3 = v3_view()
-    for k in _FM_PROBE:
+    for k in _FM_PROBE + ("FORESHADOWING",):       # 伏筆表：第六批起表頭與固定值也依書的語言
         p = os.path.join(book_dir, *v3[k].split("/"))
         if os.path.isfile(p):
             text = project.read_text(p)
@@ -1005,6 +1006,26 @@ def _sections_apply(book_dir):
     return out
 
 
+# --- 追蹤表的 JSON 正本 -------------------------------------------------------------
+def _tables_needed(book_dir):
+    # 只在轉換舊書時順便補；不會單獨讓一本書被判成「要轉換」（見 needs_migration）
+    if not rename_enabled():
+        return False
+    return _has_v2_dirs(book_dir) or bool(trackjson.pending(book_dir))
+
+
+def _tables_plan(book_dir):
+    if _has_v2_dirs(book_dir):
+        return [_AFTER_RENAME]
+    return ["%s → %s" % (rel, trackjson.json_rel(rel)) for rel in trackjson.pending(book_dir)] or ["沒有要改的"]
+
+
+def _tables_apply(book_dir):
+    out = _tables_plan(book_dir)
+    trackjson.sync(book_dir)
+    return out
+
+
 STEPS = [
     Step("book_meta", "書的身分證 book.json", _meta_needed, _meta_plan, _meta_apply),
     Step("rename", "資料夾與系統檔名換成英文", _rename_needed, _rename_plan, _rename_apply),
@@ -1013,6 +1034,7 @@ STEPS = [
     Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
     Step("fmkeys", "frontmatter 的鍵與固定詞換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
     Step("sections", "段落標題換成書的語言", _sections_needed, _sections_plan, _sections_apply),
+    Step("tables", "追蹤表加上 JSON 正本", _tables_needed, _tables_plan, _tables_apply),
 ]
 
 

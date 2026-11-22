@@ -143,17 +143,20 @@ def _render_table(headers, rows):
     return "\n".join(out)
 
 
-def upsert_table(path, kind, items, prefix, title, ftype, chapter_label):
+def upsert_table(path, kind, items, prefix, title, ftype, chapter_label, lang=None):
     """依「編號」更新或新增表格列。回傳 (新增數, 更新數, 新編號清單)。
     kind：tables.COLUMNS 的表名。檔案的表頭照舊；處理過程一律用英文鍵（v3 P2），
     模型給的資料不論是英文鍵或中文鍵（jsonkeys 換過）都認。"""
     if os.path.isfile(path):
         text = project.read_text(path)
     else:
-        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (fmkeys.write_value("type", ftype), fmkeys.ch_value(chapter_label), title)
+        doc = fmkeys.value_en("type", ftype)
+        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (
+            fmkeys.write_value("type", ftype), fmkeys.ch_value(chapter_label),
+            sections.title(doc, lang) if doc in sections.TITLES else title)
     before, headers, rows, after = _split_table(text)
     headers = headers or tables.headers(kind)
-    keys = [tables.key_of(kind, h) for h in headers]
+    keys = [tables._key_any(kind, h) for h in headers]
     rows = tables.rows_to_keys(kind, rows)
     by_id = {r.get("id"): r for r in rows if r.get("id")}
     nums = [int(m.group(1)) for r in rows for m in [re.match(prefix + r"(\d+)", r.get("id", ""))] if m]
@@ -184,7 +187,7 @@ def upsert_table(path, kind, items, prefix, title, ftype, chapter_label):
     # frontmatter 更新至
     before = _bump_updated(before, chapter_label)
     sep = "" if before.endswith("\n\n") else ("\n" if before.endswith("\n") else "\n\n")
-    text = before + sep + _render_table(headers, tables.rows_to_headers(kind, rows)) + ("\n" + after if after.strip() else "\n")
+    text = before + sep + tables.render(kind, keys, rows, sections.write_lang(lang)) + ("\n" + after if after.strip() else "\n")
     _write(path, text)
     return added, updated, new_ids
 
@@ -211,6 +214,8 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     label = chapter_label(no)
     log = []
     lang = lang_mod.book_lang(book_dir)
+    from . import trackjson
+    trackjson.sync(book_dir)            # 先讓 .md 與 JSON 一致（只在 JSON 改過時重寫 .md；沒有 JSON 的補上）
     data, note = textguard.guard_data(book_dir, data)
     if note:
         log.append(note)
@@ -239,7 +244,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 3. 伏筆
     fs = data.get("foreshadow") or []
     if fs:
-        a, u, ids = upsert_table(layout.path(book_dir, layout.FORESHADOWING), "foreshadow", fs, "F", "伏筆總表", "伏筆總表", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.FORESHADOWING), "foreshadow", fs, "F", "伏筆總表", "伏筆總表", label, lang)
         log.append("伏筆（新增 %d、更新 %d）" % (a, u))
     else:
         _touch_updated(layout.path(book_dir, layout.FORESHADOWING), label)
@@ -247,7 +252,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 4. 時間線
     tl = data.get("timeline") or []
     if tl:
-        a, u, ids = upsert_table(layout.path(book_dir, layout.TIMELINE), "timeline", tl, "E", "時間線", "時間線", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.TIMELINE), "timeline", tl, "E", "時間線", "時間線", label, lang)
         log.append("時間線（新增 %d、更新 %d）" % (a, u))
     else:
         _touch_updated(layout.path(book_dir, layout.TIMELINE), label)
@@ -270,8 +275,8 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         log.append("讀者認知（還沒建立帳本，略過；可到「伏筆與時間線」的讀者認知分頁從時間線建立）")
     elif rp:
         if not os.path.isfile(rpath):
-            write_reader_table(rpath, [], label)
-        a, u, ids = upsert_table(rpath, "reader", rp, "R", "讀者認知", "讀者認知", label)
+            write_reader_table(rpath, [], label, lang=lang)
+        a, u, ids = upsert_table(rpath, "reader", rp, "R", "讀者認知", "讀者認知", label, lang)
         log.append("讀者認知（新增 %d、更新 %d）" % (a, u))
     elif os.path.isfile(os.path.join(book_dir, *RP_FILE.split("/"))):
         _touch_updated(os.path.join(book_dir, *RP_FILE.split("/")), label)
@@ -313,12 +318,13 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     ents = [e for e in (data.get("new_entities") or []) if isinstance(e, dict) and str(e.get("name", "")).strip()]
     if ents:
         gp = layout.path(book_dir, layout.GLOSSARY)
+        wl = sections.write_lang(lang)
         if os.path.isfile(gp):
             text = project.read_text(gp)
         else:
-            text = "---\ntype: glossary\n---\n\n# 名詞表\n\n"
+            text = "---\ntype: glossary\n---\n\n# %s\n\n" % sections.title("glossary", wl)
         before, headers, rows, after = _split_table(text)
-        headers = headers or GLOSS_HEADERS
+        headers = headers or [tables.label("glossary", k, wl) for k in tables.keys("glossary")]
         have = {r.get(headers[0]) for r in rows}
         added = []
         for e in ents:
@@ -332,7 +338,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
             if len(headers) > 2:
                 row[headers[2]] = _cell(e.get("explanation", ""))
             if len(headers) > 3:
-                row[headers[3]] = "首次出現：%s" % label
+                row[headers[3]] = FIRST_SEEN[wl] % tables.display("foreshadow", "planted_in", label, wl)
             rows.append(row)
             have.add(nm)
             added.append(nm)
@@ -383,9 +389,10 @@ RP_INTRO = ("> 讀者讀到目前為止的認知：「已知」是讀者知道�
 
 
 RP_NOTE_HEAD = "## 回收比對紀錄"
+FIRST_SEEN = {"zh-TW": "首次出現：%s", "en": "First seen: %s", "ja": "初出：%s"}      # 名詞表「注意」欄
 
 
-def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=False, note=""):
+def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=False, note="", lang=None):
     """把讀者認知條目整份寫成表格。轉換時編號從 R001 重新排；回收比對時保留原編號（keep_ids）。
     note：附在表格後面的說明（回收比對的逐條紀錄），採用草稿時會拿掉。"""
     rows = []
@@ -393,12 +400,16 @@ def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=Fa
         row = {k: _cell(it.get(k, "")) for k in tables.keys("reader")}   # 表格的列、模型的條目都是英文鍵
         if not (keep_ids and row["id"]):
             row["id"] = "R%03d" % i
+        row["type"] = tables.internal("reader", "type", row["type"])
         if row["type"] not in RP_TYPES:
             row["type"] = "懸念"
-        rows.append(tables.row_to_headers("reader", row))
-    head = "---\ntype: reader-knowledge\nupdated_through: %s\n%s---\n\n# 讀者認知%s\n\n" % (
-        fmkeys.ch_value(chapter_label_text), "status: draft\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
-    _write(path, head + prompts.cur()["rp_intro"] + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
+        rows.append(row)
+    wl = sections.write_lang(lang if lang else prompts.cur_lang())
+    head = "---\ntype: reader-knowledge\nupdated_through: %s\n%s---\n\n# %s%s\n\n" % (
+        fmkeys.ch_value(chapter_label_text), "status: draft\n" if draft else "", sections.title("reader-knowledge", wl),
+        prompts.pack(wl)["rp_draft_suffix"] if draft else "")
+    _write(path, head + prompts.pack(wl)["rp_intro"] + tables.render("reader", tables.keys("reader"), rows, wl) + "\n"
+           + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
     return len(rows)
 
 

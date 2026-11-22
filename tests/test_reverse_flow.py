@@ -319,7 +319,7 @@ class ReverseFlowTest(unittest.TestCase):
         gl = next(v for p, v in zd.items() if p == layout.GLOSSARY)
         self.assertIn("路人甲", gl)
         ef = got["en"]["drafts"]
-        self.assertIn("已埋", next(v for p, v in ef.items() if p == layout.FORESHADOWING), "英文選項值要換回固定詞")
+        self.assertIn("| planted |", next(v for p, v in ef.items() if p == layout.FORESHADOWING), "英文書：固定值寫英文的標準寫法（v3 第六批）")
         res = got["resume"]
         self.assertIn("已停止", res["r1"]["result"])
         self.assertIn("已停止", res["r2"]["result"])

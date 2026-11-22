@@ -200,8 +200,8 @@ class WritebackFlowTest(unittest.TestCase):
         er = got["en"]
         self.assertIn("very important", "".join(er["logs"]), "認不得的選項值要提醒")
         ef = got["en_files"]
-        self.assertIn("已埋", ef[layout.FORESHADOWING], "英文列舉值要換回固定詞")
-        self.assertIn("懸念", ef.get(layout.READER_KNOWLEDGE, "") + json.dumps(er, ensure_ascii=False))
+        self.assertIn("| planted |", ef[layout.FORESHADOWING], "英文書：固定值換成英文的標準寫法（v3 第六批）")
+        self.assertIn("| question |", ef.get(layout.READER_KNOWLEDGE, ""))
         self.assertTrue(any("語言不對" in x for x in got["en_retry"]["logs"]))
         self.assertIn("Mara notices", "".join(got["en_retry_summary"].values()))
 

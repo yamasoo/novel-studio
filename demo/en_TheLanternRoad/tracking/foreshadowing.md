@@ -5,9 +5,9 @@ updated_through: 2
 
 # Foreshadowing
 
-| 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |
+| ID | Content | Planted in | Planned payoff | Last seen | Status | Priority |
 |---|---|---|---|---|---|---|
-| F001 | Hob lights only for a place Wren has truly stood in | 第002章 | 第030章 | 第002章 | 推進中 | 高 |
-| F002 | Wren erased the road from the master map on Orrin's order | 第002章 | 第020章 | 第002章 | 已埋 | 高 |
-| F003 | Dessa Pike's eyes keep drifting to the old map by the stove | 第001章 | 第015章 | 第001章 | 已埋 | 中 |
-| F004 | The old map's milestones skip from 40 to 42 | 第001章 | 第012章 | 第001章 | 已埋 | 中 |
+| F001 | Hob lights only for a place Wren has truly stood in | Ch. 2 | Ch. 30 | Ch. 2 | developing | high |
+| F002 | Wren erased the road from the master map on Orrin's order | Ch. 2 | Ch. 20 | Ch. 2 | planted | high |
+| F003 | Dessa Pike's eyes keep drifting to the old map by the stove | Ch. 1 | Ch. 15 | Ch. 1 | planted | medium |
+| F004 | The old map's milestones skip from 40 to 42 | Ch. 1 | Ch. 12 | Ch. 1 | planted | medium |

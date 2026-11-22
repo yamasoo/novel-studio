@@ -87,27 +87,27 @@ def _setting_rows(book_dir):
 
 
 def _glossary_rows(book_dir):
-    p = os.path.join(book_dir, GLOSSARY_REL)
-    if not os.path.isfile(p):
+    """名詞表的列。表頭不論書的語言（第一欄是名詞、第二欄類別、第四欄注意，作者改了表頭也照位置取）。"""
+    if not os.path.isfile(os.path.join(book_dir, GLOSSARY_REL)):
         return []
+    t = project.read_table(book_dir, GLOSSARY_REL)
+    hs = t["headers"]
     rows = []
-    for line in project.read_text(p).splitlines():
-        if not line.startswith("|"):
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 3 or cells[0] == "名詞" or set(cells[0]) <= set("-: "):
+    for r in t["rows"]:
+        cells = [str(r.get(h, "")).strip() for h in hs]
+        if len(cells) < 3 or set(cells[0]) <= set("-: "):
             continue
         names = [n.strip() for n in cells[0].split("／") if n.strip()]
         if not names:
             continue
         note = cells[3] if len(cells) > 3 else ""
-        ch = re.search(r"首次出現[：:]\s*第\s*(\d+)\s*章", note)
-        ref = re.search(r"詳見\s*(\S+?\.md)", note)
+        ch = re.search(r"(?:首次出現|初出)[：:]\s*第\s*(\d+)\s*章|First seen:\s*Ch(?:apter)?\.?\s*(\d+)", note, re.I)
+        ref = re.search(r"(?:詳見|詳細は|[Ss]ee)\s*(\S+?\.md)", note)
         rows.append({
             "name": names[0],
             "aliases": names[1:],
             "category": cells[1],
-            "chapter": int(ch.group(1)) if ch else None,
+            "chapter": int(ch.group(1) or ch.group(2)) if ch else None,
             "ref": ref.group(1) if ref else "",
         })
     return rows

@@ -126,38 +126,38 @@ The state card is a snapshot of "now", not a history. Delete outdated content di
 
 ### tracking/foreshadowing.md (one table)
 
-| 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |
+| ID | Content | Planted in | Planned payoff | Last seen | Status | Priority |
 |---|---|---|---|---|---|---|
-| F001 | The half ferry token her mother left | 第001章 | end of volume one | 第008章 | 推進中 | 高 |
+| F001 | The half ferry token her mother left | Ch. 1 | end of volume one | Ch. 8 | developing | high |
 
-Status must be one of: 已埋, 推進中, 已回收, 廢棄. Importance: 高, 中, 低. "Planned payoff" holds only the one chapter you mean to pay it off in (第NNN章); leave it empty if undecided. Arrangements like "advance from chapter N" or "echo in chapter N" go in the content column or the outline, otherwise the studio would treat them as the payoff chapter when judging overdue items (the studio skips such wording, but a bare chapter number is the most reliable).
+Status must be one of: planted, developing, paid off, dropped. Priority: high, medium, low. "Planned payoff" holds only the one chapter you mean to pay it off in (Ch. N); leave it empty if undecided. Arrangements like "advance from chapter N" or "echo in chapter N" go in the content column or the outline, otherwise the studio would treat them as the payoff chapter when judging overdue items (the studio skips such wording, but a bare chapter number is the most reliable).
 
 ### tracking/timeline.md (the author's truth and what the reader knows, in separate columns)
 
-| 編號 | 故事時間 | 實際發生（作者真相） | 讀者目前知道 | 揭示章 | 相關角色 |
+| ID | Story time | What really happened (author's truth) | What the reader knows now | Revealed in | Characters involved |
 |---|---|---|---|---|---|
-| E001 | Three winters ago | Ines's father was framed by the Brandts | Only knows her father went to prison | 未揭示 | her father, old Mr. Brandt |
+| E001 | Three winters ago | Ines's father was framed by the Brandts | Only knows her father went to prison | not yet | her father, old Mr. Brandt |
 
 "What the reader knows now" is the information boundary while writing: the text must not let a character or the narrator say what the reader should not yet know.
 
 ### tracking/reader-knowledge.md (the reader's state of mind, optional)
 
-| 編號 | 類型 | 內容 | 作者真相 | 種下章 | 回收章 | 相關角色 |
+| ID | Type | Content | Author's truth | Planted in | Resolved in | Characters involved |
 |---|---|---|---|---|---|---|
-| R001 | 懸念 | Why did her father plead guilty? | The Brandts threatened her mother's life | 第003章 |  | her father, old Mr. Brandt |
-| R002 | 誤認 | The reader thinks young Brandt sent the letter | It was the Brandts' old servant | 第005章 | 第012章 | Callum |
+| R001 | question | Why did her father plead guilty? | The Brandts threatened her mother's life | Ch. 3 |  | her father, old Mr. Brandt |
+| R002 | misbelief | The reader thinks young Brandt sent the letter | It was the Brandts' old servant | Ch. 5 | Ch. 12 | Callum |
 
-Type must be one of: 已知 (the reader knows, but some characters in the story do not yet), 懸念 (a question the reader waits to have answered), 誤認 (what the reader wrongly believes). A blank resolving chapter means not yet revealed; the author's truth is optional. The timeline records events; this table records the reader's questions and misunderstandings.
+Type must be one of: known (the reader knows, but some characters in the story do not yet), question (a question the reader waits to have answered), misbelief (what the reader wrongly believes). A blank "Resolved in" means not yet revealed; the author's truth is optional. The timeline records events; this table records the reader's questions and misunderstandings.
 
 ### tracking/relations.md (between characters, who toward whom, optional)
 
-| 編號 | 誰 | 對誰 | 關係 | 態度 | 起始章 | 結束章 | 變化原因 |
+| ID | Who | Toward | Relationship | Attitude | From chapter | Until chapter | Why it changed |
 |---|---|---|---|---|---|---|---|
-| L001 | Callum | Ines | classmates | dismissive | 第003章 | 第020章 | first meeting |
-| L002 | Callum | Ines | allies | respectful | 第020章 |  | Ines took the blame for him |
-| L003 | Ines | Callum | classmates | wary | 第003章 |  | first meeting |
+| L001 | Callum | Ines | classmates | dismissive | Ch. 3 | Ch. 20 | first meeting |
+| L002 | Callum | Ines | allies | respectful | Ch. 20 |  | Ines took the blame for him |
+| L003 | Ines | Callum | classmates | wary | Ch. 3 |  | first meeting |
 
-One direction per row: A toward B and B toward A are separate, and the two views may differ. When a relationship changes, put the changing chapter in the old row's end chapter and open a new row; never overwrite, so the history stays. A blank end chapter means currently valid. When writing, look only at the currently valid rows among characters on stage; when reviewing, read the history too, to catch "changed without a cause" or "slipped back".
+One direction per row: A toward B and B toward A are separate, and the two views may differ. When a relationship changes, put the changing chapter in the old row's "Until chapter" and open a new row; never overwrite, so the history stays. A blank "Until chapter" means currently valid. When writing, look only at the currently valid rows among characters on stage; when reviewing, read the history too, to catch "changed without a cause" or "slipped back".
 
 ### tracking/summaries/ch-NNNN.md (100-250 words)
 

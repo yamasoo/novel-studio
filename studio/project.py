@@ -55,6 +55,12 @@ def write_atomic(path, text, newline="\n"):
         except OSError:
             pass
         raise
+    if path.endswith(".md"):
+        try:
+            from . import trackjson
+            trackjson.mirror(path, text)        # 五張追蹤表：旁邊的 JSON 正本跟著更新（其他檔不處理）
+        except Exception:                       # JSON 沒寫成也沒關係：下次讀取發現對不上，會以 .md 為準
+            pass
     return path
 
 
@@ -440,6 +446,10 @@ def parse_md_table(text):
 
 
 def read_table(book_dir, rel):
+    from . import trackjson
+    t = trackjson.read(book_dir, rel)       # 五張正本：JSON 是最新的就讀 JSON（.md 被改過就照舊解析 .md）
+    if t is not None:
+        return t
     p = os.path.join(book_dir, rel)
     if not os.path.isfile(p):
         return {"exists": False, "headers": [], "rows": []}

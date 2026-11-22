@@ -1,0 +1,21 @@
+{
+ "schema_version": 3,
+ "table": "timeline",
+ "updated_through": 2,
+ "columns": [
+  {"key": "id", "label": "編號"},
+  {"key": "story_time", "label": "故事時間"},
+  {"key": "what_really_happened", "label": "實際發生（作者真相）"},
+  {"key": "reader_knows_now", "label": "讀者目前知道"},
+  {"key": "revealed_in", "label": "揭示章"},
+  {"key": "related_characters", "label": "相關角色"}
+ ],
+ "items": [
+  {"id": "E001", "story_time": "三年前三月", "what_really_happened": "沈家帳房周叔偽造帳目，讓林家的鹽引被轉走兩次", "reader_knows_now": "不知道", "revealed_in": "未揭示", "related_characters": "周叔、林父"},
+  {"id": "E002", "story_time": "三年前秋天", "what_really_happened": "林父因鹽引案入獄", "reader_knows_now": "林父在牢裡", "revealed_in": 1, "related_characters": "林父"},
+  {"id": "E003", "story_time": "退婚當天", "what_really_happened": "沈既白當眾退婚", "reader_knows_now": "全部", "revealed_in": 1, "related_characters": "林晚、沈既白、大伯母"},
+  {"id": "E004", "story_time": "退婚當夜", "what_really_happened": "玉珮浮字", "reader_knows_now": "全部", "revealed_in": 2, "related_characters": "林晚"}
+ ],
+ "md_sha": "f571f02307433311",
+ "items_sha": "4fa5e7383f1036c0"
+}

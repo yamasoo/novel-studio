@@ -151,7 +151,7 @@ class ReaderFlowTest(unittest.TestCase):
         for k in ("zh_recon", "cc_zh_recon"):
             self.assertIn("回收 1 條、部分揭曉 1 條、合併 1 條", got[k]["result"], k)
             self.assertIn("1 條判斷不合格式或不合理", got[k]["result"], k)
-        self.assertIn("懸念", got["en_init"]["files"][layout.READER_KNOWLEDGE_DRAFT], "英文選項值要換回固定詞")
+        self.assertIn("| question |", got["en_init"]["files"][layout.READER_KNOWLEDGE_DRAFT], "英文書：類型寫英文的標準寫法（v3 第六批）")
         self.assertTrue(any("riddle" in x for x in got["en_init"]["logs"]), "認不得的選項值要提醒")
         for k in ("en_recon", "cc_en_recon"):
             self.assertIn("回收 1 條、部分揭曉 1 條、合併 1 條", got[k]["result"], k)

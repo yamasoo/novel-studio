@@ -77,6 +77,8 @@ def ensure_skeleton(book_dir, plugin_dir):
                 created.append(rel)
                 if rel == layout.STORY_CORE:   # 範本裡的「語言」換成這本書的語言
                     lang_mod.set_book_lang(book_dir, book_lang)
+    from . import trackjson
+    trackjson.sync(book_dir)        # 新建的追蹤表補上 JSON 正本
     return created
 
 

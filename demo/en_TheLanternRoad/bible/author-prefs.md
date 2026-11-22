@@ -4,6 +4,6 @@ type: author-prefs
 
 # Author preferences
 
-| 編號 | 偏好（原意） | 範圍 | 記錄日期 |
+| ID | Preference (as stated) | Scope | Date recorded |
 |---|---|---|---|
 | P001 | Use em dashes sparingly, and never in dialogue except to mark an interruption | whole book | 2026-10-23 |

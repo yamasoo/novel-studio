@@ -11,7 +11,7 @@ from unittest import mock
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from studio import bookmeta, layout, migrate, project, sections  # noqa: E402
+from studio import bookmeta, layout, migrate, project, sections, trackjson  # noqa: E402
 from studio import lang as lang_mod  # noqa: E402
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import migrate_v3  # noqa: E402
@@ -115,7 +115,7 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "docs", "fmkeys", "sections"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "docs", "fmkeys", "sections", "tables"], [s["key"] for s in r["steps"]])
         self.assertEqual(["資料夾改名後一併處理"], r["steps"][-1]["changes"], "改名後才做的步驟也先列出來")
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
@@ -134,7 +134,10 @@ class MigrateTest(unittest.TestCase):
             after = {k: v for k, v in _snapshot(b).items() if not k.startswith(layout.MIGRATE_DIR + "/")}
             rewritten = {"CLAUDE.md", layout.GLOSSARY, layout.BIBLE_INDEX, layout.BOOK_OUTLINE}    # 內容裡有路徑的系統檔（＋_templates 底下的範本）
             moved = {migrate.map_v3(k): v for k, v in before.items() if k != ".studio/lang"}
-            self.assertEqual(set(moved) | {"book.json"}, set(after), "只多 book.json，其他都是搬到新位置")
+            jsons = {trackjson.json_rel(k) for k in moved if k in trackjson.CANON}
+            self.assertEqual(set(moved) | {"book.json"} | jsons, set(after), "只多 book.json 與追蹤表的 JSON，其他都是搬到新位置")
+            for j in jsons:
+                self.assertEqual(trackjson.state(b, j[:-5] + ".md")[0], "same", j)
             for k, v in moved.items():
                 if k not in rewritten and not k.startswith(layout.TEMPLATES + "/"):
                     self.assertEqual(_fm(k, v, lang), after[k], k)

@@ -212,6 +212,8 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
         _write(os.path.join(target, *rel.split("/")), sections.localize_doc(card_md("（待填）", i), lang))
         created.append(rel)
 
+    from . import trackjson
+    trackjson.sync(target)          # 新建的追蹤表補上 JSON 正本
     return {"target": target, "created": created, "lang": lang}
 
 

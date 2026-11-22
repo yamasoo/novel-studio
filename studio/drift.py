@@ -14,7 +14,7 @@ import os
 import re
 
 from . import contract, project, prompts, recall, shared, style_loop, textguard, volume
-from . import layout, sections
+from . import layout, sections, tables
 
 IDLE_CHARS = 20      # 幾章沒登場算「消失」
 THREAD_AGE = 30      # 伏筆埋設後幾章還沒回收算「欠帳」
@@ -89,17 +89,13 @@ def coverage(card, text):
 
 def threads(book_dir):
     """未回收伏筆：[(編號, 埋設章, 摘要, 重要度)]。已回收／廢棄的不算。"""
-    text = project.read_text(project.safe_path(book_dir, layout.FORESHADOWING))
     out = []
-    for line in text.splitlines():
-        if not line.startswith("|") or line.startswith("|---") or "編號" in line:
+    # 經 tables.read：表頭與固定值不論書的語言，列都是英文鍵、內部值（已回收、第003章）
+    for r in tables.read(book_dir, "foreshadow", layout.FORESHADOWING)["rows"]:
+        fid, desc, born = r.get("id", ""), r.get("content", ""), r.get("planted_in", "")
+        status, weight = r.get("status", ""), r.get("priority", "")
+        if not fid:
             continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) < 7:
-            continue
-        fid, desc, born = cells[0], cells[1], cells[2]
-        status = cells[5] if len(cells) > 5 else ""
-        weight = cells[6] if len(cells) > 6 else ""
         m = re.search(r"第(\d+)章", born)
         if not m:
             continue

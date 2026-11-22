@@ -68,8 +68,8 @@ def style_md(title, fp, dna):
     ratio = ((d.get("對白") or {}).get("比例"))
     rows = "\n".join("| %s | %s |" % (k, v) for k, v in m.items()) or "| （待量測） | |"
     return """---
-type: 文風
-status: 草稿
+type: style
+status: draft
 ---
 
 # 《%s》本書文風
@@ -136,11 +136,11 @@ def structure_md(*, dna, fp, title):
 
 def card_md(title, no):
     return """---
-type: 章綱
+type: chapter-card
 chapter: %d
 title: %s
 volume: 第一卷
-status: 草稿
+status: draft
 ---
 
 # 第%d章 %s
@@ -177,7 +177,7 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
         if not os.path.isfile(src):
             continue
         text = project.read_text(src)
-        text = project.set_frontmatter_field(text, "status", "草稿") if "---" in text[:10] else text  # literal-ok: frontmatter 狀態值，P2 換
+        text = project.set_frontmatter_field(text, "status", "draft") if "---" in text[:10] else text
         _write(os.path.join(target, *rel.split("/")), text)
         created.append(rel)
 

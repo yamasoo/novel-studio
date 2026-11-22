@@ -96,7 +96,7 @@ def _load(book_dir, rel, label=""):
         headers = headers or list(HEADERS)
         headers = headers + [h for h in HEADERS if h not in headers]
         return before, headers, tables.rows_to_keys("relations", rows), after
-    return "---\ntype: 關係\nupdated_through: %s\n---\n\n# 角色關係\n\n%s" % (label, prompts.cur()["rel_intro"]), list(HEADERS), [], ""
+    return "---\ntype: relations\nupdated_through: %s\n---\n\n# 角色關係\n\n%s" % (label, prompts.cur()["rel_intro"]), list(HEADERS), [], ""
 
 
 def _save(book_dir, rel, before, headers, rows, after, label):
@@ -220,7 +220,7 @@ def build_draft(book_dir):
         raise project.ProjectError("角色檔的「## 關係」裡沒有可以轉換的內容（或都已經在關係表裡）")
     one_way = sorted({(a, b) for a, b in have if b in known and (b, a) not in have})
     p = _path(book_dir, DRAFT)
-    head = "---\ntype: 關係\nupdated_through: %s\nstatus: 草稿\n---\n\n# 角色關係（草稿：確認後按「採用」）\n\n%s" % (label, prompts.cur()["rel_intro"])
+    head = "---\ntype: relations\nupdated_through: %s\nstatus: draft\n---\n\n# 角色關係（草稿：確認後按「採用」）\n\n%s" % (label, prompts.cur()["rel_intro"])
     tracking._write(p, head + tracking._render_table(headers, tables.rows_to_headers("relations", rows)) + "\n")
     msg = ("**角色關係草稿已建立**（%s）：從 %d 份角色檔轉出 %d 列%s。\n\n"
            % (DRAFT, per_char, len(added), "（原有關係表的 %d 列保留）" % had if had else ""))
@@ -241,7 +241,7 @@ def adopt_draft(book_dir):
     if os.path.isfile(dst):
         tracking.backup(book_dir, dst, "關係")
     text = project.read_text(src)
-    text = re.sub(r"(?m)^(?:status|狀態): 草稿\n", "", text, count=1).replace("# 角色關係（草稿：確認後按「採用」）", "# 角色關係", 1)
+    text = re.sub(r"(?m)^(?:status|狀態): (?:draft|草稿)\n", "", text, count=1).replace("# 角色關係（草稿：確認後按「採用」）", "# 角色關係", 1)
     tracking._write(dst, text)
     os.remove(src)
     return FILE

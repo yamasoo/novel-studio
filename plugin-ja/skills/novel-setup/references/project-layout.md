@@ -53,12 +53,12 @@
 
 ```yaml
 ---
-type: 角色
+type: character
 name: 伊音
 aliases: [イネ, 伊音さん]
-role: 主角          # 主角 / 主要配角 / 配角 / 反派 / 路人
+role: protagonist          # protagonist / main-supporting / supporting / antagonist / minor
 first_appearance: 第001章
-status: 正式          # 正式 / 草稿
+status: canon          # canon / draft
 ---
 ```
 
@@ -66,9 +66,9 @@ status: 正式          # 正式 / 草稿
 
 ```yaml
 ---
-type: 勢力          # または 世界觀
+type: faction          # または world
 name: 波止場組合
-status: 正式
+status: canon
 related_characters: [伊音, 嘉楽夢]
 ---
 ```
@@ -77,12 +77,12 @@ related_characters: [伊音, 嘉楽夢]
 
 ```yaml
 ---
-type: 章綱
+type: chapter-card
 chapter: 1
 title: 婚約が終わった日
 volume: 第一卷
 target_length: 2500      # 空でもよい
-status: 已確認        # 草稿 / 已確認 / 已寫
+status: approved        # draft / approved / written
 ---
 ```
 
@@ -90,7 +90,7 @@ status: 已確認        # 草稿 / 已確認 / 已寫
 
 ```yaml
 ---
-type: 角色狀態
+type: character-state
 name: 伊音
 updated_through: 第012章
 last_appearance: 第012章
@@ -101,7 +101,7 @@ last_appearance: 第012章
 
 ```yaml
 ---
-type: 章節摘要
+type: chapter-summary
 chapter: 1
 title: 婚約が終わった日
 length: 2600

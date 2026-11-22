@@ -1,8 +1,8 @@
 ---
-type: 卷綱
+type: volume-outline
 title: 三つの薬草
 chapter_range: 第001章～第030章
-status: 已確認
+status: approved
 ---
 
 # 卷綱：三つの薬草

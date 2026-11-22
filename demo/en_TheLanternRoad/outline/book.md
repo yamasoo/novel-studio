@@ -1,6 +1,6 @@
 ---
-type: 全書大綱
-status: 已確認
+type: book-outline
+status: approved
 ---
 
 # 全書大綱

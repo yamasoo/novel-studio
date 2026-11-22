@@ -1,5 +1,5 @@
 ---
-type: 作者偏好
+type: author-prefs
 ---
 
 # 作者偏好

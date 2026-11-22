@@ -215,7 +215,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
         if left:   # AI 漏掉的照原說明補上，不讓名詞消失
             secs.append("## 其他\n" + "\n".join("- **%s**：%s" % (r["term"], r["explanation"] or _u()) for r in left))
         rules = "\n".join("- " + x for x in merged["rules_limits"]) or "- " + _u()
-        write(rel, ("---\ntype: 世界觀\nname: %s\nstatus: 草稿\nsource: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n%s\n\n## 規則與限制\n%s\n\n"
+        write(rel, ("---\ntype: world\nname: %s\nstatus: draft\nsource: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n%s\n\n## 規則與限制\n%s\n\n"
                     "## 與劇情的關係\n%s\n\n## 備註\n- %s\n") % (
             t, t, merged["one_line"] or _u(), "\n\n".join(secs), rules, merged["plot_relevance"] or _u(),
             _p("gl_note_review") + (("\n- " + _p("lang_flag_note")) if merged["flag"] else "")))
@@ -236,7 +236,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
             def lst(v):
                 v = [_clean(x) for x in (v or []) if _clean(x)] if isinstance(v, list) else ([_clean(v)] if _clean(v) else [])
                 return "\n".join("- " + x for x in v) or "- " + _u()
-            write(rel, ("---\ntype: 世界觀\nname: %s\nstatus: 草稿\nsource: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n## 特性\n%s\n\n## 來歷\n%s\n\n"
+            write(rel, ("---\ntype: world\nname: %s\nstatus: draft\nsource: 從名詞表整理\n---\n\n# %s\n\n## 一句話\n%s\n\n## 特性\n%s\n\n## 來歷\n%s\n\n"
                         "## 在故事中的作用\n%s\n\n## 目前狀態\n%s\n\n## 限制與代價\n%s\n\n## 備註\n- %s\n") % (
                 r["term"], r["term"], _clean(e.get("one_line")) or _u(), lst(e.get("traits")), _clean(e.get("origin")) or _u(),
                 _clean(e.get("story_role")) or _u(), _clean(e.get("current_state")) or _u(), lst(e.get("limits_costs")),
@@ -265,7 +265,7 @@ def organize(book_dir, rows, call, write, log=lambda t: None, step=None, existin
     order = {b: i for i, b in enumerate(BIG)}
     out_rows.sort(key=lambda x: (order.get(x["kind"].split("／")[0], 99), x["kind"]))
     from . import tracking
-    write(layout.GLOSSARY, "---\ntype: 名詞表\nsource: 從名詞表整理\n---\n\n# 名詞表\n\n> " + _p("gl_table_note") + "\n\n" +
+    write(layout.GLOSSARY, "---\ntype: glossary\nsource: 從名詞表整理\n---\n\n# 名詞表\n\n> " + _p("gl_table_note") + "\n\n" +
           tracking._render_table(tables.headers("glossary"), tables.rows_to_headers("glossary", out_rows)) + "\n")
     cnt = {}
     for r in out_rows:

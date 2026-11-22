@@ -1,7 +1,7 @@
 ---
-type: 故事核心
+type: story-core
 title: 退婚之後
-status: 正式
+status: canon
 ---
 
 # 故事核心

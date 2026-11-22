@@ -51,12 +51,12 @@
 
 ```yaml
 ---
-type: 角色
+type: character
 name: 林晚
 aliases: [晚晚, 林家二小姐]
-role: 主角          # 主角 / 主要配角 / 配角 / 反派 / 路人
+role: protagonist          # protagonist / main-supporting / supporting / antagonist / minor
 first_appearance: 第001章
-status: 正式          # 正式 / 草稿
+status: canon          # canon / draft
 ---
 ```
 
@@ -64,9 +64,9 @@ status: 正式          # 正式 / 草稿
 
 ```yaml
 ---
-type: 勢力          # 或 世界觀
+type: faction          # 或 world
 name: 天機閣
-status: 正式
+status: canon
 related_characters: [林晚, 沈既白]
 ---
 ```
@@ -75,12 +75,12 @@ related_characters: [林晚, 沈既白]
 
 ```yaml
 ---
-type: 章綱
+type: chapter-card
 chapter: 1
 title: 退婚當天
 volume: 第一卷
 target_length: 3000      # 可留空
-status: 已確認        # 草稿 / 已確認 / 已寫
+status: approved        # draft / approved / written
 ---
 ```
 
@@ -88,7 +88,7 @@ status: 已確認        # 草稿 / 已確認 / 已寫
 
 ```yaml
 ---
-type: 角色狀態
+type: character-state
 name: 林晚
 updated_through: 第012章
 last_appearance: 第012章
@@ -99,7 +99,7 @@ last_appearance: 第012章
 
 ```yaml
 ---
-type: 章節摘要
+type: chapter-summary
 chapter: 1
 title: 退婚當天
 length: 3150

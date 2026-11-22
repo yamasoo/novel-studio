@@ -42,7 +42,7 @@ class FrontmatterTest(unittest.TestCase):
     def test_set_field_repairs_the_file(self):
         out = project.set_frontmatter_field(BAD, "定位", "配角")
         fm, _ = project.split_frontmatter(out)
-        self.assertEqual(fm["role"], "配角")
+        self.assertEqual(fm["role"], "supporting", "中文的定位寫回成英文 ID")
         self.assertEqual(fm["name"], "甲")
         self.assertEqual(out.count("定位"), 1)
 

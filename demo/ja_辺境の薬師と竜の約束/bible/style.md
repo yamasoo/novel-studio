@@ -1,6 +1,6 @@
 ---
-type: 文風
-status: 正式
+type: style
+status: canon
 ---
 
 # 本書文風

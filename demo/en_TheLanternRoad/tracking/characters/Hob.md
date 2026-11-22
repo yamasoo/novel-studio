@@ -1,5 +1,5 @@
 ---
-type: 角色狀態
+type: character-state
 name: Hob
 updated_through: 第002章
 last_appearance: 第002章

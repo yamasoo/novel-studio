@@ -688,8 +688,27 @@ def _volumes_apply(book_dir):
 _FM_LINE = re.compile(r"^(%s)[ \t]*[:：]" % "|".join(sorted(map(re.escape, fmkeys.ZH2EN), key=len, reverse=True)))
 
 
+_FM_VALUE = re.compile(r"^([A-Za-z_]+):([ \t]*)([^#\n]*?)([ \t]*(?:#.*)?)$")
+
+
+def _fm_value_line(l):
+    """type、status、role、category、default 那一行：值換成英文 ID；註解裡列出的固定詞也換。作者自己寫的值不動。"""
+    m = _FM_VALUE.match(l)
+    if not m or m.group(1) not in fmkeys.VALUES:
+        return l
+    key, sp, val, comment = m.groups()
+    q = val[:1] if val[:1] in "\"'" and val[-1:] == val[:1] and len(val) > 1 else ""
+    raw = val[1:-1] if q else val
+    new = fmkeys.value_en(key, raw) if raw else raw
+    if comment:
+        for e, zh in sorted(fmkeys.VALUES[key], key=lambda p: -len(p[1])):
+            comment = re.sub(r"(?<![\w\u4e00-\u9fff])%s(?![\w\u4e00-\u9fff])" % re.escape(zh), e, comment)
+    return "%s:%s%s%s%s%s" % (key, sp, q, new if isinstance(new, str) else raw, q, comment)
+
+
 def _fm_block(lines):
-    """frontmatter 那幾行的鍵換成英文。換了之後跟既有的鍵重複（同一欄寫了中英兩次）就保留原樣，不弄壞 YAML。"""
+    """frontmatter 那幾行的鍵換成英文、固定詞的值換成英文 ID。
+    鍵換了之後跟既有的鍵重複（同一欄寫了中英兩次）就保留原樣，不弄壞 YAML。"""
     have = {l.split(":", 1)[0].strip() for l in lines if ":" in l and not l.startswith((" ", "\t", "-", "#"))}
     out = []
     for l in lines:
@@ -700,7 +719,7 @@ def _fm_block(lines):
                 rest = l[m.end():]
                 l = new + ":" + (rest if not rest or rest[0] in " \t" else " " + rest)     # 全形冒號「狀態：草稿」後面沒空格
                 have.add(new)
-        out.append(l)
+        out.append(_fm_value_line(l))
     return out
 
 
@@ -900,7 +919,7 @@ STEPS = [
     Step("chapters", "逐章檔名換成 ch-0001", _chapters_needed, _chapters_plan, _chapters_apply),
     Step("volumes", "卷綱檔名換成 vol-01", _volumes_needed, _volumes_plan, _volumes_apply),
     Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
-    Step("fmkeys", "frontmatter 的鍵換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
+    Step("fmkeys", "frontmatter 的鍵與固定詞換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
 ]
 
 

@@ -72,7 +72,7 @@ Per novel-bible's intake rules (if novel-bible is installed, read section four o
 
 ## 7. Card status
 
-Change the `status` in this chapter's card frontmatter to `已寫`. If the text departs from the card (for example a change the author agreed to), note the actual treatment in one line under the card's notes.
+Change the `status` in this chapter's card frontmatter to `written`. If the text departs from the card (for example a change the author agreed to), note the actual treatment in one line under the card's notes.
 
 ## 8. Version control
 

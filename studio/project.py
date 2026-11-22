@@ -9,7 +9,7 @@ import threading
 import yaml
 
 from . import enums
-from . import layout
+from . import fmkeys, layout
 from . import ids
 
 CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff]")
@@ -388,7 +388,7 @@ def scan_chapters(book_dir):
             p = layout.path(book_dir, layout.CHAPTER_CARDS, cards[n])
             fm, body = split_frontmatter(card_text)
             row["card_file"] = rel_of(book_dir, p)
-            row["card_status"] = fm.get("status")
+            row["card_status"] = fmkeys.disp("status", fm.get("status"))
             row["card_target"] = fm.get("target_length")
             row["title"] = str(fm.get("title") or "")
             m = re.search(r"-\s*功能：([^\n<]*)", body)
@@ -454,7 +454,7 @@ WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與�
               "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"]
 # 角色的「定位」固定詞（與 enums 同一份，介面與批次修改都從這裡取）
 CHAR_ROLES = [zh for zh, _ in enums.TABLES["role"]]
-DEFAULT_ROLE = "配角"
+DEFAULT_ROLE = "supporting"
 REV_SECTION = "從正文反推（未併入，請核對）"
 
 
@@ -464,6 +464,7 @@ def set_frontmatter_field(text, key, value):
     key 是英文鍵（中文鍵也收）。檔案裡已有那一行就照原本的寫法（中文或英文）改，新加的行由 fmkeys 決定寫法。"""
     from . import fmkeys
     key = fmkeys.en(key)
+    value = fmkeys.write_value(key, value)
     text = normalize_frontmatter(text)
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
@@ -486,7 +487,7 @@ def set_frontmatter_field(text, key, value):
 def ensure_role(text):
     """type 是角色、但 role 空白的設定檔補上預設定位；其他內容不動。"""
     fm, _ = split_frontmatter(text)
-    if fm.get("type") != "角色":
+    if fmkeys.value_en("type", fm.get("type")) != "character":
         return text
     if str(fm.get("role") or "").strip():
         return text
@@ -588,10 +589,10 @@ def list_entries(book_dir, rel_dir):
             out.append({
                 "file": rel_of(book_dir, p),
                 "name": str(fm.get("name") or os.path.splitext(f)[0]),
-                "type": fm.get("type"),
-                "status": fm.get("status"),
-                "role": fm.get("role"),
-                "category": str(fm.get("category") or "").strip() or None,
+                "type": fmkeys.disp("type", fm.get("type")),
+                "status": fmkeys.disp("status", fm.get("status")),
+                "role": fmkeys.disp("role", fm.get("role")),
+                "category": str(fmkeys.disp("category", fm.get("category")) or "").strip() or None,
                 "tags": [str(x).strip() for x in tags if str(x).strip()],
                 "aliases": fm.get("aliases") or [],
                 "first": fm.get("first_appearance"),
@@ -670,9 +671,9 @@ def overview(book_dir, stale_foreshadow=10, stale_character=15):
     chs = scan_chapters(book_dir)
     written = [c for c in chs if c["text_file"]]
     latest = max((c["no"] for c in written), default=0)
-    status_count = {"草稿": 0, "已確認": 0, "已寫": 0, "無章綱": 0}  # literal-ok: 章綱狀態值，P2 換
+    status_count = {"草稿": 0, "已確認": 0, "已寫": 0, "無章綱": 0}  # literal-ok: 介面的顯示字（card_status 是 disp 過的值），P5 改成 ID
     for c in chs:
-        s = c["card_status"] or ("無章綱" if not c["card_file"] else "草稿")  # literal-ok: 章綱狀態值
+        s = c["card_status"] or ("無章綱" if not c["card_file"] else "草稿")  # literal-ok: 介面的顯示字
         status_count[s] = status_count.get(s, 0) + 1
 
     alerts = []

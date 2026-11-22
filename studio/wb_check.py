@@ -8,7 +8,7 @@ import re
 import time
 
 from . import context, project, relations, tracking
-from . import layout
+from . import fmkeys, layout
 from . import tables
 
 MIN_MENTIONS = 3        # 正文提到幾次以上的角色，才要求角色狀態更新
@@ -101,7 +101,7 @@ def check(book_dir, no, revision=False, data=None):
     # 章綱狀態
     if card:
         fm, _ = project.split_frontmatter(card)
-        st = str(fm.get("status") or "")
+        st = str(fmkeys.disp("status", fm.get("status")) or "")
         if not any(w in st for w in _DONE_CARD):
             issues.append("章綱狀態還是「%s」" % (st or "空白"))
 

@@ -37,7 +37,7 @@ def reader_table(n=60):
         rec = "" if i % 3 else "第%03d章" % (i // 3 + 2)
         rows.append("| R%03d | %s | 讀者第%d個疑問：沈家帳本的缺頁和林晚的玉珮有沒有關係，周叔是否知情（E%03d） | 答案%d：沈仲廉藏起缺頁 | 第%03d章 | %s | %s | 備%d |"
                     % (i, t, i, i, i, max(1, i // 2), rec, ["林晚", "沈既白", "周叔"][i % 3], i))
-    return ("---\ntype: 讀者認知\nupdated_through: 第030章\n---\n\n# 讀者認知\n\n> 說明。\n\n" + "\n".join(rows) + "\n")
+    return ("---\ntype: reader-knowledge\nupdated_through: 第030章\n---\n\n# 讀者認知\n\n> 說明。\n\n" + "\n".join(rows) + "\n")
 
 
 def scenario():

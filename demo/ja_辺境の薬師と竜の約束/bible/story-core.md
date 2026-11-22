@@ -1,7 +1,7 @@
 ---
-type: 故事核心
+type: story-core
 title: 辺境の薬師と竜の約束
-status: 正式
+status: canon
 lang: ja
 ---
 

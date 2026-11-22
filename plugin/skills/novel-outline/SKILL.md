@@ -57,7 +57,7 @@ description: 小說規劃：故事核心診斷（點子值不值得寫、賣點�
 ## 寫入檔案
 
 - 用 `_templates/` 裡對應的範本。
-- 章綱 frontmatter 的 `status`：作者確認前是 `草稿`，確認後改 `已確認`；novel-write 寫完會改成 `已寫`。
+- 章綱 frontmatter 的 `status`：作者確認前是 `draft`，確認後改 `approved`；novel-write 寫完會改成 `written`。
 - 修改既有大綱前先完整讀過，只改要改的部分。
 - 已經寫成正文的章節，不改它的章綱來「配合」新想法；要改劇情就走 novel-write 的改稿流程。
 

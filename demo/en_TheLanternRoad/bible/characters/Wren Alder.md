@@ -1,10 +1,10 @@
 ---
-type: 角色
+type: character
 name: Wren Alder
 aliases: [Alder, the apprentice]
-role: 主角
+role: protagonist
 first_appearance: 第001章
-status: 正式
+status: canon
 ---
 
 # Wren Alder

@@ -9,7 +9,7 @@ import subprocess
 import time
 
 from . import project, prompts, textguard
-from . import layout
+from . import fmkeys, layout
 from . import tables
 
 # 回寫資料（英文鍵）與檔案裡的段落／欄位名稱（中文，檔案格式到 P3 才換）
@@ -149,7 +149,7 @@ def upsert_table(path, kind, items, prefix, title, ftype, chapter_label):
     if os.path.isfile(path):
         text = project.read_text(path)
     else:
-        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (ftype, chapter_label, title)
+        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (fmkeys.write_value("type", ftype), chapter_label, title)
     before, headers, rows, after = _split_table(text)
     headers = headers or tables.headers(kind)
     keys = [tables.key_of(kind, h) for h in headers]
@@ -215,7 +215,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
 
     # 1. 章節摘要
     s = data.get("summary") or {}
-    body = "---\ntype: 章節摘要\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
+    body = "---\ntype: chapter-summary\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
     for k, head in SUMMARY_KEYS:
         body += "\n## %s\n%s\n" % (head, str(s.get(k, "")).strip() or "（無）")
     _write(layout.path(book_dir, layout.SUMMARIES, layout.chapter_md(no)), body)
@@ -225,7 +225,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     sc = data.get("state_card") or {}
     if sc and not revision:
         p = layout.path(book_dir, layout.STATE_CARD)
-        text = "---\ntype: 狀態卡\nupdated_through: %s\n---\n\n# 狀態卡\n" % label
+        text = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % label
         for i, (k, head) in enumerate(STATE_KEYS, 1):
             text += "\n## %d. %s\n" % (i, head)
             items = _lines(sc.get(k))
@@ -284,7 +284,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         if os.path.isfile(p):
             for m in re.finditer(r"^- (.+?)：(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
                 old[m.group(1)] = m.group(2)
-        text = "---\ntype: 角色狀態\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n" % (name, label, label, name)
+        text = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n" % (name, label, label, name)
         for k, f in CHAR_KEYS:
             v = c.get(k)
             if isinstance(v, list):
@@ -309,7 +309,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         if os.path.isfile(gp):
             text = project.read_text(gp)
         else:
-            text = "---\ntype: 名詞表\n---\n\n# 名詞表\n\n"
+            text = "---\ntype: glossary\n---\n\n# 名詞表\n\n"
         before, headers, rows, after = _split_table(text)
         headers = headers or GLOSS_HEADERS
         have = {r.get(headers[0]) for r in rows}
@@ -332,7 +332,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
             if e.get("type") == "角色":
                 cp = layout.path(book_dir, layout.CHARACTERS, re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
                 if not os.path.exists(cp):
-                    _write(cp, "---\ntype: 角色\nname: %s\naliases: []\nrole: 配角\nfirst_appearance: %s\nstatus: 正式\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
+                    _write(cp, "---\ntype: character\nname: %s\naliases: []\nrole: supporting\nfirst_appearance: %s\nstatus: canon\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
                            % (nm, label, nm, _cell(e.get("explanation", ""))))
         if added:
             sep = "" if before.endswith("\n\n") else "\n"
@@ -344,7 +344,7 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     if no in cards:
         p = layout.path(book_dir, layout.CHAPTER_CARDS, cards[no])
         t = project.read_text(p)
-        t2 = re.sub(r"^(?:status|狀態):.*$", "status: 已寫", t, count=1, flags=re.M)
+        t2 = re.sub(r"^(?:status|狀態):.*$", "status: written", t, count=1, flags=re.M)
         if t2 != t:
             _write(p, t2)
             log.append("章綱狀態→已寫")
@@ -388,8 +388,8 @@ def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=Fa
         if row["type"] not in RP_TYPES:
             row["type"] = "懸念"
         rows.append(tables.row_to_headers("reader", row))
-    head = "---\ntype: 讀者認知\nupdated_through: %s\n%s---\n\n# 讀者認知%s\n\n" % (
-        chapter_label_text, "status: 草稿\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
+    head = "---\ntype: reader-knowledge\nupdated_through: %s\n%s---\n\n# 讀者認知%s\n\n" % (
+        chapter_label_text, "status: draft\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
     _write(path, head + prompts.cur()["rp_intro"] + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
     return len(rows)
 
@@ -403,7 +403,7 @@ def adopt_reader_draft(book_dir):
     if os.path.isfile(dst):
         backup(book_dir, dst, "讀者認知")
     text = project.read_text(src)
-    text = re.sub(r"(?m)^(?:status|狀態): 草稿\n", "", text, count=1).replace("# 讀者認知（草稿：確認後按「採用」）", "# 讀者認知", 1)
+    text = re.sub(r"(?m)^(?:status|狀態): (?:draft|草稿)\n", "", text, count=1).replace("# 讀者認知（草稿：確認後按「採用」）", "# 讀者認知", 1)
     if "\n" + RP_NOTE_HEAD in text:
         text = text.split("\n" + RP_NOTE_HEAD, 1)[0].rstrip() + "\n"
     _write(dst, text)

@@ -1,5 +1,5 @@
 ---
-type: 名詞表
+type: glossary
 ---
 
 # 名詞表

@@ -19,7 +19,7 @@ import re
 import time
 
 from . import project, textguard, volume
-from . import layout
+from . import fmkeys, layout
 from . import tables
 
 REL = layout.CONTRACT
@@ -100,7 +100,7 @@ def characters(book_dir):
         name = e.get("name") or ""
         fm = e.get("frontmatter") or _front(book_dir, e.get("file") or "")
         st = _front(book_dir, layout.entry(layout.CHARACTER_STATES, name))
-        out.append((name, fm.get("role") or "", fm.get("first_appearance") or "", st.get("last_appearance") or ""))
+        out.append((name, fmkeys.disp("role", fm.get("role")) or "", fm.get("first_appearance") or "", st.get("last_appearance") or ""))
     return out
 
 
@@ -158,7 +158,7 @@ def build(book_dir, keep=""):
     prefs = _body(book_dir, layout.AUTHOR_PREFS)
     words = tables.rows_to_keys("glossary", _rows(_body(book_dir, layout.GLOSSARY)))
 
-    L = ["---", "type: 續寫合約", "updated_through: 第%03d章" % no,
+    L = ["---", "type: continuation-contract", "updated_through: 第%03d章" % no,
          "產生時間: %s" % time.strftime("%Y-%m-%d %H:%M"), "---", "",
          "# 續寫合約", "",
          "> 這份是「續寫時不能違背的事實」，程式從正文、設定、追蹤與大綱整理出來的，"

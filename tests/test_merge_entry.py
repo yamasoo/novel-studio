@@ -11,12 +11,12 @@ from studio import project, reverse
 from studio import layout  # noqa: E402
 
 OLD = """---
-type: 角色
+type: character
 name: 桐生沙耶
 aliases: []
 role: ""
 first_appearance: 3
-status: 正式
+status: canon
 ---
 
 # 桐生沙耶
@@ -32,12 +32,12 @@ status: 正式
 """
 
 NEW = """---
-type: 角色
+type: character
 name: 桐生沙耶
 aliases: [沙耶]
-role: 配角
+role: supporting
 first_appearance: 3
-status: 草稿
+status: draft
 source: 從正文反推
 ---
 
@@ -56,20 +56,20 @@ source: 從正文反推
 
 class EnsureRoleTest(unittest.TestCase):
     def test_blank_role_gets_default(self):
-        text = "---\ntype: 角色\nname: 甲\n定位:\nstatus: 草稿\n---\n\n# 甲\n"
+        text = "---\ntype: character\nname: 甲\n定位:\nstatus: draft\n---\n\n# 甲\n"
         out = project.ensure_role(text)
         self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_missing_role_is_inserted(self):
-        out = project.ensure_role("---\ntype: 角色\nname: 甲\n---\n\n# 甲\n")
+        out = project.ensure_role("---\ntype: character\nname: 甲\n---\n\n# 甲\n")
         self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_existing_role_is_kept(self):
-        text = "---\ntype: 角色\nname: 甲\nrole: 主角\n---\n\n# 甲\n"
+        text = "---\ntype: character\nname: 甲\nrole: protagonist\n---\n\n# 甲\n"
         self.assertEqual(project.ensure_role(text), text)
 
     def test_other_types_untouched(self):
-        text = "---\ntype: 勢力\nname: 甲\n---\n\n# 甲\n"
+        text = "---\ntype: faction\nname: 甲\n---\n\n# 甲\n"
         self.assertEqual(project.ensure_role(text), text)
 
 
@@ -80,11 +80,11 @@ class MergeEntryTest(unittest.TestCase):
 
     def test_frontmatter_fills_only_blank(self):
         self.assertEqual(self.fm["aliases"], ["沙耶"])
-        self.assertEqual(self.fm["role"], "配角")
+        self.assertEqual(self.fm["role"], "supporting")
         self.assertEqual(self.fm["first_appearance"], 3)
 
     def test_status_and_source_not_overwritten(self):
-        self.assertEqual(self.fm["status"], "正式")
+        self.assertEqual(self.fm["status"], "canon")
         self.assertNotIn("來源", self.fm)
 
     def test_blank_section_gets_draft_content(self):
@@ -104,7 +104,7 @@ class MergeEntryTest(unittest.TestCase):
 
     def test_layout_is_clean(self):
         self.assertNotIn("## \n", self.text)
-        self.assertTrue(self.text.startswith("---\ntype: 角色\n"))
+        self.assertTrue(self.text.startswith("---\ntype: character\n"))
         self.assertIn("---\n\n# 桐生沙耶", self.text)
         self.assertNotIn("\n\n\n", self.text)
 

@@ -12,7 +12,7 @@ import os
 import re
 
 from . import project, textguard
-from . import layout
+from . import fmkeys, layout
 
 DIRS = (layout.VOLUMES_SUBDIR,)
 DRAFT_DIR = layout.VOLUME_DRAFTS      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的檔
@@ -101,7 +101,7 @@ def list_volumes(book_dir):
                 continue
             nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
             lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-            out.append({"rel": rel, "name": str(fm.get("title") or f), "status": str(fm.get("status") or ""),
+            out.append({"rel": rel, "name": str(fm.get("title") or f), "status": str(fmkeys.disp("status", fm.get("status")) or ""),
                         "lo": lo, "hi": hi, "no": _num_from_name(f),
                         "kind": _kind(f)})
     # 同一章同時被「卷」和「幕」覆蓋時，卷優先（卷末承諾要的是卷，不是幕）
@@ -162,7 +162,7 @@ def drafts(book_dir):
         nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
         lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
         out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("title") or f),
-                    "status": str(fm.get("status") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+                    "status": str(fmkeys.disp("status", fm.get("status")) or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
     return out
 
@@ -299,7 +299,7 @@ def adopt(book_dir, no):
     dst = project.safe_path(book_dir, dst_rel)
     if os.path.isfile(dst):
         raise project.ProjectError("正式的 %s 已經存在，先確認是不是已經採用過。" % dst_rel)
-    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "已確認"))
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "approved"))
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
@@ -334,7 +334,7 @@ def revisions(book_dir):
         nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
         lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
         out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("title") or f),
-                    "status": str(fm.get("status") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+                    "status": str(fmkeys.disp("status", fm.get("status")) or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["no"] or 0, v["rel"]))
     return out
 
@@ -383,7 +383,7 @@ def apply_revision(book_dir, no):
         tracking.backup(book_dir, dst, "卷綱修訂前")
     except Exception:
         pass
-    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "已確認"))
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "approved"))
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(new_text if new_text.endswith("\n") else new_text + "\n")

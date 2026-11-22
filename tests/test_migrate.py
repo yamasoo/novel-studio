@@ -657,18 +657,24 @@ class FmKeysStepTest(unittest.TestCase):
         self.assertEqual(["fmkeys"], [s["key"] for s in r["steps"]])
         self.assertEqual(before, migrate.stats(self.book))
         read = lambda rel: project.read_text(os.path.join(self.book, *rel.split("/")))
-        self.assertEqual("---\ntype: 故事核心\ntitle: 退婚之後\nstatus: 草稿\nlang: zh-TW\n---\n\n# 故事核心\n\n狀態: 這行是正文\n",
-                         read("bible/story-core.md"), "全形冒號補空格；正文不動")
-        self.assertEqual("---\ntype: 角色\nname: 甲\naliases:\n  - 小甲\nrole: 主角\n自訂欄: 留著\n---\n\n# 甲\n", read("bible/characters/甲.md"))
-        self.assertIn("status: 已確認\n狀態: 草稿\n", read("outline/chapters/ch-0001.md"), "已經有英文鍵的那一欄不重複")
+        self.assertEqual("---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\nlang: zh-TW\n---\n\n# 故事核心\n\n狀態: 這行是正文\n",
+                         read("bible/story-core.md"), "全形冒號補空格；固定詞換成英文 ID；正文不動")
+        self.assertEqual("---\ntype: character\nname: 甲\naliases:\n  - 小甲\nrole: protagonist\n自訂欄: 留著\n---\n\n# 甲\n", read("bible/characters/甲.md"))
+        self.assertIn("status: approved\n狀態: 草稿\n", read("outline/chapters/ch-0001.md"), "已經有英文鍵的那一欄不重複（重複的中文行原樣）")
         self.assertEqual("---\n類型: 故事核心\n---\n", read(".studio/backup/故事核心.1.md"), "備份不動")
         fm, _ = project.split_frontmatter(read("bible/characters/甲.md"))
         self.assertEqual(["小甲"], fm["aliases"])
         self.assertFalse(migrate.needs_migration(self.book))
         self.assertEqual("skipped", migrate.migrate(self.book)["status"])
 
+    def test_values(self):
+        text = "---\ntype: 角色\nrole: 主角          # 主角 / 配角\nstatus: \"已確認\"\ncategory: 自創類\nname: 主角\n---\n\nrole: 主角\n"
+        self.assertEqual("---\ntype: character\nrole: protagonist          # protagonist / supporting\nstatus: \"approved\"\n"
+                         "category: 自創類\nname: 主角\n---\n\nrole: 主角\n", migrate.fm_rewrite(text),
+                         "固定詞與註解裡的選項換成 ID；作者自己的值、名稱、正文不動")
+
     def test_fenced_examples(self):
         text = "說明\n\n```yaml\n---\n類型: 角色\n名稱: 林晚   # 註解\n---\n```\n\n類型: 正文\n"
-        self.assertEqual("說明\n\n```yaml\n---\ntype: 角色\nname: 林晚   # 註解\n---\n```\n\n類型: 正文\n",
+        self.assertEqual("說明\n\n```yaml\n---\ntype: character\nname: 林晚   # 註解\n---\n```\n\n類型: 正文\n",
                          migrate.fm_rewrite(text, fenced=True))
         self.assertEqual(text, migrate.fm_rewrite(text), "預設只換開頭的 frontmatter")

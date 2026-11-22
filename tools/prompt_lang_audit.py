@@ -257,7 +257,7 @@ def _response(lang, label, msgs, vlang=None):
         return js({"chars": [{"name": v["names"][0], "position": "left", "action": v["action"]}], "action_tags": v["action"],
                    "scene_tags": v["scene"], "composition": "medium shot", "sentences": v["card_desc"]})
     if label in ("設計文風", "調整文風"):
-        return "<<<文風>>>\n---\ntype: 文風\nstatus: 草稿\nname: test\n---\n\n# 文風：test\n\n%s\n\n## 範例段落\n%s\n<<<結束>>>\n%s" % (
+        return "<<<文風>>>\n---\ntype: style\nstatus: draft\nname: test\n---\n\n# 文風：test\n\n%s\n\n## 範例段落\n%s\n<<<結束>>>\n%s" % (
             v["style"], v["body"], v["report"])
     if label == "試寫文風":
         return v["body"]

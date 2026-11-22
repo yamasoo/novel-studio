@@ -26,7 +26,7 @@ Folder names, file names, frontmatter keys and section headings in this project 
 1. Is there a `CLAUDE.md`? If not, ask the author to run novel-setup first.
 2. Does this chapter have a card at `outline/chapters/ch-NNNN.md`?
    - No: stop and ask whether to lay out chapter cards with novel-outline first. (If the author says "just write it", you may draft a minimal card for them to see first: the four questions, plot points, chapter-ending hook; write only after they nod.)
-   - The card's `status` is `草稿` (draft): ask "The chapter N card is still a draft; write from it anyway?"
+   - The card's `status` is `draft` (draft): ask "The chapter N card is still a draft; write from it anyway?"
 3. Is tracking up to date through the previous chapter? Check `updated_through` in `tracking/state-card.md`. If it is behind, finish the previous chapter's write-back first. Never write a new chapter on top of stale state. (Exception: when candidate mode writes several chapters at once, later chapters continue from the previous chapter's candidate; see "Candidate mode".)
 4. In chapter 1 the tracking files may still be blank templates. That is normal.
 

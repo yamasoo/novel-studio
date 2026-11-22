@@ -26,7 +26,7 @@ STYLE_TEMPLATE = os.path.join(os.path.dirname(HERE), "plugin", "skills", *layout
 METRICS_HEAD = "## 文字指標（程式統計）"
 
 PREFS_TEMPLATE = """---
-type: 共用作者偏好
+type: shared-author-prefs
 ---
 
 # 共用作者偏好
@@ -107,7 +107,7 @@ def set_fm(text, key, value):
     """在 frontmatter 設定（value=None 時刪除）一個鍵；沒有 frontmatter 就新增。只處理單行值。
     key 是英文鍵；檔案裡中文、英文寫法都會被換掉，新的一行由 fmkeys 決定寫法。"""
     key = fmkeys.en(key)
-    line = None if value is None else "%s: %s" % (fmkeys.write_key(key), value)
+    line = None if value is None else "%s: %s" % (fmkeys.write_key(key), fmkeys.write_value(key, value))
     if text.startswith("---"):
         lines = text.split("\n")
         for i in range(1, len(lines)):
@@ -212,7 +212,7 @@ def create_style(library, name, source=None, sample_text=None, exclude=(), lang=
         st = os.path.join(context.lang_plugin(os.path.dirname(STYLE_TEMPLATE).rsplit("skills", 1)[0].rstrip("/\\"), lang),
                           "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
         st = st if os.path.isfile(st) else STYLE_TEMPLATE
-        text = project.read_text(st) if os.path.isfile(st) else "---\ntype: 文風\n---\n\n# 文風\n"
+        text = project.read_text(st) if os.path.isfile(st) else "---\ntype: style\n---\n\n# 文風\n"
     text = set_fm(set_fm(set_fm(text, "name", name), "type", "文風"), "lang", lang)  # literal-ok: frontmatter 類型值，第四批後半換
     text = re.sub(r"(?m)^# 本書文風\s*$", "# 文風：%s" % name, text, count=1)
     if sample_text:
@@ -455,7 +455,7 @@ def _structure_info(path, origin):
     fm, _ = project.split_frontmatter(text)
     name = os.path.splitext(os.path.basename(path))[0]
     return {"name": name, "origin": origin, "scope": str(fm.get("scope") or ""), "summary": _summary(text),
-            "default": str(fm.get("default") or "") in ("是", "true", "True", "yes"), "lang": text_lang(text)}
+            "default": fmkeys.value_en("default", fm.get("default")) in ("true", "True", "yes"), "lang": text_lang(text)}
 
 
 def _summary(text):
@@ -513,7 +513,7 @@ def new_structure(library, name, lang=None):
 
 
 STRUCTURE_TEMPLATE = """---
-type: 章節結構
+type: chapter-structure
 name: {name}
 scope: 單章
 ---

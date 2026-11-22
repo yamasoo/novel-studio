@@ -1,7 +1,7 @@
 ---
-type: 故事核心
+type: story-core
 title: The Lantern Road
-status: 正式
+status: canon
 lang: en
 ---
 

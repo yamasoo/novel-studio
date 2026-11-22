@@ -1,10 +1,10 @@
 ---
-type: 角色
+type: character
 name: Orrin Vale
 aliases: [Master Vale]
-role: 配角
+role: supporting
 first_appearance:
-status: 草稿
+status: draft
 ---
 
 # Orrin Vale (draft)

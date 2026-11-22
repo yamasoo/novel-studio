@@ -26,9 +26,9 @@ class FmKeysTest(unittest.TestCase):
         self.assertEqual("草稿", fm["status"])
 
     def test_set_keeps_file_spelling(self):
-        self.assertIn("\n狀態: 已確認\n", project.set_frontmatter_field(ZH, "status", "已確認"))
-        self.assertIn("\nstatus: 已確認\n", project.set_frontmatter_field(EN, "status", "已確認"))
-        self.assertIn("\n狀態: 已確認\n", project.set_frontmatter_field(ZH, "狀態", "已確認"), "中文鍵也收")
+        self.assertIn("\n狀態: approved\n", project.set_frontmatter_field(ZH, "status", "已確認"), "鍵照原寫法，值寫英文 ID")
+        self.assertIn("\nstatus: approved\n", project.set_frontmatter_field(EN, "status", "approved"))
+        self.assertIn("\n狀態: approved\n", project.set_frontmatter_field(ZH, "狀態", "已確認"), "中文鍵也收")
 
     def test_new_line_follows_write_setting(self):
         self.assertEqual("en", fmkeys.WRITE, "v3 寫英文鍵")
@@ -57,3 +57,81 @@ class FmKeysTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FmValuesTest(unittest.TestCase):
+    """frontmatter 的值：檔案寫中文或英文 ID，交給介面的都一樣（v3 P3 第四批 4c-1）。"""
+
+    def test_value_maps(self):
+        self.assertEqual("approved", fmkeys.value_en("status", "已確認"))
+        self.assertEqual("approved", fmkeys.value_en("狀態", "approved"))
+        self.assertEqual("已確認", fmkeys.disp("status", "approved"))
+        self.assertEqual("伏筆", fmkeys.disp("type", "伏筆"), "中文的同義寫法照原樣")
+        self.assertEqual("怪物", fmkeys.disp("role", "怪物"), "作者自己寫的值照原樣")
+        self.assertEqual("true", fmkeys.value_en("default", True))
+        for key, pairs in fmkeys.VALUES.items():
+            for e, zh in pairs:
+                self.assertRegex(e, r"^[a-z][a-z-]*$")
+                self.assertEqual(e, fmkeys.value_en(key, zh))
+
+    def test_write_value(self):
+        text = "---\ntype: 角色\nrole: 主角\n---\n"
+        self.assertEqual("en", fmkeys.WRITE_VALUES, "v3 寫英文 ID")
+        self.assertIn("role: antagonist", project.set_frontmatter_field(text, "role", "反派"))
+        self.assertIn("default: true", shared.set_fm("---\nname: x\n---\n", "default", "是"))
+        old = fmkeys.WRITE_VALUES
+        try:
+            fmkeys.WRITE_VALUES = "zh"
+            self.assertIn("role: 反派", project.set_frontmatter_field(text, "role", "antagonist"))
+        finally:
+            fmkeys.WRITE_VALUES = old
+
+    def test_demo_books_read_the_same_with_chinese_values(self):
+        """示範書（英文 ID）的值全部換回中文：設定集、章節、卷綱、總覽、設定索引的結果都跟原本一樣（還沒轉換的舊書照樣能讀）。"""
+        import re
+        import shutil
+        import tempfile
+        from studio import bible_index, volume
+        tmp = tempfile.mkdtemp()
+        try:
+            for name in ("退婚之後", "en_TheLanternRoad", "ja_辺境の薬師と竜の約束"):
+                src = os.path.join(ROOT, "demo", name)
+                dst = os.path.join(tmp, name)
+                shutil.copytree(src, dst)
+                n = 0
+                for base, _, files in os.walk(dst):
+                    for f in files:
+                        if not f.endswith(".md"):
+                            continue
+                        p = os.path.join(base, f)
+                        t = project.read_text(p)
+                        if not t.startswith("---"):
+                            continue
+                        head, sep, rest = t[3:].partition("\n---")
+                        new = re.sub(r"(?m)^(type|status|role|category): *([^#\n]+?)( *#.*)?$",
+                                     lambda m: "%s: %s" % (m.group(1), fmkeys.disp(m.group(1), m.group(2))), head)
+                        if new != head:
+                            n += 1
+                            with open(p, "w", encoding="utf-8", newline="\n") as fh:
+                                fh.write("---" + new + sep + rest)
+                self.assertGreater(n, 10, name)
+
+                def view(d):
+                    return {"bible": project.bible(d), "chapters": project.scan_chapters(d),
+                            "volumes": volume.list_volumes(d), "overview": project.overview(d)["status_count"],
+                            "index": bible_index._index_markdown(bible_index.build(d))}
+                a, b = view(src), view(dst)
+                for k in a:
+                    self.assertEqual(json_norm(a[k], src), json_norm(b[k], dst), "%s %s" % (name, k))
+        finally:
+            shutil.rmtree(tmp)
+
+
+def json_norm(v, root):
+    """去掉會變的欄位（修改時間、書的路徑）再比。"""
+    import json
+    if isinstance(v, dict):
+        return {k: json_norm(x, root) for k, x in v.items() if k not in ("mtime", "mtime_ms")}
+    if isinstance(v, list):
+        return [json_norm(x, root) for x in v]
+    return v.replace(root, "<ROOT>") if isinstance(v, str) else v

@@ -1,5 +1,5 @@
 ---
-type: 狀態卡
+type: state-card
 updated_through: 第002章
 ---
 

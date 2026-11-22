@@ -1,9 +1,9 @@
 ---
-type: 世界觀
-category: 力量體系
+type: world
+category: power-system
 tags: [lantern, roads]
 name: The Lantern
-status: 正式
+status: canon
 ---
 
 # The Lantern

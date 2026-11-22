@@ -557,7 +557,7 @@
      "provider_type": "",
      "state": "none"
     },
-    "state_card": "---\ntype: 狀態卡\nupdated_through: 第002章\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- Volume / chapter: volume one, chapter 2 written\n- In-story time: night of day one\n- Main setting: Orrin's map shop, Hollin Cross\n\n## 2. 主線進度\n- How far it has got: Wren has lit Hob for the first time and seen the silver road\n- Next goal: follow the road out of the north gate\n\n## 3. 在場角色\n- Wren Alder: decided to leave at dawn; cold and hungry from the lighting\n- Hob: has told Wren his name and the name rule\n- Dessa Pike: gone, with thirty-six survey books\n\n## 4. 下一章承諾\n- Wren follows the silver line to its first landmark\n\n## 5. 長期約束\n- Wren has no combat skill\n- In volume one the lantern only shows roads\n\n## 6. 連續性風險\n- Only people inside Hob's light can see the silver line\n- Hob burns until sunrise once lit\n\n## 7. 活躍伏筆\n- F001 Hob lights only for names Wren has walked\n- F002 Wren erased the road on Orrin's order\n- F003 Dessa Pike and the old map\n",
+    "state_card": "---\ntype: state-card\nupdated_through: 第002章\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- Volume / chapter: volume one, chapter 2 written\n- In-story time: night of day one\n- Main setting: Orrin's map shop, Hollin Cross\n\n## 2. 主線進度\n- How far it has got: Wren has lit Hob for the first time and seen the silver road\n- Next goal: follow the road out of the north gate\n\n## 3. 在場角色\n- Wren Alder: decided to leave at dawn; cold and hungry from the lighting\n- Hob: has told Wren his name and the name rule\n- Dessa Pike: gone, with thirty-six survey books\n\n## 4. 下一章承諾\n- Wren follows the silver line to its first landmark\n\n## 5. 長期約束\n- Wren has no combat skill\n- In volume one the lantern only shows roads\n\n## 6. 連續性風險\n- Only people inside Hob's light can see the silver line\n- Hob burns until sunrise once lit\n\n## 7. 活躍伏筆\n- F001 Hob lights only for names Wren has walked\n- F002 Wren erased the road on Orrin's order\n- F003 Dessa Pike and the old map\n",
     "status_count": {
      "已寫": 2,
      "已確認": 2,
@@ -2558,7 +2558,7 @@
      "provider_type": "",
      "state": "none"
     },
-    "state_card": "---\ntype: 狀態卡\nupdated_through: 第002章\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 巻／章： 第一巻、第2章まで\n- 作中の時間： 追放から三日後の夜\n- 主な舞台： 灰谷村はずれの森\n\n## 2. 主線進度\n- どこまで進んだか： エルマとルゥが竜約を結んだ\n- 次の目標： 月涙草を探しに沼へ向かう\n\n## 3. 在場角色\n- エルマ・フェイン： 竜約の印が左手に浮かんだ。印の形に動揺している\n- ルゥ： 毒で弱っているが、口は達者\n\n## 4. 下一章承諾\n- 夜明け前に、月涙草の沼へ向かう\n\n## 5. 長期約束\n- エルマは戦えない\n- 第一巻の竜約は「命を預かる」ことと「嘘に反応する」ことだけ\n\n## 6. 連續性風險\n- 印の形が院長の印章と同じことを、エルマはまだ誰にも話していない\n- ルゥの毒は少しずつ回っている\n\n## 7. 活躍伏筆\n- F001 印と院長の印章\n- F002 矢尻の紋\n- F004 配合表の鍵\n",
+    "state_card": "---\ntype: state-card\nupdated_through: 第002章\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 巻／章： 第一巻、第2章まで\n- 作中の時間： 追放から三日後の夜\n- 主な舞台： 灰谷村はずれの森\n\n## 2. 主線進度\n- どこまで進んだか： エルマとルゥが竜約を結んだ\n- 次の目標： 月涙草を探しに沼へ向かう\n\n## 3. 在場角色\n- エルマ・フェイン： 竜約の印が左手に浮かんだ。印の形に動揺している\n- ルゥ： 毒で弱っているが、口は達者\n\n## 4. 下一章承諾\n- 夜明け前に、月涙草の沼へ向かう\n\n## 5. 長期約束\n- エルマは戦えない\n- 第一巻の竜約は「命を預かる」ことと「嘘に反応する」ことだけ\n\n## 6. 連續性風險\n- 印の形が院長の印章と同じことを、エルマはまだ誰にも話していない\n- ルゥの毒は少しずつ回っている\n\n## 7. 活躍伏筆\n- F001 印と院長の印章\n- F002 矢尻の紋\n- F004 配合表の鍵\n",
     "status_count": {
      "已寫": 2,
      "已確認": 2,
@@ -3862,7 +3862,7 @@
      "provider_type": "",
      "state": "none"
     },
-    "state_card": "---\ntype: 狀態卡\nupdated_through: 第002章\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 卷／章：第一卷，第2章寫完\n- 故事內時間：退婚當天夜裡\n- 主要場景：林晚房中\n\n## 2. 主線進度\n- 走到哪一步：玉珮第一次浮字\n- 下一個目標：去鋪子查三年前的帳\n\n## 3. 在場角色\n- 林晚：收下退婚書，決定查帳；浮字後頭痛\n- 小翠：知道林晚明天要去鋪子\n- 大伯母：派王婆子守院門\n\n## 4. 下一章承諾\n- 林晚去鋪子查三年前的帳\n\n## 5. 長期約束\n- 林晚不會武功\n- 第一卷玉珮只浮字\n\n## 6. 連續性風險\n- 浮字只有林晚看得見，小翠不知道浮字的事\n- 王婆子守在院門口\n\n## 7. 活躍伏筆\n- F001 玉珮發熱\n- F002 浮字「沈家欠的，不止一紙婚書」\n- F003 沈既白的舊玉扳指\n",
+    "state_card": "---\ntype: state-card\nupdated_through: 第002章\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 卷／章：第一卷，第2章寫完\n- 故事內時間：退婚當天夜裡\n- 主要場景：林晚房中\n\n## 2. 主線進度\n- 走到哪一步：玉珮第一次浮字\n- 下一個目標：去鋪子查三年前的帳\n\n## 3. 在場角色\n- 林晚：收下退婚書，決定查帳；浮字後頭痛\n- 小翠：知道林晚明天要去鋪子\n- 大伯母：派王婆子守院門\n\n## 4. 下一章承諾\n- 林晚去鋪子查三年前的帳\n\n## 5. 長期約束\n- 林晚不會武功\n- 第一卷玉珮只浮字\n\n## 6. 連續性風險\n- 浮字只有林晚看得見，小翠不知道浮字的事\n- 王婆子守在院門口\n\n## 7. 活躍伏筆\n- F001 玉珮發熱\n- F002 浮字「沈家欠的，不止一紙婚書」\n- F003 沈既白的舊玉扳指\n",
     "status_count": {
      "已寫": 2,
      "已確認": 2,

@@ -1,5 +1,5 @@
 ---
-type: 伏筆總表
+type: foreshadowing
 updated_through: 第002章
 ---
 

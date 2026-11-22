@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from urllib.parse import quote
 from fastapi.staticfiles import StaticFiles
 import uvicorn
-from studio import layout
+from studio import fmkeys, layout
 from studio import migrate
 from studio import ids
 from studio import tables
@@ -2177,11 +2177,12 @@ async def bible_set_category(book_id: str, req: Request):
     files = body.get("files") or []
     if cat is None and role is None and status is None:
         raise HTTPException(400, "沒有要改的內容")
-    if cat is not None and cat not in project.WORLD_CATS:
+    # 介面送中文顯示字或英文 ID 都收（fmkeys 換算），寫回時照檔案格式
+    if cat is not None and fmkeys.value_en("category", cat) not in {e for e, _ in fmkeys.VALUES["category"]}:
         raise HTTPException(400, "分類不在固定清單內")
-    if role is not None and role not in project.CHAR_ROLES:
+    if role is not None and fmkeys.value_en("role", role) not in {e for e, _ in fmkeys.VALUES["role"]}:
         raise HTTPException(400, "定位不在固定清單內")
-    if status is not None and status not in ("正式", "草稿"):  # literal-ok: frontmatter 狀態值，P2 換
+    if status is not None and fmkeys.value_en("status", status) not in ("canon", "draft"):
         raise HTTPException(400, "狀態只能是 正式 或 草稿")
     if not isinstance(files, list) or not files:
         raise HTTPException(400, "沒有選取項目")

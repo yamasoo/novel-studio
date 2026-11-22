@@ -53,12 +53,12 @@ Every database file starts with a YAML block, for searching and checking. Write 
 
 ```yaml
 ---
-type: 角色
+type: character
 name: Ines Marlow
 aliases: [Nessie, Miss Ines]
-role: 主角          # 主角 / 主要配角 / 配角 / 反派 / 路人
+role: protagonist          # protagonist / main-supporting / supporting / antagonist / minor
 first_appearance: 第001章
-status: 正式          # 正式 / 草稿
+status: canon          # canon / draft
 ---
 ```
 
@@ -66,9 +66,9 @@ status: 正式          # 正式 / 草稿
 
 ```yaml
 ---
-type: 勢力          # or 世界觀
+type: faction          # or world
 name: The Quay Guild
-status: 正式
+status: canon
 related_characters: [Ines Marlow, Callum Brandt]
 ---
 ```
@@ -77,12 +77,12 @@ related_characters: [Ines Marlow, Callum Brandt]
 
 ```yaml
 ---
-type: 章綱
+type: chapter-card
 chapter: 1
 title: The Day the Engagement Ended
 volume: 第一卷
 target_length: 2500      # may be empty
-status: 已確認        # 草稿 / 已確認 / 已寫
+status: approved        # draft / approved / written
 ---
 ```
 
@@ -90,7 +90,7 @@ status: 已確認        # 草稿 / 已確認 / 已寫
 
 ```yaml
 ---
-type: 角色狀態
+type: character-state
 name: Ines Marlow
 updated_through: 第012章
 last_appearance: 第012章
@@ -101,7 +101,7 @@ last_appearance: 第012章
 
 ```yaml
 ---
-type: 章節摘要
+type: chapter-summary
 chapter: 1
 title: The Day the Engagement Ended
 length: 2600

@@ -14,7 +14,7 @@ import re
 import shutil
 
 from . import project
-from . import layout
+from . import fmkeys, layout
 
 # （資料夾, 顯示用的類別名稱）；類別名稱會出現在 API（sub）與索引檔，介面文字在 P5 處理
 SETTING_SUBDIRS = ((layout.WORLD, "世界觀"), (layout.CHARACTERS, "角色"), (layout.FACTIONS, "勢力"))   # literal-ok: 顯示用的類別名稱
@@ -77,8 +77,8 @@ def _setting_rows(book_dir):
             rows.append({
                 "name": str(fm.get("name") or stem),
                 "aliases": [str(a) for a in aliases],
-                "category": str(fm.get("category") or "").strip(),
-                "status": str(fm.get("status") or "").strip(),
+                "category": str(fmkeys.disp("category", fm.get("category")) or "").strip(),
+                "status": str(fmkeys.disp("status", fm.get("status")) or "").strip(),
                 "summary": _first_line(body, "一句話")[:80],
                 "file": project.rel_of(book_dir, p),
                 "sub": sub,

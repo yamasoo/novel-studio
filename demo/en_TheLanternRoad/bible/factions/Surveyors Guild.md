@@ -1,7 +1,7 @@
 ---
-type: 勢力
+type: faction
 name: Surveyors' Guild
-status: 正式
+status: canon
 related_characters: [Corvin Tarr, Dessa Pike]
 ---
 

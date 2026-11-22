@@ -59,7 +59,7 @@ Per the "three tiers of new things" in CLAUDE.md, **when unsure while planning, 
 ## Writing files
 
 - Use the matching template in `_templates/`.
-- A card's frontmatter `status`: `草稿` until the author confirms, then `已確認`; novel-write changes it to `已寫` after writing.
+- A card's frontmatter `status`: `draft` until the author confirms, then `approved`; novel-write changes it to `written` after writing.
 - Read an existing outline completely before changing it, and change only what needs changing.
 - Do not change the card of a chapter already written to "fit" a new idea; to change the plot, use novel-write's revision flow.
 

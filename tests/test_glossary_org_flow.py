@@ -107,7 +107,7 @@ def _book(tmp, name, gloss, text):
     shutil.copytree(os.path.join(ROOT, "demo", name), book)
     rows = ["| 名詞 | 類別 | 說明 | 注意 |", "|---|---|---|---|"] + ["| %s | %s | %s | 首次出現：第001章 |" % g for g in gloss]
     with open(layout.path(book, layout.GLOSSARY), "w", encoding="utf-8", newline="\n") as f:
-        f.write("---\n類型: 名詞表\n---\n\n# 名詞表\n\n" + "\n".join(rows) + "\n")
+        f.write("---\ntype: 名詞表\n---\n\n# 名詞表\n\n" + "\n".join(rows) + "\n")
     for no in range(3, 9):   # 補幾章，讓常出現的條目超過獨立成檔的門檻
         with open(layout.path(book, layout.MANUSCRIPT, layout.chapter_md(no)), "w", encoding="utf-8", newline="\n") as f:
             f.write("# x%d\n\n%s\n" % (no, text * 3))      # 章名在標題（以前在檔名 x3、x4…）

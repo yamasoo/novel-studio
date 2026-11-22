@@ -10,7 +10,7 @@ description: 小說規劃：故事核心診斷（點子值不值得寫、賣點�
 ## 開始前
 
 1. 讀專案 `CLAUDE.md`。沒有專案時請作者先用 novel-setup，然後停下。
-2. 讀 `bible/story-core.md`、`bible/author-prefs.md`，以及書庫的 `_shared/author-prefs.md`（書目錄的上一層；存在的話）。排章綱時，若 `bible/structure/` 有標「預設: 是」的結構，用它安排每章節拍；某章適合別的結構時，在該章 frontmatter 寫「結構: 名稱」（只能用 `bible/structure/` 裡已有的）。
+2. 讀 `bible/story-core.md`、`bible/author-prefs.md`，以及書庫的 `_shared/author-prefs.md`（書目錄的上一層；存在的話）。排章綱時，若 `bible/structure/` 有標「default: 是」的結構，用它安排每章節拍；某章適合別的結構時，在該章 frontmatter 寫「structure: 名稱」（只能用 `bible/structure/` 裡已有的）。
 3. 依任務另讀對應 reference（見下表），只讀需要的。
 
 ## 判斷任務
@@ -57,7 +57,7 @@ description: 小說規劃：故事核心診斷（點子值不值得寫、賣點�
 ## 寫入檔案
 
 - 用 `_templates/` 裡對應的範本。
-- 章綱 frontmatter 的 `狀態`：作者確認前是 `草稿`，確認後改 `已確認`；novel-write 寫完會改成 `已寫`。
+- 章綱 frontmatter 的 `status`：作者確認前是 `草稿`，確認後改 `已確認`；novel-write 寫完會改成 `已寫`。
 - 修改既有大綱前先完整讀過，只改要改的部分。
 - 已經寫成正文的章節，不改它的章綱來「配合」新想法；要改劇情就走 novel-write 的改稿流程。
 

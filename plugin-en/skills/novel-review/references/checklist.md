@@ -39,7 +39,7 @@
 - Does the text use unconfirmed content from `bible/drafts/`?
 
 ### 8. Does tracking keep up with the text?
-- Do the `更新至` of the chapter summaries, state card, character state, foreshadowing and timeline reach the latest chapter?
+- Do the `updated_through` of the chapter summaries, state card, character state, foreshadowing and timeline reach the latest chapter?
 - Spot check: are the important facts that happened in the text in tracking? Did what tracking records really happen in the text?
 
 ### 9. Foreshadowing health

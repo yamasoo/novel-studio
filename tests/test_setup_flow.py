@@ -44,8 +44,8 @@ CLAUDE_MD = """# 《測試書》寫作專案
 """
 
 CORE = """---
-類型: 故事核心
-語言: zh-TW
+type: 故事核心
+lang: zh-TW
 ---
 
 ## 一句話
@@ -73,9 +73,9 @@ CORE = """---
 def _settings(d, chars=3, factions=1):
     """寫出初始設定：角色 chars 個正式檔、勢力 factions 個。"""
     for i in range(chars):
-        _write(d, "bible/characters/角色%d.md" % i, "---\n類型: 角色\n---\n角色")
+        _write(d, "bible/characters/角色%d.md" % i, "---\ntype: 角色\n---\n角色")
     for i in range(factions):
-        _write(d, "bible/factions/勢力%d.md" % i, "---\n類型: 勢力\n---\n勢力")
+        _write(d, "bible/factions/勢力%d.md" % i, "---\ntype: 勢力\n---\n勢力")
 
 
 def test_steps_and_next_follow_files(tmp_path):
@@ -93,14 +93,14 @@ def test_steps_and_next_follow_files(tmp_path):
     _write(d, "outline/book.md", "短大綱")
     assert setup_flow.next_step(d)["id"] == "master"
 
-    _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "outline/book.md", "---\ntype: 全書大綱\n---\n" + ("卷" * 600))
     assert setup_flow.next_step(d)["id"] == "volume"
 
-    _write(d, "outline/volumes/vol-01.md", "---\n狀態: 已確認\n---\n" + ("章" * 200))
+    _write(d, "outline/volumes/vol-01.md", "---\nstatus: 已確認\n---\n" + ("章" * 200))
     assert setup_flow.next_step(d)["id"] == "cards"
 
     for n in range(1, 11):
-        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\nstatus: 已確認\n---\n章綱")
     # 排完章綱之後先做初始設定，才輪到寫第 1 章
     assert setup_flow.next_step(d)["id"] == "settings"
     _settings(d, chars=2)
@@ -113,7 +113,7 @@ def test_steps_and_next_follow_files(tmp_path):
 def test_unfilled_template_comments_are_not_done(tmp_path):
     d = _book(tmp_path)
     _write(d, "CLAUDE.md", "# 書\n")
-    _write(d, "bible/story-core.md", "---\n類型: 故事核心\n---\n<!-- 還沒填 -->\n" + ("字" * 400))
+    _write(d, "bible/story-core.md", "---\ntype: 故事核心\n---\n<!-- 還沒填 -->\n" + ("字" * 400))
     assert setup_flow.steps(d)[1]["done"] is False
 
 
@@ -216,7 +216,7 @@ def test_running_job_has_no_fake_reply_ask(tmp_path):
 # ---------------------------------------------------------------------------
 from studio import native_files, prompts  # noqa: E402
 
-FILE_BLOCK = "<<<檔案 outline/book.md>>>\n---\n類型: 全書大綱\n---\n" + ("卷" * 600) + "\n<<<結束>>>"
+FILE_BLOCK = "<<<檔案 outline/book.md>>>\n---\ntype: 全書大綱\n---\n" + ("卷" * 600) + "\n<<<結束>>>"
 
 
 class _Pack:
@@ -336,19 +336,19 @@ def test_plain_text_answer_is_treated_as_edit(tmp_path):
 # ---------------------------------------------------------------------------
 # 初始設定這一步與卷層（計畫-整本書產出流程 §5 四題：全 A）
 # ---------------------------------------------------------------------------
-VOL1 = ("---\n類型: 卷綱\n卷名: 測試卷\n章節範圍: 第1章～第12章\n狀態: 已確認\n---\n" + ("卷" * 300))
-VOL2 = ("---\n類型: 卷綱\n卷名: 第二卷\n章節範圍: 第13章～第22章\n狀態: 已確認\n---\n" + ("卷" * 300))
+VOL1 = ("---\ntype: 卷綱\ntitle: 測試卷\nchapter_range: 第1章～第12章\nstatus: 已確認\n---\n" + ("卷" * 300))
+VOL2 = ("---\ntype: 卷綱\ntitle: 第二卷\nchapter_range: 第13章～第22章\nstatus: 已確認\n---\n" + ("卷" * 300))
 
 
 def _full_setup(d, volume="第1章～第12章"):
     """六步都完成的一本書（章綱 1–12、初始設定齊、第一卷卷綱）。"""
     _write(d, "CLAUDE.md", CLAUDE_MD)
     _write(d, "bible/story-core.md", CORE)
-    _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "outline/book.md", "---\ntype: 全書大綱\n---\n" + ("卷" * 600))
     _write(d, "outline/volumes/vol-01.md",
-           "---\n類型: 卷綱\n卷名: 測試卷\n章節範圍: %s\n狀態: 已確認\n---\n" % volume + ("卷" * 300))
+           "---\ntype: 卷綱\ntitle: 測試卷\nchapter_range: %s\nstatus: 已確認\n---\n" % volume + ("卷" * 300))
     for n in range(1, 13):
-        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\nstatus: 已確認\n---\n章綱")
     _settings(d)
 
 
@@ -361,7 +361,7 @@ def test_settings_needs_characters_and_faction_or_world(tmp_path):
     d = _book(tmp_path)
     _settings(d, chars=3, factions=0)
     assert setup_flow.settings_state(d)["done"] is False       # 只有角色，沒有勢力／世界觀
-    _write(d, "bible/world/氧氣迴路.md", "---\n類型: 世界觀\n---\n世界觀")
+    _write(d, "bible/world/氧氣迴路.md", "---\ntype: 世界觀\n---\n世界觀")
     st = setup_flow.settings_state(d)
     assert st["done"] is True and st["characters"] == 3 and st["worlds"] == 1
 
@@ -369,7 +369,7 @@ def test_settings_needs_characters_and_faction_or_world(tmp_path):
 def test_settings_drafts_are_not_done(tmp_path):
     d = _book(tmp_path)
     for i in range(5):
-        _write(d, "bible/drafts/草稿%d.md" % i, "---\n狀態: 草稿\n---\n草稿")
+        _write(d, "bible/drafts/草稿%d.md" % i, "---\nstatus: 草稿\n---\n草稿")
     st = setup_flow.settings_state(d)
     assert st["done"] is False and st["drafts"] == 5
 
@@ -399,7 +399,7 @@ def test_volume_state_full_volume_then_reverse_then_next_volume(tmp_path):
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "cards" and nxt["prefill"] == {"from": 13, "to": 22}
     for n in range(13, 23):
-        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\nstatus: 已確認\n---\n章綱")
     nxt = setup_flow.next_step(d)
     assert nxt["id"] == "write" and nxt["prefill"] == {"from": 13, "to": 13}
 
@@ -409,13 +409,13 @@ def test_short_first_volume_passes_the_cards_step(tmp_path):
     d = _book(tmp_path)
     _write(d, "CLAUDE.md", CLAUDE_MD)
     _write(d, "bible/story-core.md", CORE)
-    _write(d, "outline/book.md", "---\n類型: 全書大綱\n---\n" + ("卷" * 600))
+    _write(d, "outline/book.md", "---\ntype: 全書大綱\n---\n" + ("卷" * 600))
     _write(d, "outline/volumes/vol-01.md",
-           "---\n類型: 卷綱\n卷名: 短卷\n章節範圍: 第1章～第6章\n狀態: 已確認\n---\n" + ("卷" * 300))
+           "---\ntype: 卷綱\ntitle: 短卷\nchapter_range: 第1章～第6章\nstatus: 已確認\n---\n" + ("卷" * 300))
     for n in range(1, 6):
-        _write(d, "outline/chapters/第%03d章.md" % n, "---\n狀態: 已確認\n---\n章綱")
+        _write(d, "outline/chapters/第%03d章.md" % n, "---\nstatus: 已確認\n---\n章綱")
     assert setup_flow.steps(d)[4]["done"] is False        # 還差第 6 章
-    _write(d, "outline/chapters/第006章.md", "---\n狀態: 已確認\n---\n章綱")
+    _write(d, "outline/chapters/第006章.md", "---\nstatus: 已確認\n---\n章綱")
     assert setup_flow.steps(d)[4]["done"] is True
     _settings(d)
     nxt = setup_flow.next_step(d)

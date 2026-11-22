@@ -1,10 +1,10 @@
 ---
-類型: 角色
-名稱: Wren Alder
-別名: [Alder, the apprentice]
-定位: 主角
-首次登場: 第001章
-狀態: 正式
+type: 角色
+name: Wren Alder
+aliases: [Alder, the apprentice]
+role: 主角
+first_appearance: 第001章
+status: 正式
 ---
 
 # Wren Alder

@@ -36,7 +36,7 @@ def fs_table(n=40):
         due = 1 if i % 6 == 0 else i + 3      # 一部分預計回收章早於最新章，總覽才會出「已過預計回收」
         rows.append("| F%03d | 第%d條伏筆：林晚在鋪子裡發現的線索之%d，牽涉沈家舊帳 | 第%03d章 | 第%d章 | 第%03d章 | %s | %s | 備%d |"
                     % (i, i, i, max(1, i // 2), due, max(1, i // 2 + 1), STATUSES[i % 5], LEVELS[i % 3], i))
-    return "---\n類型: 伏筆總表\n更新至: 第020章\n---\n\n# 伏筆總表\n\n" + "\n".join(rows) + "\n\n> 表格後面的說明文字要保留。\n"
+    return "---\ntype: 伏筆總表\nupdated_through: 第020章\n---\n\n# 伏筆總表\n\n" + "\n".join(rows) + "\n\n> 表格後面的說明文字要保留。\n"
 
 
 def tl_table(n=90):
@@ -46,7 +46,7 @@ def tl_table(n=90):
         rev = ["未揭示", "第%03d章" % (i // 3 + 1), "第%03d章" % (i // 4 + 1), "第%03d章" % (i // 5 + 1)][i % 4]
         rows.append("| E%03d | 退婚前%d年 | 沈家第%d筆舊帳由沈仲廉經手，帳目與玉珮有關，詳情涉及當年的鋪子轉手與周叔的證詞 | %s | %s | %s |"
                     % (i, i, i, known, rev, ["林晚", "沈既白", "周叔", "林晚、沈既白"][i % 4]))
-    return "---\n類型: 時間線\n更新至: 第020章\n---\n\n# 時間線\n\n" + "\n".join(rows) + "\n"
+    return "---\ntype: 時間線\nupdated_through: 第020章\n---\n\n# 時間線\n\n" + "\n".join(rows) + "\n"
 
 
 def scenario():

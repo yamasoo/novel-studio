@@ -26,7 +26,7 @@ STYLE_TEMPLATE = os.path.join(os.path.dirname(HERE), "plugin", "skills", *layout
 METRICS_HEAD = "## 文字指標（程式統計）"
 
 PREFS_TEMPLATE = """---
-類型: 共用作者偏好
+type: 共用作者偏好
 ---
 
 # 共用作者偏好
@@ -212,7 +212,7 @@ def create_style(library, name, source=None, sample_text=None, exclude=(), lang=
         st = os.path.join(context.lang_plugin(os.path.dirname(STYLE_TEMPLATE).rsplit("skills", 1)[0].rstrip("/\\"), lang),
                           "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
         st = st if os.path.isfile(st) else STYLE_TEMPLATE
-        text = project.read_text(st) if os.path.isfile(st) else "---\n類型: 文風\n---\n\n# 文風\n"
+        text = project.read_text(st) if os.path.isfile(st) else "---\ntype: 文風\n---\n\n# 文風\n"
     text = set_fm(set_fm(set_fm(text, "name", name), "type", "文風"), "lang", lang)  # literal-ok: frontmatter 類型值，第四批後半換
     text = re.sub(r"(?m)^# 本書文風\s*$", "# 文風：%s" % name, text, count=1)
     if sample_text:
@@ -513,9 +513,9 @@ def new_structure(library, name, lang=None):
 
 
 STRUCTURE_TEMPLATE = """---
-類型: 章節結構
-名稱: {name}
-適用: 單章
+type: 章節結構
+name: {name}
+scope: 單章
 ---
 
 # {name}

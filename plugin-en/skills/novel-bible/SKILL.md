@@ -33,7 +33,7 @@ Folder and file names, frontmatter keys and fixed words (正式, 草稿, 主角 
 1. **Anything the AI generates is a draft first.** However reasonable it looks, it does not enter the official folders without the author's nod.
 2. **Write only what is settled.** For a field you do not know, leave it empty or keep the template comment; do not fill it yourself.
 3. **Read before you change.** Read an existing setting file in full before editing, change only what needs changing, and do not rewrite the author's own wording.
-4. **One topic per file.** One file per character, per faction, per worldbuilding topic. Every worldbuilding file must have a `分類` (one of 11 fixed categories) and an optional `標籤`; see section 7 of [worldbuilding.md](references/worldbuilding.md).
+4. **One topic per file.** One file per character, per faction, per worldbuilding topic. Every worldbuilding file must have a `category` (one of 11 fixed categories) and an optional `tags`; see section 7 of [worldbuilding.md](references/worldbuilding.md).
 5. **Register new terms as you go.** Any new proper noun or form of address goes into `bible/glossary.md`.
 6. **Static settings carry no dynamic state.** "Where they are now, what injury they have, what they know" belongs in `tracking/characters/`, not in `bible/characters/`.
 7. **Cheat-ability rules, power-system rules and main-line truths are "ask the author first".** You may propose them (as drafts) but never settle them yourself.

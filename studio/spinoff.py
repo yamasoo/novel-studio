@@ -250,8 +250,8 @@ def _story_core_md(data, title, lang, dna):
     total = sum(max(1, _as_int(v.get("章數"), 30)) for v in volumes)
     avg = _avg_chars(None, dna)
     pov = ((dna or {}).get("視角") or {}).get("人稱") or "（待補：骨架未指定）"
-    L = ["---", "類型: 故事核心", "書名: %s" % title, "狀態: 草稿", "語言: %s" % lang,
-         "每章字數: %d" % avg, "---", "",
+    L = ["---", "type: 故事核心", "title: %s" % title, "status: 草稿", "lang: %s" % lang,
+         "chapter_length: %d" % avg, "---", "",
          "# 故事核心", "", "## 一句話鉤子", premise, "",
          "## 題材與定位",
          "- 題材：（待補：骨架未指定）",
@@ -284,7 +284,7 @@ def _world_md(data):
     points = [str(x).strip() for x in (data.get("世界觀要點") or []) if str(x).strip()]
     if not points:
         return ""
-    L = ["---", "類型: 世界觀", "分類: 其他", "標籤: []", "名稱: 世界觀要點", "狀態: 草稿", "---", "",
+    L = ["---", "type: 世界觀", "category: 其他", "tags: []", "name: 世界觀要點", "status: 草稿", "---", "",
          "# 世界觀要點", ""]
     L += ["- " + x for x in points]
     return "\n".join(L) + "\n"
@@ -294,7 +294,7 @@ def _outline_md(data, rows, dna):
     premise = str(data.get("一句話前提") or "").strip()
     total = rows[-1]["hi"] if rows else 0
     avg = _avg_chars(None, dna)
-    L = ["---", "類型: 全書大綱", "狀態: 草稿", "---", "", "# 全書大綱", "",
+    L = ["---", "type: 全書大綱", "status: 草稿", "---", "", "# 全書大綱", "",
          "## 總覽",
          "- 預計卷數與字數：%d 卷，共 %d 章；以每章約 %d 字計，約 %s 字"
          % (len(rows), total, avg, "{:,}".format(total * avg)),
@@ -316,10 +316,10 @@ def _outline_md(data, rows, dna):
 
 def _volume_md(row):
     return """---
-類型: 卷綱
-卷名: %(name)s
-章節範圍: 第%(lo)03d章～第%(hi)03d章
-狀態: 已確認
+type: 卷綱
+title: %(name)s
+chapter_range: 第%(lo)03d章～第%(hi)03d章
+status: 已確認
 ---
 
 # 卷綱：%(name)s

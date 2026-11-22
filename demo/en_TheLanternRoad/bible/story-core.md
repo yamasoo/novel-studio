@@ -1,8 +1,8 @@
 ---
-類型: 故事核心
-書名: The Lantern Road
-狀態: 正式
-語言: en
+type: 故事核心
+title: The Lantern Road
+status: 正式
+lang: en
 ---
 
 # 故事核心

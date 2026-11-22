@@ -158,7 +158,7 @@ def build(book_dir, keep=""):
     prefs = _body(book_dir, layout.AUTHOR_PREFS)
     words = tables.rows_to_keys("glossary", _rows(_body(book_dir, layout.GLOSSARY)))
 
-    L = ["---", "類型: 續寫合約", "更新至: 第%03d章" % no,
+    L = ["---", "type: 續寫合約", "updated_through: 第%03d章" % no,
          "產生時間: %s" % time.strftime("%Y-%m-%d %H:%M"), "---", "",
          "# 續寫合約", "",
          "> 這份是「續寫時不能違背的事實」，程式從正文、設定、追蹤與大綱整理出來的，"

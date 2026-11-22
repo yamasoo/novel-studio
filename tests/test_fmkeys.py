@@ -31,21 +31,23 @@ class FmKeysTest(unittest.TestCase):
         self.assertIn("\n狀態: 已確認\n", project.set_frontmatter_field(ZH, "狀態", "已確認"), "中文鍵也收")
 
     def test_new_line_follows_write_setting(self):
-        out = project.set_frontmatter_field("---\n類型: 卷綱\n---\n", "title", "舊帳")
-        self.assertEqual("---\n類型: 卷綱\n卷名: 舊帳\n---\n", out, "title 依文件類型寫成卷名")
-        out = project.set_frontmatter_field("---\n類型: 故事核心\n---\n", "title", "書")
-        self.assertIn("書名: 書", out)
+        self.assertEqual("en", fmkeys.WRITE, "v3 寫英文鍵")
+        self.assertEqual("---\ntype: 卷綱\ntitle: 舊帳\n---\n", project.set_frontmatter_field("---\ntype: 卷綱\n---\n", "title", "舊帳"))
+        self.assertEqual("---\n類型: 卷綱\ntitle: 舊帳\n---\n", project.set_frontmatter_field("---\n類型: 卷綱\n---\n", "title", "舊帳"),
+                         "插在中文的類型後面")
         old = fmkeys.WRITE
         try:
-            fmkeys.WRITE = "en"
-            self.assertEqual("---\n類型: 卷綱\ntitle: 舊帳\n---\n", project.set_frontmatter_field("---\n類型: 卷綱\n---\n", "title", "舊帳"))
+            fmkeys.WRITE = "zh"
+            out = project.set_frontmatter_field("---\n類型: 卷綱\n---\n", "title", "舊帳")
+            self.assertEqual("---\n類型: 卷綱\n卷名: 舊帳\n---\n", out, "title 依文件類型寫成卷名")
+            self.assertIn("書名: 書", project.set_frontmatter_field("---\n類型: 故事核心\n---\n", "title", "書"))
         finally:
             fmkeys.WRITE = old
 
     def test_shared_set_fm_removes_both_spellings(self):
         text = "---\n名稱: 甲\nname: 乙\n語言: ja\n---\n本文\n"
         self.assertEqual("---\n語言: ja\n---\n本文\n", shared.set_fm(text, "name", None))
-        self.assertEqual("---\n名稱: 甲\nname: 乙\n語言: en\n---\n本文\n", shared.set_fm(text, "lang", "en"))
+        self.assertEqual("---\n名稱: 甲\nname: 乙\nlang: en\n---\n本文\n", shared.set_fm(text, "lang", "en"))
 
     def test_every_zh_key_maps(self):
         for zh, en in fmkeys.ZH2EN.items():

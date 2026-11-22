@@ -244,16 +244,16 @@ def _set_aliases(text, aliases):
     """改寫 frontmatter 的「別名」。會連同原本多行的 YAML 清單一起換掉，避免留下殘行。"""
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
-        return "---\n別名: %s\n---\n\n%s" % (json.dumps(aliases, ensure_ascii=False), text)
+        return "---\naliases: %s\n---\n\n%s" % (json.dumps(aliases, ensure_ascii=False), text)
     end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
     if end is None:
         raise project.ProjectError("frontmatter 格式錯誤，無法寫入別名")
-    new_line = "別名: %s" % json.dumps(aliases, ensure_ascii=False)
+    new_line = "aliases: %s" % json.dumps(aliases, ensure_ascii=False)
     out, i, done = [], 1, False
     out.append(lines[0])
     while i < end:
         line = lines[i]
-        if line.startswith("別名:") or line.startswith("別名："):
+        if line.startswith(("aliases:", "別名:", "別名：")):
             if not done:
                 out.append(new_line)
                 done = True
@@ -265,7 +265,7 @@ def _set_aliases(text, aliases):
         out.append(line)
         i += 1
     if not done:
-        pos = next((k + 1 for k, l in enumerate(out) if l.startswith("類型:")), 1)
+        pos = next((k + 1 for k, l in enumerate(out) if l.startswith(("type:", "類型:"))), 1)
         out.insert(pos, new_line)
     out.extend(lines[end:])
     return "\n".join(out)

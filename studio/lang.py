@@ -60,7 +60,7 @@ def _fm_lang(book_dir, rel=None):
     for line in head.split("\n")[1:]:
         if line.strip() == "---":
             break
-        m = re.match(r"\s*語言\s*[:：]\s*(.*?)\s*$", line)
+        m = re.match(r"\s*(?:lang|語言)\s*[:：]\s*(.*?)\s*$", line)
         if m and m.group(1):
             return m.group(1)
     return None

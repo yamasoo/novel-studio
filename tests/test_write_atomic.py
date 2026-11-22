@@ -59,7 +59,7 @@ class WriteAtomicTest(unittest.TestCase):
         self.assertEqual(self.leftovers(), [])
 
     def test_編碼與換行(self):
-        text = "---\n類型: 正文\n---\n\n# 第1章 測試\n\n中文段落。\n"
+        text = "---\ntype: 正文\n---\n\n# 第1章 測試\n\n中文段落。\n"
         project.write_atomic(self.path, text)
         with open(self.path, "rb") as f:
             raw = f.read()

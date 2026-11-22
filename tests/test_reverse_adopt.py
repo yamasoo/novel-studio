@@ -11,7 +11,7 @@ from studio import project, reverse
 from studio import layout  # noqa: E402
 
 OLD_OUTLINE = """---
-類型: 全書大綱
+type: 全書大綱
 ---
 
 # 全書大綱
@@ -25,7 +25,7 @@ OLD_OUTLINE = """---
 """
 
 NEW_OUTLINE = """---
-類型: 全書大綱
+type: 全書大綱
 ---
 
 # 全書大綱
@@ -39,9 +39,9 @@ NEW_OUTLINE = """---
 """
 
 OLD_VOL = """---
-類型: 卷綱
-卷名: 開場
-章節範圍: 第001章～第010章
+type: 卷綱
+title: 開場
+chapter_range: 第001章～第010章
 ---
 
 # 卷綱：開場
@@ -53,9 +53,9 @@ OLD_VOL = """---
 NEW_VOL = OLD_VOL.replace("作者版", "反推版")
 
 OLD_CARD = """---
-類型: 章綱
-章號: 1
-章名: 大夜班
+type: 章綱
+chapter: 1
+title: 大夜班
 ---
 
 # 第1章 大夜班
@@ -67,8 +67,8 @@ OLD_CARD = """---
 NEW_CARD = OLD_CARD.replace("作者定的鉤子", "反推的鉤子")
 
 OLD_TERMS = """---
-類型: 名詞表
-更新至: 第001章
+type: 名詞表
+updated_through: 第001章
 ---
 
 # 名詞表
@@ -80,8 +80,8 @@ OLD_TERMS = """---
 NEW_TERMS = OLD_TERMS + "| 周遠 | 人名 | 維修技師 | |\n| 晨星號 | 船艦 | 補給船 | |\n"
 
 OLD_FS = """---
-類型: 伏筆
-更新至: 第001章
+type: 伏筆
+updated_through: 第001章
 ---
 
 # 伏筆總表
@@ -94,9 +94,9 @@ OLD_FS = """---
 NEW_FS = OLD_FS.replace("作者寫的伏筆", "反推的伏筆")
 
 OLD_CHAR = """---
-類型: 角色
-名稱: 周遠
-狀態: 正式
+type: 角色
+name: 周遠
+status: 正式
 ---
 
 # 周遠
@@ -109,9 +109,9 @@ OLD_CHAR = """---
 """
 
 NEW_CHAR = """---
-類型: 角色
-名稱: 周遠
-狀態: 草稿
+type: 角色
+name: 周遠
+status: 草稿
 ---
 
 # 周遠
@@ -127,7 +127,7 @@ NEW_CHAR = """---
 """
 
 NEW_CORE = """---
-類型: 故事核心
+type: 故事核心
 ---
 
 # 故事核心

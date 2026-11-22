@@ -484,7 +484,7 @@ def set_frontmatter_field(text, key, value):
 
 
 def ensure_role(text):
-    """類型: 角色 但「定位」空白的設定檔補上預設定位；其他內容不動。"""
+    """type 是角色、但 role 空白的設定檔補上預設定位；其他內容不動。"""
     fm, _ = split_frontmatter(text)
     if fm.get("type") != "角色":
         return text

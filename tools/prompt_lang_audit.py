@@ -257,7 +257,7 @@ def _response(lang, label, msgs, vlang=None):
         return js({"chars": [{"name": v["names"][0], "position": "left", "action": v["action"]}], "action_tags": v["action"],
                    "scene_tags": v["scene"], "composition": "medium shot", "sentences": v["card_desc"]})
     if label in ("設計文風", "調整文風"):
-        return "<<<文風>>>\n---\n類型: 文風\n狀態: 草稿\n名稱: test\n---\n\n# 文風：test\n\n%s\n\n## 範例段落\n%s\n<<<結束>>>\n%s" % (
+        return "<<<文風>>>\n---\ntype: 文風\nstatus: 草稿\nname: test\n---\n\n# 文風：test\n\n%s\n\n## 範例段落\n%s\n<<<結束>>>\n%s" % (
             v["style"], v["body"], v["report"])
     if label == "試寫文風":
         return v["body"]
@@ -385,7 +385,7 @@ def run_book(lang, src=None, verbose=False, wrong=None, jobs=None, only=None):
         act("goal_check", {"chapter": 3})
         cards = sorted(project._scan_dir(card).items())
         if cards:   # 用最後一張章綱當第 4 章，讓「寫下一章」跑得起來
-            t = project.read_text(os.path.join(card, cards[-1][1])).replace("章號: 3", "章號: 4").replace("第3章", "第4章")
+            t = project.read_text(os.path.join(card, cards[-1][1])).replace("chapter: 3", "chapter: 4").replace("第3章", "第4章")
             with open(os.path.join(card, "第004章_next.md"), "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(t)
         act("write", {"from": 4, "to": 4})

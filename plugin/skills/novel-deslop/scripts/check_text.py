@@ -268,13 +268,13 @@ def load_aliases(book_root):
             continue
         m = re.match(r"---\n(.*?)\n---", text, re.S)
         fm = m.group(1) if m else ""
-        name = (re.search(r"(?m)^名稱:\s*(.+)$", fm) or [None, os.path.splitext(f)[0]])[1].strip()
+        name = (re.search(r"(?m)^(?:name|名稱):\s*(.+)$", fm) or [None, os.path.splitext(f)[0]])[1].strip()
         al = []
-        am = re.search(r"(?m)^別名:\s*\[(.*)\]\s*$", fm)
+        am = re.search(r"(?m)^(?:aliases|別名):\s*\[(.*)\]\s*$", fm)
         if am:
             al = [x.strip().strip("'\"") for x in am.group(1).split(",")]
         else:
-            bm = re.search(r"(?ms)^別名:\s*\n((?:\s*-\s*.+\n?)+)", fm)
+            bm = re.search(r"(?ms)^(?:aliases|別名):\s*\n((?:\s*-\s*.+\n?)+)", fm)
             if bm:
                 al = [x.strip()[1:].strip().strip("'\"") for x in bm.group(1).strip().split("\n")]
         forms = [x for x in dict.fromkeys([name] + al) if x and len(x) >= 2]

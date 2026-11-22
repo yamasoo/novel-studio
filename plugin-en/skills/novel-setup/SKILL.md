@@ -33,7 +33,7 @@ Create the folders per project-layout.md. Then:
   - `outline/book.md`
   - `tracking/state-card.md`, `tracking/foreshadowing.md`, `tracking/timeline.md`
 - Create empty folders: `bible/world/`, `bible/characters/`, `bible/factions/`, `bible/drafts/`, `outline/chapters/`, `manuscript/`, `candidates/`, `tracking/characters/`, `tracking/summaries/`, `samples/`. Put a `.gitkeep` in each empty folder.
-- Put `語言: en` in the frontmatter of `bible/story-core.md` (this tells the studio the book is written in English).
+- Put `lang: en` in the frontmatter of `bible/story-core.md` (this tells the studio the book is written in English).
 
 ### Step 3: fill in the interview results
 

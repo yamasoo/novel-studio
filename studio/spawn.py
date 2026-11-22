@@ -68,8 +68,8 @@ def style_md(title, fp, dna):
     ratio = ((d.get("對白") or {}).get("比例"))
     rows = "\n".join("| %s | %s |" % (k, v) for k, v in m.items()) or "| （待量測） | |"
     return """---
-類型: 文風
-狀態: 草稿
+type: 文風
+status: 草稿
 ---
 
 # 《%s》本書文風
@@ -136,11 +136,11 @@ def structure_md(*, dna, fp, title):
 
 def card_md(title, no):
     return """---
-類型: 章綱
-章號: %d
-章名: %s
-所屬卷: 第一卷
-狀態: 草稿
+type: 章綱
+chapter: %d
+title: %s
+volume: 第一卷
+status: 草稿
 ---
 
 # 第%d章 %s

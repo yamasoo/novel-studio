@@ -1,9 +1,9 @@
 ---
-類型: 世界觀
-分類: 力量體系
-標籤: [lantern, roads]
-名稱: The Lantern
-狀態: 正式
+type: 世界觀
+category: 力量體系
+tags: [lantern, roads]
+name: The Lantern
+status: 正式
 ---
 
 # The Lantern

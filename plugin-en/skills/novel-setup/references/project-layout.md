@@ -53,12 +53,12 @@ Every database file starts with a YAML block, for searching and checking. Write 
 
 ```yaml
 ---
-類型: 角色
-名稱: Ines Marlow
-別名: [Nessie, Miss Ines]
-定位: 主角          # 主角 / 主要配角 / 配角 / 反派 / 路人
-首次登場: 第001章
-狀態: 正式          # 正式 / 草稿
+type: 角色
+name: Ines Marlow
+aliases: [Nessie, Miss Ines]
+role: 主角          # 主角 / 主要配角 / 配角 / 反派 / 路人
+first_appearance: 第001章
+status: 正式          # 正式 / 草稿
 ---
 ```
 
@@ -66,10 +66,10 @@ Every database file starts with a YAML block, for searching and checking. Write 
 
 ```yaml
 ---
-類型: 勢力          # or 世界觀
-名稱: The Quay Guild
-狀態: 正式
-相關角色: [Ines Marlow, Callum Brandt]
+type: 勢力          # or 世界觀
+name: The Quay Guild
+status: 正式
+related_characters: [Ines Marlow, Callum Brandt]
 ---
 ```
 
@@ -77,12 +77,12 @@ Every database file starts with a YAML block, for searching and checking. Write 
 
 ```yaml
 ---
-類型: 章綱
-章號: 1
-章名: The Day the Engagement Ended
-所屬卷: 第一卷
-字數目標: 2500      # may be empty
-狀態: 已確認        # 草稿 / 已確認 / 已寫
+type: 章綱
+chapter: 1
+title: The Day the Engagement Ended
+volume: 第一卷
+target_length: 2500      # may be empty
+status: 已確認        # 草稿 / 已確認 / 已寫
 ---
 ```
 
@@ -90,10 +90,10 @@ Every database file starts with a YAML block, for searching and checking. Write 
 
 ```yaml
 ---
-類型: 角色狀態
-名稱: Ines Marlow
-更新至: 第012章
-最後登場: 第012章
+type: 角色狀態
+name: Ines Marlow
+updated_through: 第012章
+last_appearance: 第012章
 ---
 ```
 
@@ -101,14 +101,14 @@ Every database file starts with a YAML block, for searching and checking. Write 
 
 ```yaml
 ---
-類型: 章節摘要
-章號: 1
-章名: The Day the Engagement Ended
-字數: 2600
+type: 章節摘要
+chapter: 1
+title: The Day the Engagement Ended
+length: 2600
 ---
 ```
 
-(For an English book the `字數` field counts words.)
+(For an English book the `length` field counts words.)
 
 ## 4. How to write the tracking files
 

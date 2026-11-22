@@ -3,8 +3,8 @@
 
 - 讀：project.split_frontmatter 回傳英文鍵。檔案裡寫中文鍵（v2 與目前的範本）或英文鍵都認。
 - 寫：project.set_frontmatter_field 收英文鍵。檔案裡已經有那一行就照原本的寫法改；
-  沒有就用 WRITE 決定寫哪一種（P3 第四批前半仍寫中文，檔案內容不變；後半換成英文）。
-- 「章名」「書名」「卷名」在 v3 都叫 title，寫回時依文件類型挑中文寫法。
+  沒有就寫英文鍵（WRITE）。程式自己組的 frontmatter 一律英文鍵；舊書由移轉工具一次換好。
+- 「章名」「書名」「卷名」在 v3 都叫 title（WRITE 是 zh 時依文件類型挑中文寫法）。
 """
 
 # (英文鍵, 中文鍵)。同一個英文鍵可以有好幾個中文寫法（title）。
@@ -22,7 +22,7 @@ for _en, _zh in PAIRS:
     EN2ZH.setdefault(_en, _zh)
 TITLE_BY_TYPE = {"章綱": "章名", "卷綱": "卷名", "故事核心": "書名"}   # literal-ok: v2 的文件類型值
 
-WRITE = "zh"        # 新加的欄位用哪一種寫法：zh（P3 第四批前半）→ en（後半）
+WRITE = "en"        # 新加的欄位用哪一種寫法（P3 第四批前半是 zh，後半起 en）
 
 
 def en(key):

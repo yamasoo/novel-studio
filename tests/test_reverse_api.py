@@ -18,7 +18,7 @@ import app as app_mod
 from studio import layout  # noqa: E402
 
 OLD_OUTLINE = """---
-類型: 全書大綱
+type: 全書大綱
 ---
 
 # 全書大綱
@@ -28,7 +28,7 @@ OLD_OUTLINE = """---
 """
 
 NEW_OUTLINE = """---
-類型: 全書大綱
+type: 全書大綱
 ---
 
 # 全書大綱
@@ -37,10 +37,10 @@ NEW_OUTLINE = """---
 - 從正文反推的主線。
 """
 
-OLD_VOL = "---\n類型: 卷綱\n卷名: 開場\n章節範圍: 第001章～第010章\n---\n\n# 卷綱：開場\n\n- 作者版。\n"
+OLD_VOL = "---\ntype: 卷綱\ntitle: 開場\nchapter_range: 第001章～第010章\n---\n\n# 卷綱：開場\n\n- 作者版。\n"
 NEW_VOL = OLD_VOL.replace("作者版", "反推版")
 
-OLD_CARD = "---\n類型: 章綱\n章號: 1\n章名: 大夜班\n---\n\n# 第1章 大夜班\n\n- 作者定的鉤子。\n"
+OLD_CARD = "---\ntype: 章綱\nchapter: 1\ntitle: 大夜班\n---\n\n# 第1章 大夜班\n\n- 作者定的鉤子。\n"
 NEW_CARD = OLD_CARD.replace("作者定的鉤子", "反推的鉤子")
 
 

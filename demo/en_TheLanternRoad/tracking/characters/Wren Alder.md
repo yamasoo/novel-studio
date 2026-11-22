@@ -1,8 +1,8 @@
 ---
-類型: 角色狀態
-名稱: Wren Alder
-更新至: 第002章
-最後登場: 第002章
+type: 角色狀態
+name: Wren Alder
+updated_through: 第002章
+last_appearance: 第002章
 ---
 
 # Wren Alder：目前狀態

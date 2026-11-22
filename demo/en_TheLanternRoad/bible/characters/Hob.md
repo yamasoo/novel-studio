@@ -1,10 +1,10 @@
 ---
-類型: 角色
-名稱: Hob
-別名: [the lantern]
-定位: 主要配角
-首次登場: 第001章
-狀態: 正式
+type: 角色
+name: Hob
+aliases: [the lantern]
+role: 主要配角
+first_appearance: 第001章
+status: 正式
 ---
 
 # Hob

@@ -1,10 +1,10 @@
 ---
-類型: 角色
-名稱: Orrin Vale
-別名: [Master Vale]
-定位: 配角
-首次登場:
-狀態: 草稿
+type: 角色
+name: Orrin Vale
+aliases: [Master Vale]
+role: 配角
+first_appearance:
+status: 草稿
 ---
 
 # Orrin Vale (draft)

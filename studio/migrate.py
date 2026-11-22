@@ -13,7 +13,7 @@ import unicodedata
 import shutil
 import zipfile
 
-from . import bookmeta, context, layout, project, volume
+from . import bookmeta, context, fmkeys, layout, project, volume
 
 SKIP_DIRS = (".git",)                       # 不備份、不還原（作者自己的版本控制）
 
@@ -297,7 +297,8 @@ def needs_migration(book_dir):
     """要先轉換的舊書：還有 v2 的資料夾，或逐章資料夾裡還有舊檔名（第001章_…）。
     只看資料夾與檔名（書架每次都會問，不能讀檔）。"""
     return rename_enabled() and (any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
-                                 or _old_chapter_files(book_dir) or _old_volume_files(book_dir) or _docs_needed(book_dir))
+                                 or _old_chapter_files(book_dir) or _old_volume_files(book_dir) or _docs_needed(book_dir)
+                                 or _fm_pending_quick(book_dir))
 
 
 def library_needs_migration(library):
@@ -683,6 +684,110 @@ def _volumes_apply(book_dir):
     return out
 
 
+# --- frontmatter 的鍵換成英文（類型 → type、狀態 → status……；值不動） ---------------------
+_FM_LINE = re.compile(r"^(%s)[ \t]*[:：]" % "|".join(sorted(map(re.escape, fmkeys.ZH2EN), key=len, reverse=True)))
+
+
+def _fm_block(lines):
+    """frontmatter 那幾行的鍵換成英文。換了之後跟既有的鍵重複（同一欄寫了中英兩次）就保留原樣，不弄壞 YAML。"""
+    have = {l.split(":", 1)[0].strip() for l in lines if ":" in l and not l.startswith((" ", "\t", "-", "#"))}
+    out = []
+    for l in lines:
+        m = _FM_LINE.match(l)
+        if m:
+            new = fmkeys.en(m.group(1))
+            if new not in have:
+                rest = l[m.end():]
+                l = new + ":" + (rest if not rest or rest[0] in " \t" else " " + rest)     # 全形冒號「狀態：草稿」後面沒空格
+                have.add(new)
+        out.append(l)
+    return out
+
+
+def fm_rewrite(text, fenced=False):
+    """開頭 frontmatter 的中文鍵換成英文；正文不動。fenced=True 時連 ``` 區塊裡的 frontmatter 範例一起換（技能說明用）。"""
+    lines = text.split("\n")
+    if lines and lines[0].strip() == "---":
+        end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+        if end is not None:
+            lines[1:end] = _fm_block(lines[1:end])
+    if fenced:
+        i = 0
+        while i < len(lines):
+            if lines[i].startswith("```") and i + 1 < len(lines) and lines[i + 1].strip() == "---":
+                end = next((j for j in range(i + 2, len(lines)) if lines[j].strip() == "---"), None)
+                if end is None:
+                    break
+                lines[i + 2:end] = _fm_block(lines[i + 2:end])
+                i = end
+            i += 1
+    return "\n".join(lines)
+
+
+_FM_SKIP = (PATHS["STUDIO_BACKUP"][1] + "/", ".studio/jobs/")
+
+
+def _fm_files(book_dir):
+    """frontmatter 裡還有中文鍵的 .md（備份、任務紀錄、移轉資料夾除外）。"""
+    out = []
+    for full, rel in _walk_files(book_dir):
+        if not rel.endswith(".md") or rel.startswith(_FM_SKIP + (layout.MIGRATE_DIR + "/",)):
+            continue
+        try:
+            text = project.read_text(full)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if text.startswith("---") and fm_rewrite(text) != text:
+            out.append(rel)
+    return out
+
+
+_FM_PROBE = ("STORY_CORE", "BOOK_OUTLINE", "STATE_CARD", "STYLE")
+
+
+def _fm_pending_quick(book_dir):
+    """書架偵測用：只看幾份一定有 frontmatter 的系統檔，不掃整本書。"""
+    v3 = v3_view()
+    for k in _FM_PROBE:
+        p = os.path.join(book_dir, *v3[k].split("/"))
+        if os.path.isfile(p):
+            text = project.read_text(p)
+            if fm_rewrite(text) != text:
+                return True
+    return False
+
+
+def _has_v2_dirs(book_dir):
+    return any(os.path.isdir(os.path.join(book_dir, d)) for d in TOP_V2)
+
+
+_AFTER_RENAME = "資料夾改名後一併處理"
+
+
+def _fmkeys_needed(book_dir):
+    # v2 的書一定還是中文鍵：試跑時先列出來（實際在資料夾改名之後才做）
+    return rename_enabled() and (_has_v2_dirs(book_dir) or bool(_fm_files(book_dir)))
+
+
+def _fmkeys_plan(book_dir):
+    if _has_v2_dirs(book_dir):
+        return [_AFTER_RENAME]
+    files = _fm_files(book_dir)
+    by_dir = {}
+    for r in files:
+        d = os.path.dirname(r) or "."
+        by_dir[d] = by_dir.get(d, 0) + 1
+    return ["%s/：%d 個檔" % (d, n) for d, n in sorted(by_dir.items())] or ["沒有要改的"]
+
+
+def _fmkeys_apply(book_dir):
+    out = _fmkeys_plan(book_dir)
+    for rel in _fm_files(book_dir):
+        p = os.path.join(book_dir, *rel.split("/"))
+        project.write_atomic(p, fm_rewrite(project.read_text(p)))
+    return out
+
+
 # --- 第四步：系統文件裡的路徑（CLAUDE.md、_templates、名詞表、設定索引） ------------------
 # Claude Code 照 CLAUDE.md 與範本找檔、寫檔，裡面的路徑沒換，技能就會寫回舊位置。
 _CH_PATTERN = re.compile(r"第NNN章(?:_(?:<[^<>\s]{1,20}>|章名|章題|題名|title|\*))?\.md")     # literal-ok: 舊檔名樣板
@@ -771,10 +876,12 @@ def _docs_pending(book_dir):
 
 
 def _docs_needed(book_dir):
-    return rename_enabled() and not any(os.path.isdir(os.path.join(book_dir, d)) for d in TOP_V2) and bool(_docs_pending(book_dir))
+    return rename_enabled() and (_has_v2_dirs(book_dir) or bool(_docs_pending(book_dir)))
 
 
 def _docs_plan(book_dir):
+    if _has_v2_dirs(book_dir):
+        return [_AFTER_RENAME]
     files = _docs_pending(book_dir)
     return ["改寫檔案裡的舊路徑：%s" % "、".join(files)] if files else ["沒有要改的"]
 
@@ -793,6 +900,7 @@ STEPS = [
     Step("chapters", "逐章檔名換成 ch-0001", _chapters_needed, _chapters_plan, _chapters_apply),
     Step("volumes", "卷綱檔名換成 vol-01", _volumes_needed, _volumes_plan, _volumes_apply),
     Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
+    Step("fmkeys", "frontmatter 的鍵換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
 ]
 
 

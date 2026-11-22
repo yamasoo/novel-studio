@@ -53,10 +53,10 @@ Note on each important setting "when the reader learns it". This directly affect
 
 ## 7. Categories and tags
 
-Every worldbuilding file's frontmatter must have a `分類` field, set to exactly one of these 11 fixed values. Write the Chinese value as shown; the English gloss is for reference only:
+Every worldbuilding file's frontmatter must have a `category` field, set to exactly one of these 11 fixed values. Write the Chinese value as shown; the English gloss is for reference only:
 
 力量體系 (power system), 地理與氣候 (geography & climate), 歷史與年表 (history & timeline), 社會與政治 (society & politics), 經濟與物資 (economy & goods), 宗教信仰 (religion & belief), 文化與風俗 (culture & customs), 科技原理 (technology principles), 載具與兵器 (vehicles & weapons), 生態與資源 (ecology & resources), 其他 (other)
 
 - Decide by "what question this file answers": a mechanism (how an ability works) → 力量體系; a specific object (a particular ship or weapon) → 載具與兵器; institutions and legal status → 社會與政治.
 - Use 其他 only when nothing else fits; do not invent new categories for a handful of files.
-- `標籤` is optional and can hold several subtypes, e.g. `[艦船]`, `[武器]`, `[外星]`.
+- `tags` is optional and can hold several subtypes, e.g. `[艦船]`, `[武器]`, `[外星]`.

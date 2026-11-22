@@ -11,12 +11,12 @@ from studio import project, reverse
 from studio import layout  # noqa: E402
 
 OLD = """---
-類型: 角色
-名稱: 桐生沙耶
-別名: []
-定位: ""
-首次登場: 3
-狀態: 正式
+type: 角色
+name: 桐生沙耶
+aliases: []
+role: ""
+first_appearance: 3
+status: 正式
 ---
 
 # 桐生沙耶
@@ -32,13 +32,13 @@ OLD = """---
 """
 
 NEW = """---
-類型: 角色
-名稱: 桐生沙耶
-別名: [沙耶]
-定位: 配角
-首次登場: 3
-狀態: 草稿
-來源: 從正文反推
+type: 角色
+name: 桐生沙耶
+aliases: [沙耶]
+role: 配角
+first_appearance: 3
+status: 草稿
+source: 從正文反推
 ---
 
 # 桐生沙耶
@@ -56,20 +56,20 @@ NEW = """---
 
 class EnsureRoleTest(unittest.TestCase):
     def test_blank_role_gets_default(self):
-        text = "---\n類型: 角色\n名稱: 甲\n定位:\n狀態: 草稿\n---\n\n# 甲\n"
+        text = "---\ntype: 角色\nname: 甲\n定位:\nstatus: 草稿\n---\n\n# 甲\n"
         out = project.ensure_role(text)
         self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_missing_role_is_inserted(self):
-        out = project.ensure_role("---\n類型: 角色\n名稱: 甲\n---\n\n# 甲\n")
+        out = project.ensure_role("---\ntype: 角色\nname: 甲\n---\n\n# 甲\n")
         self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_existing_role_is_kept(self):
-        text = "---\n類型: 角色\n名稱: 甲\n定位: 主角\n---\n\n# 甲\n"
+        text = "---\ntype: 角色\nname: 甲\nrole: 主角\n---\n\n# 甲\n"
         self.assertEqual(project.ensure_role(text), text)
 
     def test_other_types_untouched(self):
-        text = "---\n類型: 勢力\n名稱: 甲\n---\n\n# 甲\n"
+        text = "---\ntype: 勢力\nname: 甲\n---\n\n# 甲\n"
         self.assertEqual(project.ensure_role(text), text)
 
 
@@ -104,7 +104,7 @@ class MergeEntryTest(unittest.TestCase):
 
     def test_layout_is_clean(self):
         self.assertNotIn("## \n", self.text)
-        self.assertTrue(self.text.startswith("---\n類型: 角色\n"))
+        self.assertTrue(self.text.startswith("---\ntype: 角色\n"))
         self.assertIn("---\n\n# 桐生沙耶", self.text)
         self.assertNotIn("\n\n\n", self.text)
 

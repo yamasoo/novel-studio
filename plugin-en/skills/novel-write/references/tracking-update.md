@@ -18,7 +18,7 @@ File names, folder names, frontmatter keys and table headers stay in Chinese exa
 - **5 Long-term constraints**: add new ones; delete those lifted.
 - **6 Continuity risks**: add error-prone details created in this chapter (a new wound, a new misunderstanding, an object that changed hands); delete what is no longer a risk.
 - **7 Active foreshadowing**: sync with the "in progress" items and those due for handling soon in the foreshadowing table.
-- Set the frontmatter `更新至` to this chapter.
+- Set the frontmatter `updated_through` to this chapter.
 
 Deleting outdated content is necessary; do not only keep adding below. When the whole file passes about 1,500 words, remove the oldest content that least affects the next chapter.
 
@@ -27,7 +27,7 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 `tracking/characters/{character name}.md`:
 - Update only characters who **changed in this chapter**: location, goal, body, emotion, abilities and resources, relationships, secrets known, unfinished business.
 - A named important character appearing for the first time gets a new file from `_templates/角色狀態.md`.
-- For characters who appear in this chapter, set `最後登場` to this chapter; for any with an update, set `更新至` to this chapter.
+- For characters who appear in this chapter, set `last_appearance` to this chapter; for any with an update, set `updated_through` to this chapter.
 - "Secrets known" must be strict: write only what this character already knows **inside the story**, not what only the reader knows.
 
 ## 4. Foreshadowing table
@@ -72,7 +72,7 @@ Per novel-bible's intake rules (if novel-bible is installed, read section four o
 
 ## 7. Card status
 
-Change the `狀態` in this chapter's card frontmatter to `已寫`. If the text departs from the card (for example a change the author agreed to), note the actual treatment in one line under the card's notes.
+Change the `status` in this chapter's card frontmatter to `已寫`. If the text departs from the card (for example a change the author agreed to), note the actual treatment in one line under the card's notes.
 
 ## 8. Version control
 

@@ -20,6 +20,13 @@ DEMOS = ("退婚之後", "en_TheLanternRoad", "ja_辺境の薬師と竜の約束
 V2_DEMO = os.path.join(ROOT, "tests", "fixtures", "v2_demo")      # v2 格式的示範書（P3 第二批轉換前的樣子），測移轉用
 
 
+def _fm(rel, data):
+    """轉換後 .md 的 frontmatter 鍵會換成英文，其他內容不變。"""
+    if not rel.endswith(".md") or rel.startswith((layout.STUDIO_BACKUP + "/", ".studio/jobs/")):
+        return data
+    return migrate.fm_rewrite(data.decode("utf-8")).encode("utf-8")
+
+
 def _snapshot(d):
     out = {}
     for base, dirs, files in os.walk(d):
@@ -54,7 +61,7 @@ class BookMetaTest(unittest.TestCase):
         self.assertEqual("ja", lang_mod.book_lang(d), "book.json 沒有語言：看故事核心")
         lang_mod.set_book_lang(d, "en")
         self.assertEqual("en", bookmeta.read(d)["lang"])
-        self.assertIn("語言: en", project.read_text(layout.path(d, layout.STORY_CORE)), "故事核心照舊同步（技能還會讀）")
+        self.assertIn("lang: en", project.read_text(layout.path(d, layout.STORY_CORE)), "故事核心照舊同步（技能還會讀）")
         self.assertFalse(os.path.exists(layout.path(d, layout.STUDIO, "lang")))
         with open(layout.path(d, layout.STORY_CORE), "w", encoding="utf-8") as f:
             f.write("---\n語言: ja\n---\n")
@@ -105,7 +112,8 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename", "chapters", "volumes"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "docs", "fmkeys"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["資料夾改名後一併處理"], r["steps"][-1]["changes"], "改名後才做的步驟也先列出來")
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
 
@@ -126,7 +134,7 @@ class MigrateTest(unittest.TestCase):
             self.assertEqual(set(moved) | {"book.json"}, set(after), "只多 book.json，其他都是搬到新位置")
             for k, v in moved.items():
                 if k not in rewritten and not k.startswith(layout.TEMPLATES + "/"):
-                    self.assertEqual(v, after[k], k)
+                    self.assertEqual(_fm(k, v), after[k], k)
             self.assertTrue(os.path.isfile(r["report"]))
             self.assertTrue(os.path.isfile(r["backup"]))
             self.assertEqual("skipped", migrate.migrate(b)["status"], "第二次直接跳過")
@@ -271,7 +279,7 @@ class RenameStepTest(unittest.TestCase):
                 continue
             self.assertIn(new, after, rel)
             if new not in rewritten and not new.startswith(layout.TEMPLATES + "/"):
-                self.assertEqual(data, after[new], "內容不能變：%s" % rel)
+                self.assertEqual(_fm(new, data), after[new], "內容不能變（frontmatter 的鍵換成英文除外）：%s" % rel)
         for top in migrate.TOP_V2:
             self.assertFalse(os.path.exists(os.path.join(self.book, top)), top)
         self.assertTrue(os.path.isdir(os.path.join(self.book, "export")), "空資料夾也要換名稱")
@@ -570,7 +578,7 @@ class VolumeStepTest(unittest.TestCase):
         self.assertEqual(5, before["卷綱"])
         r = migrate.migrate(self.book)
         self.assertEqual("done", r["status"], r.get("message"))
-        self.assertEqual(["volumes", "docs"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["volumes", "docs", "fmkeys"], [s["key"] for s in r["steps"]])
         self.assertEqual(before, migrate.stats(self.book))
         self.assertEqual(["act-03.md", "vol-01.md", "vol-01.v2.md", "vol-02.md", "卷綱.md"],
                          sorted(os.listdir(layout.path(self.book, layout.VOLUMES_SUBDIR))))
@@ -615,3 +623,52 @@ class VolumeFilesTest(unittest.TestCase):
         from studio import volume
         for raw, no in (("3", 3), ("三", 3), ("第十二卷", 12), ("vol-04", 4), ("", None)):
             self.assertEqual(no, volume.no_of(raw), raw)
+
+
+class FmKeysStepTest(unittest.TestCase):
+    """frontmatter 的鍵換成英文（v3 P3 第四批之二）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.book = os.path.join(self.tmp, "b")
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)    # 已是英文鍵
+
+        def w(rel, text):
+            p = os.path.join(self.book, *rel.split("/"))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        self.w = w
+        w("bible/story-core.md", "---\n類型: 故事核心\n書名: 退婚之後\n狀態：草稿\n語言: zh-TW\n---\n\n# 故事核心\n\n狀態: 這行是正文\n")
+        w("bible/characters/甲.md", "---\n類型: 角色\n名稱: 甲\n別名:\n  - 小甲\n定位: 主角\n自訂欄: 留著\n---\n\n# 甲\n")
+        w("outline/chapters/ch-0001.md", "---\n類型: 章綱\n章號: 1\n章名: 退婚當天\nstatus: 已確認\n狀態: 草稿\n---\n\n# 第1章\n")
+        w(".studio/backup/故事核心.1.md", "---\n類型: 故事核心\n---\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_quick_probe(self):
+        self.assertTrue(migrate.needs_migration(self.book), "故事核心還是中文鍵：書架要提示轉換")
+
+    def test_migrate(self):
+        before = migrate.stats(self.book)
+        r = migrate.migrate(self.book)
+        self.assertEqual("done", r["status"], r.get("message"))
+        self.assertEqual(["fmkeys"], [s["key"] for s in r["steps"]])
+        self.assertEqual(before, migrate.stats(self.book))
+        read = lambda rel: project.read_text(os.path.join(self.book, *rel.split("/")))
+        self.assertEqual("---\ntype: 故事核心\ntitle: 退婚之後\nstatus: 草稿\nlang: zh-TW\n---\n\n# 故事核心\n\n狀態: 這行是正文\n",
+                         read("bible/story-core.md"), "全形冒號補空格；正文不動")
+        self.assertEqual("---\ntype: 角色\nname: 甲\naliases:\n  - 小甲\nrole: 主角\n自訂欄: 留著\n---\n\n# 甲\n", read("bible/characters/甲.md"))
+        self.assertIn("status: 已確認\n狀態: 草稿\n", read("outline/chapters/ch-0001.md"), "已經有英文鍵的那一欄不重複")
+        self.assertEqual("---\n類型: 故事核心\n---\n", read(".studio/backup/故事核心.1.md"), "備份不動")
+        fm, _ = project.split_frontmatter(read("bible/characters/甲.md"))
+        self.assertEqual(["小甲"], fm["aliases"])
+        self.assertFalse(migrate.needs_migration(self.book))
+        self.assertEqual("skipped", migrate.migrate(self.book)["status"])
+
+    def test_fenced_examples(self):
+        text = "說明\n\n```yaml\n---\n類型: 角色\n名稱: 林晚   # 註解\n---\n```\n\n類型: 正文\n"
+        self.assertEqual("說明\n\n```yaml\n---\ntype: 角色\nname: 林晚   # 註解\n---\n```\n\n類型: 正文\n",
+                         migrate.fm_rewrite(text, fenced=True))
+        self.assertEqual(text, migrate.fm_rewrite(text), "預設只換開頭的 frontmatter")

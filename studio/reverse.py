@@ -502,7 +502,7 @@ def render_character(ch, acc, last_label):
     first = min(info.get("chapters") or [0]) or ""
     rels = ch.get("relationships") if "relationships" in ch else ch.get("relationship")   # 清單（正常）或單一字串
     rel = "".join("\n- %s" % r for r in (rels or [])) or "\n- " + unknown()
-    text = ("---\n類型: 角色\n名稱: %s\n別名: [%s]\n定位: %s\n首次登場: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# %s\n\n"
+    text = ("---\ntype: 角色\nname: %s\naliases: [%s]\nrole: %s\nfirst_appearance: %s\nstatus: 草稿\nsource: 從正文反推\n---\n\n# %s\n\n"
             "## 一句話\n%s\n\n## 外在\n- 年齡／身分：%s\n- 外貌辨識點：%s\n\n## 內在\n- 想要：%s\n- 害怕：%s\n- 缺陷：%s\n- 底線：%s\n- 秘密：%s\n\n"
             "## 說話方式（聲音卡）\n- %s\n\n## 關係%s\n\n## 角色弧線\n%s\n\n## 備註\n%s\n") % (
         name, ", ".join(al), _clean(ch.get("role")) or "配角", first, name, _v(ch.get("one_line")), _v(ch.get("age_identity")),
@@ -511,7 +511,7 @@ def render_character(ch, acc, last_label):
         _t("rev_note_char", count=len(info.get("chapters") or []), a=first, b=max(info.get("chapters") or [0]) or "") + _flag(ch))
     st = ch.get("current_state") or {}
     last = max(info.get("chapters") or [0]) or 0
-    stext = "---\n類型: 角色狀態\n名稱: %s\n更新至: %s\n最後登場: %s\n---\n\n# %s：目前狀態\n\n%s\n\n" % (
+    stext = "---\ntype: 角色狀態\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n%s\n\n" % (
         name, last_label, tracking.chapter_label(last) if last else "", name, _t("rev_state_note"))
     stext += "\n".join("- %s：%s" % (label, _v(st.get(k))) for k, label in tracking.CHAR_KEYS)
     return name, text, stext
@@ -519,7 +519,7 @@ def render_character(ch, acc, last_label):
 
 def render_faction(f):
     name = _clean(f.get("name"))
-    return name, ("---\n類型: 勢力\n名稱: %s\n狀態: 草稿\n相關角色: [%s]\n來源: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 基本資料\n"
+    return name, ("---\ntype: 勢力\nname: %s\nstatus: 草稿\nrelated_characters: [%s]\nsource: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 基本資料\n"
                   "- 規模與地盤：%s\n- 首領：%s\n- 主要成員：%s\n- 資源與手段：%s\n\n## 目標與利益\n- 想要什麼：%s\n- 和誰有衝突：%s\n- 和誰有合作：%s\n\n"
                   "## 內部規矩\n%s\n\n## 對主角的態度\n%s\n\n## 備註\n%s\n") % (
         name, ", ".join(f.get("related_characters") or []), name, _v(f.get("one_line")), _v(f.get("scale_territory")), _v(f.get("leader")),
@@ -534,7 +534,7 @@ def render_world(w):
     tags = [_clean(t) for t in (w.get("labels") or []) if _clean(t)] if isinstance(w.get("labels"), list) else []
     rules = "\n".join("- " + _clean(r) for r in (w.get("rules") or []) if _clean(r)) or "- " + unknown()
     cost = "\n".join("- " + _clean(r) for r in (w.get("costs_limits") or []) if _clean(r)) or "- " + unknown()
-    return name, ("---\n類型: 世界觀\n分類: %s\n標籤: [%s]\n名稱: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 規則\n%s\n\n## 代價與限制\n%s\n\n"
+    return name, ("---\ntype: 世界觀\ncategory: %s\ntags: [%s]\nname: %s\nstatus: 草稿\nsource: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 規則\n%s\n\n## 代價與限制\n%s\n\n"
                   "## 讀者何時知道\n%s\n\n## 與劇情的關係\n%s\n\n## 備註\n%s\n") % (
         cat, ", ".join(tags), name, name, _v(w.get("one_line")), rules, cost, _t("rev_world_when"), _v(w.get("plot_relevance")),
         _t("rev_note_review") + _flag(w))
@@ -544,7 +544,7 @@ def render_core(c, title):
     def lst(x):
         items = [i for i in (x or []) if str(i).strip()] if isinstance(x, list) else [x]
         return "\n".join("%d. %s" % (i + 1, _v(v)) for i, v in enumerate(items)) or "1. " + unknown()
-    return ("---\n類型: 故事核心\n書名: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n%s\n\n## 題材與定位\n- 題材：%s\n- 目標讀者：%s\n"
+    return ("---\ntype: 故事核心\ntitle: %s\nstatus: 草稿\nsource: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n%s\n\n## 題材與定位\n- 題材：%s\n- 目標讀者：%s\n"
             "- 發表平台與更新節奏：%s\n- 預計篇幅：%s\n- 敘事視角：%s\n\n## 賣點（讀者為什麼看）\n%s\n\n## 主角\n- 想要什麼（外在目標）：%s\n"
             "- 真正需要什麼（內在成長）：%s\n- 最大的缺陷或限制：%s\n- 金手指／特殊優勢（有的話）：%s\n\n## 故事引擎\n%s\n\n## 核心衝突\n- 主要對手：%s\n- 衝突根源：%s\n\n"
             "## 讀者契約\n%s\n\n## 終局方向\n%s\n\n## 升級台階\n%s\n") % (
@@ -565,7 +565,7 @@ def _vol_name(i):
 
 
 def render_outline(book, vols, arcs):
-    lines = ["---\n類型: 全書大綱\n狀態: 草稿\n來源: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽",
+    lines = ["---\ntype: 全書大綱\nstatus: 草稿\nsource: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽",
              "- 預計卷數與字數：" + _t("rev_vols_written", n=len(vols)),
              "- 主線一句話：%s" % _v((book.get("whole_book") or {}).get("main_line")),
              "- 終局：%s" % _v((book.get("whole_book") or {}).get("ending")), "", "## 分卷"]
@@ -587,7 +587,7 @@ def render_outline(book, vols, arcs):
             j + 1, _v(u.get("name")), _clean(u.get("chapter_range")), _v(u.get("starting_situation")), _v(u.get("conflict")),
             _v(u.get("mini_climax")), _v(u.get("outcome_cost"))) for j, u in enumerate(units)) or unknown()
         arcs_in = [x for x in arcs if x["start"] <= b and x["end"] >= a]
-        vt = ("---\n類型: 卷綱\n卷名: %s\n章節範圍: 第%03d章～第%03d章\n狀態: 草稿\n來源: 從正文反推\n---\n\n# 卷綱：%s\n\n## 卷契約\n- 本卷賣點：%s\n"
+        vt = ("---\ntype: 卷綱\ntitle: %s\nchapter_range: 第%03d章～第%03d章\nstatus: 草稿\nsource: 從正文反推\n---\n\n# 卷綱：%s\n\n## 卷契約\n- 本卷賣點：%s\n"
               "- 主角本卷目標：%s\n- 本卷對手：%s\n- 卷末兌現：%s\n- 卷末新鉤子：%s\n\n## 本卷摘要\n%s\n\n## 劇情單元\n\n%s\n\n## 人物弧線\n%s\n") % (
             nm, a, b, nm, unknown(), _v(v.get("volume_goal")), _v(v.get("main_opponent")), _v(v.get("volume_climax")),
             _v(v.get("volume_new_hook")), "\n\n".join(x.get("segment_summary", "") for x in arcs_in) or unknown(), ut,
@@ -611,7 +611,7 @@ def render_card(no, card, vols, chars_by_no):
     pts = "\n".join("%d. %s" % (i + 1, p) for i, p in enumerate(card.get("plot_points") or [])) or "1. " + todo
     fs = "\n".join("- " + x for x in card.get("foreshadow_ops") or []) or "- " + _t("rev_none")
     who = "\n".join("- " + x for x in card.get("on_stage") or chars_by_no) or "- " + todo
-    return ("---\n類型: 章綱\n章號: %d\n章名: %s\n所屬卷: %s\n所屬單元:\n字數目標:\n狀態: 已寫\n來源: 從正文反推\n---\n\n# 第%d章 %s\n\n## 本章四問\n"
+    return ("---\ntype: 章綱\nchapter: %d\ntitle: %s\nvolume: %s\nunit:\ntarget_length:\nstatus: 已寫\nsource: 從正文反推\n---\n\n# 第%d章 %s\n\n## 本章四問\n"
             "1. 主角這章想做什麼：%s\n2. 誰或什麼阻止他：%s\n3. 這章結束後局面變成什麼：%s\n4. 讀者為什麼還要往下看：%s\n\n## 本章功能與目標情緒\n"
             "- 功能：%s\n- 讀者看完的主要感受：%s\n\n## 情節點\n%s\n\n## 出場角色\n%s\n\n## 伏筆操作\n%s\n\n## 禁止事項\n%s\n\n"
             "## 章末鉤子\n- 停在：%s\n\n## 備註\n%s\n") % (
@@ -622,14 +622,14 @@ def render_card(no, card, vols, chars_by_no):
 
 
 def render_summary(no, title, chars, s):
-    return ("---\n類型: 章節摘要\n章號: %d\n章名: %s\n字數: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title) +
+    return ("---\ntype: 章節摘要\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title) +
             "".join("\n## %s\n%s\n" % (head, s.get(k) or prompts.cur()["info_none"]) for k, head in tracking.SUMMARY_KEYS))
 
 
 def render_tables(acc, last_label, core):
-    fs = ("---\n類型: 伏筆\n更新至: %s\n---\n\n# 伏筆總表\n\n" % last_label +
+    fs = ("---\ntype: 伏筆\nupdated_through: %s\n---\n\n# 伏筆總表\n\n" % last_label +
           tracking._render_table(tracking.FS_HEADERS, tables.rows_to_headers("foreshadow", acc.get("fs") or [])) + "\n")
-    tl = ("---\n類型: 時間線\n更新至: %s\n---\n\n# 時間線\n\n%s\n\n" % (last_label, _t("rev_tl_note")) +
+    tl = ("---\ntype: 時間線\nupdated_through: %s\n---\n\n# 時間線\n\n%s\n\n" % (last_label, _t("rev_tl_note")) +
           tracking._render_table(tracking.TL_HEADERS, tables.rows_to_headers("timeline", acc.get("events") or [])) + "\n")
     rows = []
     terms = acc.get("terms") or {}
@@ -737,7 +737,7 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
     except StopIteration:
         return None
     tracking.write_reader_table(_p(book_dir, layout.REVERSE_DRAFTS, *layout.parts(layout.READER_KNOWLEDGE)), acc.get("reader") or [], label, keep_ids=True)
-    stc = "---\n類型: 狀態卡\n更新至: %s\n---\n\n# 狀態卡\n" % label
+    stc = "---\ntype: 狀態卡\nupdated_through: %s\n---\n\n# 狀態卡\n" % label
     for i, (k, head) in enumerate(tracking.STATE_KEYS, 1):
         items = (sc or {}).get(k) or []
         items = items if isinstance(items, list) else [items]

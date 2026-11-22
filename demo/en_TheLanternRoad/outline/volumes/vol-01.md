@@ -1,8 +1,8 @@
 ---
-類型: 卷綱
-卷名: The Erased Road
-章節範圍: 第001章～第030章
-狀態: 已確認
+type: 卷綱
+title: The Erased Road
+chapter_range: 第001章～第030章
+status: 已確認
 ---
 
 # 卷綱：The Erased Road

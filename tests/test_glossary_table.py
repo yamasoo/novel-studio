@@ -40,7 +40,7 @@ def gloss_table(n=120):
         rows.append("| %s | %s | %s | 首次出現：第%03d章 |" % (name, cat, desc, i % 9 + 1))
     rows.append("| 天機閣 | 組織 | 江湖情報組織，沈家的往來對象 | 首次出現：第002章 |")
     rows.append("| 青雲劍 | 物品 | 沈既白的佩劍 |  |")
-    return "---\n類型: 名詞表\n---\n\n# 名詞表\n\n" + "\n".join(rows) + "\n"
+    return "---\ntype: 名詞表\n---\n\n# 名詞表\n\n" + "\n".join(rows) + "\n"
 
 
 def stub_step(key, label, text):

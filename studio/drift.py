@@ -378,7 +378,7 @@ def apply_plan(book_dir, no, text, a=None, b=None, notes=None):
             "第 %d 章不在任何卷綱的章節範圍內，不知道要附加到哪一份卷綱；先補卷綱再試。" % no)
     p = project.safe_path(book_dir, rel)
     bak = tracking.backup(book_dir, p, "卷綱更新前")
-    old = project.read_text(p) if os.path.isfile(p) else ("---\n類型: 卷綱\n---\n\n# 卷綱\n")
+    old = project.read_text(p) if os.path.isfile(p) else ("---\ntype: 卷綱\n---\n\n# 卷綱\n")
     head = "\n\n---\n\n## 卷綱更新（第%s–%s章體檢）\n\n" % (a or "?", b or "?")
     body = text.strip()
     # 草稿裡的第一個 # 標題會和卷綱標題打架，去掉它

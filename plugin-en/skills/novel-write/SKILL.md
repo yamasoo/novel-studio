@@ -26,8 +26,8 @@ Folder names, file names, frontmatter keys and section headings in this project 
 1. Is there a `CLAUDE.md`? If not, ask the author to run novel-setup first.
 2. Does this chapter have a card at `outline/chapters/ch-NNNN.md`?
    - No: stop and ask whether to lay out chapter cards with novel-outline first. (If the author says "just write it", you may draft a minimal card for them to see first: the four questions, plot points, chapter-ending hook; write only after they nod.)
-   - The card's `狀態` is `草稿` (draft): ask "The chapter N card is still a draft; write from it anyway?"
-3. Is tracking up to date through the previous chapter? Check `更新至` in `tracking/state-card.md`. If it is behind, finish the previous chapter's write-back first. Never write a new chapter on top of stale state. (Exception: when candidate mode writes several chapters at once, later chapters continue from the previous chapter's candidate; see "Candidate mode".)
+   - The card's `status` is `草稿` (draft): ask "The chapter N card is still a draft; write from it anyway?"
+3. Is tracking up to date through the previous chapter? Check `updated_through` in `tracking/state-card.md`. If it is behind, finish the previous chapter's write-back first. Never write a new chapter on top of stale state. (Exception: when candidate mode writes several chapters at once, later chapters continue from the previous chapter's candidate; see "Candidate mode".)
 4. In chapter 1 the tracking files may still be blank templates. That is normal.
 
 ## Step 2: must-read before writing
@@ -35,7 +35,7 @@ Folder names, file names, frontmatter keys and section headings in this project 
 Read in this order and do not skip:
 
 1. `bible/style.md`, `bible/author-prefs.md`, and the shared `_shared/author-prefs.md` in the library (one level above the book folder, if it exists): long-term preferences across books, recurring faults, banned words. On conflict the book wins.
-2. The full chapter card. If its frontmatter has `結構: <name>`, read `bible/structure/<name>.md`; otherwise read the file in `bible/structure/` marked `預設: 是` (if neither exists, skip). A structure is a beat reference; the card's plot points and ending stop take priority.
+2. The full chapter card. If its frontmatter has `structure: <name>`, read `bible/structure/<name>.md`; otherwise read the file in `bible/structure/` marked `default: 是` (if neither exists, skip). A structure is a beat reference; the card's plot points and ending stop take priority.
 3. The whole of `tracking/state-card.md`.
 4. For each character in the card's cast list: `bible/characters/` and `tracking/characters/`. If `tracking/relations.md` exists, read the relationship rows among these characters whose end chapter is blank (currently valid): forms of address, attitude and interaction must fit that relationship, and a relationship that has changed must not slip back without cause.
 5. The foreshadowing in `tracking/foreshadowing.md` that the card mentions, plus those listed under "active foreshadowing" on the state card.
@@ -50,7 +50,7 @@ Read in this order and do not skip:
 Write down this round's constraints and check against them while writing:
 - **Must happen**: every plot point on the card.
 - **Must not happen**: the card's prohibitions, anything the timeline says cannot yet be revealed, trump cards that cannot yet be used.
-- **Length**: the card's `字數目標`, otherwise the per-chapter length in CLAUDE.md.
+- **Length**: the card's `target_length`, otherwise the per-chapter length in CLAUDE.md.
 - **Where it stops**: the chapter-ending hook.
 - **One-sentence intent**: e.g. "hold, then burst: publicly jilted → asks about the seal on the marriage contract → the room changes colour → first time the lead loses composure".
 - **Character-state carry-over**: for each main character, their goal, emotion, warmth of relationships and physical state at the end of their last scene, and what in this scene will change them.

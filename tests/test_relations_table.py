@@ -23,8 +23,8 @@ GOLDEN = os.path.join(ROOT, "tests", "snapshots", "relations_golden.json")
 UPDATE = os.environ.get("UPDATE_SNAPSHOT") == "1"
 
 REL = """---
-類型: 關係
-更新至: 第002章
+type: 關係
+updated_through: 第002章
 ---
 
 # 角色關係

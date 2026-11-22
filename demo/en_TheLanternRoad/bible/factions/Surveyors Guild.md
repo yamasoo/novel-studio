@@ -1,8 +1,8 @@
 ---
-類型: 勢力
-名稱: Surveyors' Guild
-狀態: 正式
-相關角色: [Corvin Tarr, Dessa Pike]
+type: 勢力
+name: Surveyors' Guild
+status: 正式
+related_characters: [Corvin Tarr, Dessa Pike]
 ---
 
 # Surveyors' Guild

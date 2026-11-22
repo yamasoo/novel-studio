@@ -33,7 +33,7 @@ project-layout.md に沿ってフォルダを作り、続けて：
   - `outline/book.md`
   - `tracking/state-card.md`、`tracking/foreshadowing.md`、`tracking/timeline.md`
 - 空のフォルダを作る：`bible/world/`、`bible/characters/`、`bible/factions/`、`bible/drafts/`、`outline/chapters/`、`manuscript/`、`candidates/`、`tracking/characters/`、`tracking/summaries/`、`samples/`。空のフォルダには `.gitkeep` を置く。
-- `bible/story-core.md` のフロントマターに `語言: ja` を入れる（この本が日本語で書かれていることを工作台に伝える）。
+- `bible/story-core.md` のフロントマターに `lang: ja` を入れる（この本が日本語で書かれていることを工作台に伝える）。
 
 ### 手順 3：インタビューの結果を書き込む
 

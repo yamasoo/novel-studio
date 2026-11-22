@@ -15,7 +15,7 @@ T = {
     # ---------- 開書與專案 ----------
     "setup_new": ("請使用 novel-setup skill，在目前資料夾為新書《{book}》建立小說專案。"
                   "目前資料夾就是書目錄，直接在這裡建，不要再建子資料夾。\n"
-                  "每章字數也請在訪談中跟我確認，並寫進 bible/story-core.md 開頭資料區，格式 `每章字數: 2500-3500`（只寫數字範圍，單位是字數）。\n"
+                  "每章字數也請在訪談中跟我確認，並寫進 bible/story-core.md 開頭資料區，格式 `chapter_length: 2500-3500`（只寫數字範圍，單位是字數）。\n"
                   "作者的初步構想：{idea}\n照訪談流程一輪一輪問我，先問第一輪。"),
     "setup_check": "請使用 novel-setup skill 檢查目前這個小說專案：缺哪些資料夾或範本、哪些核心檔案還是空白。缺的範本補上，不要覆蓋既有內容。",
     "style": ("請使用 novel-style skill 分析、設計或調整本書文風（bible/style.md）。"
@@ -27,9 +27,9 @@ T = {
     "concept": "請使用 novel-outline skill 做故事核心診斷，並更新 bible/story-core.md。",
     "master_outline": "請使用 novel-outline skill 規劃全書大綱（outline/book.md）。先給我看分卷總覽，確認後再寫入。",
     "volume_outline": "請使用 novel-outline skill 規劃第{v}卷的卷綱。先給我看卷契約和劇情單元總覽，確認後再寫入。{extra}",
-    "volume_draft": "請使用 novel-outline skill 規劃第{v}卷（第{a}～{b}章）的卷綱草稿。先給我看卷契約和劇情單元總覽，確認後再寫入 {file}（frontmatter 的狀態填「草稿」）；不要動正式卷綱。{extra}",
-    "volume_revise": "請使用 novel-outline skill 修訂第{v}卷的卷綱。先讀現有正式卷綱、全書大綱、章綱與狀態卡，保留已經寫成正文對得上的部分；把完整修訂檔寫到 {file}（frontmatter 的狀態填「草稿」），不要直接改正式卷綱。{extra}",
-    "cards_auto": ("請使用 novel-outline skill 寫{rng}的章綱，直接寫入 outline/chapters/（照章綱範本，frontmatter 狀態填「已確認」），"
+    "volume_draft": "請使用 novel-outline skill 規劃第{v}卷（第{a}～{b}章）的卷綱草稿。先給我看卷契約和劇情單元總覽，確認後再寫入 {file}（frontmatter 的 status 填「草稿」）；不要動正式卷綱。{extra}",
+    "volume_revise": "請使用 novel-outline skill 修訂第{v}卷的卷綱。先讀現有正式卷綱、全書大綱、章綱與狀態卡，保留已經寫成正文對得上的部分；把完整修訂檔寫到 {file}（frontmatter 的 status 填「草稿」），不要直接改正式卷綱。{extra}",
+    "cards_auto": ("請使用 novel-outline skill 寫{rng}的章綱，直接寫入 outline/chapters/（照章綱範本，frontmatter 的 status 填「已確認」），"
                    "不用先給我看總覽。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。{extra}"),
     "cards": "請使用 novel-outline skill 排第{a}～{b}章的章綱。先給我看單元總覽表（一章一行），我確認後再寫入各章檔案。{extra}",
 
@@ -93,8 +93,8 @@ T = {
     "sys_style_design": "這次的工作是設計與修改文風檔，不是寫正文。",
 
     # ---------- 共用（每本書的附註） ----------
-    "claude_note": ("【章節結構】寫章節或排章綱時：章綱 frontmatter 有「結構: 名稱」就讀 bible/structure/名稱.md；"
-                    "沒有指定就用 bible/structure/ 裡 frontmatter 標「預設: 是」的那一份；都沒有就不用。"
+    "claude_note": ("【章節結構】寫章節或排章綱時：章綱 frontmatter 有「structure: 名稱」就讀 bible/structure/名稱.md；"
+                    "沒有指定就用 bible/structure/ 裡 frontmatter 標「default: 是」的那一份；都沒有就不用。"
                     "結構只是節拍參考，章綱的情節點與章末停點優先，篇幅比例不必精確。"),
     "claude_note_shared": ("【共用作者偏好】所有書共用的作者偏好在 {path}（用 Read 讀取）。寫作、改稿、去 AI 味、審查時，"
                            "和本書的 bible/author-prefs.md 一起遵守；兩者衝突時以本書為準。不要修改這個共用檔案。"),
@@ -270,15 +270,15 @@ T.update({
     "task_concept": "做故事核心診斷，用方法第六節的格式在匯報裡給作者看（最小骨架、賣點、故事引擎、建議篇幅、缺口與建議）。{note}\n同時更新 bible/story-core.md（輸出完整檔案）：只寫作者已經說過或已確認的內容；你的提案寫在匯報裡，不要寫進檔案。",
     "task_master_outline": "規劃全書大綱。先給作者看分卷總覽（每卷：篇幅、目標、對手、卷末變化、大高潮），作者確認後再輸出 outline/book.md 完整檔案。需要的角色或設定不存在時，列出來問作者，不要自己定案。{note}",
     "task_volume_outline": "規劃第{v}卷的卷綱。先給作者看卷契約和劇情單元總覽（一個單元一段），作者確認後再輸出 {file} 完整檔案。已經寫成正文的部分要接得上狀態卡與伏筆。{note}",
-    "task_volume_draft": "寫第{v}卷（第{a}～{b}章）的卷綱草稿：直接輸出 {file}（frontmatter：類型: 卷綱、卷名、章節範圍: 第{a}章～第{b}章、狀態: 草稿），內容要有卷契約（賣點、目標、對手、卷末兌現、新鉤子）與劇情單元表（每個單元：起點、衝突、小高潮、結果）。這是交給作者看過再決定的草稿：不要寫正式卷綱，也不要改別的檔案。{note}",
-    "task_volume_revise": "修訂第{v}卷（第{a}～{b}章）的卷綱：讀現有正式卷綱、全書大綱、章綱清單、狀態卡與伏筆，保留已寫正文對得上的內容，只改需要改的地方；直接輸出完整檔案到 {file}（frontmatter：類型: 卷綱、卷名、章節範圍: 第{a}章～第{b}章、狀態: 草稿）。不要改正式卷綱或其他檔案。{note}",
+    "task_volume_draft": "寫第{v}卷（第{a}～{b}章）的卷綱草稿：直接輸出 {file}（frontmatter：type: 卷綱、title、chapter_range: 第{a}章～第{b}章、status: 草稿），內容要有卷契約（賣點、目標、對手、卷末兌現、新鉤子）與劇情單元表（每個單元：起點、衝突、小高潮、結果）。這是交給作者看過再決定的草稿：不要寫正式卷綱，也不要改別的檔案。{note}",
+    "task_volume_revise": "修訂第{v}卷（第{a}～{b}章）的卷綱：讀現有正式卷綱、全書大綱、章綱清單、狀態卡與伏筆，保留已寫正文對得上的內容，只改需要改的地方；直接輸出完整檔案到 {file}（frontmatter：type: 卷綱、title、chapter_range: 第{a}章～第{b}章、status: 草稿）。不要改正式卷綱或其他檔案。{note}",
     "contract_rule": "續寫合約列出的事實優先於大綱與任何安排：不能讓已退場的角色重新登場、不能提前說破「未揭示」的秘密；合約與大綱衝突時以合約為準，並在匯報說明。",
-    "task_cards_auto": "寫第{a}～{b}章的章綱，直接為每一章輸出一個 outline/chapters/ch-NNNN.md（章號補零到四位數，例如 ch-0001.md，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的狀態填「已確認」）。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。{note}",
-    "task_cards": "排第{a}～{b}章的章綱。先給作者看單元總覽表（一章一行：章號、章名、一句話、功能、鉤子類型），作者確認後，再為每一章各輸出一個 outline/chapters/ch-NNNN.md（章號補零到四位數，例如 ch-0001.md，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的狀態填「已確認」）。回收重要伏筆、新的大反轉或新角色要先問作者。{note}",
+    "task_cards_auto": "寫第{a}～{b}章的章綱，直接為每一章輸出一個 outline/chapters/ch-NNNN.md（章號補零到四位數，例如 ch-0001.md，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的 status 填「已確認」）。依卷綱與前一章章綱接續；回收重要伏筆、新的大反轉或新角色時，選最保守、和既有設定一致的做法，在匯報列出。{note}",
+    "task_cards": "排第{a}～{b}章的章綱。先給作者看單元總覽表（一章一行：章號、章名、一句話、功能、鉤子類型），作者確認後，再為每一章各輸出一個 outline/chapters/ch-NNNN.md（章號補零到四位數，例如 ch-0001.md，照範本，四問、情節點、伏筆操作、禁止事項、章末鉤子都要填；frontmatter 的 status 填「已確認」）。回收重要伏筆、新的大反轉或新角色要先問作者。{note}",
     "task_character": "建立或補完角色「{name}」。作者提供的資訊：{info}\n作者給的、已確認的資訊寫進 bible/characters/{name}.md（狀態：正式）；你自己補的部分放 bible/drafts/{name}.md（狀態：草稿），等作者確認。已有檔案時保留原本內容，只補空欄。新名詞也更新 bible/glossary.md（輸出完整檔案）。",
     "info_none": "（無）",
     "task_gen_drafts": "生成設定草稿：{text}\n全部寫在 bible/drafts/ 底下（一個項目一個檔，狀態：草稿），名字不要和既有設定撞名撞音，彼此拉開差異。批量生成配角時只寫一句話功能、想要、缺陷、聲音卡兩三條、和主角的關係。",
-    "task_bible_from_outline": "依 大綱、卷綱、章綱 產生設定草稿（{scope}）。全部寫在 bible/drafts/（一個項目一個檔，frontmatter 狀態: 草稿）。角色要對得上卷綱會出場的人：定位、動機、弱點、首次登場章；勢力：目標、資源、和主角的關係；世界觀只寫故事會用到的（地理、科技、戰術），不要百科全書。名字原創、不要和既有設定撞名撞音。\n參考方向（可空）：{refs}\n參考資料（可空）：{urls}{note}",
+    "task_bible_from_outline": "依 大綱、卷綱、章綱 產生設定草稿（{scope}）。全部寫在 bible/drafts/（一個項目一個檔，frontmatter status: 草稿）。角色要對得上卷綱會出場的人：定位、動機、弱點、首次登場章；勢力：目標、資源、和主角的關係；世界觀只寫故事會用到的（地理、科技、戰術），不要百科全書。名字原創、不要和既有設定撞名撞音。\n參考方向（可空）：{refs}\n參考資料（可空）：{urls}{note}",
     "task_design_draft": "依作者的要求設計設定：{text}\n產出一律寫在 bible/drafts/ 底下，一個項目一個檔，檔案開頭的狀態寫「草稿」，等作者看過再轉正式。不要寫進 bible/world/、bible/characters/、bible/factions/，也不要改名詞表；文中出現的新名詞寫在該檔內，作者確認後再入名詞表。數字與正文沒寫過的細節一律標「（提案）」。先看「設定索引」，同名或別名已存在就不要另開新檔。匯報時列出：寫了哪幾個草稿、每個草稿的一句話定義、哪些地方需要作者決定。",
     "task_intake": "照入庫規則「從對話萃取」整理「要整理的內容」：已定案的寫進正式設定（bible/characters、bible/factions、bible/world），討論中的寫進 bible/drafts/，已否決的不寫。已有檔案時保留原本內容再補充；新名詞用 <<<追加 bible/glossary.md>>> 只追加新增的列，不要整份重寫名詞表，名稱已存在的不要重列。匯報用表格列出：哪些進正式、哪些進草稿、哪些沒收。",
     "task_promote": "把這些草稿轉為正式：{text}\n照入庫規則「草稿轉正式」：套用範本整理格式、狀態改為正式、寫到對應的正式資料夾，然後刪除原草稿檔；新名詞補進名詞表（輸出完整檔案）。和既有正式設定衝突時不要寫檔，先問作者。",
@@ -287,7 +287,7 @@ T.update({
     "note_inline_files": "作者補充：{note}",
     "task_review_all": "做全書健康檢查（目前寫到第{latest}章），重點是清單 B：設定一致性、追蹤是否跟上正文、伏筆健康度、角色久未登場、資訊揭露邊界、讀者契約與節奏。每個問題要有依據與建議；沒有問題就說通過。用以下格式輸出 Markdown 報告：\n{fmt}",
     "no_alerts": "（無）",
-    "default_structure_title": "本書預設章節結構：{name}（排章綱時用來安排每章的節拍；章綱可在 frontmatter 用「結構: 名稱」改用 bible/structure/ 裡的其他結構）",
+    "default_structure_title": "本書預設章節結構：{name}（排章綱時用來安排每章的節拍；章綱可在 frontmatter 用「structure: 名稱」改用 bible/structure/ 裡的其他結構）",
     "chapter_structure_title": "本章結構：{name}（{src}；節拍參考，章綱的情節點與章末停點優先，篇幅比例不必精確）",
     "none_entities": "（還沒有任何設定檔）",
     "bk_l": "【",
@@ -402,7 +402,7 @@ T.update({
     "sd_brief_line": "- {k}：{v}",
     "sd_brief_none": "（作者沒有填，請依名稱推想）",
     "sd_common": "【原則】規則要具體到能拿來檢查一段文字；給範圍與情境，不給死數字；只寫深這個文風與眾不同的五到八項，其他一句帶過；禁忌要附替代做法；分清楚 建議做法／本書禁忌／允許的例外；參考作品只學特徵，不抄原文、不用它的人名地名專有名詞與招牌台詞；範例段落一律原創，至少三段有場景標籤（【對白】【動作】【描寫】【情緒】【轉場】挑最能代表的），每段後面一句「我喜歡它哪裡」，可以加一段【反例】附「為什麼不行」；整份 {style_len}（不含指標表）；{lang_rule}。",
-    "sd_out_rule": "【輸出格式】先輸出完整文風檔，放在區塊裡：\n<<<文風>>>\n（完整檔案，含 YAML frontmatter：類型: 文風、狀態: 草稿、名稱: {name}；標題「# 文風：{name}」）\n<<<結束>>>\n區塊之後是給作者看的白話匯報。照範本的章節順序；「## 範例段落」標題原樣保留；不要自己寫「## 文字指標（程式統計）」一節（程式會補上）。不要提問，不確定的地方直接做最合理的選擇，在匯報列出來請作者確認。",
+    "sd_out_rule": "【輸出格式】先輸出完整文風檔，放在區塊裡：\n<<<文風>>>\n（完整檔案，含 YAML frontmatter：type: 文風、status: 草稿、name: {name}；標題「# 文風：{name}」）\n<<<結束>>>\n區塊之後是給作者看的白話匯報。照範本的章節順序；「## 範例段落」標題原樣保留；不要自己寫「## 文字指標（程式統計）」一節（程式會補上）。不要提問，不確定的地方直接做最合理的選擇，在匯報列出來請作者確認。",
     "sd_design": "為書庫的共用文風「{name}」寫一份完整的文風檔。\n作者的描述：\n{brief}\n",
     "sd_note": "作者補充：{note}\n",
     "sd_sample": "作者附了寫作樣本：從樣本歸納特徵寫成規則（作者的描述優先），範例段落優先節錄樣本裡最有代表性的段落，缺的場景類型再依規則補寫並標「（補寫）」。{metrics}\n",

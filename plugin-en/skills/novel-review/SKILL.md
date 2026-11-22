@@ -23,7 +23,7 @@ A review is best done by **someone who did not take part in the writing**; other
 | "check chapter N" | single chapter | all of list A; of B, items 7 and 11 as they relate to this chapter |
 | "check chapters N-M", or after several chapters were written | a stretch | A chapter by chapter; all of B |
 | "whole-book check", "did we forget any foreshadowing?" | whole book | mostly B; A only on the latest few chapters |
-| just "review it" | the most recently written chapters (see `更新至` on the state card) | as a single chapter or a stretch |
+| just "review it" | the most recently written chapters (see `updated_through` on the state card) | as a single chapter or a stretch |
 
 For a whole-book check with many chapters, do not read all the text: work from the chapter summaries, tracking data and settings, and go back to the matching passage only when something looks wrong.
 

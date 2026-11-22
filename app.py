@@ -876,7 +876,7 @@ async def import_commit(req: Request):
         name = (body.get("new_book") or "").strip()
         wrap(lambda: importer.plan(body.get("payload") or {}, opts))  # 先確認拆得出章節，再建書
         d = wrap(lambda: project.create_book(lib, name))
-        importer.set_import_lang(d, opts.get("lang"))   # 先記語言，骨架（_templates/文風.md 等）、CLAUDE.md 與之後的提示詞才會用對的語言
+        importer.set_import_lang(d, opts.get("lang"))   # 先記語言，骨架（_templates/style.md 等）、CLAUDE.md 與之後的提示詞才會用對的語言
         native_files.ensure_skeleton(d, PLUGIN_DIR)
         importer.make_claude_md(d, PLUGIN_DIR, name)
         book_id = os.path.basename(d)

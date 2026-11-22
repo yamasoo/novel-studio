@@ -115,7 +115,8 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "docs", "fmkeys", "sections", "tables"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "templates", "docs", "fmkeys", "sections", "tables"],
+                         [s["key"] for s in r["steps"]])
         self.assertEqual(["資料夾改名後一併處理"], r["steps"][-1]["changes"], "改名後才做的步驟也先列出來")
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
         self.assertEqual(before, _snapshot(b))
@@ -704,3 +705,56 @@ class FmKeysStepTest(unittest.TestCase):
         self.assertEqual("說明\n\n```yaml\n---\ntype: character\nname: 林晚   # 註解\n---\n```\n\n類型: 正文\n",
                          migrate.fm_rewrite(text, fenced=True))
         self.assertEqual(text, migrate.fm_rewrite(text), "預設只換開頭的 frontmatter")
+
+
+class TemplateStepTest(unittest.TestCase):
+    """第七批：範本檔名換成英文、book.json 的格式版本 3。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.book = os.path.join(self.tmp, "b")
+        shutil.copytree(os.path.join(ROOT, "demo", "退婚之後"), self.book)
+        self.tpl = layout.path(self.book, layout.TEMPLATES)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_rename_and_collision(self):
+        os.rename(os.path.join(self.tpl, "character.md"), os.path.join(self.tpl, "角色.md"))
+        with open(os.path.join(self.tpl, "文風.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("作者改過的舊範本\n")                                # 新舊都在：舊的收進 _old/
+        with open(os.path.join(self.book, "CLAUDE.md"), "a", encoding="utf-8", newline="\n") as f:
+            f.write("\n- 路徑格式見 `_templates/專案規範.md`，角色用 `_templates/角色.md`。\n")
+        self.assertTrue(migrate.needs_migration(self.book))
+        r = migrate.migrate(self.book)
+        self.assertEqual("done", r["status"], r.get("message"))
+        self.assertEqual(["templates", "docs"], [s["key"] for s in r["steps"]])
+        self.assertTrue(os.path.isfile(os.path.join(self.tpl, "character.md")))
+        self.assertFalse(os.path.exists(os.path.join(self.tpl, "角色.md")))
+        self.assertEqual("作者改過的舊範本\n", project.read_text(os.path.join(self.tpl, "_old", "文風.md")))
+        claude = project.read_text(os.path.join(self.book, "CLAUDE.md"))
+        self.assertIn("`_templates/project-rules.md`", claude)
+        self.assertIn("`_templates/character.md`", claude)
+        self.assertFalse(migrate.needs_migration(self.book))
+
+    def test_schema_version(self):
+        self.assertEqual(3, layout.SCHEMA_VERSION)
+        bookmeta.write(self.book, schema_version=2)
+        self.assertTrue(migrate.needs_migration(self.book))
+        r = migrate.migrate(self.book)
+        self.assertEqual(["book_meta"], [s["key"] for s in r["steps"]])
+        self.assertIn("格式版本 2 → 3", r["steps"][0]["changes"])
+        self.assertEqual(3, bookmeta.read(self.book)["schema_version"])
+
+    def test_no_book_json_is_not_old(self):
+        os.remove(layout.path(self.book, layout.BOOK_META))          # 例如技能建的書還沒有 book.json
+        self.assertFalse(migrate.needs_migration(self.book))
+
+    def test_presets_by_display_name(self):
+        from studio import shared
+        names = [s["name"] for s in shared.list_structures(self.tmp) if s["origin"] == "preset"]
+        self.assertEqual(sorted(["三幕式", "起承轉合", "懸疑揭露", "壓抑爆發", "日常感情"]), names)
+        self.assertTrue(shared.structure_path(self.tmp, "三幕式", "preset").endswith("three-act.md"))
+        self.assertTrue(shared.structure_path(self.tmp, "three-act", "preset").endswith("three-act.md"))
+        rel = shared.apply_structure(self.tmp, "三幕式", "preset", self.book)
+        self.assertTrue(rel.endswith("三幕式.md"))

@@ -1,5 +1,6 @@
 ---
 type: chapter-structure
+name: 三幕式
 scope: 一卷或一個單元（10～30 章）
 ---
 

@@ -27,7 +27,7 @@ Follow [references/interview.md](references/interview.md), one round at a time; 
 
 Create the folders per project-layout.md. Then:
 
-- Copy everything in this skill's `templates/` to the project's `_templates/`, and copy `references/project-layout.md` to `_templates/專案規範.md`. Other skills fetch templates and the spec from `_templates/`.
+- Copy everything in this skill's `templates/` to the project's `_templates/`, and copy `references/project-layout.md` to `_templates/project-rules.md`. Other skills fetch templates and the spec from `_templates/`.
 - Create these blank files from the templates (fill in the frontmatter, keep the template comments as content):
   - `bible/story-core.md`, `bible/style.md`, `bible/author-prefs.md`, `bible/glossary.md`
   - `outline/book.md`

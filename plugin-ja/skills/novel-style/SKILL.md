@@ -13,7 +13,7 @@ description: 日本語の小説の文風ファイル（bible/style.md、また�
 
 1. [references/style-dimensions.md](references/style-dimensions.md) を最後まで読む：十三の次元、例の段落の条件、長さの目安。
 2. 作者がジャンルに触れたら、[references/genre-cues.md](references/genre-cues.md) の該当部分を読む。
-3. 雛形は `../novel-setup/templates/文風.md`（プロジェクトの中では `_templates/文風.md`）。新しいファイルは雛形の節の順に書き、古いファイルは作者が書いたとおりに節を残して、足りないところを埋める。
+3. 雛形は `../novel-setup/templates/style.md`（プロジェクトの中では `_templates/style.md`）。新しいファイルは雛形の節の順に書き、古いファイルは作者が書いたとおりに節を残して、足りないところを埋める。
 4. ファイルの置き場所を決める：
    - 本の中 → `bible/style.md`
    - 作者が「共通に」「書庫に入れて」「ほかの本でも使う」と言った → 書庫の `_shared/styles/<名前>.md`（書籍フォルダの一つ上）。フロントマターに `name: <名前>` を足し、見出しを `# 文風：<名前>` にする

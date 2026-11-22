@@ -1,5 +1,6 @@
 ---
 type: chapter-structure
+name: 懸疑揭露
 scope: 單章
 ---
 

@@ -6,7 +6,7 @@ File names, folder names, frontmatter keys and table headers stay in Chinese exa
 
 ## 1. Chapter summary (new file)
 
-`tracking/summaries/ch-NNNN.md`, from `_templates/章節摘要.md`. 100-250 words: what happened, how the situation changed, what and who newly appeared, where the chapter stops. Put the actual word count in the frontmatter.
+`tracking/summaries/ch-NNNN.md`, from `_templates/chapter-summary.md`. 100-250 words: what happened, how the situation changed, what and who newly appeared, where the chapter stops. Put the actual word count in the frontmatter.
 
 ## 2. State card (overwrite to the latest)
 
@@ -26,7 +26,7 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 
 `tracking/characters/{character name}.md`:
 - Update only characters who **changed in this chapter**: location, goal, body, emotion, abilities and resources, relationships, secrets known, unfinished business.
-- A named important character appearing for the first time gets a new file from `_templates/角色狀態.md`.
+- A named important character appearing for the first time gets a new file from `_templates/character-state.md`.
 - For characters who appear in this chapter, set `last_appearance` to this chapter; for any with an update, set `updated_through` to this chapter.
 - "Secrets known" must be strict: write only what this character already knows **inside the story**, not what only the reader knows.
 
@@ -47,7 +47,7 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 
 ### Reader-knowledge ledger
 
-`tracking/reader-knowledge.md` (skip if none of the cases below apply. If the file does not exist: for a new book whose timeline has fewer than 15 rows, create it from `_templates/讀者認知.md`; for an older book with many chapters already written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the timeline"):
+`tracking/reader-knowledge.md` (skip if none of the cases below apply. If the file does not exist: for a new book whose timeline has fewer than 15 rows, create it from `_templates/reader-knowledge.md`; for an older book with many chapters already written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the timeline"):
 - What makes the reader start waiting for an answer (noticing something off, an open question): add a 懸念 row (R plus three digits) worded as the question the reader is asking.
 - What the chapter deliberately lets the reader get wrong: add a 誤認 row stating the version the reader believes.
 - Key information the reader knows but some characters do not: add a 已知 row saying who does not know. Ordinary events need not be registered as 已知.
@@ -56,7 +56,7 @@ Deleting outdated content is necessary; do not only keep adding below. When the 
 
 ### Character relationships
 
-`tracking/relations.md` (skip if no relationship changed in this chapter. If the file does not exist: for a new book before chapter 15, create it from `_templates/關係.md`; for an older book with many chapters written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the character files"):
+`tracking/relations.md` (skip if no relationship changed in this chapter. If the file does not exist: for a new book before chapter 15, create it from `_templates/relations.md`; for an older book with many chapters written, do not create it yourself, skip this section, and remind the author in the report that the studio can "build it from the character files"):
 - One direction per row: "A toward B" and "B toward A" are separate; if only one side's view changes, only touch that row. "Relationship" records role or standing (master and pupil, allies, creditor); "attitude" records this person's feeling and warmth toward the other (trust, wariness, affection).
 - **A relationship first clearly established in this chapter**: add a row (ID L plus three digits), set the starting chapter to this chapter, and write in the reason-for-change column which event in this chapter did it.
 - **A relationship this chapter changed**: put this chapter in the old row's end chapter (do not edit its content), open a new row with the new relationship and attitude, set its starting chapter to this chapter, and note the cause. Do not overwrite the old row; keep the history.

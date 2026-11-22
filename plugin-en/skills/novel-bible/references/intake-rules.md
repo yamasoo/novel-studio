@@ -25,7 +25,7 @@ When you cannot tell whether something is "confirmed", put it in drafts. A draft
 
 When the author says "X in the drafts is ready" or "these are all settled":
 
-1. Read the draft file and tidy the format with the right template (`_templates/角色.md` and so on).
+1. Read the draft file and tidy the format with the right template (`_templates/character.md` and so on).
 2. Change the frontmatter `status` to `canon` and move it to the matching official folder.
 3. Check for conflicts with existing official settings (same name, contradictory rules, mismatched relationships). Ask the author first if there is a conflict.
 4. Register any new terms in the glossary.

@@ -25,7 +25,7 @@ description: 建立繁體中文小說寫作專案：開書訪談、建資料夾�
 
 依 project-layout.md 建立資料夾。然後：
 
-- 把本 skill 的 `templates/` 裡所有檔案複製到專案的 `_templates/`，再把 `references/project-layout.md` 複製成 `_templates/專案規範.md`。之後其他 skill 都從 `_templates/` 取範本與規範。
+- 把本 skill 的 `templates/` 裡所有檔案複製到專案的 `_templates/`，再把 `references/project-layout.md` 複製成 `_templates/project-rules.md`。之後其他 skill 都從 `_templates/` 取範本與規範。
 - 依範本建立以下空白檔案（frontmatter 填好，內容保留範本註解）：
   - `bible/story-core.md`、`bible/style.md`、`bible/author-prefs.md`、`bible/glossary.md`
   - `outline/book.md`

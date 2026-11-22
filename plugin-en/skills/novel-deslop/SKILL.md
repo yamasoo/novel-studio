@@ -47,7 +47,7 @@ Findings come in three levels (the level names are fixed tokens):
 Phrases the author uses on purpose that the script would flag (a character's catchphrase, say) go in `.去AI味白名單` in the book folder: one fragment per line, with a `#` line above it noting source and purpose.
 
 ```
-# source: style note, allowed exception; purpose: protagonist's catchphrase
+# source: bible/style.md, allowed exceptions; purpose: protagonist's catchphrase
 you know what I mean
 ```
 

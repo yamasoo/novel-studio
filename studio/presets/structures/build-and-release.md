@@ -1,5 +1,6 @@
 ---
 type: chapter-structure
+name: 壓抑爆發
 scope: 單章或兩三章一組
 ---
 

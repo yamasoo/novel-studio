@@ -511,10 +511,10 @@ def check_demo():
     if not books:
         add("WARN", "demo", "找不到 demo/ 的三語示範書（資料夾名 en_／ja_ 開頭），跳過範本檔案集比較")
         return
-    # 一本新書的 _templates/ ＝ 17 個範本＋專案規範.md（novel-setup 會把 references/project-layout.md
-    # 複製成「專案規範.md」）。示範書就是要示範這件事，所以三本都該有這 18 個檔。
-    want = set(templates()) | {"專案規範.md"}
-    if not want - {"專案規範.md"}:
+    # 一本新書的 _templates/ ＝ 17 個範本＋project-rules.md（novel-setup 會把 references/project-layout.md
+    # 複製成「project-rules.md」）。示範書就是要示範這件事，所以三本都該有這 18 個檔。
+    want = set(templates()) | {"project-rules.md"}
+    if not want - {"project-rules.md"}:
         add("WARN", "demo", "找不到 plugin/skills/novel-setup/templates/，跳過示範書範本比較")
         return
     for k in ("zh", "en", "ja"):

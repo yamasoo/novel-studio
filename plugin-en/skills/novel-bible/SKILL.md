@@ -12,14 +12,14 @@ Folder and file names, frontmatter keys and fixed words (正式, 草稿, 主角 
 ## Before you start
 
 1. Read the project's `CLAUDE.md`. If there is no CLAUDE.md or `_templates/`, tell the author to build or check the project with novel-setup first, then stop.
-2. When you need to confirm a path or format, read `_templates/專案規範.md`.
+2. When you need to confirm a path or format, read `_templates/project-rules.md`.
 3. Read [references/intake-rules.md](references/intake-rules.md): how the three sources are filed, the line between draft and official, and how conflicts are handled. Follow these rules every time.
 
 ## Decide the task
 
 | The author says | What to do | Also read |
 |---|---|---|
-| "create a character", "finish so-and-so's profile" | build or complete a character from `_templates/角色.md` | [character-design.md](references/character-design.md) |
+| "create a character", "finish so-and-so's profile" | build or complete a character from `_templates/character.md` | [character-design.md](references/character-design.md) |
 | "generate N supporting characters", "give me some villain options" | generate drafts into `bible/drafts/` | character-design.md, "Generating supporting characters in bulk" |
 | "design the power system / geography / faction" | build worldbuilding or a faction from the template | [worldbuilding.md](references/worldbuilding.md) |
 | "organize what we just discussed", "save it to the settings" | extract from conversation | intake-rules.md, "Extracting from conversation" |

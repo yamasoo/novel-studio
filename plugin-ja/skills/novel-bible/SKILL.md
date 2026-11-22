@@ -12,14 +12,14 @@ description: 小説の設定データベース（ストーリーバイブル）�
 ## 始める前に
 
 1. プロジェクトの `CLAUDE.md` を読む。`CLAUDE.md` や `_templates/` がなければ、先に novel-setup でプロジェクトを作るか点検するよう作者に伝えて止まる。
-2. パスや形式を確かめたいときは `_templates/專案規範.md` を読む。
+2. パスや形式を確かめたいときは `_templates/project-rules.md` を読む。
 3. [references/intake-rules.md](references/intake-rules.md) を読む：三つの入口の振り分け方、草稿と正式の線引き、衝突の扱い。毎回この規則に従う。
 
 ## 任務を決める
 
 | 作者の言葉 | すること | あわせて読むもの |
 |---|---|---|
-| 「人物を作って」「この人の設定を仕上げて」 | `_templates/角色.md` から人物を作る、または補う | [character-design.md](references/character-design.md) |
+| 「人物を作って」「この人の設定を仕上げて」 | `_templates/character.md` から人物を作る、または補う | [character-design.md](references/character-design.md) |
 | 「脇役を N 人出して」「悪役の案を出して」 | `bible/drafts/` に草稿を生成する | character-design.md の「脇役をまとめて生成する」 |
 | 「力の体系／地理／勢力を設計して」 | 雛形から世界観や勢力を作る | [worldbuilding.md](references/worldbuilding.md) |
 | 「さっきの話を整理して」「設定に入れて」 | 会話から抽出する | intake-rules.md の「会話から抽出する」 |

@@ -10,7 +10,7 @@ description: 管理小說設定資料庫（故事聖經）：建立與修改角�
 ## 開始前
 
 1. 讀專案的 `CLAUDE.md`。沒有 CLAUDE.md 或 `_templates/` 時，告訴作者先用 novel-setup 建專案（或檢查專案），然後停下。
-2. 需要確認路徑或格式時，讀 `_templates/專案規範.md`。
+2. 需要確認路徑或格式時，讀 `_templates/project-rules.md`。
 3. 讀 [references/intake-rules.md](references/intake-rules.md)：三種來源怎麼入庫、草稿與正式的分界、衝突怎麼處理。這份規則每次都要遵守。
 4. 讀 `bible/_index.md`（若存在）：用它查既有檔名、別名、分類、首次出現章，以及名詞表「詳見」指到哪個檔。**只打開命中的檔案。不要為了查重或查名字而整份讀 `bible/glossary.md`**，它可能非常大。索引不存在，或你懷疑它過期時，請作者在設定集按「重建索引」，這一步先不要讀全部設定。
 
@@ -18,7 +18,7 @@ description: 管理小說設定資料庫（故事聖經）：建立與修改角�
 
 | 作者說 | 做什麼 | 另讀 |
 |---|---|---|
-| 「建角色」「補完某某的人設」 | 依 `_templates/角色.md` 建或補角色 | [character-design.md](references/character-design.md) |
+| 「建角色」「補完某某的人設」 | 依 `_templates/character.md` 建或補角色 | [character-design.md](references/character-design.md) |
 | 「幫我生成 N 個配角」「給我幾個反派選項」 | 生成草稿，放 `bible/drafts/` | character-design.md「批量生成配角」 |
 | 「設計力量體系／地理／勢力」 | 依範本建世界觀或勢力 | [worldbuilding.md](references/worldbuilding.md) |
 | 「把剛剛聊的整理起來」「存進設定」 | 從對話萃取 | intake-rules.md「從對話萃取」 |

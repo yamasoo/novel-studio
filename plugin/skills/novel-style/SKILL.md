@@ -11,7 +11,7 @@ description: 設計、分析、修改繁體中文小說的文風檔（bible/styl
 
 1. 完整讀 [references/style-dimensions.md](references/style-dimensions.md)——十三個面向、範例段落的要求、長度建議。
 2. 作者提到類型時，讀 [references/genre-cues.md](references/genre-cues.md) 對應的段落。
-3. 範本在 `../novel-setup/templates/文風.md`（專案裡是 `_templates/文風.md`）。新檔照範本的章節順序寫；舊檔保留作者原本的章節，缺的再補。
+3. 範本在 `../novel-setup/templates/style.md`（專案裡是 `_templates/style.md`）。新檔照範本的章節順序寫；舊檔保留作者原本的章節，缺的再補。
 4. 判斷檔案位置：
    - 在某本書裡 → `bible/style.md`
    - 作者說「共用」「存進書庫」「以後別本書也要用」→ 書庫的 `_shared/styles/<名稱>.md`（書目錄的上一層），frontmatter 加 `name: <名稱>`，標題寫 `# 文風：<名稱>`

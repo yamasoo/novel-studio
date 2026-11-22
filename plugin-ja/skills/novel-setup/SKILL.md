@@ -27,7 +27,7 @@ description: 日本語の小説プロジェクトを作る：新作のインタ�
 
 project-layout.md に沿ってフォルダを作り、続けて：
 
-- このスキルの `templates/` の中身をすべてプロジェクトの `_templates/` にコピーし、`references/project-layout.md` を `_templates/專案規範.md` にコピーする。ほかのスキルは `_templates/` から雛形と仕様を取る。
+- このスキルの `templates/` の中身をすべてプロジェクトの `_templates/` にコピーし、`references/project-layout.md` を `_templates/project-rules.md` にコピーする。ほかのスキルは `_templates/` から雛形と仕様を取る。
 - 次の空ファイルを雛形から作る（フロントマターを埋め、雛形のコメントは内容として残す）：
   - `bible/story-core.md`、`bible/style.md`、`bible/author-prefs.md`、`bible/glossary.md`
   - `outline/book.md`

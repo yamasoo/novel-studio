@@ -13,7 +13,7 @@ The file's section headings (the ones in the template) and the two headings "## 
 
 1. Read [references/style-dimensions.md](references/style-dimensions.md) in full: the thirteen dimensions, requirements for example passages, length advice.
 2. When the author mentions a genre, read the matching part of [references/genre-cues.md](references/genre-cues.md).
-3. The template is `../novel-setup/templates/文風.md` (in a project it is `_templates/文風.md`). Write a new file in the template's section order; keep an old file's sections as the author wrote them and fill in what is missing.
+3. The template is `../novel-setup/templates/style.md` (in a project it is `_templates/style.md`). Write a new file in the template's section order; keep an old file's sections as the author wrote them and fill in what is missing.
 4. Decide where the file lives:
    - Inside a book → `bible/style.md`
    - The author says "shared", "put it in the library", "other books will use it too" → the library's `_shared/styles/<name>.md` (one level above the book folder), with `name: <name>` added to the frontmatter and the heading `# 文風：<name>`

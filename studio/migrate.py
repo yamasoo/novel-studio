@@ -234,9 +234,22 @@ def _old_lang(book_dir):
                           or lang._file_lang(book_dir))
 
 
+def _schema_of(m):
+    try:
+        return int(m.get("schema_version") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _meta_needed(book_dir):
     m = bookmeta.read(book_dir)
-    return not m.get("lang") or "schema_version" not in m or os.path.isfile(layout.path(book_dir, layout.STUDIO, "lang"))
+    return (not m.get("lang") or _schema_of(m) < layout.SCHEMA_VERSION
+            or os.path.isfile(layout.path(book_dir, layout.STUDIO, "lang")))
+
+
+def _schema_old(book_dir):
+    """book.json 記的格式版本比這版程式舊（沒有 book.json 的不算：技能建的書也許還沒有）。"""
+    return bookmeta.exists(book_dir) and _schema_of(bookmeta.read(book_dir)) < layout.SCHEMA_VERSION
 
 
 def _meta_plan(book_dir):
@@ -247,12 +260,15 @@ def _meta_plan(book_dir):
         out.append("%s 補上語言 %s" % (layout.BOOK_META, _old_lang(book_dir)))
     if os.path.isfile(layout.path(book_dir, layout.STUDIO, "lang")):
         out.append("移除 %s/lang（語言改記在 %s）" % (layout.STUDIO, layout.BOOK_META))
+    old = _schema_of(bookmeta.read(book_dir))
+    if bookmeta.exists(book_dir) and old < layout.SCHEMA_VERSION:
+        out.append("格式版本 %s → %d" % (old or "（沒有）", layout.SCHEMA_VERSION))
     return out or ["%s 補上格式版本" % layout.BOOK_META]
 
 
 def _meta_apply(book_dir):
     out = _meta_plan(book_dir)
-    bookmeta.write(book_dir, lang=_old_lang(book_dir))
+    bookmeta.write(book_dir, lang=_old_lang(book_dir), schema_version=layout.SCHEMA_VERSION)
     old = layout.path(book_dir, layout.STUDIO, "lang")
     if os.path.isfile(old):
         os.remove(old)
@@ -298,7 +314,8 @@ def needs_migration(book_dir):
     只看資料夾與檔名（書架每次都會問，不能讀檔）。"""
     return rename_enabled() and (any(os.path.isdir(os.path.join(book_dir, *d.split("/"))) for d in _V2_DIRS)
                                  or _old_chapter_files(book_dir) or _old_volume_files(book_dir) or _docs_needed(book_dir)
-                                 or _fm_pending_quick(book_dir) or _sec_pending_quick(book_dir))
+                                 or _fm_pending_quick(book_dir) or _sec_pending_quick(book_dir)
+                                 or _schema_old(book_dir) or bool(_old_templates(book_dir)))
     # 沒有 JSON 不算舊格式：讀取時以 .md 為準，下次回寫（trackjson.sync）就會補上
 
 
@@ -476,6 +493,9 @@ def map_v3(rel):
     vol = _vol_target(rel)
     if vol:
         return vol
+    tpl = v3_view()["TEMPLATES"] + "/"
+    if rel.startswith(tpl) and rel.endswith(".md") and rel[len(tpl):-3] in TEMPLATE_NAMES:
+        return tpl + TEMPLATE_NAMES[rel[len(tpl):-3]] + ".md"        # 範本檔名
     if not _ch_scope(rel):
         return rel
     parts = rel.split("/")
@@ -901,6 +921,7 @@ def _doc_rewrite(text):
         return new + tail
     for pat, new in _DOC_VOL:
         text = pat.sub(new, text)
+    text = _TPL_REF.sub(lambda m: m.group(1) + TEMPLATE_NAMES[m.group(2)] + ".md", text)   # _templates/角色.md → character.md
     return _fix_tree(_CH_PATTERN.sub("ch-NNNN.md", _DOC_TOKEN.sub(tok, text)))
 
 
@@ -938,6 +959,53 @@ def _docs_apply(book_dir):
     for rel in _docs_pending(book_dir):
         p = os.path.join(book_dir, *rel.split("/"))
         project.write_atomic(p, _doc_rewrite(project.read_text(p)))
+    return out
+
+
+# --- 範本檔名換成英文（_templates/角色.md → character.md） ------------------------------
+# v2 的範本檔名（凍結）→ v3。專案規範.md 是 novel-setup 從 references/project-layout.md 複製的那份。
+TEMPLATE_NAMES = {"角色": "character", "勢力": "faction", "世界觀": "world", "故事核心": "story-core", "文風": "style",
+                  "名詞表": "glossary", "作者偏好": "author-prefs", "全書大綱": "book-outline", "卷綱": "volume-outline",
+                  "章綱": "chapter-card", "章節摘要": "chapter-summary", "角色狀態": "character-state", "狀態卡": "state-card",
+                  "時間線": "timeline", "伏筆": "foreshadowing", "讀者認知": "reader-knowledge", "關係": "relations",
+                  "專案規範": "project-rules"}
+_TPL_REF = re.compile(r"((?:_templates|_範本|templates)/)(%s)\.md" % "|".join(sorted(TEMPLATE_NAMES, key=len, reverse=True)))
+TEMPLATE_OLD_DIR = "_old"          # 新舊兩份都在時，舊的那份收進 _templates/_old/（不刪作者可能改過的範本）
+
+
+def _old_templates(book_dir):
+    d = os.path.join(book_dir, *v3_view()["TEMPLATES"].split("/"))
+    if not os.path.isdir(d):
+        return []
+    return [f for f in sorted(os.listdir(d)) if f.endswith(".md") and f[:-3] in TEMPLATE_NAMES]
+
+
+def _templates_needed(book_dir):
+    return rename_enabled() and (_has_v2_dirs(book_dir) or bool(_old_templates(book_dir)))
+
+
+def _templates_plan(book_dir):
+    if _has_v2_dirs(book_dir):
+        return [_AFTER_RENAME]
+    d = os.path.join(book_dir, *v3_view()["TEMPLATES"].split("/"))
+    out = []
+    for f in _old_templates(book_dir):
+        new = TEMPLATE_NAMES[f[:-3]] + ".md"
+        out.append("%s → %s" % (f, new) if not os.path.exists(os.path.join(d, new))
+                   else "%s：已經有 %s，舊的收進 %s/" % (f, new, TEMPLATE_OLD_DIR))
+    return out or ["沒有要改的"]
+
+
+def _templates_apply(book_dir):
+    out = _templates_plan(book_dir)
+    d = os.path.join(book_dir, *v3_view()["TEMPLATES"].split("/"))
+    for f in _old_templates(book_dir):
+        src = os.path.join(d, f)
+        dst = os.path.join(d, TEMPLATE_NAMES[f[:-3]] + ".md")
+        if os.path.exists(dst):
+            os.makedirs(os.path.join(d, TEMPLATE_OLD_DIR), exist_ok=True)
+            dst = os.path.join(d, TEMPLATE_OLD_DIR, f)
+        os.replace(src, dst)
     return out
 
 
@@ -1031,6 +1099,7 @@ STEPS = [
     Step("rename", "資料夾與系統檔名換成英文", _rename_needed, _rename_plan, _rename_apply),
     Step("chapters", "逐章檔名換成 ch-0001", _chapters_needed, _chapters_plan, _chapters_apply),
     Step("volumes", "卷綱檔名換成 vol-01", _volumes_needed, _volumes_plan, _volumes_apply),
+    Step("templates", "範本檔名換成英文", _templates_needed, _templates_plan, _templates_apply),
     Step("docs", "系統文件裡的路徑", _docs_needed, _docs_plan, _docs_apply),
     Step("fmkeys", "frontmatter 的鍵與固定詞換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
     Step("sections", "段落標題換成書的語言", _sections_needed, _sections_plan, _sections_apply),

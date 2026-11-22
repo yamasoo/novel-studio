@@ -244,8 +244,8 @@ def load_banned(book_root):
     items = []
     if not book_root:
         return items
-    for path, src in ((os.path.join(book_root, "設定", "作者偏好.md"), "本書作者偏好"),
-                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_shared", "作者偏好.md"), "共用作者偏好")):
+    for path, src in ((os.path.join(book_root, "bible", "author-prefs.md"), "本書作者偏好"),
+                      (os.path.join(os.path.dirname(os.path.abspath(book_root)), "_shared", "author-prefs.md"), "共用作者偏好")):
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as f:
                 items += parse_banned(f.read(), src)

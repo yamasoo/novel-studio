@@ -56,12 +56,12 @@ Write down this round's constraints and check against them while writing:
 - **Character-state carry-over**: for each main character, their goal, emotion, warmth of relationships and physical state at the end of their last scene, and what in this scene will change them.
 - **Reconciliation with settled facts**: compare each plot point on the card with the settled facts (state card, character state, "what the reader knows" in the timeline, the end of the previous chapter). When something conflicts (a character who is not present, an object not in hand, something the reader should not know yet, a timing mismatch), write it the way that agrees with the settled facts and list the conflict and your handling in the report. If a conflict is so big that it would change the result the card settles, that falls under "ask the author first".
 
-Style priority: the author's request this time > 文風.md > 作者偏好.md > writing-craft.md.
+Style priority: the author's request this time > bible/style.md > bible/author-prefs.md > writing-craft.md.
 
 ## Step 4: write the chapter
 
 - Write straight into `manuscript/ch-NNNN.md`; do not paste it in the conversation first. The first line of the file is `# 第N章 <title>` (the Chinese heading format stays; the title after it is in English).
-- English prose in the book's chosen convention (American spelling unless 文風.md says otherwise); curly quotes for dialogue, em dashes and ellipses used consistently as the style file says.
+- English prose in the book's chosen convention (American spelling unless bible/style.md says otherwise); curly quotes for dialogue, em dashes and ellipses used consistently as the style file says.
 - Dramatize the plot points as scenes in the card's order; do not just string the card's sentences together in other words.
 - Where the card is silent, apply the "three tiers of new things" in CLAUDE.md:
   - **Just write it**: passers-by, small props, scene detail.

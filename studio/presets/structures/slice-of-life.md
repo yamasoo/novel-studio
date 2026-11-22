@@ -1,5 +1,6 @@
 ---
 type: chapter-structure
+name: 日常感情
 scope: 單章
 ---
 

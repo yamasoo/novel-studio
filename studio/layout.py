@@ -4,7 +4,7 @@
 v3 結構英文化（見專案文件「15_v3結構英文化規格」）：
 程式其他地方不寫 "bible/style.md" 這類字串，一律引用這裡的常數。
 P3 第二批起，資料夾與系統檔名是英文（v2 的中文名稱對照在 studio/migrate.py，移轉工具靠它認舊書）。
-還沒換的：範本檔名（TPL_*，第七批）。
+範本檔名（TPL_*）第七批起也是英文。
 
 慣例
 - 常數一律是書資料夾底下的相對路徑，用 "/" 分隔（跟 project.rel_of 回傳的格式一致）。
@@ -26,7 +26,7 @@ SAMPLES = "samples"
 TEMPLATES = "_templates"
 STUDIO = ".studio"
 BOOK_META = "book.json"          # 書的身分證（格式版本、書名、語言）；各版都放在書的根目錄
-SCHEMA_VERSION = 2               # 這版程式寫出的書的格式。P3 把資料夾、檔名換成英文後改成 3
+SCHEMA_VERSION = 3               # 這版程式寫出的書的格式（v3：資料夾、檔名、frontmatter、標題、追蹤表都換好了）
 
 # 書架與檔案瀏覽看得到的資料夾（順序就是顯示順序）
 BROWSABLE = (BIBLE, OUTLINE, MANUSCRIPT, TRACKING, CANDIDATES, SAMPLES, TEMPLATES)
@@ -81,7 +81,7 @@ SPINOFF_DRAFTS = CANDIDATES + "/spinoff"
 # ---------------------------------------------------------------------------
 # 範本
 # ---------------------------------------------------------------------------
-PROJECT_RULES = TEMPLATES + "/專案規範.md"
+PROJECT_RULES = TEMPLATES + "/project-rules.md"
 
 # ---------------------------------------------------------------------------
 # .studio（工作台內部資料）
@@ -122,21 +122,24 @@ EXPORT = "export"
 # 範本檔名（plugin*/skills/novel-setup/templates/ 與書內 _範本/ 共用同一組檔名）
 # ---------------------------------------------------------------------------
 TEMPLATES_IN_SKILLS = "novel-setup/templates"   # 相對於 plugin*/skills/
-TPL_STORY_CORE = "故事核心.md"
-TPL_STYLE = "文風.md"
-TPL_GLOSSARY = "名詞表.md"
-TPL_AUTHOR_PREFS = "作者偏好.md"
-TPL_BOOK_OUTLINE = "全書大綱.md"
-TPL_VOLUME_OUTLINE = "卷綱.md"
-TPL_CHAPTER_CARD = "章綱.md"
-TPL_STATE_CARD = "狀態卡.md"
-TPL_FORESHADOWING = "伏筆.md"
-TPL_TIMELINE = "時間線.md"
-TPL_CHARACTER = "角色.md"
-TPL_FACTION = "勢力.md"
-TPL_WORLD = "世界觀.md"
-TPL_READER_KNOWLEDGE = "讀者認知.md"
-TPL_RELATIONS = "關係.md"
+TPL_STORY_CORE = "story-core.md"
+TPL_STYLE = "style.md"
+TPL_GLOSSARY = "glossary.md"
+TPL_AUTHOR_PREFS = "author-prefs.md"
+TPL_BOOK_OUTLINE = "book-outline.md"
+TPL_VOLUME_OUTLINE = "volume-outline.md"
+TPL_CHAPTER_CARD = "chapter-card.md"
+TPL_STATE_CARD = "state-card.md"
+TPL_FORESHADOWING = "foreshadowing.md"
+TPL_TIMELINE = "timeline.md"
+TPL_CHARACTER = "character.md"
+TPL_FACTION = "faction.md"
+TPL_WORLD = "world.md"
+TPL_READER_KNOWLEDGE = "reader-knowledge.md"
+TPL_RELATIONS = "relations.md"
+TPL_CHAPTER_SUMMARY = "chapter-summary.md"
+TPL_CHARACTER_STATE = "character-state.md"
+TPL_PROJECT_RULES = "project-rules.md"     # 書內 _templates/ 才有（從 references/project-layout.md 複製）
 
 # ---------------------------------------------------------------------------
 # 書庫層級（_shared）

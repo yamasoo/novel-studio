@@ -257,7 +257,7 @@ def claude_md(title, lang, fp, dna, source=""):
 - 對白比例：約 %s
 
 ## 資料夾
-- bible／manuscript／candidates／outline／tracking／samples，完整說明見 `_templates/專案規範.md`
+- bible／manuscript／candidates／outline／tracking／samples，完整說明見 `_templates/project-rules.md`
 - `bible/style.md` 有文字指標；寫稿時工作台會把這些數字放進上下文
 
 ## 寫作規則

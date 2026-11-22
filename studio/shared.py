@@ -21,7 +21,7 @@ from . import tables
 
 SHARED = layout.SHARED
 HERE = os.path.dirname(os.path.abspath(__file__))
-PRESET_DIR = os.path.join(HERE, "presets", "結構")  # literal-ok: repo 內建的預設結構資料夾，P3 隨 repo 檔名一起改
+PRESET_DIR = os.path.join(HERE, "presets", "structures")    # repo 內建的預設結構：檔名是英文 ID，顯示名稱在 frontmatter 的 name
 STYLE_TEMPLATE = os.path.join(os.path.dirname(HERE), "plugin", "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
 METRICS_HEAD = "## 文字指標（程式統計）"
 METRICS_RX = r"## " + sections.head_rx("style", "metrics")       # 三語都認
@@ -460,8 +460,9 @@ def style_deviation_findings(book_dir, text):
 def _structure_info(path, origin):
     text = project.read_text(path)
     fm, _ = project.split_frontmatter(text)
-    name = os.path.splitext(os.path.basename(path))[0]
-    return {"name": name, "origin": origin, "scope": str(fm.get("scope") or ""), "summary": _summary(text),
+    stem = os.path.splitext(os.path.basename(path))[0]
+    name = str(fm.get("name") or stem) if origin == "preset" else stem       # 內建結構：檔名是 ID，名稱看 frontmatter
+    return {"name": name, "id": stem, "origin": origin, "scope": str(fm.get("scope") or ""), "summary": _summary(text),
             "default": fmkeys.value_en("default", fm.get("default")) in ("true", "True", "yes"), "lang": text_lang(text)}
 
 
@@ -473,9 +474,9 @@ def _summary(text):
 def list_structures(library):
     out = []
     if os.path.isdir(PRESET_DIR):
-        for f in sorted(os.listdir(PRESET_DIR)):
-            if f.endswith(".md"):
-                out.append(dict(_structure_info(os.path.join(PRESET_DIR, f), "preset"), file="preset:" + f))
+        presets = [dict(_structure_info(os.path.join(PRESET_DIR, f), "preset"), file="preset:" + f)
+                   for f in os.listdir(PRESET_DIR) if f.endswith(".md")]
+        out += sorted(presets, key=lambda x: x["name"])         # 依顯示名稱排（檔名是英文 ID）
     d = os.path.join(shared_dir(library), layout.SHARED_STRUCTURES)
     if os.path.isdir(d):
         for f in sorted(os.listdir(d)):
@@ -488,6 +489,12 @@ def structure_path(library, name, origin):
     name = _name_ok(name)
     if origin == "preset":
         p = os.path.join(PRESET_DIR, name + ".md")
+        if not os.path.isfile(p) and os.path.isdir(PRESET_DIR):          # 用顯示名稱（三幕式）找
+            for f in sorted(os.listdir(PRESET_DIR)):
+                q = os.path.join(PRESET_DIR, f)
+                if f.endswith(".md") and str(project.split_frontmatter(project.read_text(q))[0].get("name") or "") == name:
+                    p = q
+                    break
     else:
         p = os.path.join(shared_dir(library), layout.SHARED_STRUCTURES, name + ".md")
     if not os.path.isfile(p):

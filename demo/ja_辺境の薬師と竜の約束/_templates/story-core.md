@@ -2,7 +2,6 @@
 type: story-core
 title:
 status: draft
-lang: ja
 ---
 
 # 物語の核

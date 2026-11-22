@@ -2,7 +2,6 @@
 type: story-core
 title: 辺境の薬師と竜の約束
 status: canon
-lang: ja
 ---
 
 # 物語の核

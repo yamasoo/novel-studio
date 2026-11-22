@@ -12,7 +12,7 @@
 import json
 import os
 
-from . import fingerprint, project, prompts, providers, sdna, similarity, spawn, tracking
+from . import datakeys, fingerprint, project, prompts, providers, sdna, similarity, spawn, tracking
 from . import layout, sections
 
 REL_DIR = layout.SPINOFF_DRAFTS
@@ -25,19 +25,21 @@ RULE = """你在幫作者開一本新書的骨架。只輸出一個 JSON 物件�
 
 文風參考（照這個語感寫設定與卷綱，但不要抄句子）：
 %s"""
+# JSON 的鍵照抄英文（三語共用）；說明與內容用書的語言。模型回中文鍵也收（datakeys.SKELETON）。
 SCHEMA = """{
- "書名建議": "兩到六個字",
- "一句話前提": "誰在什麼處境下、想要什麼、被什麼擋住",
- "賣點": ["三到五條"],
- "主角": [{"名字": "", "定位": "", "動機": "", "弱點": ""}],
- "世界觀要點": ["五到八條"],
- "語感說明": "一句話描述這本新書要維持的語感"
-}"""
+ "title_suggestion": "書名建議：兩到六個字",
+ "premise": "一句話前提：誰在什麼處境下、想要什麼、被什麼擋住",
+ "selling_points": ["賣點，三到五條"],
+ "protagonists": [{"name": "名字", "role": "定位", "motive": "動機", "weakness": "弱點"}],
+ "world_points": ["世界觀要點，五到八條"],
+ "voice_note": "一句話描述這本新書要維持的語感"
+}
+JSON 的鍵照抄上面的英文鍵（不要翻成中文）。"""
 VOL_RULE = """根據下面的前提與主角，排出第一卷到第二卷的卷綱。只輸出 JSON：
 {
- "卷綱": [{"卷": 1, "名稱": "", "章數": 30, "主線": "", "卷末狀態": ""}]
+ "volumes": [{"volume": 1, "title": "卷名", "chapter_count": 30, "main_line": "主線", "end_state": "卷末狀態"}]
 }
-章數請參考骨架的平均章數（會給你）。不要寫章節細節。"""
+JSON 的鍵照抄英文。chapter_count（章數）請參考骨架的平均章數（會給你）。不要寫章節細節。"""
 
 
 def _cfg():
@@ -71,18 +73,20 @@ def forbidden(source_dir):
 
 
 def _style_brief(fp, dna, exemplars=3):
-    m = (fp or {}).get("文字指標") or {}
-    ch = (fp or {}).get("章節") or {}
-    parts = ["對白比例 %s" % (m.get("對白比例") or "—"),
-             "平均句長 %s" % (m.get("平均句長") or "—"),
-             "短句比例 %s" % (m.get("短句比例") or "—"),
-             "平均段長 %s" % (m.get("平均段長") or "—")]
-    if (dna or {}).get("視角"):
-        parts.append("視角 %s" % dna["視角"].get("人稱"))
+    fp = datakeys.to_en(fp or {}, datakeys.FINGERPRINT)
+    dna = datakeys.to_en(dna or {}, datakeys.DNA)
+    m = fp.get("metrics") or {}
+    ch = fp.get("chapters") or {}
+    parts = ["對白比例 %s" % (m.get("dialogue_ratio") or "—"),
+             "平均句長 %s" % (m.get("avg_sentence_length") or "—"),
+             "短句比例 %s" % (m.get("short_sentence_ratio") or "—"),
+             "平均段長 %s" % (m.get("avg_paragraph_length") or "—")]
+    if dna.get("pov"):
+        parts.append("視角 %s" % dna["pov"].get("person"))
     if ch:
-        parts.append("平均章長約 %s 字" % ch.get("平均章長"))
+        parts.append("平均章長約 %s 字" % ch.get("mean"))
     out = "、".join(parts)
-    samples = [s for s in ((fp or {}).get("代表句") or [])][:exemplars]
+    samples = [s for s in (fp.get("exemplars") or [])][:exemplars]
     if samples:
         out += "\n代表句（語感參考，人名已遮；不要照抄）：\n" + "\n".join("- " + s for s in samples)
     return out
@@ -110,7 +114,7 @@ def _ask(prov, rule, user, max_tokens=4000):
         data = providers.parse_json(text)
     if not isinstance(data, dict):
         raise SystemExit("模型沒有回傳 JSON 物件")
-    return data
+    return datakeys.to_en(data, datakeys.SKELETON)      # 模型回中文鍵也收
 
 
 def generate(prov, source_dir, note="", lang=None, rounds=0, progress=None):
@@ -123,7 +127,7 @@ def generate(prov, source_dir, note="", lang=None, rounds=0, progress=None):
     fp = fingerprint.build(source_dir)
     say("量結構 DNA…")
     dna = sdna.build(source_dir, fp)
-    lang = lang or fp.get("語言") or "zh-TW"
+    lang = lang or fp.get("lang") or "zh-TW"
     say("整理禁用名單…")
     ban = forbidden(source_dir)
     style = _style_brief(fp, dna)
@@ -144,14 +148,14 @@ def generate(prov, source_dir, note="", lang=None, rounds=0, progress=None):
     say("產生卷綱（第 2 次模型呼叫）…")
     volumes = _ask(prov, rule + "\n\n" + VOL_RULE,
                    "前提：%s\n主角：%s\n骨架平均章數：約 %s 章\n只輸出 JSON。" % (
-                       data.get("一句話前提", ""),
-                       "、".join(c.get("名字", "") for c in (data.get("主角") or [])),
-                       (dna.get("章節") or {}).get("平均") or 3000),
+                       data.get("premise", ""),
+                       "、".join(c.get("name", "") for c in (data.get("protagonists") or [])),
+                       (dna.get("chapters") or {}).get("mean") or 3000),
                    max_tokens=3000)   # 推理模型：思考也算在 max_tokens，別給太小
-    data["卷綱"] = volumes.get("卷綱") or []
-    data["骨架來源"] = os.path.basename(source_dir)
-    data["護欄"] = {"撞到名字": _guard(data, source_dir), "禁用名單數": len(ban)}
-    data["語言"] = lang
+    data["volumes"] = volumes.get("volumes") or []
+    data["source"] = os.path.basename(source_dir)
+    data["guard"] = {"name_hits": _guard(data, source_dir), "banned_count": len(ban)}
+    data["lang"] = lang
     return data
 
 
@@ -165,29 +169,30 @@ def save(book_dir, data):
     md_p = os.path.join(d, layout.SPINOFF_SKELETON_MD)
     with open(md_p, "w", encoding="utf-8", newline="\n") as f:
         f.write(show(data))
-    return REL_DIR + "/骨架.json"
+    return REL_DIR + "/" + layout.SPINOFF_SKELETON_JSON
 
 
 def show(data):
     if not data:
         return "（還沒有骨架草稿）"
+    data = datakeys.to_en(data, datakeys.SKELETON)
     L = ["# 新書骨架草稿", "",
-         "> 由 P6「A 書→B 書」產生，來源骨架：%s。滿意再手動套用到 bible/ 與 outline/。" % data.get("骨架來源", "—"), "",
-         "## 書名建議", data.get("書名建議") or "—", "",
-         "## 一句話前提", data.get("一句話前提") or "—", "",
+         "> 由 P6「A 書→B 書」產生，來源骨架：%s。滿意再手動套用到 bible/ 與 outline/。" % data.get("source", "—"), "",
+         "## 書名建議", data.get("title_suggestion") or "—", "",
+         "## 一句話前提", data.get("premise") or "—", "",
          "## 賣點"]
-    L += ["- " + x for x in (data.get("賣點") or [])] or ["- （無）"]
+    L += ["- " + x for x in (data.get("selling_points") or [])] or ["- （無）"]
     L += ["", "## 主角"]
-    for c in data.get("主角") or []:
-        L.append("- **%s**（%s）：動機 %s；弱點 %s" % (c.get("名字"), c.get("定位"), c.get("動機"), c.get("弱點")))
+    for c in data.get("protagonists") or []:
+        L.append("- **%s**（%s）：動機 %s；弱點 %s" % (c.get("name"), c.get("role"), c.get("motive"), c.get("weakness")))
     L += ["", "## 世界觀要點"]
-    L += ["- " + x for x in (data.get("世界觀要點") or [])]
+    L += ["- " + x for x in (data.get("world_points") or [])]
     L += ["", "## 卷綱"]
-    for v in data.get("卷綱") or []:
+    for v in data.get("volumes") or []:
         L.append("- 第%s卷《%s》%s 章：%s（卷末：%s）"
-                 % (v.get("卷"), v.get("名稱"), v.get("章數"), v.get("主線"), v.get("卷末狀態")))
+                 % (v.get("volume"), v.get("title"), v.get("chapter_count"), v.get("main_line"), v.get("end_state")))
     L += ["", "## 護欄", "- 撞到來源名字：%s" % (
-        "、".join((data.get("護欄") or {}).get("撞到名字") or []) or "沒有")]
+        "、".join((data.get("guard") or {}).get("name_hits") or []) or "沒有")]
     return "\n".join(L) + "\n"
 
 
@@ -220,12 +225,12 @@ def _vol_rows(volumes):
     for i, v in enumerate(volumes, 1):
         if not isinstance(v, dict):
             continue
-        n = max(1, _as_int(v.get("章數"), 30))
-        no = _as_int(v.get("卷"), i)
-        rows.append({"no": no, "name": str(v.get("名稱") or "第%d卷" % no),
+        n = max(1, _as_int(v.get("chapter_count"), 30))
+        no = _as_int(v.get("volume"), i)
+        rows.append({"no": no, "name": str(v.get("title") or "第%d卷" % no),
                      "lo": start, "hi": start + n - 1, "n": n,
-                     "main": str(v.get("主線") or "").strip(),
-                     "end": str(v.get("卷末狀態") or "").strip()})
+                     "main": str(v.get("main_line") or "").strip(),
+                     "end": str(v.get("end_state") or "").strip()})
         start += n
     return rows
 
@@ -234,8 +239,8 @@ def _avg_chars(fp, dna):
     for obj in (dna, fp):
         if not isinstance(obj, dict):
             continue
-        ch = obj.get("章節") or {}
-        for key in ("平均", "平均章長"):
+        ch = obj.get("chapters") or {}
+        for key in ("mean",):
             n = _as_int(ch.get(key), 0)
             if n > 0:
                 return n
@@ -243,14 +248,15 @@ def _avg_chars(fp, dna):
 
 
 def _story_core_md(data, title, lang, dna):
-    premise = str(data.get("一句話前提") or "").strip()
-    sells = [str(x).strip() for x in (data.get("賣點") or []) if str(x).strip()]
-    prots = [p for p in (data.get("主角") or []) if isinstance(p, dict)]
-    volumes = [v for v in (data.get("卷綱") or []) if isinstance(v, dict)]
-    total = sum(max(1, _as_int(v.get("章數"), 30)) for v in volumes)
+    premise = str(data.get("premise") or "").strip()
+    sells = [str(x).strip() for x in (data.get("selling_points") or []) if str(x).strip()]
+    prots = [p for p in (data.get("protagonists") or []) if isinstance(p, dict)]
+    volumes = [v for v in (data.get("volumes") or []) if isinstance(v, dict)]
+    total = sum(max(1, _as_int(v.get("chapter_count"), 30)) for v in volumes)
     avg = _avg_chars(None, dna)
-    pov = ((dna or {}).get("視角") or {}).get("人稱") or "（待補：骨架未指定）"
-    L = ["---", "type: story-core", "title: %s" % title, "status: draft", "lang: %s" % lang,
+    pov = ((dna or {}).get("pov") or {}).get("person") or "（待補：骨架未指定）"
+    # 語言只記在 book.json（apply_new 寫），故事核心不再記
+    L = ["---", "type: story-core", "title: %s" % title, "status: draft",
          "chapter_length: %d" % avg, "---", "",
          "# 故事核心", "", "## 一句話鉤子", premise, "",
          "## 題材與定位",
@@ -263,10 +269,10 @@ def _story_core_md(data, title, lang, dna):
     L += ["%d. %s" % (i, x) for i, x in enumerate(sells, 1)] or ["1. （待補）"]
     L += ["", "## 主角"]
     for p in prots:
-        name = str(p.get("名字") or "（未命名）").strip()
-        role = str(p.get("定位") or "").strip()
-        motive = str(p.get("動機") or "（待補）").strip()
-        weak = str(p.get("弱點") or "（待補）").strip()
+        name = str(p.get("name") or "（未命名）").strip()
+        role = str(p.get("role") or "").strip()
+        motive = str(p.get("motive") or "（待補）").strip()
+        weak = str(p.get("weakness") or "（待補）").strip()
         L.append("- **%s**%s：動機 %s；弱點 %s"
                  % (name, ("（%s）" % role) if role else "", motive, weak))
     if not prots:
@@ -281,7 +287,7 @@ def _story_core_md(data, title, lang, dna):
 
 
 def _world_md(data):
-    points = [str(x).strip() for x in (data.get("世界觀要點") or []) if str(x).strip()]
+    points = [str(x).strip() for x in (data.get("world_points") or []) if str(x).strip()]
     if not points:
         return ""
     L = ["---", "type: world", "category: other", "tags: []", "name: 世界觀要點", "status: draft", "---", "",
@@ -291,7 +297,7 @@ def _world_md(data):
 
 
 def _outline_md(data, rows, dna):
-    premise = str(data.get("一句話前提") or "").strip()
+    premise = str(data.get("premise") or "").strip()
     total = rows[-1]["hi"] if rows else 0
     avg = _avg_chars(None, dna)
     L = ["---", "type: book-outline", "status: draft", "---", "", "# 全書大綱", "",
@@ -363,9 +369,10 @@ def apply_new(book_dir, data, title=None, lang="zh-TW", source=""):
     寫入 故事核心／世界觀／全書大綱／卷綱，最後才寫 CLAUDE.md。最後才寫是刻意的：
     前面的檔案失敗時這本書還不是專案，重跑一次就好，不會卡在「已是專案」。
     """
-    if not isinstance(data, dict) or not str(data.get("一句話前提") or "").strip():
+    data = datakeys.to_en(data, datakeys.SKELETON) if isinstance(data, dict) else data   # 舊骨架是中文鍵
+    if not isinstance(data, dict) or not str(data.get("premise") or "").strip():
         raise project.ProjectError("骨架沒有內容，不能套用。")
-    volumes = [v for v in (data.get("卷綱") or []) if isinstance(v, dict)]
+    volumes = [v for v in (data.get("volumes") or []) if isinstance(v, dict)]
     if not volumes:
         raise project.ProjectError("骨架沒有卷綱，不能直接開書；請重試產生骨架。")
     title = (title or os.path.basename(book_dir)).strip()
@@ -374,8 +381,8 @@ def apply_new(book_dir, data, title=None, lang="zh-TW", source=""):
         old = project.read_text(cpath)
         if "用參考書骨架直接開書" not in old:
             raise project.ProjectError("這本書已經是專案，不能用『直接開書』覆蓋；請改用開書訪談或手動套用。")
-    fp = _load_json(layout.path(book_dir, layout.STYLE_FINGERPRINT))
-    dna = _load_json(layout.path(book_dir, layout.STRUCTURE_DNA))
+    fp = datakeys.to_en(_load_json(layout.path(book_dir, layout.STYLE_FINGERPRINT)) or {}, datakeys.FINGERPRINT)
+    dna = datakeys.to_en(_load_json(layout.path(book_dir, layout.STRUCTURE_DNA)) or {}, datakeys.DNA)
     rows = _vol_rows(volumes)
     if not rows:
         raise project.ProjectError("骨架的卷綱格式不對，不能直接開書。")
@@ -397,5 +404,7 @@ def apply_new(book_dir, data, title=None, lang="zh-TW", source=""):
     put(layout.BOOK_OUTLINE, _outline_md(data, rows, dna))
     for r in rows:
         put(layout.volume_file(int(r["no"])), _volume_md(r))
+    from . import bookmeta
+    bookmeta.write(book_dir, lang=lang)       # 語言只記在 book.json
     put("CLAUDE.md", _claude_md(title, lang, fp, dna, source))
     return {"files": files, "backups": backups}

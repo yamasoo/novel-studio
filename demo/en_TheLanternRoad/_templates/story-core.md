@@ -2,7 +2,6 @@
 type: story-core
 title:
 status: draft
-lang: en
 ---
 
 # Story core

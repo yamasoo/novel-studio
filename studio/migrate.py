@@ -7,6 +7,7 @@
 - 統計只比對「內容有沒有掉」：章數、正文總字數、章綱數、設定條目數、各追蹤表列數。
 """
 import datetime
+import json
 import os
 import re
 import unicodedata
@@ -1094,6 +1095,74 @@ def _tables_apply(book_dir):
     return out
 
 
+# --- 指紋、結構 DNA、骨架的 JSON 鍵換成英文；故事核心不再記語言 -------------------------
+_FM_LANG = re.compile(r"^(?:lang|語言)\s*[:：].*\n", re.M)
+
+
+def _data_json_files(book_dir):
+    from . import datakeys
+    out = []
+    for rel, table in ((layout.STYLE_FINGERPRINT, datakeys.FINGERPRINT),
+                       (layout.STRUCTURE_DNA, datakeys.DNA),
+                       (layout.SPINOFF_DRAFTS + "/" + layout.SPINOFF_SKELETON_JSON, datakeys.SKELETON)):
+        p = os.path.join(book_dir, *rel.split("/"))
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if datakeys.has_cjk_key(data):
+            out.append((rel, p, data, table))
+    return out
+
+
+def _core_lang_line(book_dir):
+    """故事核心 frontmatter 還有 lang／語言 那一行，而且 book.json 已經記了語言。"""
+    if not bookmeta.read(book_dir).get("lang"):
+        return None
+    p = layout.path(book_dir, layout.STORY_CORE)
+    if not os.path.isfile(p):
+        return None
+    text = project.read_text(p)
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    head = text[:end + 1] if end > 0 else ""
+    return p if _FM_LANG.search(head) else None
+
+
+def _datakeys_needed(book_dir):
+    # 讀的時候兩種鍵都認，所以不會單獨讓一本書被判成「要轉換」；轉換舊書時順便做
+    if not rename_enabled():
+        return False
+    return _has_v2_dirs(book_dir) or bool(_data_json_files(book_dir)) or bool(_core_lang_line(book_dir))
+
+
+def _datakeys_plan(book_dir):
+    if _has_v2_dirs(book_dir):
+        return [_AFTER_RENAME]
+    out = ["%s：鍵換成英文" % rel for rel, _, _, _ in _data_json_files(book_dir)]
+    if _core_lang_line(book_dir):
+        out.append("%s：拿掉 lang（語言只記在 %s）" % (layout.STORY_CORE, layout.BOOK_META))
+    return out or ["沒有要改的"]
+
+
+def _datakeys_apply(book_dir):
+    from . import datakeys
+    out = _datakeys_plan(book_dir)
+    for rel, p, data, table in _data_json_files(book_dir):
+        text = json.dumps(datakeys.to_en(data, table), ensure_ascii=False, indent=1) + "\n"
+        project.write_atomic(p, text)
+    p = _core_lang_line(book_dir)
+    if p:
+        text = project.read_text(p)
+        end = text.find("\n---", 3)
+        project.write_atomic(p, _FM_LANG.sub("", text[:end + 1]) + text[end + 1:])
+    return out
+
+
 STEPS = [
     Step("book_meta", "書的身分證 book.json", _meta_needed, _meta_plan, _meta_apply),
     Step("rename", "資料夾與系統檔名換成英文", _rename_needed, _rename_plan, _rename_apply),
@@ -1104,6 +1173,8 @@ STEPS = [
     Step("fmkeys", "frontmatter 的鍵與固定詞換成英文", _fmkeys_needed, _fmkeys_plan, _fmkeys_apply),
     Step("sections", "段落標題換成書的語言", _sections_needed, _sections_plan, _sections_apply),
     Step("tables", "追蹤表加上 JSON 正本", _tables_needed, _tables_plan, _tables_apply),
+    Step("datakeys", "指紋、結構 DNA、骨架的鍵換成英文；故事核心不再記語言",
+         _datakeys_needed, _datakeys_plan, _datakeys_apply),
 ]
 
 

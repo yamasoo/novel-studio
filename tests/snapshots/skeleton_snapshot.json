@@ -308,7 +308,7 @@
    "_templates/reader-knowledge.md": "d85aa9b82a11",
    "_templates/relations.md": "70dce8985141",
    "_templates/state-card.md": "c33a05f2f1d4",
-   "_templates/story-core.md": "aa574a52269c",
+   "_templates/story-core.md": "b84d1aaeadbb",
    "_templates/style.md": "591a81f252a6",
    "_templates/timeline.md": "4f9a6b60a017",
    "_templates/volume-outline.md": "f1ef4dfba8ee",
@@ -318,12 +318,13 @@
    "bible/factions/": "<empty dir>",
    "bible/glossary.json": "9bc074bceb58",
    "bible/glossary.md": "9968beebc091",
-   "bible/story-core.md": "aa574a52269c",
+   "bible/story-core.md": "b84d1aaeadbb",
    "bible/structure/structure.md": "8f707c14ca4a",
    "bible/style.md": "68374fe87b2d",
    "bible/world/": "<empty dir>",
    "book.json": {
     "created": "<date>",
+    "lang": "zh-TW",
     "schema_version": 3,
     "title": "示範新書"
    },

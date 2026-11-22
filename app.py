@@ -1681,7 +1681,7 @@ async def spinoff_start(book_id: str, req: Request):
                        if apply else None)
             state.update(status="done", stage="完成",
                          result={"draft": rel, "preview": spinoff.show(data),
-                                 "guard": data.get("護欄") or {}, "applied": applied})
+                                 "guard": data.get("guard") or {}, "applied": applied})
         except SystemExit as e:
             state.update(status="error", error=str(e))
         except providers.ProviderError as e:

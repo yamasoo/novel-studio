@@ -2,7 +2,6 @@
 type: story-core
 title: The Lantern Road
 status: canon
-lang: en
 ---
 
 # Story core

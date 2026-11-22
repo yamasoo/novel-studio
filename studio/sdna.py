@@ -11,7 +11,7 @@ import os
 import re
 import statistics
 
-from . import lang as lang_mod, project, prompts
+from . import datakeys, lang as lang_mod, project, prompts
 from . import layout
 
 REL = layout.STRUCTURE_DNA
@@ -37,14 +37,14 @@ def pov(texts, lang="zh-TW"):
     rx1, rx3 = PRONOUNS.get(lang, PRONOUNS["zh-TW"])
     f, t = len(rx1.findall(narration)), len(rx3.findall(narration))
     if f + t == 0:
-        return {"人稱": "無法判斷", "依據": "沒有敘述句"}
+        return {"person": "無法判斷", "basis": "沒有敘述句"}
     if f >= t * 2:
         who = "第一人稱"
     elif t >= f * 2:
         who = "第三人稱"
     else:
         who = "混合（限制視角）"
-    return {"人稱": who, "依據": "敘述句裡第一人稱 %d 次、第三人稱 %d 次" % (f, t)}
+    return {"person": who, "basis": "敘述句裡第一人稱 %d 次、第三人稱 %d 次" % (f, t)}
 
 
 def dialogue_ratio(texts):
@@ -76,10 +76,10 @@ def build(book_dir, fp=None):
 
     ch = {}
     if lens:
-        ch = {"章數": len(lens), "平均": round(statistics.mean(lens)),
-              "最短": min(lens), "最長": max(lens),
-              "變異": round(statistics.pstdev(lens) / max(1, statistics.mean(lens)), 2),
-              "最長/最短": round(max(lens) / max(1, min(lens)), 1)}  # literal-ok: 顯示文字
+        ch = {"count": len(lens), "mean": round(statistics.mean(lens)),
+              "min": min(lens), "max": max(lens),
+              "cv": round(statistics.pstdev(lens) / max(1, statistics.mean(lens)), 2),
+              "max_min_ratio": round(max(lens) / max(1, min(lens)), 1)}
     ratio = dialogue_ratio(texts)
     per_chapter = []
     for t in texts:
@@ -98,13 +98,14 @@ def build(book_dir, fp=None):
     finally:
         prompts.set_lang(prev)
 
-    return {"版本": VER, "語言": lang, "視角": pov(texts, lang), "章節": ch,
-            "對白": {"比例": round(ratio, 2), "章間變異": var},
-            "段落": {k: v for k, v in (fp.get("文字指標") or {}).items()
-                     if k in ("平均段長", "單句成段")},
-            "章長曲線": shape(lens),
-            "排除": ["人名", "地名", "專有名詞", "事件序列"],
-            "說明": "這是骨架，不會出現來源書的任何名字；要寫新書時和風格指紋一起用。"}
+    fp = datakeys.to_en(fp, datakeys.FINGERPRINT)
+    return {"version": VER, "lang": lang, "pov": pov(texts, lang), "chapters": ch,
+            "dialogue": {"ratio": round(ratio, 2), "chapter_cv": var},
+            "paragraphs": {k: v for k, v in (fp.get("metrics") or {}).items()
+                           if k in ("avg_paragraph_length", "single_sentence_paragraphs")},
+            "length_curve": shape(lens),
+            "excluded": ["names", "places", "proper_nouns", "event_order"],
+            "note": "這是骨架，不會出現來源書的任何名字；要寫新書時和風格指紋一起用。"}
 
 
 def save(book_dir):
@@ -124,18 +125,19 @@ def load(book_dir):
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:
-        return json.load(f)
+        return datakeys.to_en(json.load(f), datakeys.DNA)      # 舊檔是中文鍵
 
 
 def show(data):
     if not data:
         return "（還沒有結構 DNA；先跑 tools/sdna.py --book <書> --save）"
-    ch = data.get("章節") or {}
-    d = data.get("對白") or {}
-    L = ["語言 %s｜%s（%s）" % (data.get("語言"), (data.get("視角") or {}).get("人稱"),
-                               (data.get("視角") or {}).get("依據")),
+    data = datakeys.to_en(data, datakeys.DNA)
+    ch = data.get("chapters") or {}
+    d = data.get("dialogue") or {}
+    pv = data.get("pov") or {}
+    L = ["語言 %s｜%s（%s）" % (data.get("lang"), pv.get("person"), pv.get("basis")),
          "章長：平均 %d、最短 %d、最長 %d、變異 %.2f、最長/最短 %.1f"  # literal-ok: 顯示文字
-         % (ch.get("平均", 0), ch.get("最短", 0), ch.get("最長", 0), ch.get("變異", 0), ch.get("最長/最短", 0)),  # literal-ok: 顯示文字
-         "對白：比例 %.0f%%、章間變異 %.2f" % ((d.get("比例") or 0) * 100, d.get("章間變異") or 0),
-         "章長曲線：" + "、".join("%.2f" % x for x in (data.get("章長曲線") or []))]
+         % (ch.get("mean", 0), ch.get("min", 0), ch.get("max", 0), ch.get("cv", 0), ch.get("max_min_ratio", 0)),
+         "對白：比例 %.0f%%、章間變異 %.2f" % ((d.get("ratio") or 0) * 100, d.get("chapter_cv") or 0),
+         "章長曲線：" + "、".join("%.2f" % x for x in (data.get("length_curve") or []))]
     return "\n".join(L)

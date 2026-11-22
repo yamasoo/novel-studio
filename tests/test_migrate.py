@@ -2,6 +2,7 @@
 """book.json 與格式移轉工具（v3 P3 第一批）。"""
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -115,7 +116,8 @@ class MigrateTest(unittest.TestCase):
         before = _snapshot(b)
         r = migrate.migrate(b, dry_run=True)
         self.assertEqual("dry_run", r["status"])
-        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "templates", "docs", "fmkeys", "sections", "tables"],
+        self.assertEqual(["book_meta", "rename", "chapters", "volumes", "templates", "docs", "fmkeys", "sections", "tables",
+                          "datakeys"],
                          [s["key"] for s in r["steps"]])
         self.assertEqual(["資料夾改名後一併處理"], r["steps"][-1]["changes"], "改名後才做的步驟也先列出來")
         self.assertIn("建立 book.json（語言 en）", r["steps"][0]["changes"])
@@ -141,7 +143,10 @@ class MigrateTest(unittest.TestCase):
                 self.assertEqual(trackjson.state(b, j[:-5] + ".md")[0], "same", j)
             for k, v in moved.items():
                 if k not in rewritten and not k.startswith(layout.TEMPLATES + "/"):
-                    self.assertEqual(_fm(k, v, lang), after[k], k)
+                    want = _fm(k, v, lang)
+                    if k == layout.STORY_CORE:          # 語言只記在 book.json：故事核心拿掉 lang 那一行
+                        want = re.sub(rb"(?m)^lang: .*\n", b"", want)
+                    self.assertEqual(want, after[k], k)
             self.assertTrue(os.path.isfile(r["report"]))
             self.assertTrue(os.path.isfile(r["backup"]))
             self.assertEqual("skipped", migrate.migrate(b)["status"], "第二次直接跳過")
@@ -681,11 +686,11 @@ class FmKeysStepTest(unittest.TestCase):
         before = migrate.stats(self.book)
         r = migrate.migrate(self.book)
         self.assertEqual("done", r["status"], r.get("message"))
-        self.assertEqual(["fmkeys"], [s["key"] for s in r["steps"]])
+        self.assertEqual(["fmkeys", "datakeys"], [s["key"] for s in r["steps"]])
         self.assertEqual(before, migrate.stats(self.book))
         read = lambda rel: project.read_text(os.path.join(self.book, *rel.split("/")))
-        self.assertEqual("---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\nlang: zh-TW\n---\n\n# 故事核心\n\n狀態: 這行是正文\n",
-                         read("bible/story-core.md"), "全形冒號補空格；固定詞換成英文 ID；正文不動")
+        self.assertEqual("---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\n---\n\n# 故事核心\n\n狀態: 這行是正文\n",
+                         read("bible/story-core.md"), "全形冒號補空格；固定詞換成英文 ID；正文不動；語言只記在 book.json")
         self.assertEqual("---\ntype: character\nname: 甲\naliases:\n  - 小甲\nrole: protagonist\n自訂欄: 留著\n---\n\n# 甲\n", read("bible/characters/甲.md"))
         self.assertIn("status: approved\n狀態: 草稿\n", read("outline/chapters/ch-0001.md"), "已經有英文鍵的那一欄不重複（重複的中文行原樣）")
         self.assertEqual("---\n類型: 故事核心\n---\n", read(".studio/backup/故事核心.1.md"), "備份不動")

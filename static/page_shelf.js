@@ -207,7 +207,7 @@
         return;
       }
       const r = st.result || {};
-      const bad = (r.guard && r.guard["撞到名字"]) || [];
+      const bad = (r.guard && r.guard.name_hits) || [];
       if (st.status === "error") {
         const retryBtn = h("button", { class: "primary", id: "sp-retry" }, "重試");
         const c2 = FE.modal({

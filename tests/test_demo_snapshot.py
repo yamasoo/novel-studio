@@ -99,6 +99,9 @@ class DemoSnapshotTest(unittest.TestCase):
         if isinstance(v, str):
             s = v.replace(self.lib, "<LIB>").replace(self.lib.replace("\\", "/"), "<LIB>")
             s = s.replace(ROOT, "<ROOT>").replace(ROOT.replace("\\", "/"), "<ROOT>")
+            home = os.path.expanduser("~")       # 書架的建議書庫位置在使用者家目錄底下；CI 的家目錄不同
+            if home and home not in ("~", "/"):
+                s = s.replace(home, "<HOME>").replace(home.replace("\\", "/"), "<HOME>")
             s = re.sub(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?", "<datetime>", s)
             return s
         return v

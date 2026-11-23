@@ -45,7 +45,7 @@
    "exists": true,
    "library": "<LIB>",
    "shared_needs_migration": false,
-   "suggested": "/root/Documents/小說",
+   "suggested": "<HOME>/Documents/小說",
    "suggested_exists": false
   },
   "status": 200
@@ -1949,7 +1949,7 @@
     "exists": true,
     "library": "<LIB>",
     "shared_needs_migration": false,
-    "suggested": "/root/Documents/小說",
+    "suggested": "<HOME>/Documents/小說",
     "suggested_exists": false
    },
    "status": 200

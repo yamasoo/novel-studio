@@ -1712,13 +1712,15 @@ def spinoff_status(book_id: str, task_id: str):
 
 
 @app.get("/api/books/{book_id}/drift")
-def drift_report(book_id: str, from_: int = Query(None, alias="from"), to: int = None):
-    """卷末體檢：本機計算的漂移報告（不呼叫模型）。"""
+def drift_report(book_id: str, from_: int = Query(None, alias="from"), to: int = None, lang: str = "zh-TW"):
+    """卷末體檢：本機計算的漂移報告（不呼叫模型）。lang：介面語言（報告只在頁面上給作者看）。"""
     d = book_dir(book_id)
     prompts.set_lang(lang_mod.book_lang(d))
     info = drift.drift(d, from_, to)
-    return {"report": drift.report_md(d, info), "findings": drift.findings(info),
-            "range": info["range"], "count": len(drift.findings(info))}
+    ui = lang if lang in drift.T else "zh-TW"
+    fs = drift.findings(info, ui)
+    return {"report": drift.report_md(d, info, lang=ui), "findings": fs,
+            "range": info["range"], "count": len(fs)}
 
 
 @app.post("/api/books/{book_id}/drift/plan")

@@ -13,7 +13,7 @@
 import os
 import re
 
-from . import contract, project, prompts, recall, shared, style_loop, textguard, volume
+from . import contract, datakeys, enums, project, prompts, recall, shared, style_loop, textguard, volume
 from . import layout, sections, tables
 
 IDLE_CHARS = 20      # 幾章沒登場算「消失」
@@ -214,63 +214,107 @@ def drift(book_dir, start=None, end=None, idle=IDLE_CHARS, thread_age=THREAD_AGE
             "style": style, "worst_style": worst_style}
 
 
-def findings(d):
-    """把 drift() 的結果寫成人看的條列（≥3 條就符合報告的驗收）。"""
+# 偏離報告的句子。報告只在卷末體檢頁顯示給作者看，所以跟**介面語言**（API 的 lang 參數），
+# 不是書的語言；繁中逐字照舊。章綱與正文的內容（情節點、名字）照原樣放進去。
+T = {
+    "zh-TW": {
+        "no_text": "沒有正文，無法偵測",
+        "low_lines": "第%d章章綱只寫到 %.0f%%：沒寫到的情節點像是「%s」", "q_join": "」「",
+        "low_words": "第%d章章綱覆蓋只有 %.0f%%（沒寫到的詞：%s）", "sep": "、",
+        "absent": "第%d章章綱點名「%s」但正文沒出現",
+        "idle": "角色「%s」（%s）已經 %d 章沒登場（最後：第%d章）",
+        "aged": "伏筆 %s（重要度%s）埋在第%d章、已經 %d 章沒處理（%s）",
+        "threads": "未回收伏筆共 %d 條，最久的一條已經 %d 章",
+        "style": "第%d章的文風偏離 %.2f 倍（%s，明顯 %d 項）",
+        "title": "# 漂移報告（第%d–%d 章，共 %d 章）", "main": "## 主要偏離（%d 條）", "none": "（沒有明顯偏離）",
+        "cover": "## 章綱覆蓋", "cover_head": "| 章 | 覆蓋 | 沒寫到的情節點 |", "no_show": "沒出場：",
+        "trend": "## 文風趨勢", "avg": "平均偏離 %.2f 倍（門檻 %.1f）；最偏的幾章：", "worst": "- 第%d章 %.2f 倍（%s）",
+    },
+    "en": {
+        "no_text": "No text yet, nothing to check",
+        "low_lines": "Chapter %d covers only %.0f%% of its card: plot points not written include “%s”", "q_join": "”, “",
+        "low_words": "Chapter %d covers only %.0f%% of its card (missing words: %s)", "sep": ", ",
+        "absent": "The card for chapter %d names “%s”, but they don't appear in the text",
+        "idle": "Character “%s” (%s) hasn't appeared for %d chapters (last: chapter %d)",
+        "aged": "Thread %s (priority %s), planted in chapter %d, untouched for %d chapters (%s)",
+        "threads": "%d open threads; the oldest has waited %d chapters",
+        "style": "Chapter %d drifts %.2f× from the style (%s; %d clear deviations)",
+        "title": "# Drift report (chapters %d–%d, %d chapters)", "main": "## Main deviations (%d)", "none": "(no clear deviations)",
+        "cover": "## Chapter-card coverage", "cover_head": "| Ch. | Coverage | Plot points not written |", "no_show": "not on stage: ",
+        "trend": "## Style trend", "avg": "Average deviation %.2f× (threshold %.1f); the chapters that drift most:",
+        "worst": "- Chapter %d %.2f× (%s)",
+    },
+    "ja": {
+        "no_text": "本文がないため、チェックできません",
+        "low_lines": "第%d章は章カードの %.0f%% しか書けていません：書かれていないプロットポイント「%s」", "q_join": "」「",
+        "low_words": "第%d章の章カードの反映は %.0f%% だけです（書かれていない語：%s）", "sep": "、",
+        "absent": "第%d章の章カードに「%s」がありますが、本文に出てきません",
+        "idle": "キャラクター「%s」（%s）が %d 章登場していません（最後：第%d章）",
+        "aged": "伏線 %s（重要度 %s）は第%d章で仕込まれ、%d 章触れられていません（%s）",
+        "threads": "未回収の伏線 %d 件、いちばん古いものは %d 章",
+        "style": "第%d章の文体のずれ %.2f 倍（%s、明らかなもの %d 項目）",
+        "title": "# ずれのレポート（第%d–%d章、全 %d 章）", "main": "## 主なずれ（%d 件）", "none": "（目立ったずれはありません）",
+        "cover": "## 章カードの反映", "cover_head": "| 章 | 反映 | 書かれていないプロットポイント |", "no_show": "未登場：",
+        "trend": "## 文体の傾向", "avg": "平均のずれ %.2f 倍（基準 %.1f）。ずれの大きい章：", "worst": "- 第%d章 %.2f 倍（%s）",
+    },
+}
+
+
+def _t(lang):
+    return T.get(lang) or T["zh-TW"]
+
+
+def findings(d, lang="zh-TW"):
+    """把 drift() 的結果寫成人看的條列（≥3 條就符合報告的驗收）。lang：介面語言。"""
+    t = _t(lang)
     if d.get("error"):
-        return ["沒有正文，無法偵測"]
+        return [t["no_text"]]
+    role = (lambda v: v) if lang == "zh-TW" else (lambda v: enums.show("role", v, lang))
+    prio = lambda v: tables.display("foreshadow", "priority", v, lang) if v else "?"     # noqa: E731
     out = []
     for r in d["low_cover"][:6]:
         if r.get("lines"):
-            out.append("第%d章章綱只寫到 %.0f%%：沒寫到的情節點像是「%s」"
-                       % (r["chapter"], r["coverage"] * 100, "」「".join(r["lines"])))
+            out.append(t["low_lines"] % (r["chapter"], r["coverage"] * 100, t["q_join"].join(r["lines"])))
         else:
-            out.append("第%d章章綱覆蓋只有 %.0f%%（沒寫到的詞：%s）"
-                       % (r["chapter"], r["coverage"] * 100, "、".join(r["missing"][:4])))
+            out.append(t["low_words"] % (r["chapter"], r["coverage"] * 100, t["sep"].join(r["missing"][:4])))
     for r in d.get("absent_names") or []:
-        out.append("第%d章章綱點名「%s」但正文沒出現" % (r["chapter"], "、".join(r["names"][:3])))
+        out.append(t["absent"] % (r["chapter"], t["sep"].join(r["names"][:3])))
     for r in d["idle_chars"][:6]:
-        out.append("角色「%s」（%s）已經 %d 章沒登場（最後：第%d章）"
-                   % (r["name"], r["role"], r["idle"], r["last"]))
+        out.append(t["idle"] % (r["name"], role(r["role"]), r["idle"], r["last"]))
     for r in d["aged_threads"][:6]:
-        out.append("伏筆 %s（重要度%s）埋在第%d章、已經 %d 章沒處理（%s）"
-                   % (r["id"], r.get("weight") or "?", r["chapter"], r["age"], r["desc"]))
+        out.append(t["aged"] % (r["id"], prio(r.get("weight")), r["chapter"], r["age"], r["desc"]))
     if d.get("thread_total"):
-        out.append("未回收伏筆共 %d 條，最久的一條已經 %d 章" % (d["thread_total"], d["thread_oldest"]))
+        out.append(t["threads"] % (d["thread_total"], d["thread_oldest"]))
     for r in d["worst_style"]:
         if r["max_rel"] >= style_loop.LIMIT["rel"]:
-            out.append("第%d章的文風偏離 %.2f 倍（%s，明顯 %d 項）"
-                       % (r["chapter"], r["max_rel"], r["worst"], r["obvious"]))
+            out.append(t["style"] % (r["chapter"], r["max_rel"], datakeys.metric_label(r["worst"], lang), r["obvious"]))
     return out
 
 
-def report_md(book_dir, d=None, title=None):
+def report_md(book_dir, d=None, title=None, lang="zh-TW"):
     d = d or drift(book_dir)
+    t = _t(lang)
     a, b = d["range"]
-    L = ["# 漂移報告（第%d–%d 章，共 %d 章）" % (a, b, d["chapters"]), ""]
-    fs = findings(d)
-    L.append("## 主要偏離（%d 條）" % len(fs))
-    L += ["- " + f for f in fs] or ["（沒有明顯偏離）"]
-    L += ["", "## 章綱覆蓋", "| 章 | 覆蓋 | 沒寫到的情節點 |", "|---|---|---|"]
+    L = [t["title"] % (a, b, d["chapters"]), ""]
+    fs = findings(d, lang)
+    L.append(t["main"] % len(fs))
+    L += ["- " + f for f in fs] or [t["none"]]
+    L += ["", t["cover"], t["cover_head"], "|---|---|---|"]
     for r in sorted(d["cover_rows"], key=lambda r: r["coverage"])[:12]:
-        what = "」「".join(r.get("lines") or []) or "、".join(r["missing"])
+        what = t["q_join"].join(r.get("lines") or []) or t["sep"].join(r["missing"])
         if r.get("absent"):
-            what = (what + "｜" if what else "") + "沒出場：" + "、".join(r["absent"][:3])
+            what = (what + "｜" if what else "") + t["no_show"] + t["sep"].join(r["absent"][:3])
         L.append("| %d | %.0f%% | %s |" % (r["chapter"], r["coverage"] * 100, what))
     if d["style"]:
         avg = sum(r["max_rel"] for r in d["style"]) / len(d["style"])
-        L += ["", "## 文風趨勢", "平均偏離 %.2f 倍（門檻 %.1f）；最偏的幾章：" % (avg, style_loop.LIMIT["rel"])]
-        L += ["- 第%d章 %.2f 倍（%s）" % (r["chapter"], r["max_rel"], r["worst"]) for r in d["worst_style"][:5]]
+        L += ["", t["trend"], t["avg"] % (avg, style_loop.LIMIT["rel"])]
+        L += [t["worst"] % (r["chapter"], r["max_rel"], datakeys.metric_label(r["worst"], lang)) for r in d["worst_style"][:5]]
     return "\n".join(L)
 
 
 # ---------------------------------------------------------------------------
 # 可選：LLM 輕量版（只送摘要與卷綱，不送全文）
-DRIFT_RULE = """你是這本小說的責編。下面給你「卷綱」「這些章節的摘要」。請只根據這些資料找偏離：
-1. 卷綱要求但摘要裡沒看到的情節點
-2. 摘要裡有、但卷綱沒安排的事件（新增事件）
-3. 卷綱有、但這些章節裡完全沒出現的角色
-只輸出 JSON：{"missed": ["..."], "added": ["..."], "vanished": ["..."], "plan": ["..."], "note": "一句話"}
-plan 是「卷綱該怎麼改」的具體條目（最多 5 條），沒有就給空陣列。不要寫程式碼圍欄。"""
+# 送給模型的指令、使用者訊息的格式在三語提示詞（drift_rule、drift_user…），依書的語言
 
 
 def llm_pass(prov, book_dir, d, max_chars=4000):
@@ -282,21 +326,22 @@ def llm_pass(prov, book_dir, d, max_chars=4000):
     """
     from . import providers
     a, b = d["range"]
+    P = prompts.cur()          # 呼叫端已經 set_lang(書的語言)
     volume = contract.volume_outline(book_dir, a) or ""
     sums = []
     for no in range(a, b + 1):
         p = project._scan_dir(layout.path(book_dir, layout.SUMMARIES)).get(no)
         if p:
-            sums.append("第%d章：%s" % (no, project.split_frontmatter(
+            sums.append(P["drift_sum_line"].format(n=no, text=project.split_frontmatter(
                 project.read_text(layout.path(book_dir, layout.SUMMARIES, p)))[1].strip()[:400]))
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     last = ""
-    for attempt, (limit, tail) in enumerate(((4000, ""), (4000, "\n\n只輸出一個 JSON 物件，不要任何說明文字。"))):
-        user = ("【卷綱】\n%s\n\n【章節摘要】\n%s%s"
-                % (volume[:2000], "\n".join(sums), tail))[:max_chars if attempt == 0 else max(1500, max_chars // 2)]
+    for attempt, (limit, tail) in enumerate(((4000, ""), (4000, P["drift_retry_tail"]))):
+        user = P["drift_user"].format(vol=volume[:2000], sums="\n".join(sums), tail=tail)[
+            :max_chars if attempt == 0 else max(1500, max_chars // 2)]
         try:
             text, usage = providers.chat(root, prov,
-                                         [{"role": "system", "content": DRIFT_RULE},
+                                         [{"role": "system", "content": P["drift_rule"]},
                                           {"role": "user", "content": user}],
                                          json_mode=True, max_tokens=limit, stage="structured")
         except Exception as e:
@@ -330,20 +375,19 @@ def volume_rel(book_dir, no):
 
 
 def plan_md(res, a, b):
-    """把 LLM 的偏離結果寫成「卷綱更新」草稿（markdown）。"""
+    """把 LLM 的偏離結果寫成「卷綱更新」草稿（markdown）。依目前任務的語言（書的語言）寫。"""
     if res.get("error"):
         return "（產生失敗：%s）" % res["error"]
-    L = ["# 卷綱更新草稿（第%d–%d 章體檢）" % (a, b), "",
-         "> 由卷末體檢產生。看過再決定要不要附加到卷綱；不喜歡就直接丟掉。", ""]
-    for key, label in (("missed", "卷綱有、實際沒寫到"), ("added", "實際有、卷綱沒安排"),
-                       ("vanished", "卷綱有、章節沒出現的角色")):
+    P = prompts.cur()
+    L = [P["drift_plan_title"].format(a=a, b=b), "", P["drift_plan_note"], ""]
+    for key in ("missed", "added", "vanished"):
         items = res.get(key) or []
         if items:
-            L.append("## " + label)
+            L.append("## " + P["drift_" + key])
             L += ["- " + str(x) for x in items]
             L.append("")
     if res.get("plan"):
-        L.append("## 建議改卷綱")
+        L.append(P["drift_plan_head"])
         L += ["- " + str(x) for x in res["plan"]]
         L.append("")
     if res.get("note"):
@@ -376,7 +420,8 @@ def apply_plan(book_dir, no, text, a=None, b=None, notes=None):
     p = project.safe_path(book_dir, rel)
     bak = tracking.backup(book_dir, p, "卷綱更新前")
     old = project.read_text(p) if os.path.isfile(p) else ("---\ntype: volume-outline\n---\n\n# 卷綱\n")
-    head = "\n\n---\n\n## 卷綱更新（第%s–%s章體檢）\n\n" % (a or "?", b or "?")
+    from . import lang as lang_mod
+    head = "\n\n---\n\n" + prompts.t(lang_mod.book_lang(book_dir), "drift_append_head", a=a or "?", b=b or "?") + "\n\n"
     body = text.strip()
     # 草稿裡的第一個 # 標題會和卷綱標題打架，去掉它
     if body.startswith("# "):

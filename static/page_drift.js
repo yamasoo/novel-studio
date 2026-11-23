@@ -49,12 +49,15 @@
         sec.textContent = ((Date.now() - t0) / 1000).toFixed(0);
       }, 500);
       try {
-        const r = await FE.api(B("/drift?from=" + a + "&to=" + b), { signal });
+        // 報告跟介面語言（後端依 lang 寫好，不再經過頁面翻譯）
+        const r = await FE.api(B("/drift?from=" + a + "&to=" + b + "&lang=" + encodeURIComponent((FE.i18n && FE.i18n.lang) || "zh-TW")), { signal });
         clearInterval(tick);
         const planOut = h("div", { id: "dr-plan-out" });
         const planBtn = h("button", { id: "dr-plan" }, `產生卷綱更新草稿（用 ${Panel.provName()}）`);
+        const repNode = FE.md.render(r.report || "");
+        repNode.setAttribute("data-i18n-skip", "");
         out.replaceChildren(h("div", { class: "card" },
-          FE.md.render(r.report || ""),
+          repNode,
           h("div", { class: "row", style: "margin-top:10px" },
             h("span", { class: "grow" }),
             planBtn),
@@ -81,7 +84,7 @@
             if (w1.length) FE.toast(w1.join("；"), "err");
             const applyBtn = h("button", { id: "dr-apply" }, "附加到卷綱");
             planOut.replaceChildren(
-              FE.md.render(p.plan_md || ""),
+              (() => { const n = FE.md.render(p.plan_md || ""); n.setAttribute("data-i18n-skip", ""); return n; })(),   // 草稿是書的語言寫的檔案
               h("div", { class: "row" }, h("span", { class: "grow" }), applyBtn),
               h("p", { class: "muted small" }, "附加＝在 ", h("code", {}, p.volume_file), " 末尾加一節，不會覆蓋原本的卷綱。"));
             applyBtn.onclick = async () => {

@@ -26,6 +26,25 @@ METRICS = {
     "每千字AI味信號": "ai_signals_per_1k",
 }
 METRICS_ZH = {v: k for k, v in METRICS.items()}
+# 指標的顯示名稱（英文、日文；繁中就是 METRICS 的鍵）
+METRIC_LABELS = {
+    "en": {"dialogue_ratio": "dialogue ratio", "avg_sentence_length": "average sentence length",
+           "short_sentence_ratio": "short-sentence ratio", "long_sentence_ratio": "long-sentence ratio",
+           "avg_paragraph_length": "average paragraph length", "single_sentence_paragraphs": "one-sentence paragraphs",
+           "commas_per_1k": "commas per 1,000", "ellipses_per_1k": "ellipses per 1,000", "dashes_per_1k": "dashes per 1,000",
+           "exclamations_per_1k": "exclamation marks per 1,000", "de_per_1k": "的 per 1,000", "di_per_1k": "地 per 1,000",
+           "ai_signals_per_1k": "AI tells per 1,000"},
+    "ja": {"dialogue_ratio": "会話の比率", "avg_sentence_length": "平均文長", "short_sentence_ratio": "短文の比率",
+           "long_sentence_ratio": "長文の比率", "avg_paragraph_length": "平均段落長", "single_sentence_paragraphs": "一文段落",
+           "commas_per_1k": "千字あたりの読点", "ellipses_per_1k": "千字あたりの三点リーダー",
+           "dashes_per_1k": "千字あたりのダッシュ", "exclamations_per_1k": "千字あたりの感嘆符",
+           "de_per_1k": "千字あたりの「的」", "di_per_1k": "千字あたりの「地」", "ai_signals_per_1k": "千字あたりの AI っぽさ"},
+}
+
+
+def metric_label(zh_name, lang):
+    """文字指標的中文名稱 → 該語言的顯示名稱；繁中或認不得就原樣。"""
+    return METRIC_LABELS.get(lang, {}).get(METRICS.get(zh_name, ""), zh_name)
 
 FINGERPRINT = {
     "版本": "version", "語言": "lang", "章節": "chapters", "文字指標": "metrics",

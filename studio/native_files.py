@@ -263,7 +263,7 @@ def contract_text(c, drop_volume_promise=False):
     if not (t or "").strip():
         return ""
     if drop_volume_promise:
-        t = re.sub(r"##\s*4\.\s*卷末承諾.*?(?=##\s*5\.)", "", t, flags=re.S)
+        t = re.sub(r"##\s*4\.\s*\S.*?(?=##\s*5\.)", "", t, flags=re.S)     # 第 4 節（卷末承諾，三種語言的標題都是「## 4.」開頭）
     return t
 
 

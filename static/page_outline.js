@@ -188,7 +188,7 @@
             ? all.map((x) => h("div", {
               class: "item" + (x.file === file ? " active" : ""),
               onclick: () => FE.go(outlineHash(x.file)),
-            }, h("div", { class: "nm" }, x.name)))
+            }, h("div", { class: "nm" }, FE.t(x.name) + (x.title ? "《" + x.title + "》" : ""))))   // 只翻「第N卷」；卷名是書的內容
             : h("div", { class: "muted" }, "還沒有大綱。"),
           h("div", {
             class: "item",

@@ -163,3 +163,26 @@ class ChapterNumberTest(unittest.TestCase):
         text = "---\ntype: character\nfirst_appearance: 3\n---\n"
         fm, _ = project.split_frontmatter(text)
         self.assertEqual("第003章", fmkeys.ch_disp(fm["first_appearance"]))
+
+
+class ViewTest(unittest.TestCase):
+    """文件檢視器的 frontmatter 小標籤：中文顯示字（前端再翻成介面語言）。"""
+
+    def test_view_labels_and_values(self):
+        from studio import project
+        text = ("---\ntype: character\nname: 林晚\nrole: protagonist\nstatus: canon\n"
+                "first_appearance: 3\naliases: []\nnote_by_author: 自己加的\n---\n本文")
+        self.assertEqual([["類型", "角色"], ["名稱", "林晚"], ["定位", "主角"], ["狀態", "正式"],
+                          ["首次登場", "第3章"], ["note_by_author", "自己加的"]],
+                         fmkeys.view(project.split_frontmatter_raw(text)[0]))
+
+    def test_view_title_range_volume(self):
+        from studio import project
+        card = "---\ntype: chapter-card\nchapter: 12\ntitle: 夜雨\nvolume: 1\n---\n"
+        self.assertEqual([["類型", "章綱"], ["章號", "第12章"], ["章名", "夜雨"], ["所屬卷", "第1卷"]],
+                         fmkeys.view(project.split_frontmatter_raw(card)[0]))
+        vol = "---\ntype: volume-outline\ntitle: 舊帳\nchapter_range: [1, 60]\n---\n"
+        self.assertEqual([["類型", "卷綱"], ["卷名", "舊帳"], ["章節範圍", "第1–60章"]],
+                         fmkeys.view(project.split_frontmatter_raw(vol)[0]))
+        old = "---\n類型: 角色\n首次登場: 第003章\n---\n"      # v2 的中文鍵與值也一樣
+        self.assertEqual([["類型", "角色"], ["首次登場", "第3章"]], fmkeys.view(project.split_frontmatter_raw(old)[0]))

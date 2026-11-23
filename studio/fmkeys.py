@@ -176,3 +176,44 @@ def volume_int(v):
         else:
             cur = _CN_DIGITS[c]
     return (total + cur) or None
+
+
+# ---------------------------------------------------------------------------
+# 文件檢視器的 frontmatter 小標籤：[[標籤, 值], ...]，照檔案裡的順序。
+# 標籤與值都是中文顯示字，前端再用 FE.t 翻成介面語言（跟其他交給介面的值一樣）。
+# ---------------------------------------------------------------------------
+_RANGE = re.compile(r"^\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]\s*$")
+
+
+def _view_value(key, v):
+    if key in CHAPTER_KEYS or key == "chapter":
+        n = ch_int(v)
+        return "第%d章" % n if n is not None else v          # literal-ok: 介面的章號寫法（前端翻成各語言）
+    if key == "volume":
+        n = volume_int(v)
+        return "第%d卷" % n if n is not None else v          # literal-ok: 同上
+    if key == "chapter_range":
+        m = _RANGE.match(str(v))
+        return "第%s–%s章" % (m.group(1), m.group(2)) if m else v   # literal-ok: 同上（「第{0}–{1}章」）
+    return disp(key, v)
+
+
+def view(raw_fm):
+    """raw_fm：project.split_frontmatter_raw 的結果（檔案裡的鍵與順序）。空值與 [] 不列。"""
+    out = []
+    doc_type = disp("type", (to_en(raw_fm) or {}).get("type")) or ""
+    for k, v in (raw_fm or {}).items():
+        if v is None or v == "" or v == [] or str(v).strip() in ("", "[]"):
+            continue
+        key = en(k) if isinstance(k, str) else k
+        if key == "title":
+            label = TITLE_BY_TYPE.get(doc_type, "標題")      # literal-ok: 顯示名稱
+        else:
+            label = EN2ZH.get(key, k)
+        val = _view_value(key, v)
+        if isinstance(val, list):
+            val = "、".join(str(x) for x in val)
+        elif isinstance(val, bool):
+            val = "是" if val else "否"                       # literal-ok: 顯示名稱
+        out.append([str(label), str(val)])
+    return out

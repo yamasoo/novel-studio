@@ -490,7 +490,8 @@
     },
     {
      "file": "outline/volumes/vol-01.md",
-     "name": "vol-01"
+     "name": "第1卷",
+     "title": "The Erased Road"
     }
    ],
    "status": 200
@@ -2496,7 +2497,8 @@
     },
     {
      "file": "outline/volumes/vol-01.md",
-     "name": "vol-01"
+     "name": "第1卷",
+     "title": "三つの薬草"
     }
    ],
    "status": 200
@@ -3800,7 +3802,8 @@
     },
     {
      "file": "outline/volumes/vol-01.md",
-     "name": "vol-01"
+     "name": "第1卷",
+     "title": "舊帳"
     }
    ],
    "status": 200

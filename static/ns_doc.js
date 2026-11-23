@@ -80,7 +80,7 @@
       const lang = bookLang();
 
       const bar = h("div", { class: "doc-bar" },
-        h("span", { class: "path" }, f.path),
+        h("span", { class: "path" }, f.title || f.path),   // 內建結構顯示名稱（三幕式），不是 preset:three-act.md
         prose ? h("span", { class: "badge" }, `${fmtNum(f.chars)} ${unitCh(unitOfBook())}`) : null,
         h("span", { class: "grow" }),
         opts.checkable ? h("button", { class: "sm", "data-a": "check" }, "檢查用語與 AI 味") : null,
@@ -90,10 +90,16 @@
             ? [h("button", { class: "sm", "data-a": "cancel" }, "取消"), h("button", { class: "sm primary", "data-a": "save" }, "儲存")]
             : h("button", { class: "sm", "data-a": "edit" }, "編輯")));
 
-      const fmRow = Object.keys(fm).length
+      // 後端給的 fm_view 是中文顯示字（鍵→類型、值→角色、章號→第3章），這裡翻成介面語言；
+      // 沒有 fm_view（存檔後重讀前、舊後端）才退回直接顯示原始的鍵與值
+      const sep = (FE.i18n && FE.i18n.lang === "en") ? ": " : "：";
+      // 類型值跟設定集分頁共用中文（角色、勢力…），分頁的英文是複數，這裡要單數：另查專用的鍵
+      const TYPE_KEY = { "角色": "角色（類型）", "勢力": "勢力（類型）", "章綱": "章綱（類型）", "角色狀態": "角色狀態（類型）" };
+      const fmVal = (k, v) => (k === "類型" && TYPE_KEY[v] ? nsShared.tx(v, TYPE_KEY[v]) : FE.t(String(v)));
+      const fmPairs = f.fm_view || Object.entries(fm).filter(([, v]) => v !== "" && v !== "[]");
+      const fmRow = fmPairs.length
         ? h("div", { class: "fm" },
-          Object.entries(fm).filter(([, v]) => v !== "" && v !== "[]")
-            .map(([k, v]) => h("span", { class: "badge" }, FE.t(String(k)) + "：" + FE.t(String(v)))))
+          fmPairs.map(([k, v]) => h("span", { class: "badge", "data-i18n-skip": "" }, FE.t(String(k)) + sep + fmVal(k, v))))
         : null;
 
       const ta = h("textarea", {

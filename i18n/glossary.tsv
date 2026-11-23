@@ -19,7 +19,7 @@ zh	en	ja	禁用譯法	備註
 全書大綱	Book outline	全体あらすじ	en:full outline; ja:全書アウトライン	整本書的大綱
 大綱	Outline	あらすじ	ja:アウトライン	泛指「大綱」這個資料夾
 伏筆	Threads	伏線	en:hooks; ja:伏線一覧	程式與介面一律用 Threads；說明文裡的 foreshadowing 是普通英文，不算術語
-章節摘要	Chapter summary	章のあらすじ	en:chapter synopsis	「追蹤/章節摘要/」
+章節摘要	Chapter summary	章要約	en:chapter synopsis; ja:章のあらすじ	「追蹤/章節摘要/」；ja 用章要約（介面一直這樣用；章のあらすじ跟章綱的禁用譯法衝突）
 讀者認知	Reader knowledge	読者の認知	en:reader awareness; ja:読者認識	P1 續寫合約會用到
 讀者認知帳本	Reader knowledge ledger	読者の認知台帳		reader_ledger.py 產出的表
 去 AI 味	De-AI polish	AI っぽさの除去	en:de-AI; en:humanize; ja:AI 除去	技能名稱與流程步驟都用這個

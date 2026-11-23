@@ -661,8 +661,12 @@ def shared_file(path: str):
     if not os.path.isfile(p):
         raise HTTPException(404, "檔案不存在")
     text = project.read_text(p)
+    raw = project.split_frontmatter_raw(text)[0]
+    # 內建結構的檔名是英文 ID（three-act.md），文件列顯示 frontmatter 的 name（三幕式）
+    title = str(raw.get("name") or "") if readonly else ""
     return {"path": path, "text": text, "mtime": os.path.getmtime(p), "chars": project.count_chars(text),
-            "readonly": readonly, "metrics": shared.parse_metrics(text)}
+            "readonly": readonly, "metrics": shared.parse_metrics(text),
+            "fm_view": fmkeys.view(raw), "title": title}
 
 
 @app.put("/api/shared/file")
@@ -2122,6 +2126,7 @@ def read_file(book_id: str, path: str):
     text = project.read_text(p)
     fm, body = project.split_frontmatter(text)
     return {"path": project.rel_of(d, p), "text": text, "frontmatter": fm,
+            "fm_view": fmkeys.view(project.split_frontmatter_raw(text)[0]),
             "mtime": os.path.getmtime(p), "chars": project.count_chars(text)}
 
 

@@ -658,9 +658,20 @@ def outline_files(book_dir):
                 name = "全書大綱"   # literal-ok: 顯示名稱（v3 檔名是 book.md），介面文字在 P5 處理
             elif sub == layout.VOLUMES_SUBDIR:
                 key = (1, volume._num_from_name(f) or 99)       # vol-01、vol-02…；作者自己取名的照「第N卷」
+                m = volume._STEM.match(name)
+                if m:      # 顯示「第1卷」「第1幕」＋卷綱裡的卷名（前端只翻「第N卷」，卷名是書的內容）
+                    name = ("第%d幕" if m.group(1).lower() == "act" else "第%d卷") % int(m.group(2))   # literal-ok: 顯示名稱
             else:
                 key = (2, 0)
-            rows.append((key, {"file": sub + "/" + f, "name": name}))
+            row = {"file": sub + "/" + f, "name": name}
+            if sub == layout.VOLUMES_SUBDIR:
+                try:
+                    t = split_frontmatter(read_text(os.path.join(d, f)))[0].get("title")
+                except OSError:
+                    t = None
+                if t:
+                    row["title"] = str(t)
+            rows.append((key, row))
     rows.sort(key=lambda x: (x[0], x[1]["name"]))
     return [r[1] for r in rows]
 

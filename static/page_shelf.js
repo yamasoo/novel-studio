@@ -106,7 +106,7 @@
       close();
       const busy = FE.modal({
         title: "建立中…",
-        body: [h("p", { class: "muted small" }, "正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後" + (mode === "skeleton" ? "會開始產生骨架。" : "會開始開書訪談。"))],
+        body: [h("p", { class: "muted small" }, `正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後${mode === "skeleton" ? "會開始產生骨架。" : "會開始開書訪談。"}`)],
         foot: () => [],
       });
       try {
@@ -170,7 +170,7 @@
     const close = FE.modal({
       title: "正在產生故事骨架",
       body: [
-        h("p", { class: "muted small" }, "用《" + source + "》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。"),
+        h("p", { class: "muted small" }, `用《${source}》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。`),
         h("p", {}, stageEl, " ", elapsedEl),
         h("p", { class: "muted small" }, applyMode
           ? "正在建立專案，請稍待…完成後會直接寫入設定與大綱。"
@@ -201,7 +201,7 @@
       clearInterval(tick);
       if (!alive()) background = true;
       if (background) {
-        if (st.status === "error") FE.toast("骨架沒有產生：" + (st.error || "未知錯誤"), "err");
+        if (st.status === "error") FE.toast(`骨架沒有產生：${st.error || "未知錯誤"}`, "err");
         else if (applyMode) { if (S.book === id) FE.route(); FE.toast("已用骨架開書"); }
         else { FE.route(); FE.toast("骨架草稿已產生"); }
         return;
@@ -233,9 +233,9 @@
           title: "已用骨架開書",
           body: [
             h("p", { class: "muted small" }, files.length
-              ? "已寫入 " + files.length + " 個檔案：" + files.join("、") + "。"
+              ? `已寫入 ${files.length} 個檔案：${files.join("、")}。`
               : "已寫入設定與大綱。"),
-            bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, "護欄：有名字和參考書重複（" + bad.join("、") + "），請手動改掉。") : null,
+            bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, `護欄：有名字和參考書重複（${bad.join("、")}），請手動改掉。`) : null,
             h("p", { class: "muted small" }, "目標讀者、平台、篇幅、讀者契約等骨架沒提到的欄位已標「待補」，可在「設定 → 故事核心」補；章綱請用「卷先行 → 排這一卷的章綱」。"),
           ],
           foot: (done) => [
@@ -252,7 +252,7 @@
         title: "故事骨架草稿",
         body: [
           h("p", { class: "muted small" }, ["已寫到 ", h("code", {}, r.draft || ""), "。這只是草稿，不會改動設定或大綱；滿意再手動貼進「設定」與「大綱」。"]),
-          bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, "護欄：有名字和參考書重複（" + bad.join("、") + "），請手動改掉。") : null,
+          bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, `護欄：有名字和參考書重複（${bad.join("、")}），請手動改掉。`) : null,
           previewMd,
         ],
         foot: (done) => [
@@ -322,10 +322,10 @@
         h("div", { class: "title" }, b.name),
         h("div", { class: "hook" }, b.hook || "（還沒有一句話鉤子）"),
         h("div", { class: "meta" },
-          h("span", {}, "已寫 " + b.chapters_written + " 章"),
-          h("span", {}, fmtNum(b.chars) + " " + unitCh(b.unit)),
-          b.pending_candidates ? h("span", { class: "badge b-accent" }, b.pending_candidates + " 份候選稿") : null),
-        h("div", { class: "meta" }, "更新於 " + (fmtTime(b.updated) || "—")))),
+          h("span", {}, `已寫 ${b.chapters_written} 章`),
+          h("span", {}, `${fmtNum(b.chars)} ${unitCh(b.unit)}`),
+          b.pending_candidates ? h("span", { class: "badge b-accent" }, `${b.pending_candidates} 份候選稿`) : null),
+        h("div", { class: "meta" }, `更新於 ${fmtTime(b.updated) || "—"}`))),
       newCard,
       importCard);
 
@@ -361,7 +361,7 @@
       h("div", { class: "page-head" },
         h("div", {},
           h("h1", {}, "書架"),
-          h("div", { class: "sub" }, books.length + " 本書　·　書庫：", h("code", {}, data.library))),
+          h("div", { class: "sub" }, `${books.length} 本書　·　書庫：`, h("code", {}, data.library))),
         h("div", { class: "row" }, h("button", { onclick: () => FE.go("#/guide") }, "使用說明"))),
       S.claudeFound
         ? null

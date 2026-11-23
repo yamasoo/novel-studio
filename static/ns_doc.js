@@ -52,10 +52,10 @@
         h("div", { class: "card-title" },
           h("h3", {}, "檢查結果"),
           h("button", { class: "ghost sm", "data-a": "closecheck" }, "✕")),
-        h("div", { class: "small muted" }, "中文字數 " + fmtNum(findings["中文字數"])),
+        h("div", { class: "small muted" }, `中文字數 ${fmtNum(findings["中文字數"])}`),
         h("div", { class: "findings" }, items.length
           ? items.map((x, i) => h("div", { class: "finding", "data-i": String(i) },
-            h("span", { class: "ln" }, x["行"] ? "第" + x["行"] + "行" : "全章"),
+            h("span", { class: "ln" }, x["行"] ? `第${x["行"]}行` : "全章"),
             h("span", {},
               h("span", { class: "badge " + (x["等級"] === "必須修" ? "b-bad" : x["等級"] === "建議修" ? "b-warn" : "") }, x["等級"]),
               " ",
@@ -81,7 +81,7 @@
 
       const bar = h("div", { class: "doc-bar" },
         h("span", { class: "path" }, f.path),
-        prose ? h("span", { class: "badge" }, fmtNum(f.chars) + " " + unitCh(unitOfBook())) : null,
+        prose ? h("span", { class: "badge" }, `${fmtNum(f.chars)} ${unitCh(unitOfBook())}`) : null,
         h("span", { class: "grow" }),
         opts.checkable ? h("button", { class: "sm", "data-a": "check" }, "檢查用語與 AI 味") : null,
         (f.readonly || opts.readonly)

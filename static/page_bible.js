@@ -130,7 +130,7 @@
           onclick: async () => {
             try {
               await FE.api(B("/bible/category"), { method: "POST", body: { files: [file], role: sel.value } });
-              FE.toast("定位改為 " + sel.value);
+              FE.toast(`定位改為 ${sel.value}`);
               refresh();
             } catch (e) { FE.fail(e); }
           },
@@ -148,12 +148,12 @@
       const body = kind === "promote" ? { files, status: "正式" }
         : kind === "role" ? { files, role: rolePick ? rolePick.value : "" }
           : { files, category: toSel ? toSel.value : "" };
-      if (kind === "promote" && !(await FE.confirm("把 " + files.length + " 項轉為正式？"))) return;
+      if (kind === "promote" && !(await FE.confirm(`把 ${files.length} 項轉為正式？`))) return;
       try {
         await FE.api(B("/bible/category"), { method: "POST", body });
         pickSet = new Set();
-        FE.toast(kind === "promote" ? "已轉為正式 " + files.length + " 項"
-          : kind === "role" ? "已改定位 " + files.length + " 項" : "已移入 " + files.length + " 項");
+        FE.toast(kind === "promote" ? `已轉為正式 ${files.length} 項`
+          : kind === "role" ? `已改定位 ${files.length} 項` : `已移入 ${files.length} 項`);
         refresh();
       } catch (e) { FE.toast((e && e.message) || String(e), "err"); }
     };
@@ -166,7 +166,7 @@
         h("button", { id: "ef-apply", onclick: () => apply("category") }, "移入分類")]
       : null;
     return h("div", { class: "ef-bulk" },
-      h("span", { id: "ef-n" }, "已選 " + pickSet.size + " 項"),
+      h("span", { id: "ef-n" }, `已選 ${pickSet.size} 項`),
       roleSel,
       catSel,
       h("button", {
@@ -174,7 +174,7 @@
         onclick: (ev) => {
           const box = ev.target.closest(".list");
           box.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = true; pickSet.add(cb.dataset.pick); });
-          document.querySelector("#ef-n").textContent = "已選 " + pickSet.size + " 項";
+          document.querySelector("#ef-n").textContent = `已選 ${pickSet.size} 項`;
         },
       }, "全選"),
       h("button", {
@@ -182,7 +182,7 @@
         onclick: (ev) => {
           const box = ev.target.closest(".list");
           box.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = false; pickSet.delete(cb.dataset.pick); });
-          document.querySelector("#ef-n").textContent = "已選 " + pickSet.size + " 項";
+          document.querySelector("#ef-n").textContent = `已選 ${pickSet.size} 項`;
         },
       }, "清除"),
       h("button", { class: "primary", id: "ef-promote", onclick: () => apply("promote") }, "轉為正式"));
@@ -191,7 +191,7 @@
   function entityListNode(t, list, f, file, refresh) {
     const shown = list.filter((e) => entryMatches(e, f, t));
     const pick = ENT_TABS.includes(t);
-    const head = [h("div", { class: "muted small ef-count" }, "顯示 " + shown.length + " / " + list.length)];
+    const head = [h("div", { class: "muted small ef-count" }, `顯示 ${shown.length} / ${list.length}`)];
     if (pick) head.push(bulkBar(t, refresh));
     if (!list.length) return h("div", {}, head, h("div", { class: "muted" }, "這裡還是空的。"));
     if (!shown.length) return h("div", {}, head, h("div", { class: "muted" }, "沒有符合條件的項目。"));
@@ -258,12 +258,12 @@
         });
         if (!jobs.length) { FE.toast("請先選擇保留的檔案，並勾選要併入的項目。", "err"); return; }
         const total = jobs.reduce((n, j) => n + j.duplicates.length, 0);
-        if (!(await FE.confirm("要併入 " + total + " 個設定檔（" + jobs.length + " 組）嗎？舊檔會移到「bible/_merged」，不會刪除。"))) return;
+        if (!(await FE.confirm(`要併入 ${total} 個設定檔（${jobs.length} 組）嗎？舊檔會移到「bible/_merged」，不會刪除。`))) return;
         try {
           for (const j of jobs) {
             await FE.api(B("/bible/merge"), { method: "POST", body: j });
           }
-          FE.toast("已併入 " + total + " 個設定檔");
+          FE.toast(`已併入 ${total} 個設定檔`);
           FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(t) + "&f=" + enc(jobs[0].canonical));
         } catch (e) {
           FE.toast((e && e.message) || String(e), "err");
@@ -273,7 +273,7 @@
     }, "合併勾選的項目");
 
     return h("div", { class: "card", id: "dup-box", style: "margin-bottom:12px" },
-      h("div", { class: "row" }, h("b", {}, "疑似重複（" + groups.length + " 組）")),
+      h("div", { class: "row" }, h("b", {}, `疑似重複（${groups.length} 組）`)),
       h("div", { class: "muted small", style: "margin:4px 0 8px" },
         "選一份「保留」，勾選要「併入」的。被併入的內容會接在保留檔後面（標示待核對），舊檔移到 bible/_merged，不會刪除。名稱會加進保留檔的別名。"),
       groups.map((g, gi) => h("div", { class: "dup-group", style: "border-top:1px solid var(--line,#ddd);padding:6px 0" },
@@ -290,7 +290,7 @@
           h("span", { class: "nm" }, f.names.join("、")),
           h("span", { class: "muted small" }, f.file.split("/").pop()))),
         g.ghosts.length
-          ? h("div", { class: "muted small" }, "名詞表另有：" + g.ghosts.join("、") + "（只在名詞表出現，合併不會改動它）")
+          ? h("div", { class: "muted small" }, `名詞表另有：${g.ghosts.join("、")}（只在名詞表出現，合併不會改動它）`)
           : null)),
       h("div", { class: "row", style: "margin-top:8px" }, mergeBtn));
   }
@@ -298,7 +298,7 @@
   async function rebuildBibleIndex() {
     try {
       const r = await FE.api(B("/bible/index/rebuild"), { method: "POST" });
-      FE.toast("已重建設定索引：設定檔 " + r.counts.settings + " 筆，名詞表 " + r.counts.glossary + " 筆。");
+      FE.toast(`已重建設定索引：設定檔 ${r.counts.settings} 筆，名詞表 ${r.counts.glossary} 筆。`);
     } catch (e) { FE.toast((e && e.message) || String(e), "err"); }
   }
 
@@ -476,7 +476,7 @@
         : (t === "drafts" && b.reverse_drafts
           ? h("div", { class: "card", style: "margin:0;padding:12px 14px" },
             h("div", { class: "muted small" }, "這裡是「bible/drafts」（草稿轉正式用）。"),
-            h("div", { style: "margin-top:6px" }, "從正文反推的草稿有 " + b.reverse_drafts + " 份，在〈從正文建立設定〉核對。"),
+            h("div", { style: "margin-top:6px" }, `從正文反推的草稿有 ${b.reverse_drafts} 份，在〈從正文建立設定〉核對。`),
             h("button", {
               class: "sm primary", style: "margin-top:8px",
               onclick: () => FE.go("#/b/" + enc(S.book) + "/reverse"),
@@ -493,7 +493,7 @@
       document.querySelector("#bible-del").onclick = async () => {
         const ent = list.find((e) => e.file === file) || {};
         const nm = ent.name || file;
-        if (!(await FE.confirm("刪除「" + nm + "」？" + String.fromCharCode(10) + "會移到 .studio/trash，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。"))) return;
+        if (!(await FE.confirm(`刪除「${nm}」？${String.fromCharCode(10)}會移到 .studio/trash，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。`))) return;
         try {
           const r = await FE.api(B("/bible/delete"), { method: "POST", body: { path: file }, signal });
           FE.toast(r.warning || "已移到 .studio/trash", r.warning ? "err" : undefined);

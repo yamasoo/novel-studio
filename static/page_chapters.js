@@ -12,7 +12,7 @@
       class: "click",
       onclick: () => FE.go(FE.hash("b", S.book, "ch", c.no)),
     },
-      h("td", {}, "第" + c.no + "章"),
+      h("td", {}, `第${c.no}章`),
       h("td", {}, c.title),
       h("td", { class: "muted" }, c.func),
       h("td", {}, c.card_file
@@ -20,7 +20,7 @@
         : h("span", { class: "badge b-bad" }, "無")),
       h("td", { class: "num" }, c.text_file ? fmtNum(c.chars) : h("span", { class: "muted" }, "—")),
       h("td", {}, c.candidate_file
-        ? h("span", { class: "badge b-accent" }, "待審 " + fmtNum(c.candidate_chars) + " " + unitCh(wu))
+        ? h("span", { class: "badge b-accent" }, `待審 ${fmtNum(c.candidate_chars)} ${unitCh(wu)}`)
         : null));
   }
 
@@ -35,11 +35,11 @@
       h("div", { class: "page-head" },
         h("div", {},
           h("h1", {}, "章節"),
-          h("div", { class: "sub" }, "共 " + chs.length + " 章　·　點一列開啟")),
+          h("div", { class: "sub" }, `共 ${chs.length} 章　·　點一列開啟`)),
         h("div", { class: "row" },
           h("button", { onclick: () => Panel.openForm("chapter_cards", { from: nextNo, to: nextNo + 9 }) }, "排接下來 10 章"),
           h("button", { onclick: () => pipeModal() }, "⚡ 整章自動"),
-          h("button", { class: "primary", onclick: () => Panel.openForm("write", { from: nextNo, to: nextNo }) }, "寫第" + nextNo + "章"))),
+          h("button", { class: "primary", onclick: () => Panel.openForm("write", { from: nextNo, to: nextNo }) }, `寫第${nextNo}章`))),
       h("div", { class: "pipe-box" }),
       h("div", { class: "card" },
         chs.length

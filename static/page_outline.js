@@ -40,7 +40,7 @@
       const r = await FE.api(B("/card-check?from=" + a + "&to=" + z), { signal });
       const rows = r.findings || [];
       FE.modal({
-        title: FE.t("章綱體檢") + "（第 " + a + "–" + z + " 章）",
+        title: `${FE.t("章綱體檢")}（第 ${a}–${z} 章）`,
         body: rows.length
           ? h("div", { class: "card" },
             h("div", { class: "small muted" }, FE.t("把設定和章綱對照：提前登場（劇透風險）與久別重逢（設定說已退場）。")),
@@ -75,7 +75,7 @@
       });
       let close = null;
       close = FE.modal({
-        title: FE.t("卷綱修訂差異") + "（第 " + no + " 卷）",
+        title: `${FE.t("卷綱修訂差異")}（第 ${no} 卷）`,
         body: [
           h("p", { class: "muted small" }, FE.t("紅色是正式卷綱被拿掉的行，綠色是修訂後新增或改寫的行。按「套用修訂」才會覆蓋正式檔（會先備份）。")),
           h("div", { style: "max-height:55vh;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;background:#faf8f4;padding:8px;border-radius:6px" },
@@ -136,7 +136,7 @@
     const open = (c) => {
       const box = h("div", { style: "max-height:70vh;overflow:auto" });
       FE.modal({
-        title: "反推章綱：" + (c.no ? "第" + c.no + "章 " : "") + c.name,
+        title: `反推章綱：${c.no ? `第${c.no}章 ` : ""}${c.name}`,
         wide: true,
         body: box,
         foot: (done) => [h("button", { class: "btn", type: "button", onclick: () => done(true) }, "關閉")],
@@ -146,7 +146,7 @@
     return h("div", { class: "card", id: "rv-cards-card" },
       h("div", { class: "row" },
         h("b", {}, "反推章綱"),
-        h("span", { class: "badge" }, cards.length + " 份"),
+        h("span", { class: "badge" }, `${cards.length} 份`),
         h("span", { class: "grow" }),
         h("span", { class: "muted small" }, "唯讀對照；正式章綱不受影響")),
       h("div", { class: "muted small", style: "margin-top:4px" },
@@ -154,7 +154,7 @@
       h("details", { style: "margin-top:8px" },
         h("summary", { class: "small" }, "看清單"),
         h("div", { style: "margin-top:6px" }, cards.map((c) => h("div", { class: "row", style: "padding:4px 0" },
-          h("span", {}, (c.no ? "第" + c.no + "章 " : "") + c.name),
+          h("span", {}, (c.no ? `第${c.no}章 ` : "") + c.name),
           h("span", { class: "grow" }),
           h("button", { class: "sm", onclick: () => open(c) }, "看"))))));
   }

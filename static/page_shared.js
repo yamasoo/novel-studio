@@ -94,7 +94,7 @@
   }
 
   async function styleAiModal(mode, books, name, signal) {
-    const titles = { design: "請 AI 設計文風", revise: "請 AI 調整「" + (name || "") + "」", test: "照「" + (name || "") + "」試寫一段" };
+    const titles = { design: "請 AI 設計文風", revise: `請 AI 調整「${name || ""}」`, test: `照「${name || ""}」試寫一段` };
     let body;
     if (mode === "design") {
       const chips = h("div", { class: "chips", id: "sa-chips" },
@@ -216,7 +216,7 @@
     const onSharedJob = (job) => {
       if (job.status !== "done") return;
       const n = styleJobTarget;
-      if (n) FE.toast("文風「" + n + "」已更新");
+      if (n) FE.toast(`文風「${n}」已更新`);
       if (location.hash.startsWith("#/shared")) {
         if (n) FE.go("#/shared?t=styles&f=" + enc(LAYOUT.SHARED_STYLES + "/" + n + ".md"));
         else FE.route();
@@ -248,7 +248,7 @@
 
     let list = [];
     if (tab === "styles") {
-      list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, lang: s.lang, badge: s.has_metrics ? "已統計 " + fmtNum(+s.sample) + " 字" : "" }));
+      list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, lang: s.lang, badge: s.has_metrics ? `已統計 ${fmtNum(+s.sample)} 字` : "" }));
     } else if (tab === "structures") {
       list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", lang: s.lang, scope: s.scope, origin: s.origin }));
     } else {
@@ -289,8 +289,8 @@
             e.lang && e.lang !== "zh-TW" ? h("span", { class: "badge" }, e.lang === "en" ? "English" : "日本語") : null,
             e.badge ? h("span", { class: "badge" }, e.badge) : null),
           e.desc ? h("div", { class: "ds" }, e.desc) : null,
-          e.scope ? h("div", { class: "ds" }, "適用：" + e.scope) : null))
-        : h("div", { class: "muted" }, "還沒有" + TAB_LABEL[tab] + "。按右上角新增。"));
+          e.scope ? h("div", { class: "ds" }, `適用：${e.scope}`) : null))
+        : h("div", { class: "muted" }, `還沒有${TAB_LABEL[tab]}。按右上角新增。`));
 
     ctx.view(
       h("div", { class: "page-head" },
@@ -341,7 +341,7 @@
                   if (!v.name) return FE.toast("請輸入名稱", "err");
                   const r = await FE.api("/api/shared/styles", { method: "POST", body: v, signal });
                   close();
-                  FE.toast("已建立文風「" + r.name + "」");
+                  FE.toast(`已建立文風「${r.name}」`);
                   FE.go(BASE + "?t=styles&f=" + enc(r.file));
                 } catch (e) { FE.fail(e); }
               },
@@ -367,7 +367,7 @@
         applyBtn.onclick = () => {
           const bookSel = h("select", { id: "ap-book" }, bookOptions(books, S.book, curItem.lang));
           const close = FE.modal({
-            title: "把「" + name + "」套用到書",
+            title: `把「${name}」套用到書`,
             body: [
               h("p", { class: "muted small" }, "會複製成那本書的 ", h("code", {}, "bible/style.md"), "。原本的文風檔會先備份到 ", h("code", {}, ".studio/backup"), "。之後在書裡修改不會影響共用庫。"),
               h("label", { class: "f" }, h("span", {}, "套用到"), bookSel),
@@ -380,7 +380,7 @@
                   try {
                     await FE.api("/api/shared/styles/" + enc(name) + "/apply", { method: "POST", body: { book: bookSel.value }, signal });
                     close();
-                    FE.toast("已套用到《" + bookSel.value + "》");
+                    FE.toast(`已套用到《${bookSel.value}》`);
                   } catch (e) { FE.fail(e); }
                 },
               }, "套用"),
@@ -394,7 +394,7 @@
           const toInput = h("input", { type: "number", id: "cp-to", class: "num-in", placeholder: "全部" });
           const out = h("div", { id: "cp-out", style: "margin-top:12px" });
           FE.modal({
-            title: "「" + name + "」和正文比較",
+            title: `「${name}」和正文比較`,
             body: [
               h("p", { class: "muted small" }, "在本機統計那本書的正文，和這個文風的文字指標並排比較。"),
               h("div", { class: "row" },
@@ -413,7 +413,7 @@
                         signal,
                       });
                       out.replaceChildren(...[compareTableNode(r.rows),
-                        h("div", { class: "muted small", style: "margin-top:8px" }, "正文高頻詞組：" + r.actual["高頻詞組"])]);
+                        h("div", { class: "muted small", style: "margin-top:8px" }, `正文高頻詞組：${r.actual["高頻詞組"]}`)]);
                     } catch (e) { FE.fail(e); }
                   },
                 }, "比較")),
@@ -424,7 +424,7 @@
 
         restatBtn.onclick = () => {
           const close = FE.modal({
-            title: "重新統計「" + name + "」的文字指標",
+            title: `重新統計「${name}」的文字指標`,
             body: [
               h("p", { class: "muted small" }, "只會更新「文字指標」一節，你寫的其他內容不動。"),
               sampleSourceNodes(books, ["book", "text", "files"]),
@@ -448,7 +448,7 @@
         };
 
         delBtn.onclick = async () => {
-          if (!(await FE.confirm("刪除文風「" + name + "」？（會移到 _shared/.trash，不會永久刪除）"))) return;
+          if (!(await FE.confirm(`刪除文風「${name}」？（會移到 _shared/.trash，不會永久刪除）`))) return;
           try {
             await FE.api("/api/shared/styles/" + enc(name), { method: "DELETE", signal });
             FE.go(BASE + "?t=styles");
@@ -502,7 +502,7 @@
           const bookSel = h("select", { id: "sa-book" }, bookOptions(books, S.book, curItem.lang));
           const defBox = h("input", { type: "checkbox", id: "sa-def", checked: !(curItem.scope && curItem.scope.includes("卷")) });
           const close = FE.modal({
-            title: "把「" + name + "」套用到書",
+            title: `把「${name}」套用到書`,
             body: [
               h("p", { class: "muted small" }, "會複製到那本書的 ", h("code", {}, "bible/structure/"), "。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。"),
               h("label", { class: "f" }, h("span", {}, "套用到"), bookSel),
@@ -520,7 +520,7 @@
                       signal,
                     });
                     close();
-                    FE.toast("已套用到《" + bookSel.value + "》");
+                    FE.toast(`已套用到《${bookSel.value}》`);
                   } catch (e) { FE.fail(e); }
                 },
               }, "套用"),
@@ -549,7 +549,7 @@
         }
         if (delBtn) {
           delBtn.onclick = async () => {
-            if (!(await FE.confirm("刪除結構「" + name + "」？（會移到 _shared/.trash；已套用到書裡的複本不受影響）"))) return;
+            if (!(await FE.confirm(`刪除結構「${name}」？（會移到 _shared/.trash；已套用到書裡的複本不受影響）`))) return;
             try {
               await FE.api("/api/shared/structures/" + enc(name), { method: "DELETE", signal });
               FE.go(BASE + "?t=structures");

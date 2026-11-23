@@ -85,7 +85,7 @@
 
     ctx.view(
       h("div", { class: "page-head" },
-        h("div", {}, h("h1", {}, "設定"), h("div", { class: "sub" }, "小說工作台 v" + (r.version || "")))),
+        h("div", {}, h("h1", {}, "設定"), h("div", { class: "sub" }, `小說工作台 v${r.version || ""}`))),
       h("div", { class: "card" },
         h("h2", { style: "margin-bottom:12px" }, "服務"),
         h("div", { class: "row", style: "align-items:flex-end" },
@@ -93,7 +93,7 @@
           h("span", { class: "grow muted small" },
             "目前網址 ", h("code", {}, location.origin),
             (r.port !== r.running_port && r.running_port)
-              ? ["　", h("span", { class: "badge b-warn" }, "已改成 " + r.port + "，重新啟動後生效")]
+              ? ["　", h("span", { class: "badge b-warn" }, `已改成 ${r.port}，重新啟動後生效`)]
               : null),
           restartBtn),
         h("div", { class: "muted small", style: "margin-top:8px" },
@@ -214,7 +214,7 @@
             h("div", { class: "row", style: "margin-bottom:4px" },
               h("b", { class: "small" }, "可用模型"),
               h("span", { class: "muted small" },
-                "預設模型是上面的「模型名稱」。這裡加上其他模型後，各處的執行者選單就能選「" + (p.name || p.id) + " · 模型」；金鑰共用，空白的欄位沿用上面的設定。"),
+                `預設模型是上面的「模型名稱」。這裡加上其他模型後，各處的執行者選單就能選「${p.name || p.id} · 模型」；金鑰共用，空白的欄位沿用上面的設定。`),
               h("span", { class: "grow" }),
               addmBtn),
             (p.models || []).length
@@ -311,7 +311,7 @@
             provs[i].cjk_token_ratio = rr.ratio;
             card.querySelector('[data-k="cjk_token_ratio"]').value = rr.ratio;
             await saveProvs();
-            msg.replaceChildren(h("span", { class: "badge b-ok" }, "已校正"), " 每個中文字約 " + rr.ratio + " token，已儲存");
+            msg.replaceChildren(h("span", { class: "badge b-ok" }, "已校正"), ` 每個中文字約 ${rr.ratio} token，已儲存`);
           } catch (e) {
             msg.replaceChildren(h("span", { class: "badge b-bad" }, "無法校正"), " " + (e.message || String(e)));
           }
@@ -326,7 +326,7 @@
             await saveProvs();
             const rr = await FE.api("/api/providers/" + enc(provs[i].id) + "/models", { method: "POST", signal });
             card.querySelector("#ml-" + i).replaceChildren(...rr.models.map((m) => h("option", { value: m })));
-            msg.replaceChildren(h("span", { class: "badge b-ok" }, "連線成功"), " 可用模型：" + (rr.models.map((m) => m).join("、") || "（伺服器沒有列出）"));
+            msg.replaceChildren(h("span", { class: "badge b-ok" }, "連線成功"), ` 可用模型：${rr.models.map((m) => m).join("、") || "（伺服器沒有列出）"}`);
             provs[i]._fetched = rr.models;
             chips(rr.models);
             if (!provs[i].model && rr.models.length === 1) {
@@ -343,13 +343,13 @@
     function renderKeyStore() {
       if (r.key_store) {
         if (r.secrets_pending) {
-          const migrateBtn = h("button", { class: "sm primary", id: "key-mig" }, "搬進" + r.key_store);
+          const migrateBtn = h("button", { class: "sm primary", id: "key-mig" }, `搬進${r.key_store}`);
           migrateBtn.onclick = async () => {
             try {
               const m = await FE.api("/api/secrets/migrate", { method: "POST", signal });
               Object.assign(r, m);
               S.keyStatus = m.key_status;
-              FE.toast(m.left ? "搬了 " + m.moved + " 個，還有 " + m.left + " 個沒搬成功" : "已搬進" + m.key_store + "，secrets.json 已刪除", m.left ? "err" : undefined);
+              FE.toast(m.left ? `搬了 ${m.moved} 個，還有 ${m.left} 個沒搬成功` : `已搬進${m.key_store}，secrets.json 已刪除`, m.left ? "err" : undefined);
               renderKeyStore();
               renderProvs();
             } catch (e) { FE.fail(e); }
@@ -357,11 +357,11 @@
           keyStoreBox.replaceChildren(h("div", { class: "alert warn" },
             h("span", { class: "k" }, "金鑰"),
             h("span", { class: "t" },
-              "secrets.json 裡還有 " + r.secrets_pending + " 個 API 金鑰。搬進" + r.key_store + "後，由系統加密並綁定你的登入帳號，專案資料夾裡就不會留金鑰檔。"),
+              `secrets.json 裡還有 ${r.secrets_pending} 個 API 金鑰。搬進${r.key_store}後，由系統加密並綁定你的登入帳號，專案資料夾裡就不會留金鑰檔。`),
             migrateBtn));
         } else {
           keyStoreBox.replaceChildren(h("div", { class: "muted small" },
-            "新輸入的 API 金鑰會存進" + r.key_store + "（由系統加密，綁定你的登入帳號），不放在專案資料夾。"));
+            `新輸入的 API 金鑰會存進${r.key_store}（由系統加密，綁定你的登入帳號），不放在專案資料夾。`));
         }
       } else {
         keyStoreBox.replaceChildren(h("div", { class: "muted small" },
@@ -385,7 +385,7 @@
       let n = 1;
       while (provs.find((p) => p.id === "custom" + n)) n++;
       provs.push({
-        id: "custom" + n, type: "openai", name: "自訂服務 " + n, base_url: "", model: "", key_env: "",
+        id: "custom" + n, type: "openai", name: `自訂服務 ${n}`, base_url: "", model: "", key_env: "",
         context_tokens: 32768, max_output: 4096, temperature: 0.8, json_mode: true, price_in: 0, price_out: 0, extra: {},
       });
       renderProvs();

@@ -117,7 +117,7 @@
       const nd = id ? m.byName[bareName(id)] : null;
       if (!nd) {
         detEl.replaceChildren(h("div", { class: "muted small" },
-          "點圖上的人或勢力，這裡會列出他在第 " + st.n + " 章的所有關係。滾輪縮放、拖背景移動。"));
+          `點圖上的人或勢力，這裡會列出他在第 ${st.n} 章的所有關係。滾輪縮放、拖背景移動。`));
         return;
       }
       const out = m.rows.filter((r) => r.who === nd.name), inn = m.rows.filter((r) => r.toward === nd.name);
@@ -125,19 +125,18 @@
         h("b", {}, to ? r.toward : r.who), "　", r.relationship || "—",
         r.attitude ? h("span", { class: "badge", style: "margin-left:6px" }, r.attitude) : null,
         h("div", { class: "muted small" },
-          [r.start_chapter ? r.start_chapter + "起" : "", r.end_chapter ? "到" + r.end_chapter : "目前有效", r.reason || ""]
+          [r.start_chapter ? `${r.start_chapter}起` : "", r.end_chapter ? `到${r.end_chapter}` : "目前有效", r.reason || ""]
             .filter(Boolean).join("　")));
       detEl.replaceChildren(
         h("div", { style: "font-size:15px;margin-bottom:2px" },
           h("b", {}, nd.name), "　",
           h("span", { class: "muted" }, nd.kind === "勢力" ? "勢力" : (nd.role || "角色"))),
         nd.kind === "角色"
-          ? h("div", { class: "muted small" }, "所屬：" + (nd.faction || "無")
-            + ((nd.also || []).length ? "（也在 " + nd.also.join("、") + "）" : ""))
-          : h("div", { class: "muted small" }, "成員：" + ((nd.members || []).join("、") || "無")),
-        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, "他對別人（" + out.length + "）"),
+          ? h("div", { class: "muted small" }, `所屬：${nd.faction || "無"}${(nd.also || []).length ? `（也在 ${nd.also.join("、")}）` : ""}`)
+          : h("div", { class: "muted small" }, `成員：${(nd.members || []).join("、") || "無"}`),
+        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, `他對別人（${out.length}）`),
         out.length ? h("div", {}, out.map((r) => line(r, true))) : h("div", { class: "muted small" }, "沒有紀錄"),
-        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, "別人對他（" + inn.length + "）"),
+        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, `別人對他（${inn.length}）`),
         inn.length ? h("div", {}, inn.map((r) => line(r, false))) : h("div", { class: "muted small" }, "沒有紀錄"));
     }
 
@@ -165,8 +164,7 @@
       const on = m.edges.filter((e) => activeAt(e.data, st.n) && inGraph(e.data.a) && inGraph(e.data.b));
       const away = m.rows.filter((r) => !m.own(r) && r.who !== r.toward && m.byName[r.who] && m.byName[r.toward]
         && activeAt({ start: r.start_chapter, end: r.end_chapter }, st.n) && !(inGraph(r.who) && inGraph(r.toward))).length;
-      statEl.textContent = visChars.length + " 個角色 · " + facVis.size + " 個勢力 · " + on.length + " 條關係 · 第 " + st.n + " 章"
-        + (away > 0 ? " · 另有 " + away + " 條涉及未顯示的角色" : "");
+      statEl.textContent = `${visChars.length} 個角色 · ${facVis.size} 個勢力 · ${on.length} 條關係 · 第 ${st.n} 章${away > 0 ? ` · 另有 ${away} 條涉及未顯示的角色` : ""}`;
       nEl.textContent = String(st.n);
       if (refit) handle.fit();
     }
@@ -188,7 +186,7 @@
     try {
       await FE.graph.load();
     } catch (e) {
-      canvas.replaceWith(graphHint("關係圖載不起來：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+      canvas.replaceWith(graphHint(`關係圖載不起來：${(e && e.message) || e}　請按 Ctrl+F5 重新整理。`));
       return;
     }
     if (!canvas.isConnected) return;   // 載入期間已經換頁
@@ -198,7 +196,7 @@
         on_select: (item) => { renderDetail(item && item.type === "node" ? item.id : null); },
       });
     } catch (e) {
-      canvas.replaceWith(graphHint("關係圖畫不出來：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+      canvas.replaceWith(graphHint(`關係圖畫不出來：${(e && e.message) || e}　請按 Ctrl+F5 重新整理。`));
       return;
     }
     relGraph = handle;
@@ -220,7 +218,7 @@
     const head = h("div", { class: "page-head" },
       h("div", {},
         h("h1", {}, "伏筆與時間線"),
-        h("div", { class: "sub" }, "這裡是「已經發生的事實」，寫完章節後由 Claude 回寫。目前寫到第 " + latest + " 章。")),
+        h("div", { class: "sub" }, `這裡是「已經發生的事實」，寫完章節後由 Claude 回寫。目前寫到第 ${latest} 章。`)),
       h("div", { class: "row" }, h("button", { onclick: () => Panel.openForm("review_all") }, "伏筆與角色健康檢查")));
 
     let body = null;
@@ -249,7 +247,7 @@
             h("label", { class: "cb", style: "margin:0" }, hideBox, " 隱藏已回收／廢棄"),
             h("span", { class: "grow" }),
             h("span", { class: "muted small" },
-              "黃底：重要度中以上、超過 " + d.stale_foreshadow + " 章沒出現，或已過預計回收章（「預計回收」要寫成「第N章」才算；「起推進」「呼應」不算）")),
+              `黃底：重要度中以上、超過 ${d.stale_foreshadow} 章沒出現，或已過預計回收章（「預計回收」要寫成「第N章」才算；「起推進」「呼應」不算）`)),
           table);
         after.push(() => {
           const apply = () => table.querySelectorAll("tr.done").forEach((tr) => { tr.style.display = hideBox.checked ? "none" : ""; });
@@ -283,7 +281,7 @@
         const discardBtn = h("button", { class: "sm danger", id: "rp-discard" }, "捨棄");
         parts.push(h("div", { class: "card", style: "margin-bottom:14px;border-color:var(--warn,#c90)" },
           h("div", { class: "card-title" },
-            h("h2", {}, "草稿（" + rd.rows.length + " 條，尚未生效）"),
+            h("h2", {}, `草稿（${rd.rows.length} 條，尚未生效）`),
             h("span", { class: "grow" }),
             adoptBtn,
             h("button", {
@@ -294,8 +292,7 @@
             h("button", { class: "sm", onclick: () => openCharState(LAYOUT.READER_KNOWLEDGE_DRAFT) }, "編輯草稿"),
             discardBtn),
           h("div", { class: "muted small", style: "margin-bottom:8px" },
-            "AI 產生的結果（從時間線轉換，或回收比對；比對的逐條理由在草稿最後，按「編輯草稿」可以看）。請檢查：有沒有把你的底牌寫成讀者已經在懷疑的懸念、有沒有漏掉你刻意埋的誤導、回收章對不對。"
-            + (rl.rows.length ? "採用後會取代現在的帳本（舊的會先備份）。" : "")),
+            `AI 產生的結果（從時間線轉換，或回收比對；比對的逐條理由在草稿最後，按「編輯草稿」可以看）。請檢查：有沒有把你的底牌寫成讀者已經在懷疑的懸念、有沒有漏掉你刻意埋的誤導、回收章對不對。${rl.rows.length ? "採用後會取代現在的帳本（舊的會先備份）。" : ""}`),
           readerTable(rd, "rp-draft")));
         after.push(() => {
           adoptBtn.onclick = async () => {
@@ -345,7 +342,7 @@
             ? h("div", { style: "margin-top:12px" }, h("button", {
               class: "primary",
               onclick: () => Panel.run("reader_init", {}),
-            }, "從時間線建立（AI 轉換，" + d.timeline.rows.length + " 列）"))
+            }, `從時間線建立（AI 轉換，${d.timeline.rows.length} 列）`))
             : null));
       }
       docEl = h("div", { id: "doc", style: "margin-top:14px" });
@@ -380,15 +377,14 @@
         if (noteNode) { noteNode.classList.add("small"); noteNode.style.marginBottom = "8px"; }
         parts.push(h("div", { class: "card", style: "margin-bottom:14px;border-color:var(--warn,#c90)" },
           h("div", { class: "card-title" },
-            h("h2", {}, "草稿（" + rd.rows.length + " 列，尚未生效）"),
+            h("h2", {}, `草稿（${rd.rows.length} 列，尚未生效）`),
             h("span", { class: "grow" }),
             adoptBtn,
             h("button", { class: "sm", onclick: () => openCharState(LAYOUT.RELATIONS_DRAFT) }, "編輯草稿"),
             discardBtn),
           noteNode,
           h("div", { class: "muted small", style: "margin-bottom:8px" },
-            "從角色檔的「## 關係」整理出來的，「關係」欄是角色檔那句描述原文。請檢查：對象有沒有認錯人、方向對不對、要不要把描述拆成「關係」和「態度」。"
-            + (rl.rows.length ? "採用後會取代現在的關係表（舊的會先備份）。" : "")),
+            `從角色檔的「## 關係」整理出來的，「關係」欄是角色檔那句描述原文。請檢查：對象有沒有認錯人、方向對不對、要不要把描述拆成「關係」和「態度」。${rl.rows.length ? "採用後會取代現在的關係表（舊的會先備份）。" : ""}`),
           relTable(rd, "rl-draft")));
         after.push(() => {
           adoptBtn.onclick = async () => {
@@ -425,7 +421,7 @@
         parts.push(card);
         after.push(() => {
           mountGraph(card, d).catch((e) => {
-            card.replaceChildren(graphHint("關係圖出錯：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+            card.replaceChildren(graphHint(`關係圖出錯：${(e && e.message) || e}　請按 Ctrl+F5 重新整理。`));
           });
         });
       } else if (rl.rows.length) {
@@ -474,8 +470,8 @@
               h("div", { class: "row" },
                 h("span", { class: "nm", style: "font-size:15px" }, c.name),
                 h("span", { class: "grow" }),
-                gap !== null && gap > 15 ? h("span", { class: "badge b-warn" }, gap + " 章未登場") : null),
-              h("div", { class: "muted small" }, "最後登場：" + (c.last || "—") + "　·　更新至：" + (c.updated_to || "—")));
+                gap !== null && gap > 15 ? h("span", { class: "badge b-warn" }, `${gap} 章未登場`) : null),
+              h("div", { class: "muted small" }, `最後登場：${c.last || "—"}　·　更新至：${c.updated_to || "—"}`));
           })),
           h("div", { id: "doc", style: "margin-top:14px" }))
         : h("div", { class: "card empty" }, "還沒有角色狀態。");
@@ -487,7 +483,7 @@
       body = g.rows.length
         ? h("div", { class: "card" },
           h("div", { class: "row", style: "margin-bottom:8px" },
-            h("span", { class: "muted small" }, g.rows.length + " 條"),
+            h("span", { class: "muted small" }, `${g.rows.length} 條`),
             h("span", { class: "grow" }),
             h("button", {
               class: "sm",

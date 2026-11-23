@@ -60,23 +60,21 @@
   function pipeNode(p) {
     const hit = PIPE_STATUS[p.status] || [p.status, ""];
     const label = hit[0], cls = hit[1];
-    const rng = p.from === p.to ? "第" + p.from + "章" : "第" + p.from + "～" + p.to + "章";
+    const rng = p.from === p.to ? `第${p.from}章` : `第${p.from}～${p.to}章`;
     const btns = [];
     if (p.status === "running") {
       if (p.job) btns.push(h("button", { class: "sm", onclick: () => pipeShowJob(p.job) }, "看目前這一步"));
       btns.push(h("button", { class: "sm danger", onclick: () => pipeStop() }, "停止"));
     } else {
       if (p.status === "failed" || p.status === "stopped") btns.push(h("button", { class: "sm primary", onclick: () => pipeResume() }, "從這一步繼續"));
-      if (p.status === "paused") btns.push(h("button", { class: "sm primary", onclick: () => pipeResume() }, "繼續下一章（第" + p.chapter + "章）"));
+      if (p.status === "paused") btns.push(h("button", { class: "sm primary", onclick: () => pipeResume() }, `繼續下一章（第${p.chapter}章）`));
       btns.push(h("button", { class: "sm ghost", onclick: () => pipeClear() }, "關閉"));
     }
     const head = h("div", { class: "row" },
       h("b", {}, "⚡ 整章自動流程"),
       h("span", { class: "muted small" },
-        rng
-        + (p.status === "running" || p.status === "failed" || p.status === "stopped" ? "　·　目前第" + p.chapter + "章" : "")
-        + "　·　" + (p.mode === "continue" ? "連續寫" : "寫一章停一章")
-        + "　·　自動勾選：" + ((p.severities || []).join("、") || "無")),
+        `${rng
+        + (p.status === "running" || p.status === "failed" || p.status === "stopped" ? `　·　目前第${p.chapter}章` : "")}　·　${p.mode === "continue" ? "連續寫" : "寫一章停一章"}　·　自動勾選：${(p.severities || []).join("、") || "無"}`),
       h("span", { class: "badge " + cls }, label),
       h("span", { class: "grow" }),
       btns);
@@ -87,7 +85,7 @@
         (p.done_chapters && p.done_chapters.length)
           ? ["　已定稿：", p.done_chapters.map((n, i) => [
             i ? "、" : null,
-            h("a", { href: "#/b/" + enc(S.book) + "/ch/" + n + "?tab=text" }, "第" + n + "章"),
+            h("a", { href: "#/b/" + enc(S.book) + "/ch/" + n + "?tab=text" }, `第${n}章`),
           ])]
           : null)
       : null;
@@ -141,7 +139,7 @@
     list.forEach((el) => fill(el, p));
     pipeWatch(p);
     if (before === "running" && (!p || p.status !== "running")) {
-      if (p && p.status === "failed") FE.toast("整章自動流程停住了：" + p.error, "err");
+      if (p && p.status === "failed") FE.toast(`整章自動流程停住了：${p.error}`, "err");
       else if (p && (p.status === "paused" || p.status === "done")) FE.toast(p.message || "完成");
       if (!document.querySelector("textarea.editor")) await FE.route();
     }
@@ -182,19 +180,19 @@
     const st = p.steps.find((x) => x.key === key);
     const later = p.steps.slice(p.steps.findIndex((x) => x.key === key)).map((x) => x.label);
     const canNote = PIPE.rw && (PIPE.rw.note_steps || []).includes(key);
-    const what = key === "card" ? "第" + p.chapter + "章的章綱和候選稿會先備份再移開，請 AI 重寫章綱"
-      : key === "write" ? "第" + p.chapter + "章的候選稿會先備份再移開，請 AI 重新寫一份"
-        : "候選稿會還原成「" + st.label + "」開始前的版本（目前的候選稿先備份）";
+    const what = key === "card" ? `第${p.chapter}章的章綱和候選稿會先備份再移開，請 AI 重寫章綱`
+      : key === "write" ? `第${p.chapter}章的候選稿會先備份再移開，請 AI 重新寫一份`
+        : `候選稿會還原成「${st.label}」開始前的版本（目前的候選稿先備份）`;
     const noteArea = canNote
       ? h("label", { class: "f" },
-        h("span", {}, "這次的要求（選填，只用在「" + st.label + "」這一步）"),
+        h("span", {}, `這次的要求（選填，只用在「${st.label}」這一步）`),
         h("textarea", { id: "rw-note", rows: "2", placeholder: "例如：保留更多對白；這次節奏放慢" }))
       : null;
     const close = FE.modal({
-      title: "↺ 從「" + st.label + "」重跑",
+      title: `↺ 從「${st.label}」重跑`,
       body: [
         h("p", { class: "small" }, what + "。"),
-        h("p", { class: "small muted" }, "之後這幾步的結果會先備份到 .studio/backup/ 再清掉，然後重新執行：" + later.join(" → ")),
+        h("p", { class: "small muted" }, `之後這幾步的結果會先備份到 .studio/backup/ 再清掉，然後重新執行：${later.join(" → ")}`),
         noteArea,
       ],
       foot: (done) => [
@@ -211,7 +209,7 @@
               PIPE.data = r.pipeline;
               PIPE.rw = null;
               PIPE.lastJob = null;
-              FE.toast("從「" + st.label + "」重跑");
+              FE.toast(`從「${st.label}」重跑`);
               renderPipe();
             } catch (e) { FE.fail(e); }
           },
@@ -235,10 +233,8 @@
       " " + x));
     const stepProvNote = Object.keys(d.step_providers || {}).length
       ? h("div", { class: "muted small" },
-        "各步驟另外指定："
-        + AI_STEP_LABELS.filter(([k]) => (d.step_providers || {})[k])
-          .map(([k, l]) => l + " → " + provName(d.step_providers[k])).join("、")
-        + "；其他步驟用上面選的執行者。（設定 → 整章自動流程）")
+        `各步驟另外指定：${AI_STEP_LABELS.filter(([k]) => (d.step_providers || {})[k])
+          .map(([k, l]) => l + " → " + provName(d.step_providers[k])).join("、")}；其他步驟用上面選的執行者。（設定 → 整章自動流程）`)
       : null;
     const provSel = provSelect("pp-prov", Panel.prov());
 
@@ -246,7 +242,7 @@
       title: "⚡ 整章自動流程",
       body: [
         h("p", { class: "muted small" },
-          "每章依序：" + r.steps.map((s) => s.label).join(" → ") + "。",
+          `每章依序：${r.steps.map((s) => s.label).join(" → ")}。`,
           h("br"),
           "已有章綱就不重寫；已有候選稿就從核對開始。會呼叫 AI 的步驟各自呼叫一次；任何一步失敗都會停在那一步，修正後可以從那一步繼續。"),
         h("div", { class: "row" },
@@ -255,7 +251,7 @@
           h("span", { class: "small muted" }, "章到第"),
           toInput,
           h("span", { class: "small muted" }, "章"),
-          h("span", { class: "muted small" }, "（章綱寫到第" + lastCard + "章）")),
+          h("span", { class: "muted small" }, `（章綱寫到第${lastCard}章）`)),
         h("div", { class: "f", style: "margin-top:12px" }, h("span", {}, "跑法")),
         h("div", { class: "seg compact", id: "pp-mode" },
           h("label", {}, h("input", { type: "radio", name: "pp-mode", value: "stop", checked: d.mode !== "continue" }), h("span", {}, "寫一章停一章")),

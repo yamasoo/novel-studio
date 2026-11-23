@@ -43,7 +43,7 @@
       const b = parseInt(toInput.value, 10) || a;
       const t0 = Date.now();
       const sec = h("span", { id: "dr-sec" }, "0");
-      out.replaceChildren(h("div", { class: "card" }, h("p", { class: "muted" }, "檢查第 " + a + "–" + b + " 章…（", sec, " 秒）")));
+      out.replaceChildren(h("div", { class: "card" }, h("p", { class: "muted" }, `檢查第 ${a}–${b} 章…（`, sec, " 秒）")));
       const tick = setInterval(() => {
         if (!ctx.active()) { clearInterval(tick); return; }
         sec.textContent = ((Date.now() - t0) / 1000).toFixed(0);
@@ -52,7 +52,7 @@
         const r = await FE.api(B("/drift?from=" + a + "&to=" + b), { signal });
         clearInterval(tick);
         const planOut = h("div", { id: "dr-plan-out" });
-        const planBtn = h("button", { id: "dr-plan" }, "產生卷綱更新草稿（用 " + Panel.provName() + "）");
+        const planBtn = h("button", { id: "dr-plan" }, `產生卷綱更新草稿（用 ${Panel.provName()}）`);
         out.replaceChildren(h("div", { class: "card" },
           FE.md.render(r.report || ""),
           h("div", { class: "row", style: "margin-top:10px" },
@@ -73,7 +73,7 @@
             clearInterval(tick2);
             if (p.error) {
               planOut.replaceChildren(
-                h("p", { class: "muted small", style: "color:#b45309" }, "產生失敗：" + p.error),
+                h("p", { class: "muted small", style: "color:#b45309" }, `產生失敗：${p.error}`),
                 h("p", { class: "muted small" }, "沒有存任何草稿，卷綱也沒動。可以再試一次，或換一個執行者。"));
               return;
             }
@@ -89,7 +89,7 @@
                 const res = await FE.api(B("/drift/apply"), { method: "POST", body: { from: a, to: b, draft: p.draft }, signal });
                 const w2 = res.warnings || [];
                 if (w2.length) FE.toast(w2.join("；"), "err");
-                else FE.toast("已附加到 " + res.volume_file);
+                else FE.toast(`已附加到 ${res.volume_file}`);
                 planOut.replaceChildren(h("p", { class: "muted" }, "已附加到 ", h("code", {}, res.volume_file), "（原本的內容沒動）。"));
               } catch (e) { FE.fail(e); }
             };

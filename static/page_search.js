@@ -95,7 +95,7 @@
     S.searchTerms = r.terms;
 
     if (!r.results.length) {
-      box.replaceChildren(h("div", { class: "card empty" }, "找不到「" + r.terms.join("」＋「") + "」。可以勾選更多範圍再試。"));
+      box.replaceChildren(h("div", { class: "card empty" }, `找不到「${r.terms.join("」＋「")}」。可以勾選更多範圍再試。`));
       return;
     }
 
@@ -127,12 +127,12 @@
           },
             x.scope === "manuscript" ? null : h("span", { class: "badge" }, scopeLabel(x.scope)),
             // 舊版是「標籤＋一個空白＋標題」的同一段文字；這裡也併成一個字串。
-            (x.scope === "manuscript" ? "" : " ") + (x.kind === "chapter" ? "第" + x.no + "章　" + x.title : x.path)),
+            (x.scope === "manuscript" ? "" : " ") + (x.kind === "chapter" ? `第${x.no}章　${x.title}` : x.path)),
           h("span", { class: "grow" }),
-          h("span", { class: "muted small" }, x.count + " 處")),
+          h("span", { class: "muted small" }, `${x.count} 處`)),
         snippets);
       if (x.snippets.length > 3 || x.more) {
-        expand = h("button", { class: "ghost sm", style: "margin-top:4px", "data-expand": String(i) }, "展開其餘 " + more + " 處");
+        expand = h("button", { class: "ghost sm", style: "margin-top:4px", "data-expand": String(i) }, `展開其餘 ${more} 處`);
         expand.onclick = () => {
           card.querySelectorAll('[data-more="' + i + '"]').forEach((d) => { d.style.display = ""; });
           expand.remove();
@@ -143,10 +143,11 @@
     });
 
     // 舊版這整行是一個字串（innerHTML 解析後是單一文字節點），這裡也拼成一個字串。
+    // 巢狀的部分先算好，抽取工具才抓得到每一段的翻譯鍵（翻譯時 {0} 會再逐段翻）
+    const firstText = r.first ? `，第一次在第 ${r.first} 章` : "";
+    const chText = r.chapters ? `出現在 ${r.chapters} 章正文${firstText}；` : "";
     const summaryText =
-      "「" + r.terms.join("」＋「") + "」：" +
-      (r.chapters ? "出現在 " + r.chapters + " 章正文" + (r.first ? "，第一次在第 " + r.first + " 章" : "") + "；" : "") +
-      "共 " + r.files + " 份檔案、" + r.hits + " 處" + (r.truncated ? "（結果太多，只列前面的）" : "");
+      `「${r.terms.join("」＋「")}」：${chText}共 ${r.files} 份檔案、${r.hits} 處${r.truncated ? "（結果太多，只列前面的）" : ""}`;
     const summary = h("div", { class: "muted small", style: "margin:0 0 8px" }, summaryText);
     box.replaceChildren(summary, ...cards);
   }

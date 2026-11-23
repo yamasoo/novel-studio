@@ -23,7 +23,7 @@ function fmtTime(t) {
   if (!t) return "";
   const d = new Date(t * 1000), now = new Date();
   const hm = d.toTimeString().slice(0, 5);
-  return d.toDateString() === now.toDateString() ? "今天 " + hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+  return d.toDateString() === now.toDateString() ? `今天 ${hm}` : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
 }
 function go(h) { return FE.go(h); }
 window.go = go;
@@ -142,7 +142,7 @@ window.initFolder = async (id) => {
 
 window.setBookLang = async (v) => {
   try {
-    await api("POST", B("/lang"), { lang: v }); S.bookLang = v; toast("已改成 " + ({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]);
+    await api("POST", B("/lang"), { lang: v }); S.bookLang = v; toast(`已改成 ${({ "zh-TW": "繁體中文", en: "English", ja: "日本語" })[v]}`);
     S.books = (await api("GET", "/api/books")).books;      // 字數單位跟著語言換（字／詞）
     refresh();
   }
@@ -185,7 +185,7 @@ window.openCharState = (file) => docView($("#doc"), file);
 const readFiles = (input) => Promise.all([...input.files].map((f) => new Promise((res, rej) => {
   const r = new FileReader();
   r.onload = () => res({ name: f.name, data: String(r.result).split(",")[1] || "" });
-  r.onerror = () => rej(new Error("讀取 " + f.name + " 失敗"));
+  r.onerror = () => rej(new Error(`讀取 ${f.name} 失敗`));
   r.readAsDataURL(f);
 })));
 // lang 有值時（套用共用文風、結構）：同語言的書排前面，語言不同的標「（語言不同）」，不擋，讓作者自己決定
@@ -236,7 +236,7 @@ async function renderChapterStructure(el, no) {
     if (!ch.has_card) { el.replaceChildren(); return; }
     const def = r.list.find((s) => s.default);
     const sel = FE.h("select", { id: "cs-sel" },
-      FE.h("option", { value: "" }, def ? "用全書預設（" + def.name + "）" : "不指定"),
+      FE.h("option", { value: "" }, def ? `用全書預設（${def.name}）` : "不指定"),
       r.list.map((s) => FE.h("option", { value: s.name, selected: s.name === ch.assigned }, s.name)));
     sel.onchange = async (ev) => {
       try { await api("POST", B("/chapters/" + no + "/structure"), { name: ev.target.value || null }); toast("已更新本章結構"); refresh(); } catch (e) { fail(e); }
@@ -348,14 +348,14 @@ function loraRowsEl(items, list, key, title, who) {
       FE.h("input", { type: "checkbox", "data-lr": key + ":" + j, "data-lk": "on", checked: x.on !== false, title: "使用這個 LoRA" }),
       FE.h("input", { type: "text", list: dl, "data-lr": key + ":" + j, "data-lk": "name", value: nm, style: "flex:2",
         placeholder: list ? "打字搜尋 LoRA" : "LoRA 名稱（按測試連線後可以搜尋清單）",
-        title: miss ? who + " 找不到這個 LoRA" : "" }),
+        title: miss ? `${who} 找不到這個 LoRA` : "" }),
       FE.h("input", { type: "number", "data-lr": key + ":" + j, "data-lk": "strength", value: String(x.strength ?? 1),
         step: 0.05, min: -4, max: 4, style: "width:80px", title: "強度" }),
       FE.h("input", { type: "text", "data-lr": key + ":" + j, "data-lk": "trigger", value: x.trigger || "",
         placeholder: "觸發詞（選填，接在正向提示詞後面）", style: "flex:2" }),
       FE.h("button", { class: "sm danger", "data-lrdel": key + ":" + j }, "刪除"));
     if (!miss) return row;
-    return [row, FE.h("div", { class: "err small", style: "margin:-2px 0 4px 24px" }, who + " 找不到「" + nm + "」")];
+    return [row, FE.h("div", { class: "err small", style: "margin:-2px 0 4px 24px" }, `${who} 找不到「${nm}」`)];
   });
   return FE.h("div", { class: "f", style: "margin-top:6px" },
     FE.h("span", {}, title),
@@ -363,7 +363,7 @@ function loraRowsEl(items, list, key, title, who) {
     rows.length ? rows : FE.h("div", { class: "muted small" }, "沒有使用 LoRA。"),
     FE.h("div", {},
       FE.h("button", { class: "sm", "data-lradd": key }, "＋ LoRA"),
-      list ? FE.h("span", { class: "muted small" }, "　共 " + list.length + " 個；選好後會讀同名 JSON 帶入觸發詞（前 3 個詞）與建議強度，沒有 JSON 就用檔名") : null));
+      list ? FE.h("span", { class: "muted small" }, `　共 ${list.length} 個；選好後會讀同名 JSON 帶入觸發詞（前 3 個詞）與建議強度，沒有 JSON 就用檔名`) : null));
 }
 function bindLoraRows(root, getList, backend, rerender) {
   root.querySelectorAll("[data-lr]").forEach((x) => {
@@ -464,7 +464,7 @@ async function renderIllSettings(el) {
           r.tag_zh_csv ? "✓ " + r.tag_zh_csv : FE.h("span", { class: "muted" }, "沒有中文對照表")))),
     FE.h("div", { class: "small muted", style: "margin:-4px 0 8px" },
       r.sheet_error ? FE.h("span", { class: "err" }, r.sheet_error)
-        : r.sheet_count ? "樣式表共 " + r.sheet_count + " 個畫風" + (r.sheet_is_example ? "（目前用專案附的範例）" : "") : "",
+        : r.sheet_count ? `樣式表共 ${r.sheet_count} 個畫風${r.sheet_is_example ? "（目前用專案附的範例）" : ""}` : "",
       "　MOSS-Image 會自動改用自然語言，不加品質、分級與畫師標籤。"),
     FE.h("label", { class: "cb" },
       FE.h("input", { type: "checkbox", id: "il-nsfw", checked: !!c.show_nsfw_styles }),
@@ -499,7 +499,7 @@ async function renderIllSettings(el) {
     box.append(FE.h("select", { "data-pf": i, "data-key": key },
       FE.h("option", { value: "" }, key === "upsampler_clip" ? "（請選擇）" : "照 workflow"),
       list.map((f) => FE.h("option", { value: f, selected: f === cur }, f + (f === guess && !cur ? "（建議）" : ""))),
-      cur && !list.includes(cur) ? FE.h("option", { value: cur, selected: true }, cur + "（ComfyUI 找不到）") : null));
+      cur && !list.includes(cur) ? FE.h("option", { value: cur, selected: true }, `${cur}（ComfyUI 找不到）`) : null));
     return box;
   };
   const loraRows = (p, i) => loraRowsEl(p.loras || [], cst && cst.ok ? (cst.lists.lora || []).map((f) => ({ name: f, folder: f.replace(/\\/g, "/").split("/").slice(0, -1).join("/") })) : null,
@@ -511,10 +511,9 @@ async function renderIllSettings(el) {
       const status = st ? (st.error
         ? [FE.h("span", { class: "badge b-bad" }, "workflow 有問題"), " " + st.error]
         : [FE.h("span", { class: "badge " + (sm.missing.length ? "b-bad" : "b-ok") }, sm.missing.length ? "ComfyUI 缺少節點" : "workflow 可以用"),
-          " " + (sm.missing.length ? "缺：" + sm.missing.join("、") + "　" : ""),
+          " " + (sm.missing.length ? `缺：${sm.missing.join("、")}　` : ""),
           FE.h("span", { class: "muted" },
-            "正向：" + sm.positive.join("、") + "　負向：" + (sm.negative.join("、") || "無") + "　尺寸：" + (sm.latent.join("、") || "無")
-            + (sm.removed.length ? "　略過：" + sm.removed.join("、") : ""))]) : null;
+            `正向：${sm.positive.join("、")}　負向：${sm.negative.join("、") || "無"}　尺寸：${sm.latent.join("、") || "無"}${sm.removed.length ? `　略過：${sm.removed.join("、")}` : ""}`)]) : null;
       return FE.h("div", { class: "prov-box", style: "margin-bottom:10px" },
         FE.h("div", { class: "row" }, FE.h("b", {}, p.name || "未命名"), FE.h("span", { class: "grow" }),
           profs.length > 1 ? FE.h("button", { class: "sm danger", "data-del": i }, "刪除") : null),
@@ -527,7 +526,7 @@ async function renderIllSettings(el) {
           FE.h("label", { class: "f" }, FE.h("span", {}, "workflow（API 格式 .json）"),
             FE.h("input", { type: "text", "data-pf": i, "data-key": "workflow", value: p.workflow, placeholder: "留空＝專案附的範本" })),
           modelField(p, i, "unet", "模型"), modelField(p, i, "clip", "文字編碼器"), modelField(p, i, "vae", "VAE")),
-        FE.h("label", { class: "f" }, FE.h("span", {}, "負面提示詞（留空＝" + (p.kind === "moss" ? "MOSS 官方建議" : "用下方「提示詞」的設定") + "）"),
+        FE.h("label", { class: "f" }, FE.h("span", {}, `負面提示詞（留空＝${p.kind === "moss" ? "MOSS 官方建議" : "用下方「提示詞」的設定"}）`),
           FE.h("input", { type: "text", "data-pf": i, "data-key": "negative", value: p.negative })),
         FE.h("label", { class: "cb" },
           FE.h("input", { type: "checkbox", "data-pf": i, "data-key": "upsampler", checked: !!p.upsampler }),
@@ -559,7 +558,7 @@ async function renderIllSettings(el) {
     fst = s; renderForgeLoras();
     st.replaceChildren(...(s.ok
       ? [FE.h("span", { class: "badge b-ok" }, "已連線"),
-        " 模型：" + (s.model || "") + "　模組：" + (s.modules || []).join("、") + "　取樣器 " + s.samplers.length + " 種"]
+        ` 模型：${s.model || ""}　模組：${(s.modules || []).join("、")}　取樣器 ${s.samplers.length} 種`]
       : [FE.h("span", { class: "badge b-bad" }, "連不到"), " " + s.error]));
   };
   const save = async () => {
@@ -589,8 +588,7 @@ async function renderIllSettings(el) {
       }
       st.replaceChildren(
         FE.h("span", { class: "badge b-ok" }, "已連線"),
-        " ComfyUI " + cst.version + "　" + (cst.device || "") + "　模型 " + cst.lists.unet.length
-          + "、文字編碼器 " + cst.lists.clip.length + "、VAE " + cst.lists.vae.length + "、LoRA " + (cst.lists.lora || []).length + " 個",
+        ` ComfyUI ${cst.version}　${cst.device || ""}　模型 ${cst.lists.unet.length}、文字編碼器 ${cst.lists.clip.length}、VAE ${cst.lists.vae.length}、LoRA ${(cst.lists.lora || []).length} 個`,
         ...(filled ? ["　", FE.h("span", { class: "muted" }, "已依檔名帶入建議的模型，確認後按「儲存插畫設定」")] : []));
     } else st.replaceChildren(FE.h("span", { class: "badge b-bad" }, "連不到"), " " + cst.error);
     renderProfs();
@@ -630,7 +628,7 @@ function pickPath(opts, onPick) {
       listBox,
     ],
     foot: (done) => [
-      mkBtn || FE.h("span", { class: "muted small" }, opts.exts && opts.exts.length ? "只顯示 " + opts.exts.join("、") : ""),
+      mkBtn || FE.h("span", { class: "muted small" }, opts.exts && opts.exts.length ? `只顯示 ${opts.exts.join("、")}` : ""),
       FE.h("span", { class: "grow" }),
       FE.h("button", { class: "btn", type: "button", onclick: () => done() }, "取消"),
       okBtn,
@@ -698,8 +696,8 @@ async function restartServer(port) {
   let r;
   try { r = await api("POST", "/api/restart"); } catch (e) { return fail(e); }
   const target = new URL(r.url);
-  const note = target.port !== location.port ? "（新的網址：" + target.origin + "）" : "";
-  const msg = FE.h("p", { class: "muted" }, "等待服務重新開啟" + note);
+  const note = target.port !== location.port ? `（新的網址：${target.origin}）` : "";
+  const msg = FE.h("p", { class: "muted" }, `等待服務重新開啟${note}`);
   FE.modal({ title: "重新啟動中……", body: msg });
   const start = Date.now();
   await new Promise((res) => setTimeout(res, 1500));
@@ -929,7 +927,7 @@ const Panel = {
       foot.push(FE.h("button", {
         class: "primary",
         onclick: () => { Panel.closeForm(); Panel.openForm(next.action, next.prefill || {}); },
-      }, "下一步：" + (next.label || "")));
+      }, `下一步：${next.label || ""}`));
     }
     kids.push(FE.h("div", { class: "row", style: "margin-top:8px" }, ...foot));
     el.replaceChildren(FE.h("div", { class: "card" }, ...kids));

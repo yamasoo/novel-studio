@@ -54,6 +54,21 @@ def _plugin_dir():
     return os.path.join(ROOT, "plugin")
 
 
+def _sort_books(v):
+    """書的清單（書架、匯入、共用庫的 books）依修改時間排序；剛 clone 的 repo（CI）每本書的時間幾乎一樣，
+    順序不固定，所以比對前照 id／名稱排。"""
+    if isinstance(v, dict):
+        for k, x in v.items():
+            if k == "books" and isinstance(x, list):
+                x.sort(key=lambda b: (not b.get("is_book"), str(b.get("id"))) if isinstance(b, dict) else (False, str(b)))
+            else:
+                _sort_books(x)
+    elif isinstance(v, list):
+        for x in v:
+            _sort_books(x)
+    return v
+
+
 class DemoSnapshotTest(unittest.TestCase):
     maxDiff = None
 
@@ -94,7 +109,7 @@ class DemoSnapshotTest(unittest.TestCase):
             body = r.json()
         except ValueError:
             body = r.text
-        return {"status": r.status_code, "body": self._norm(body)}
+        return {"status": r.status_code, "body": _sort_books(self._norm(body))}
 
     # ---------- 收集 ----------
     def collect(self):

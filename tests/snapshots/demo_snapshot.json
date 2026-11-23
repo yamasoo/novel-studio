@@ -5,19 +5,6 @@
     {
      "chapters_planned": 5,
      "chapters_written": 2,
-     "chars": 915,
-     "hook": "王都を追われた若い薬師は、辺境の村で傷ついた小さな竜と出会い、三つの薬草が揃うまで命を預かると約束する。",
-     "id": "ja_辺境の薬師と竜の約束",
-     "is_book": true,
-     "lang": "ja",
-     "name": "ja_辺境の薬師と竜の約束",
-     "pending_candidates": 1,
-     "unit": "chars",
-     "updated": "<volatile>"
-    },
-    {
-     "chapters_planned": 5,
-     "chapters_written": 2,
      "chars": 808,
      "hook": "A mapmaker's apprentice and a lantern that only lights roads the maps swear don'",
      "id": "en_TheLanternRoad",
@@ -26,6 +13,19 @@
      "name": "en_TheLanternRoad",
      "pending_candidates": 1,
      "unit": "words",
+     "updated": "<volatile>"
+    },
+    {
+     "chapters_planned": 5,
+     "chapters_written": 2,
+     "chars": 915,
+     "hook": "王都を追われた若い薬師は、辺境の村で傷ついた小さな竜と出会い、三つの薬草が揃うまで命を預かると約束する。",
+     "id": "ja_辺境の薬師と竜の約束",
+     "is_book": true,
+     "lang": "ja",
+     "name": "ja_辺境の薬師と竜の約束",
+     "pending_candidates": 1,
+     "unit": "chars",
      "updated": "<volatile>"
     },
     {
@@ -1909,19 +1909,6 @@
      {
       "chapters_planned": 5,
       "chapters_written": 2,
-      "chars": 915,
-      "hook": "王都を追われた若い薬師は、辺境の村で傷ついた小さな竜と出会い、三つの薬草が揃うまで命を預かると約束する。",
-      "id": "ja_辺境の薬師と竜の約束",
-      "is_book": true,
-      "lang": "ja",
-      "name": "ja_辺境の薬師と竜の約束",
-      "pending_candidates": 1,
-      "unit": "chars",
-      "updated": "<volatile>"
-     },
-     {
-      "chapters_planned": 5,
-      "chapters_written": 2,
       "chars": 808,
       "hook": "A mapmaker's apprentice and a lantern that only lights roads the maps swear don'",
       "id": "en_TheLanternRoad",
@@ -1930,6 +1917,19 @@
       "name": "en_TheLanternRoad",
       "pending_candidates": 1,
       "unit": "words",
+      "updated": "<volatile>"
+     },
+     {
+      "chapters_planned": 5,
+      "chapters_written": 2,
+      "chars": 915,
+      "hook": "王都を追われた若い薬師は、辺境の村で傷ついた小さな竜と出会い、三つの薬草が揃うまで命を預かると約束する。",
+      "id": "ja_辺境の薬師と竜の約束",
+      "is_book": true,
+      "lang": "ja",
+      "name": "ja_辺境の薬師と竜の約束",
+      "pending_candidates": 1,
+      "unit": "chars",
       "updated": "<volatile>"
      },
      {
@@ -1957,8 +1957,8 @@
   "/api/import/info": {
    "body": {
     "books": [
-     "ja_辺境の薬師と竜の約束",
      "en_TheLanternRoad",
+     "ja_辺境の薬師と竜の約束",
      "退婚之後"
     ],
     "has_opencc": true
@@ -1997,8 +1997,8 @@
      "退婚之後": "zh-TW"
     },
     "books": [
-     "ja_辺境の薬師と竜の約束",
      "en_TheLanternRoad",
+     "ja_辺境の薬師と竜の約束",
      "退婚之後"
     ],
     "dir": "<LIB>/_shared",

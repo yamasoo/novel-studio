@@ -266,6 +266,7 @@ class RenameStepTest(unittest.TestCase):
         os.makedirs(os.path.join(b, "匯出"), exist_ok=True)       # 空資料夾
         claude = project.read_text(os.path.join(b, "CLAUDE.md"))
         w("CLAUDE.md", claude + "\n- 角色檔放在 `設定/角色/`，正文在 正文/。\n")
+        w("設定/續寫合約.md", "# 續寫合約\n\n## 5. 禁區\n\n- 作者的硬性偏好（`設定/作者偏好.md`）優先。\n")
         self.before = _snapshot(b)
 
     def tearDown(self):
@@ -283,7 +284,7 @@ class RenameStepTest(unittest.TestCase):
         r = migrate.migrate(self.book)
         self.assertEqual("done", r["status"], r.get("message"))
         after = _snapshot(self.book)
-        rewritten = {"CLAUDE.md", "bible/glossary.md", ".studio/revisions/ch-0001.json", ".studio/pipeline/current.json",
+        rewritten = {"CLAUDE.md", "bible/glossary.md", "bible/continuation-contract.md", ".studio/revisions/ch-0001.json", ".studio/pipeline/current.json",
                      ".studio/reverse/drafts/bible/glossary.md", "illust/_illustrations.json"}
         for rel, data in self.before.items():
             new = migrate.map_v3(rel)
@@ -304,6 +305,7 @@ class RenameStepTest(unittest.TestCase):
         self.assertIn("詳見 bible/world/兵器.md；見 tracking/timeline.md", rd("bible/glossary.md"))
         self.assertIn("詳見 bible/world/兵器.md", rd(".studio/reverse/drafts/bible/glossary.md"))
         self.assertIn("`bible/characters/`，正文在 manuscript/。", rd("CLAUDE.md"))
+        self.assertIn("`bible/author-prefs.md`", rd("bible/continuation-contract.md"), "續寫合約保留段的路徑也要換")
         self.assertIn("bible/characters/林晚.md", rd("illust/_illustrations.json"))
         self.assertIn("illust/林晚/1.png", rd("illust/_illustrations.json"))
         self.assertIn("設定/世界觀/兵器.md", rd("manuscript/ch-0003.md"), "正文一個字都不能改")

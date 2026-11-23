@@ -70,8 +70,17 @@
   // 單純「寫第 N 章」不算轉折：舊書的寫文 primary 留在 page-head，行為與改版前一樣。
   const VOLUME_STEPS = ["volume_end", "volume_next", "cards"];
 
+  // 「開始{0}」是太泛用的範本（會套到書的內容），所以不加語言檔；改成：繁中照舊，
+  // 其他語言用專用鍵的前後綴（標 skip），中間的步驟名照一般規則翻（精確鍵或「第{0}卷卷綱」這類範本）。
   function stepLabel(ns) {
-    return ns.cta || (ns.action === "write" ? ns.label : `開始${ns.label}`);
+    if (ns.cta || ns.action === "write") return ns.cta || ns.label;
+    const lang = FE.i18n && FE.i18n.lang;
+    if (!lang || lang === "zh-TW") return `開始${ns.label}`;
+    const [pre, post = ""] = FE.t("開始{0}（下一步按鈕）").split("{0}");
+    return h("span", {},
+      pre ? h("span", { "data-i18n-skip": "" }, pre) : null,
+      h("span", {}, ns.label),
+      post ? h("span", { "data-i18n-skip": "" }, post) : null);
   }
 
   function stepGo(ns) {

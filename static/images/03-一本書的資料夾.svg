@@ -19,23 +19,23 @@
   <text class="t" x="40" y="42" style="font-size:20px">一本書在硬碟上長什麼樣</text>
   <text class="s" x="40" y="66">全部是純文字（Markdown＋YAML），可以直接看、直接改、用 git 備份</text>
   <rect class="box " x="40" y="100" width="300" height="88"/>
-  <text class="t" x="190" y="131" text-anchor="middle">設定/</text>
+  <text class="t" x="190" y="131" text-anchor="middle">bible/</text>
   <text class="s" x="190" y="151" text-anchor="middle">角色・勢力・世界觀</text>
   <text class="s" x="190" y="168" text-anchor="middle">故事核心・文風・續寫合約</text>
   <rect class="box " x="356" y="100" width="300" height="88"/>
-  <text class="t" x="506" y="131" text-anchor="middle">大綱/</text>
+  <text class="t" x="506" y="131" text-anchor="middle">outline/</text>
   <text class="s" x="506" y="151" text-anchor="middle">全書大綱・卷綱</text>
   <text class="s" x="506" y="168" text-anchor="middle">章綱（每章一張）</text>
   <rect class="box ok" x="672" y="100" width="300" height="88"/>
-  <text class="t" x="822" y="131" text-anchor="middle">正文/</text>
+  <text class="t" x="822" y="131" text-anchor="middle">manuscript/</text>
   <text class="s" x="822" y="151" text-anchor="middle">定稿的章節</text>
   <text class="s" x="822" y="168" text-anchor="middle">（AI 不會直接改）</text>
   <rect class="box key" x="40" y="216" width="300" height="88"/>
-  <text class="t" x="190" y="247" text-anchor="middle">候選/</text>
+  <text class="t" x="190" y="247" text-anchor="middle">candidates/</text>
   <text class="s" x="190" y="267" text-anchor="middle">AI 剛寫完的草稿</text>
   <text class="s" x="190" y="284" text-anchor="middle">檢查完才搬進正文</text>
   <rect class="box " x="356" y="216" width="300" height="88"/>
-  <text class="t" x="506" y="247" text-anchor="middle">追蹤/</text>
+  <text class="t" x="506" y="247" text-anchor="middle">tracking/</text>
   <text class="s" x="506" y="267" text-anchor="middle">狀態卡・伏筆・時間線</text>
   <text class="s" x="506" y="284" text-anchor="middle">章節摘要・讀者認知</text>
   <rect class="box warn" x="672" y="216" width="300" height="88"/>

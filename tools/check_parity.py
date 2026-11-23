@@ -335,6 +335,18 @@ def _src_blob():
     return _SRC_BLOB
 
 
+def _in_src(key):
+    """鍵出現在原始碼裡嗎？有 {0} 的鍵也認後端的 %d／%s 寫法（「寫第 {0} 章」↔ "寫第 %d 章"）。"""
+    blob = _src_blob()
+    if key in blob:
+        return True
+    if not re.search(r"\{\d+\}", key):
+        return False
+    rx = re.escape(key)
+    rx = re.sub(r"\\\{\d+\\\}", r"(?:%[-0-9.]*[dsf]|\\{[^}]*\\})", rx)
+    return re.search(rx, blob) is not None
+
+
 def check_locales():
     inv_path = os.path.join(ROOT, "tools", "i18n_keys.json")
     if not os.path.isfile(inv_path):
@@ -350,7 +362,7 @@ def check_locales():
         d = json.loads(read(p))
         d = {x: y for x, y in d.items() if not x.startswith("_")}
         miss = sorted(inv - set(d))
-        stale = sorted(x for x in set(d) - inv if x not in _src_blob())   # 程式裡還有這段字（執行期顯示的資料標籤）不算失效
+        stale = sorted(x for x in set(d) - inv if not _in_src(x))   # 程式裡還有這段字（執行期顯示的資料標籤）不算失效
         empty = [x for x in inv & set(d) if isinstance(d[x], str) and not d[x].strip() and len(x.strip()) > 4]
         pathlike = [x for x in miss if "/" in x or x.endswith(".md")]
         real = [x for x in miss if x not in pathlike]

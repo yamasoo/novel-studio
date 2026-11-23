@@ -98,7 +98,7 @@
       h("span", {}, x.name, " ", dim(x)),
       h("span", { class: "grow" }),
       x.kind === "卷" ? [
-        h("button", { class: "sm", "data-revise": String(x.no), onclick: () => Panel.openForm("volume_revise", { volume: String(x.no) }) }, FE.t("修訂")),
+        h("button", { class: "sm", "data-revise": String(x.no), onclick: () => Panel.openForm("volume_revise", { volume: String(x.no) }) }, nsShared.tx("修訂", "修訂（動作）")),
         h("button", { class: "sm", "data-sync": String(x.no), onclick: () => outlineSync(Number(x.no), signal) }, FE.t("同步大綱")),
       ] : null,
       h("button", { class: "sm", "data-check": x.lo + "-" + x.hi, onclick: () => cardCheck(Number(x.lo), Number(x.hi), signal) }, FE.t("章綱體檢")),

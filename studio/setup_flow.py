@@ -228,9 +228,10 @@ def _volume_next(book_dir):
     if vol["full"]:
         no, start = (vol["no"] or 0) + 1, vol["hi"] + 1
         cn = volume.cn_no(no)
-        return {"id": "volume_next", "label": "第%s卷卷綱" % cn,
+        # 標籤用阿拉伯數字（跟總覽卷卡的「第1卷」一致，介面翻譯才對得上）；表單的卷號照舊收中文數字
+        return {"id": "volume_next", "label": "第%d卷卷綱" % no,
                 "action": "volume_draft", "prefill": {"volume": cn, "from": start, "to": start + 9},
-                "desc": "上一卷寫滿了。先把第%s卷的卷綱定下來（第%d 章起），再排這一卷的章綱。" % (cn, start)}
+                "desc": "上一卷寫滿了。先把第%d卷的卷綱定下來（第%d 章起），再排這一卷的章綱。" % (no, start)}
     chs = project.scan_chapters(book_dir)
     have = {c["no"] for c in chs if c.get("card_file") or c.get("text_file")}
     written = {c["no"] for c in chs if c.get("text_file")}

@@ -278,7 +278,7 @@ def _meta_apply(book_dir):
 
 # --- 第二步：資料夾與系統檔名換成英文 -------------------------------------------------
 _TOKEN = re.compile(r"[^\s|，、。；：（）()「」『』\[\]<>\"'`*,]+")
-_MD_WITH_PATHS = ("GLOSSARY", "BIBLE_INDEX")       # 內容裡有路徑（名詞表的「詳見」、設定索引）的系統檔，加上書裡的 CLAUDE.md
+_MD_WITH_PATHS = ("GLOSSARY", "BIBLE_INDEX", "CONTRACT")   # 內容裡有路徑（名詞表的「詳見」、設定索引、續寫合約保留的禁區段）的系統檔，加上書裡的 CLAUDE.md
 
 
 def rename_enabled():

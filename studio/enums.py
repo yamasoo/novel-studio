@@ -99,7 +99,7 @@ TABLES = {
         ("身體資訊", ["physical and information state", "physical state", "continuity", "身体と情報", "身体"]),
         ("轉場", ["transitions", "transition", "場面転換", "転換"]),
         ("章末", ["chapter ending", "ending", "章末", "章の終わり"]),
-        ("設定", ["setting", "worldbuilding", "設定"]),
+        ("設定", ["setting", "worldbuilding", "設定"]),  # literal-ok: 審查分類的列舉值
         ("資訊邊界", ["information boundary", "spoiler", "情報の境界"]),
         ("文字", ["prose", "wording", "style", "文章", "文体"]),
     ],

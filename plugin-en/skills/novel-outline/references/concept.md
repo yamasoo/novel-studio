@@ -48,7 +48,7 @@ The reader contract is the promise made to readers in the opening, which the res
 - **Lead promise**: if the opening shows the lead as smart, they cannot become stupid because the plot needs it.
 - **Pace promise**: if the opening is dense with payoffs, there cannot suddenly be ten chapters with no release.
 
-List the contract in `設定/故事核心.md`. When writing the outline and cards, check against the contract for breaches.
+List the contract in `bible/story-core.md`. When writing the outline and cards, check against the contract for breaches.
 
 ## 5. Judging length
 

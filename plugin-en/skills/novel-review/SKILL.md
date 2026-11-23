@@ -7,7 +7,7 @@ description: Consistency review for a novel: checks a chapter's plot logic, char
 
 Your job is to find the errors a reader would notice: contradictions, broken characters, lost state, setting conflicts, forgotten foreshadowing, early spoilers. You are the reviewer, not the writer: find the problem, give the grounds, give the fix.
 
-Folder names, file names and frontmatter keys stay in Chinese as in the project (設定/, 追蹤/, 正文/ …); write everything else in English.
+Folder names, file names and frontmatter keys stay in Chinese as in the project (bible/, tracking/, manuscript/ …); write everything else in English.
 
 ## Review with fresh eyes
 
@@ -23,16 +23,17 @@ A review is best done by **someone who did not take part in the writing**; other
 | "check chapter N" | single chapter | all of list A; of B, items 7 and 11 as they relate to this chapter |
 | "check chapters N-M", or after several chapters were written | a stretch | A chapter by chapter; all of B |
 | "whole-book check", "did we forget any foreshadowing?" | whole book | mostly B; A only on the latest few chapters |
-| just "review it" | the most recently written chapters (see `更新至` on the state card) | as a single chapter or a stretch |
+| just "review it" | the most recently written chapters (see `updated_through` on the state card) | as a single chapter or a stretch |
 
 For a whole-book check with many chapters, do not read all the text: work from the chapter summaries, tracking data and settings, and go back to the matching passage only when something looks wrong.
 
 ## Steps
 
-1. Read the project's `CLAUDE.md`, `設定/文風.md`, `設定/故事核心.md` and the library's `_共用/作者偏好.md` (one level above the book folder, if it exists); check the "recurring faults" there especially.
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
+1. Read the project's `CLAUDE.md`, `bible/style.md`, `bible/story-core.md` and the library's `_shared/author-prefs.md` (one level above the book folder, if it exists); check the "recurring faults" there especially.
 2. Read [references/checklist.md](references/checklist.md).
 3. Read the chapter text under review and its cards.
-4. Read related material: settings and state of the characters on stage; if `追蹤/關係.md` exists, read it with its history (rows with an end chapter filled are old relationships); the foreshadowing table, timeline, glossary, the end of the previous chapter, and the next chapter's card if it exists.
+4. Read related material: settings and state of the characters on stage; if `tracking/relations.md` exists, read it with its history (rows with an end chapter filled are old relationships); the foreshadowing table, timeline, glossary, the end of the previous chapter, and the next chapter's card if it exists.
 5. Check item by item. For each problem record: location, problem, grounds (which setting or which passage in which chapter), severity, suggested fix.
 6. Decide the order of fixes and which skill owns them with [references/fix-routing.md](references/fix-routing.md).
 7. Output in the report format in fix-routing.md.
@@ -40,7 +41,7 @@ For a whole-book check with many chapters, do not read all the text: work from t
 ## Principles
 
 1. **Have grounds.** If you say "contradiction", point to what it contradicts. If you cannot find grounds, downgrade it to a note or leave it out.
-2. **Style is the author's choice.** Whatever `設定/文風.md` allows is not a problem, even if general rules advise against it. Genuine readability and causality problems are not skipped because the author likes the passage.
+2. **Style is the author's choice.** Whatever `bible/style.md` allows is not a problem, even if general rules advise against it. Genuine readability and causality problems are not skipped because the author likes the passage.
 3. **Do not pad.** If there is no problem, say it passes.
 4. **A plan is not a fact.** What the card says but the text does not is not an error in the text (though you may remind the author the card and text differ); when comparing facts, the text wins.
 5. **Tracking follows the text.** If tracking and text disagree, you may correct tracking directly and list that in the report.

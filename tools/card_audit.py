@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""章綱體檢：拿角色設定回頭對 大綱/章綱，正文還沒寫就先抓劇透與久別重逢。
+"""章綱體檢：拿角色設定回頭對 outline/chapters，正文還沒寫就先抓劇透與久別重逢。
 
 用法：python tools/card_audit.py --book <書> [--from N --to M]
 
@@ -25,7 +25,7 @@ def main():
     book = os.path.abspath(a.book)
     if not os.path.isdir(book):
         raise SystemExit("找不到書：%s" % book)
-    cards = project._scan_dir(os.path.join(book, "大綱", "章綱"))
+    cards = project._scan_dir(os.path.join(book, "outline", "chapters"))
     if not cards:
         print("這本書沒有章綱可以檢查。")
         return 0

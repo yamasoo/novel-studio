@@ -9,60 +9,30 @@ import subprocess
 import time
 
 from . import project, prompts, textguard
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
+from . import tables
 
-STATE_SECTIONS = ["目前位置", "主線進度", "在場角色", "下一章承諾", "長期約束", "連續性風險", "活躍伏筆"]
+# 回寫資料（英文鍵）與檔案裡的段落／欄位名稱（中文，檔案格式到 P3 才換）
+SUMMARY_KEYS = (("what_happened", "發生了什麼"), ("situation_change", "局面變化"), ("new_elements", "新出現的人事物"),
+                ("ends_on", "結尾停在"))
+STATE_KEYS = (("current_position", "目前位置"), ("main_progress", "主線進度"), ("present_characters", "在場角色"),
+              ("next_chapter_promises", "下一章承諾"), ("long_term_constraints", "長期約束"),
+              ("continuity_risks", "連續性風險"), ("active_foreshadowing", "活躍伏筆"))
+CHAR_KEYS = (("identity", "身分"), ("location", "位置"), ("goal", "目標"), ("physical_state", "身體狀態"),
+             ("emotional_state", "情緒狀態"), ("abilities_resources", "能力與資源"), ("relationship_changes", "關係變化"),
+             ("known_secrets", "知道的秘密"), ("unfinished_business", "未了結的事"))
+STATE_SECTIONS = [label for _, label in STATE_KEYS]
 FS_HEADERS = ["編號", "內容", "埋設章", "預計回收", "最後出現", "狀態", "重要度"]
 TL_HEADERS = ["編號", "故事時間", "實際發生（作者真相）", "讀者目前知道", "揭示章", "相關角色"]
-CHAR_FIELDS = ["身分", "位置", "目標", "身體狀態", "情緒狀態", "能力與資源", "關係變化", "知道的秘密", "未了結的事"]
+CHAR_FIELDS = [label for _, label in CHAR_KEYS]
 GLOSS_HEADERS = ["名詞", "類別", "說明", "注意"]
 RP_HEADERS = ["編號", "類型", "內容", "作者真相", "種下章", "回收章", "相關角色"]
 RP_TYPES = ("已知", "懸念", "誤認")
-RP_FILE = "追蹤/讀者認知.md"
-RP_DRAFT = "追蹤/讀者認知_草稿.md"
+RP_FILE = layout.READER_KNOWLEDGE
+RP_DRAFT = layout.READER_KNOWLEDGE_DRAFT
 RP_NEW_BOOK_ROWS = 15   # 時間線超過這麼多列又沒有帳本，視為舊書，不自動建立
 BACKUP_KEEP = 30        # 每組（標籤_原檔名）保留最新幾份
-
-# 給 AI 看的回寫格式說明（放進提示詞）
-WRITEBACK_SCHEMA = """請只輸出一個 JSON 物件，格式如下（只列出有變化的項目；沒有就給空陣列）：
-{
-  "summary": {"發生了什麼": "2～4 句", "局面變化": "…", "新出現的人事物": "沒有就寫「無」", "結尾停在": "…"},
-  "state_card": {
-    "目前位置": ["卷／章：…", "故事內時間：…", "主要場景：…"],
-    "主線進度": ["走到哪一步：…", "下一個目標：…"],
-    "在場角色": ["角色名：一句近況"],
-    "下一章承諾": ["…"],
-    "長期約束": ["…"],
-    "連續性風險": ["…"],
-    "活躍伏筆": ["F001 一句說明"]
-  },
-  "foreshadow": [
-    {"編號": "既有編號，新伏筆寫「新」", "內容": "…", "埋設章": "第NNN章", "預計回收": "打算回收的那一章，只寫「第NNN章」；沒定就留空（要推進或呼應的章不要寫在這裡）", "最後出現": "第NNN章", "狀態": "已埋|推進中|已回收|廢棄", "重要度": "高|中|低"}
-  ],
-  "timeline": [
-    {"編號": "既有編號，新事件寫「新」", "故事時間": "…", "實際發生（作者真相）": "…", "讀者目前知道": "…", "揭示章": "第NNN章或未揭示", "相關角色": "…"}
-  ],
-  "reader": [
-    {"編號": "既有編號，新條目寫「新」", "類型": "已知|懸念|誤認", "內容": "讀者知道的事／在等答案的問題／誤以為的事", "作者真相": "真相或答案（作者沒定就留空）", "種下章": "第NNN章", "回收章": "揭曉或澄清的那一章；還沒回收就留空", "相關角色": "…"}
-  ],
-  "characters": [
-    {"名稱": "角色名", "身分": "…", "位置": "…", "目標": "…", "身體狀態": "…", "情緒狀態": "…", "能力與資源": "…", "關係變化": "…", "知道的秘密": "…", "未了結的事": "…"}
-  ],
-  "relations": [
-    {"誰": "角色名", "對誰": "角色名", "關係": "身分或定位，例如 師徒、盟友、債主", "態度": "這個人對另一個人的感受與溫度，例如 信任、戒備、愛慕", "原因": "本章哪件事造成這個變化"}
-  ],
-  "new_entities": [
-    {"類型": "角色|勢力|名詞|地點|物品|規則", "名稱": "…", "說明": "正文中出現的資訊，不要補寫"}
-  ],
-  "report": "給作者的白話匯報，2～5 句：這章更新了哪些追蹤資料、有什麼要作者注意"
-}
-規則：
-- state_card 是本章結束後的「現在」狀態，七欄都要給完整內容（會整份覆寫），過時的內容拿掉。
-- characters 只列本章有登場或有變化的角色；「知道的秘密」只寫角色在故事裡已經知道的事。
-- foreshadow 與 timeline 只列本章新增或有變動的列，既有列要保留原編號。
-- reader 是讀者認知帳本：本章讓讀者開始等答案的事記「懸念」、讓讀者誤以為的事記「誤認」、讀者新知道且會影響後續閱讀的關鍵資訊記「已知」；本章揭曉或澄清了舊的懸念、誤認，就用原編號填「回收章」。作者真相沒有把握就留空，不要自己編答案。
-- relations 是角色關係表：只列本章「變了」或「第一次明確建立」的關係，沒變的不要重寫（上面的「角色關係」是目前有效的，照它比對）。一個方向一筆：A 對 B、B 對 A 要分開寫，只有一方改變就只寫那一方。角色名用角色檔的正式名稱。關係與態度沒有變的欄位可以留空。工作台會自己把舊的關係標上結束章、另開新的一列，不要自己重寫整張表。
-- 只寫正文裡真的發生的事，章綱計畫了但正文沒寫出來的不要寫。"""
-
 
 REVISION_NOTE = ("\n【注意：這是修訂舊章】追蹤資料已經更新到第%d章，這次是重新整理較早的第%d章。"
                  "state_card、characters 與 relations 請給空物件／空陣列（目前狀態與關係以最新章為準，不能倒退）；"
@@ -83,20 +53,20 @@ def _chno(s):
 
 
 def tracked_to(book_dir):
-    p = os.path.join(book_dir, "追蹤", "狀態卡.md")
+    p = layout.path(book_dir, layout.STATE_CARD)
     if not os.path.isfile(p):
         return 0
     fm, _ = project.split_frontmatter(project.read_text(p))
-    return _chno(fm.get("更新至"))
+    return _chno(fm.get("updated_through"))
 
 
 def _bump_updated(text, label):
     """frontmatter 的「更新至」只往前，不倒退。"""
-    m = re.search(r"^更新至:(.*)$", text, re.M)
+    m = re.search(r"^(?:updated_through|更新至):(.*)$", text, re.M)
     if m and _chno(m.group(1)) >= _chno(label):
         return text
     if m:
-        return text[:m.start()] + "更新至: %s" % label + text[m.end():]
+        return text[:m.start()] + "updated_through: %s" % fmkeys.ch_value(label) + text[m.end():]
     return text
 
 
@@ -131,35 +101,43 @@ def _render_table(headers, rows):
     return "\n".join(out)
 
 
-def upsert_table(path, default_headers, items, prefix, title, ftype, chapter_label):
-    """依「編號」更新或新增表格列。回傳 (新增數, 更新數, 新編號清單)。"""
+def upsert_table(path, kind, items, prefix, title, ftype, chapter_label, lang=None):
+    """依「編號」更新或新增表格列。回傳 (新增數, 更新數, 新編號清單)。
+    kind：tables.COLUMNS 的表名。檔案的表頭照舊；處理過程一律用英文鍵（v3 P2），
+    模型給的資料不論是英文鍵或中文鍵（jsonkeys 換過）都認。"""
     if os.path.isfile(path):
         text = project.read_text(path)
     else:
-        text = "---\n類型: %s\n更新至: %s\n---\n\n# %s\n\n" % (ftype, chapter_label, title)
+        doc = fmkeys.value_en("type", ftype)
+        text = "---\ntype: %s\nupdated_through: %s\n---\n\n# %s\n\n" % (
+            fmkeys.write_value("type", ftype), fmkeys.ch_value(chapter_label),
+            sections.title(doc, lang) if doc in sections.TITLES else title)
     before, headers, rows, after = _split_table(text)
-    headers = headers or default_headers
-    by_id = {r.get("編號"): r for r in rows if r.get("編號")}
-    nums = [int(m.group(1)) for r in rows for m in [re.match(prefix + r"(\d+)", r.get("編號", ""))] if m]
+    headers = headers or tables.headers(kind)
+    keys = [tables._key_any(kind, h) for h in headers]
+    rows = tables.rows_to_keys(kind, rows)
+    by_id = {r.get("id"): r for r in rows if r.get("id")}
+    nums = [int(m.group(1)) for r in rows for m in [re.match(prefix + r"(\d+)", r.get("id", ""))] if m]
     nxt = max(nums, default=0) + 1
     added, updated, new_ids = 0, 0, []
     for it in items or []:
         if not isinstance(it, dict):
             continue
-        rid = str(it.get("編號", "")).strip()
+        it = tables.row_to_keys(kind, it)
+        rid = str(it.get("id", "")).strip()
         if rid in by_id:
-            for h in headers:
-                if h != "編號" and it.get(h) not in (None, ""):
-                    if h == "最後出現" and _chno(it[h]) < _chno(by_id[rid].get(h)):
+            for k in keys:
+                if k != "id" and it.get(k) not in (None, ""):
+                    if k == "last_seen" and _chno(it[k]) < _chno(by_id[rid].get(k)):
                         continue  # 修訂舊章時不讓「最後出現」倒退
-                    by_id[rid][h] = _cell(it[h])
+                    by_id[rid][k] = _cell(it[k])
             updated += 1
         else:
             if not re.match(prefix + r"\d+$", rid) or rid in by_id:
                 rid = "%s%03d" % (prefix, nxt)
                 nxt += 1
-            row = {h: _cell(it.get(h, "")) for h in headers}
-            row["編號"] = rid
+            row = {k: _cell(it.get(k, "")) for k in keys}
+            row["id"] = rid
             rows.append(row)
             by_id[rid] = row
             added += 1
@@ -167,7 +145,7 @@ def upsert_table(path, default_headers, items, prefix, title, ftype, chapter_lab
     # frontmatter 更新至
     before = _bump_updated(before, chapter_label)
     sep = "" if before.endswith("\n\n") else ("\n" if before.endswith("\n") else "\n\n")
-    text = before + sep + _render_table(headers, rows) + ("\n" + after if after.strip() else "\n")
+    text = before + sep + tables.render(kind, keys, rows, sections.write_lang(lang)) + ("\n" + after if after.strip() else "\n")
     _write(path, text)
     return added, updated, new_ids
 
@@ -190,69 +168,73 @@ def chapter_label(no):
 
 
 def apply_writeback(book_dir, no, title, chars, data, revision=False):
-    """回寫一章的追蹤資料。回傳變更摘要（給匯報用）。"""
+    """回寫一章的追蹤資料。data 是英文鍵（jsonkeys.to_keys 換過）。回傳變更摘要（給匯報用）。"""
     label = chapter_label(no)
     log = []
+    lang = lang_mod.book_lang(book_dir)
+    from . import trackjson
+    trackjson.sync(book_dir)            # 先讓 .md 與 JSON 一致（只在 JSON 改過時重寫 .md；沒有 JSON 的補上）
     data, note = textguard.guard_data(book_dir, data)
     if note:
         log.append(note)
 
     # 1. 章節摘要
     s = data.get("summary") or {}
-    body = "---\n類型: 章節摘要\n章號: %d\n章名: %s\n字數: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title)
-    for k in ("發生了什麼", "局面變化", "新出現的人事物", "結尾停在"):
-        body += "\n## %s\n%s\n" % (k, str(s.get(k, "")).strip() or "（無）")
-    _write(os.path.join(book_dir, "追蹤", "章節摘要", label + ".md"), body)
+    body = "---\ntype: chapter-summary\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# %s\n" % (
+        no, title, chars, sections.title("chapter", lang, n=no, title=title))
+    for k, _ in SUMMARY_KEYS:
+        body += "\n## %s\n%s\n" % (sections.label("chapter-summary", k, lang), str(s.get(k, "")).strip() or sections.none(lang))
+    _write(layout.path(book_dir, layout.SUMMARIES, layout.chapter_md(no)), body)
     log.append("章節摘要")
 
     # 2. 狀態卡
     sc = data.get("state_card") or {}
     if sc and not revision:
-        p = os.path.join(book_dir, "追蹤", "狀態卡.md")
-        text = "---\n類型: 狀態卡\n更新至: %s\n---\n\n# 狀態卡\n" % label
-        for i, k in enumerate(STATE_SECTIONS, 1):
-            text += "\n## %d. %s\n" % (i, k)
+        p = layout.path(book_dir, layout.STATE_CARD)
+        text = "---\ntype: state-card\nupdated_through: %s\n---\n\n# %s\n" % (fmkeys.ch_value(label), sections.title("state-card", lang))
+        for i, (k, _) in enumerate(STATE_KEYS, 1):
+            text += "\n## %d. %s\n" % (i, sections.label("state-card", k, lang))
             items = _lines(sc.get(k))
-            text += "".join("- %s\n" % x for x in items) if items else "- （無）\n"
+            text += "".join("- %s\n" % x for x in items) if items else "- %s\n" % sections.none(lang)
         _write(p, text)
         log.append("狀態卡")
 
     # 3. 伏筆
     fs = data.get("foreshadow") or []
     if fs:
-        a, u, ids = upsert_table(os.path.join(book_dir, "追蹤", "伏筆.md"), FS_HEADERS, fs, "F", "伏筆總表", "伏筆總表", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.FORESHADOWING), "foreshadow", fs, "F", "伏筆總表", "伏筆總表", label, lang)
         log.append("伏筆（新增 %d、更新 %d）" % (a, u))
     else:
-        _touch_updated(os.path.join(book_dir, "追蹤", "伏筆.md"), label)
+        _touch_updated(layout.path(book_dir, layout.FORESHADOWING), label)
 
     # 4. 時間線
     tl = data.get("timeline") or []
     if tl:
-        a, u, ids = upsert_table(os.path.join(book_dir, "追蹤", "時間線.md"), TL_HEADERS, tl, "E", "時間線", "時間線", label)
+        a, u, ids = upsert_table(layout.path(book_dir, layout.TIMELINE), "timeline", tl, "E", "時間線", "時間線", label, lang)
         log.append("時間線（新增 %d、更新 %d）" % (a, u))
     else:
-        _touch_updated(os.path.join(book_dir, "追蹤", "時間線.md"), label)
+        _touch_updated(layout.path(book_dir, layout.TIMELINE), label)
 
     # 4.5 讀者認知
     rp = []
     for x in data.get("reader") or []:
         if not isinstance(x, dict):
             continue
-        old = bool(re.match(r"R\d+$", str(x.get("編號") or "").strip()))
-        if not old and not str(x.get("內容") or "").strip():
+        old = bool(re.match(r"R\d+$", str(x.get("id") or "").strip()))
+        if not old and not str(x.get("content") or "").strip():
             continue
-        if x.get("類型") not in RP_TYPES:
+        if x.get("type") not in RP_TYPES:
             x = dict(x)
-            x["類型"] = "" if old else "懸念"  # 舊條目沒給類型就不動，新條目預設懸念
+            x["type"] = "" if old else "懸念"  # 舊條目沒給類型就不動，新條目預設懸念
         rp.append(x)
     rpath = os.path.join(book_dir, *RP_FILE.split("/"))
-    if rp and not os.path.isfile(rpath) and len(project.read_table(book_dir, "追蹤/時間線.md")["rows"]) > RP_NEW_BOOK_ROWS:
+    if rp and not os.path.isfile(rpath) and len(project.read_table(book_dir, layout.TIMELINE)["rows"]) > RP_NEW_BOOK_ROWS:
         # 舊書還沒建立帳本：只登記新的幾條會變成殘缺的帳本，等作者從時間線轉換
         log.append("讀者認知（還沒建立帳本，略過；可到「伏筆與時間線」的讀者認知分頁從時間線建立）")
     elif rp:
         if not os.path.isfile(rpath):
-            write_reader_table(rpath, [], label)
-        a, u, ids = upsert_table(rpath, RP_HEADERS, rp, "R", "讀者認知", "讀者認知", label)
+            write_reader_table(rpath, [], label, lang=lang)
+        a, u, ids = upsert_table(rpath, "reader", rp, "R", "讀者認知", "讀者認知", label, lang)
         log.append("讀者認知（新增 %d、更新 %d）" % (a, u))
     elif os.path.isfile(os.path.join(book_dir, *RP_FILE.split("/"))):
         _touch_updated(os.path.join(book_dir, *RP_FILE.split("/")), label)
@@ -260,21 +242,25 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
     # 5. 角色狀態
     names = []
     for c in ([] if revision else (data.get("characters") or [])):
-        if not isinstance(c, dict) or not str(c.get("名稱", "")).strip():
+        if not isinstance(c, dict) or not str(c.get("name", "")).strip():
             continue
-        name = re.sub(r'[\\/:*?"<>|]', "", str(c["名稱"]).strip())
-        p = os.path.join(book_dir, "追蹤", "角色狀態", name + ".md")
+        name = re.sub(r'[\\/:*?"<>|]', "", str(c["name"]).strip())
+        p = layout.path(book_dir, layout.CHARACTER_STATES, name + ".md")
         old = {}
         if os.path.isfile(p):
-            for m in re.finditer(r"^- (.+?)：(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
-                old[m.group(1)] = m.group(2)
-        text = "---\n類型: 角色狀態\n名稱: %s\n更新至: %s\n最後登場: %s\n---\n\n# %s：目前狀態\n\n" % (name, label, label, name)
-        for f in CHAR_FIELDS:
-            v = c.get(f)
+            for m in re.finditer(r"^- (.+?)(?:：|: ?)(.*)$", project.split_frontmatter(project.read_text(p))[1], re.M):
+                k = sections.field_id("character-state", m.group(1))
+                if k and k not in old:
+                    old[k] = m.group(2)
+        text = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s\n\n" % (
+            name, fmkeys.ch_value(label), fmkeys.ch_value(label), sections.title("character-state", lang, name=name))
+        sep = ": " if sections.write_lang(lang) == "en" else "："
+        for k, f in sections.fields("character-state", lang):
+            v = c.get(k)
             if isinstance(v, list):
                 v = "；".join(str(x) for x in v)
-            v = str(v).strip() if v not in (None, "") else old.get(f, "")
-            text += "- %s：%s\n" % (f, v)
+            v = str(v).strip() if v not in (None, "") else old.get(k, "")
+            text += ("- %s%s%s" % (f, sep, v)).rstrip() + "\n" if sep == ": " else "- %s%s%s\n" % (f, sep, v)
         _write(p, text)
         names.append(name)
     if names:
@@ -287,48 +273,50 @@ def apply_writeback(book_dir, no, title, chars, data, revision=False):
         log.append(r)
 
     # 6. 新增物登記：名詞表＋具名角色
-    ents = [e for e in (data.get("new_entities") or []) if isinstance(e, dict) and str(e.get("名稱", "")).strip()]
+    ents = [e for e in (data.get("new_entities") or []) if isinstance(e, dict) and str(e.get("name", "")).strip()]
     if ents:
-        gp = os.path.join(book_dir, "設定", "名詞表.md")
+        gp = layout.path(book_dir, layout.GLOSSARY)
+        wl = sections.write_lang(lang)
         if os.path.isfile(gp):
             text = project.read_text(gp)
         else:
-            text = "---\n類型: 名詞表\n---\n\n# 名詞表\n\n"
+            text = "---\ntype: glossary\n---\n\n# %s\n\n" % sections.title("glossary", wl)
         before, headers, rows, after = _split_table(text)
-        headers = headers or GLOSS_HEADERS
+        headers = headers or [tables.label("glossary", k, wl) for k in tables.keys("glossary")]
         have = {r.get(headers[0]) for r in rows}
         added = []
         for e in ents:
-            nm = _cell(e["名稱"])
+            nm = _cell(e["name"])
             if nm in have:
                 continue
             row = {h: "" for h in headers}
             row[headers[0]] = nm
             if len(headers) > 1:
-                row[headers[1]] = _cell(e.get("類型", ""))
+                row[headers[1]] = _cell(e.get("type", ""))
             if len(headers) > 2:
-                row[headers[2]] = _cell(e.get("說明", ""))
+                row[headers[2]] = _cell(e.get("explanation", ""))
             if len(headers) > 3:
-                row[headers[3]] = "首次出現：%s" % label
+                row[headers[3]] = FIRST_SEEN[wl] % tables.display("foreshadow", "planted_in", label, wl)
             rows.append(row)
             have.add(nm)
             added.append(nm)
-            if e.get("類型") == "角色":
-                cp = os.path.join(book_dir, "設定", "角色", re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
+            if e.get("type") == "角色":
+                cp = layout.path(book_dir, layout.CHARACTERS, re.sub(r'[\\/:*?"<>|]', "", nm) + ".md")
                 if not os.path.exists(cp):
-                    _write(cp, "---\n類型: 角色\n名稱: %s\n別名: []\n定位: 配角\n首次登場: %s\n狀態: 正式\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n由工作台依正文自動登記，只含正文已出現的資訊。\n"
-                           % (nm, label, nm, _cell(e.get("說明", ""))))
+                    _write(cp, sections.localize_doc(
+                        "---\ntype: character\nname: %s\naliases: []\nrole: supporting\nfirst_appearance: %s\nstatus: canon\n---\n\n# %s\n\n## 一句話\n%s\n\n## 備註\n%s\n"
+                        % (nm, fmkeys.ch_value(label), nm, _cell(e.get("explanation", "")), prompts.pack(sections.write_lang(lang))["wb_auto_char_note"]), lang))
         if added:
             sep = "" if before.endswith("\n\n") else "\n"
             _write(gp, before + sep + _render_table(headers, rows) + ("\n" + after if after.strip() else "\n"))
             log.append("名詞表（%s）" % "、".join(added))
 
     # 7. 章綱狀態
-    cards = project._scan_dir(os.path.join(book_dir, "大綱", "章綱"))
+    cards = project._scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS))
     if no in cards:
-        p = os.path.join(book_dir, "大綱", "章綱", cards[no])
+        p = layout.path(book_dir, layout.CHAPTER_CARDS, cards[no])
         t = project.read_text(p)
-        t2 = re.sub(r"^狀態:.*$", "狀態: 已寫", t, count=1, flags=re.M)
+        t2 = re.sub(r"^(?:status|狀態):.*$", "status: written", t, count=1, flags=re.M)
         if t2 != t:
             _write(p, t2)
             log.append("章綱狀態→已寫")
@@ -359,22 +347,27 @@ RP_INTRO = ("> 讀者讀到目前為止的認知：「已知」是讀者知道�
 
 
 RP_NOTE_HEAD = "## 回收比對紀錄"
+FIRST_SEEN = {"zh-TW": "首次出現：%s", "en": "First seen: %s", "ja": "初出：%s"}      # 名詞表「注意」欄
 
 
-def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=False, note=""):
+def write_reader_table(path, items, chapter_label_text, draft=False, keep_ids=False, note="", lang=None):
     """把讀者認知條目整份寫成表格。轉換時編號從 R001 重新排；回收比對時保留原編號（keep_ids）。
     note：附在表格後面的說明（回收比對的逐條紀錄），採用草稿時會拿掉。"""
     rows = []
     for i, it in enumerate(items, 1):
-        row = {h: _cell(it.get(h, "")) for h in RP_HEADERS}
-        if not (keep_ids and row["編號"]):
-            row["編號"] = "R%03d" % i
-        if row["類型"] not in RP_TYPES:
-            row["類型"] = "懸念"
+        row = {k: _cell(it.get(k, "")) for k in tables.keys("reader")}   # 表格的列、模型的條目都是英文鍵
+        if not (keep_ids and row["id"]):
+            row["id"] = "R%03d" % i
+        row["type"] = tables.internal("reader", "type", row["type"])
+        if row["type"] not in RP_TYPES:
+            row["type"] = "懸念"
         rows.append(row)
-    head = "---\n類型: 讀者認知\n更新至: %s\n%s---\n\n# 讀者認知%s\n\n" % (
-        chapter_label_text, "狀態: 草稿\n" if draft else "", "（草稿：確認後按「採用」）" if draft else "")
-    _write(path, head + prompts.cur()["rp_intro"] + _render_table(RP_HEADERS, rows) + "\n" + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
+    wl = sections.write_lang(lang if lang else prompts.cur_lang())
+    head = "---\ntype: reader-knowledge\nupdated_through: %s\n%s---\n\n# %s%s\n\n" % (
+        fmkeys.ch_value(chapter_label_text), "status: draft\n" if draft else "", sections.title("reader-knowledge", wl),
+        prompts.pack(wl)["rp_draft_suffix"] if draft else "")
+    _write(path, head + prompts.pack(wl)["rp_intro"] + tables.render("reader", tables.keys("reader"), rows, wl) + "\n"
+           + ("\n%s\n\n%s\n" % (RP_NOTE_HEAD, note.strip()) if note.strip() else ""))
     return len(rows)
 
 
@@ -387,7 +380,7 @@ def adopt_reader_draft(book_dir):
     if os.path.isfile(dst):
         backup(book_dir, dst, "讀者認知")
     text = project.read_text(src)
-    text = re.sub(r"(?m)^狀態: 草稿\n", "", text, count=1).replace("# 讀者認知（草稿：確認後按「採用」）", "# 讀者認知", 1)
+    text = re.sub(r"(?m)^(?:status|狀態): (?:draft|草稿)\n", "", text, count=1).replace("# 讀者認知（草稿：確認後按「採用」）", "# 讀者認知", 1)
     if "\n" + RP_NOTE_HEAD in text:
         text = text.split("\n" + RP_NOTE_HEAD, 1)[0].rstrip() + "\n"
     _write(dst, text)
@@ -408,7 +401,7 @@ BACKUP_NAME_RE = re.compile(r"^(.*)\.(\d{9,})\.md$")
 def prune_backups(d, name, keep=None):
     """只修剪與這份新備份同一組（標籤_原檔名）的舊檔，留下 epoch 最大的 keep 份（預設 BACKUP_KEEP）。
 
-    檔名樣式由 tracking.backup 決定；其他也寫 .studio/備份 的地方（共用庫備份、匯入備份）
+    檔名樣式由 tracking.backup 決定；其他也寫 .studio/backup 的地方（共用庫備份、匯入備份）
     沿用同一個樣式並呼叫這裡，備份目錄的總量才有上限。
     """
     keep = BACKUP_KEEP if keep is None else keep
@@ -442,7 +435,7 @@ def prune_backups(d, name, keep=None):
 def backup(book_dir, path, tag):
     if not os.path.isfile(path):
         return None
-    d = os.path.join(book_dir, ".studio", "備份")
+    d = layout.path(book_dir, layout.STUDIO_BACKUP)
     os.makedirs(d, exist_ok=True)
     dst = os.path.join(d, "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time())))
     with open(path, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as g:

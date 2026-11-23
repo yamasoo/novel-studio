@@ -40,7 +40,7 @@
       const r = await FE.api(B("/card-check?from=" + a + "&to=" + z), { signal });
       const rows = r.findings || [];
       FE.modal({
-        title: FE.t("章綱體檢") + "（第 " + a + "–" + z + " 章）",
+        title: `${FE.t("章綱體檢")}（第 ${a}–${z} 章）`,
         body: rows.length
           ? h("div", { class: "card" },
             h("div", { class: "small muted" }, FE.t("把設定和章綱對照：提前登場（劇透風險）與久別重逢（設定說已退場）。")),
@@ -75,7 +75,7 @@
       });
       let close = null;
       close = FE.modal({
-        title: FE.t("卷綱修訂差異") + "（第 " + no + " 卷）",
+        title: `${FE.t("卷綱修訂差異")}（第 ${no} 卷）`,
         body: [
           h("p", { class: "muted small" }, FE.t("紅色是正式卷綱被拿掉的行，綠色是修訂後新增或改寫的行。按「套用修訂」才會覆蓋正式檔（會先備份）。")),
           h("div", { style: "max-height:55vh;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;background:#faf8f4;padding:8px;border-radius:6px" },
@@ -93,12 +93,12 @@
   }
 
   function volCard(v, signal) {
-    const dim = (x) => h("span", { class: "muted small" }, FE.t("第 {0}–{1} 章", x.lo, x.hi) + (x.status ? "（" + x.status + "）" : ""));
+    const dim = (x) => h("span", { class: "muted small" }, FE.t("第 {0}–{1} 章", x.lo, x.hi) + (x.status ? nsShared.paren(FE.t(x.status)) : ""));
     const vols = (v.volumes || []).map((x) => h("div", { class: "row" },
       h("span", {}, x.name, " ", dim(x)),
       h("span", { class: "grow" }),
       x.kind === "卷" ? [
-        h("button", { class: "sm", "data-revise": String(x.no), onclick: () => Panel.openForm("volume_revise", { volume: String(x.no) }) }, FE.t("修訂")),
+        h("button", { class: "sm", "data-revise": String(x.no), onclick: () => Panel.openForm("volume_revise", { volume: String(x.no) }) }, nsShared.tx("修訂", "修訂（動作）")),
         h("button", { class: "sm", "data-sync": String(x.no), onclick: () => outlineSync(Number(x.no), signal) }, FE.t("同步大綱")),
       ] : null,
       h("button", { class: "sm", "data-check": x.lo + "-" + x.hi, onclick: () => cardCheck(Number(x.lo), Number(x.hi), signal) }, FE.t("章綱體檢")),
@@ -136,7 +136,7 @@
     const open = (c) => {
       const box = h("div", { style: "max-height:70vh;overflow:auto" });
       FE.modal({
-        title: "反推章綱：" + (c.no ? "第" + c.no + "章 " : "") + c.name,
+        title: `反推章綱：${c.no ? `第${c.no}章 ` : ""}${c.name}`,
         wide: true,
         body: box,
         foot: (done) => [h("button", { class: "btn", type: "button", onclick: () => done(true) }, "關閉")],
@@ -146,15 +146,15 @@
     return h("div", { class: "card", id: "rv-cards-card" },
       h("div", { class: "row" },
         h("b", {}, "反推章綱"),
-        h("span", { class: "badge" }, cards.length + " 份"),
+        h("span", { class: "badge" }, `${cards.length} 份`),
         h("span", { class: "grow" }),
         h("span", { class: "muted small" }, "唯讀對照；正式章綱不受影響")),
       h("div", { class: "muted small", style: "margin-top:4px" },
-        "從正文反推的章綱存在 大綱/章綱/反推/。這裡只給你看，不會改到 大綱/章綱/第NNN章.md。"),
+        "從正文反推的章綱存在 outline/chapters/_reverse/。這裡只給你看，不會改到 outline/chapters/ch-NNNN.md。"),
       h("details", { style: "margin-top:8px" },
         h("summary", { class: "small" }, "看清單"),
         h("div", { style: "margin-top:6px" }, cards.map((c) => h("div", { class: "row", style: "padding:4px 0" },
-          h("span", {}, (c.no ? "第" + c.no + "章 " : "") + c.name),
+          h("span", {}, (c.no ? `第${c.no}章 ` : "") + c.name),
           h("span", { class: "grow" }),
           h("button", { class: "sm", onclick: () => open(c) }, "看"))))));
   }
@@ -188,14 +188,14 @@
             ? all.map((x) => h("div", {
               class: "item" + (x.file === file ? " active" : ""),
               onclick: () => FE.go(outlineHash(x.file)),
-            }, h("div", { class: "nm" }, x.name)))
+            }, h("div", { class: "nm" }, FE.t(x.name) + (x.title ? "《" + x.title + "》" : ""))))   // 只翻「第N卷」；卷名是書的內容
             : h("div", { class: "muted" }, "還沒有大綱。"),
           h("div", {
             class: "item",
-            onclick: () => FE.go("#/b/" + encodeURIComponent(S.book) + "/bible?t=" + encodeURIComponent("核心") + "&f=" + encodeURIComponent("設定/故事核心.md")),
+            onclick: () => FE.go("#/b/" + encodeURIComponent(S.book) + "/bible?t=core&f=" + encodeURIComponent(LAYOUT.STORY_CORE)),
           },
             h("div", { class: "nm" }, "故事核心"),
-            h("div", { class: "ds" }, "設定/故事核心.md"))),
+            h("div", { class: "ds" }, LAYOUT.STORY_CORE))),
         file
           ? docEl
           : h("div", { class: "card empty" }, h("div", { class: "big" }, "⌘"), "還沒有大綱。可以先做「故事核心診斷」，再規劃全書大綱。")));

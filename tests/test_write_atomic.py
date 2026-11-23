@@ -31,7 +31,7 @@ class WriteAtomicTest(unittest.TestCase):
         self.assertEqual(self.leftovers(), [])
 
     def test_自動建父目錄(self):
-        p = os.path.join(self.dir, "正文", "第001章.md")
+        p = os.path.join(self.dir, "manuscript", "ch-0001.md")
         project.write_atomic(p, "內容\n")
         self.assertEqual(project.read_text(p), "內容\n")
 
@@ -59,7 +59,7 @@ class WriteAtomicTest(unittest.TestCase):
         self.assertEqual(self.leftovers(), [])
 
     def test_編碼與換行(self):
-        text = "---\n類型: 正文\n---\n\n# 第1章 測試\n\n中文段落。\n"
+        text = "---\ntype: 正文\n---\n\n# 第1章 測試\n\n中文段落。\n"
         project.write_atomic(self.path, text)
         with open(self.path, "rb") as f:
             raw = f.read()

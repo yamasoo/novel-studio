@@ -106,7 +106,7 @@
       close();
       const busy = FE.modal({
         title: "建立中…",
-        body: [h("p", { class: "muted small" }, "正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後" + (mode === "skeleton" ? "會開始產生骨架。" : "會開始開書訪談。"))],
+        body: [h("p", { class: "muted small" }, `正在量參考書的文風指標與結構 DNA（大書約 20–30 秒），完成後${mode === "skeleton" ? "會開始產生骨架。" : "會開始開書訪談。"}`)],
         foot: () => [],
       });
       try {
@@ -170,11 +170,11 @@
     const close = FE.modal({
       title: "正在產生故事骨架",
       body: [
-        h("p", { class: "muted small" }, "用《" + source + "》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。"),
+        h("p", { class: "muted small" }, `用《${source}》的文風指紋與結構 DNA 產生；約 1–2 分鐘（大書量指紋會久一點）。`),
         h("p", {}, stageEl, " ", elapsedEl),
         h("p", { class: "muted small" }, applyMode
           ? "正在建立專案，請稍待…完成後會直接寫入設定與大綱。"
-          : ["這個視窗可以留著看進度；草稿會寫到 ", h("code", {}, "候選/新書草稿/"), "，不會自動套用。"]),
+          : ["這個視窗可以留著看進度；草稿會寫到 ", h("code", {}, "candidates/spinoff/"), "，不會自動套用。"]),
         bgBtn ? h("div", { class: "row" }, h("span", { class: "grow" }), bgBtn) : null,
       ],
       foot: () => [],
@@ -201,13 +201,13 @@
       clearInterval(tick);
       if (!alive()) background = true;
       if (background) {
-        if (st.status === "error") FE.toast("骨架沒有產生：" + (st.error || "未知錯誤"), "err");
+        if (st.status === "error") FE.toast(`骨架沒有產生：${st.error || "未知錯誤"}`, "err");
         else if (applyMode) { if (S.book === id) FE.route(); FE.toast("已用骨架開書"); }
         else { FE.route(); FE.toast("骨架草稿已產生"); }
         return;
       }
       const r = st.result || {};
-      const bad = (r.guard && r.guard["撞到名字"]) || [];
+      const bad = (r.guard && r.guard.name_hits) || [];
       if (st.status === "error") {
         const retryBtn = h("button", { class: "primary", id: "sp-retry" }, "重試");
         const c2 = FE.modal({
@@ -233,9 +233,9 @@
           title: "已用骨架開書",
           body: [
             h("p", { class: "muted small" }, files.length
-              ? "已寫入 " + files.length + " 個檔案：" + files.join("、") + "。"
+              ? `已寫入 ${files.length} 個檔案：${files.join("、")}。`
               : "已寫入設定與大綱。"),
-            bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, "護欄：有名字和參考書重複（" + bad.join("、") + "），請手動改掉。") : null,
+            bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, `護欄：有名字和參考書重複（${bad.join("、")}），請手動改掉。`) : null,
             h("p", { class: "muted small" }, "目標讀者、平台、篇幅、讀者契約等骨架沒提到的欄位已標「待補」，可在「設定 → 故事核心」補；章綱請用「卷先行 → 排這一卷的章綱」。"),
           ],
           foot: (done) => [
@@ -252,7 +252,7 @@
         title: "故事骨架草稿",
         body: [
           h("p", { class: "muted small" }, ["已寫到 ", h("code", {}, r.draft || ""), "。這只是草稿，不會改動設定或大綱；滿意再手動貼進「設定」與「大綱」。"]),
-          bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, "護欄：有名字和參考書重複（" + bad.join("、") + "），請手動改掉。") : null,
+          bad.length ? h("p", { class: "muted small", style: "color:#b45309" }, `護欄：有名字和參考書重複（${bad.join("、")}），請手動改掉。`) : null,
           previewMd,
         ],
         foot: (done) => [
@@ -308,8 +308,9 @@
       return;
     }
 
-    const books = data.books.filter((b) => b.is_book);
+    const books = data.books.filter((b) => b.is_book && !b.needs_migration);
     const others = data.books.filter((b) => !b.is_book);
+    const oldBooks = data.books.filter((b) => b.needs_migration);
     const newCard = h("div", { class: "card book new", id: "new-book" },
       h("div", { class: "plus" }, "＋"), h("div", {}, "開新書"), h("div", { class: "muted small" }, "可參考另一本書"));
     const importCard = h("div", { class: "card book new", onclick: () => FE.go("#/import") },
@@ -321,12 +322,30 @@
         h("div", { class: "title" }, b.name),
         h("div", { class: "hook" }, b.hook || "（還沒有一句話鉤子）"),
         h("div", { class: "meta" },
-          h("span", {}, "已寫 " + b.chapters_written + " 章"),
-          h("span", {}, fmtNum(b.chars) + " " + unitCh(b.unit)),
-          b.pending_candidates ? h("span", { class: "badge b-accent" }, b.pending_candidates + " 份候選稿") : null),
-        h("div", { class: "meta" }, "更新於 " + (fmtTime(b.updated) || "—")))),
+          h("span", {}, `已寫 ${b.chapters_written} 章`),
+          h("span", {}, `${fmtNum(b.chars)} ${unitCh(b.unit)}`),
+          b.pending_candidates ? h("span", { class: "badge b-accent" }, `${b.pending_candidates} 份候選稿`) : null),
+        h("div", { class: "meta" }, `更新於 ${fmtTime(b.updated) || "—"}`))),
       newCard,
       importCard);
+
+    // 舊格式（v2：中文資料夾名稱）的書：要先轉換才能開
+    const oldNode = oldBooks.length
+      ? h("div", { class: "alert warn", style: "margin-bottom:14px; display:block" },
+        h("div", {}, h("span", { class: "k" }, "需要轉換格式"),
+          h("span", { class: "t" }, "這幾本書是舊版的資料夾格式，轉換成新格式後才能開啟。轉換前會先整本備份，內容不會改動。")),
+        h("div", { class: "row", style: "margin-top:8px" },
+          oldBooks.map((o) => [
+            h("span", { class: "badge" }, o.name),
+            h("button", { class: "sm", onclick: () => migrateDialog(o.id) }, "轉換"),
+          ])))
+      : null;
+    const sharedNode = data.shared_needs_migration
+      ? h("div", { class: "alert warn", style: "margin-bottom:14px" },
+        h("span", { class: "k" }, "共用資料夾需要轉換"),
+        h("span", { class: "t" }, "書庫裡的「_共用」要改名成「_shared」，共用文風、章節結構與作者偏好才看得到。"),
+        h("button", { class: "sm", onclick: migrateShared }, "轉換"))
+      : null;
 
     const othersNode = others.length
       ? [h("hr", { class: "sep" }),
@@ -342,7 +361,7 @@
       h("div", { class: "page-head" },
         h("div", {},
           h("h1", {}, "書架"),
-          h("div", { class: "sub" }, books.length + " 本書　·　書庫：", h("code", {}, data.library))),
+          h("div", { class: "sub" }, `${books.length} 本書　·　書庫：`, h("code", {}, data.library))),
         h("div", { class: "row" }, h("button", { onclick: () => FE.go("#/guide") }, "使用說明"))),
       S.claudeFound
         ? null
@@ -350,12 +369,60 @@
           h("span", { class: "k" }, "找不到 Claude Code"),
           h("span", { class: "t" }, "按鈕會無法執行。請安裝 Claude Code，或到設定填入 claude 的路徑。"),
           h("button", { class: "sm", onclick: () => FE.go("#/settings") }, "設定")),
+      sharedNode,
+      oldNode,
       shelves,
       demoCard,
       othersNode);
 
     newCard.onclick = newBookDialog;
     if (demoCard) renderDemoCard(demoCard);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 格式移轉：先試跑列出要做什麼，作者確認後才轉換
+  // ---------------------------------------------------------------------------
+  async function migrateDialog(id) {
+    let plan;
+    try { plan = await FE.api("/api/books/" + enc(id) + "/migrate", { method: "POST", body: { dry_run: true } }); } catch (e) { return FE.fail(e); }
+    if (plan.status === "skipped") { FE.toast("這本書已經是新格式"); return FE.route(); }
+    const stats = Object.entries(plan.stats || {}).map(([k, v]) => k + " " + v).join("、");
+    const goBtn = h("button", { class: "primary", id: "mg-go" }, "開始轉換");
+    const close = FE.modal({
+      title: FE.t("轉換「{0}」", id),
+      body: [
+        h("p", { class: "muted small" }, "會先把整本書壓縮備份到 .studio/migrate/，再搬動資料夾、改檔名；正文與設定的內容不會改動。轉換前後會比對下面的統計，對不上就自動還原。"),
+        (plan.steps || []).map((st) => h("div", { style: "margin-top:8px" },
+          h("b", {}, st.title),
+          h("ul", { class: "small" }, (st.changes || []).map((c) => h("li", {}, c))))),
+        (plan.library || []).length ? h("div", { style: "margin-top:8px" }, h("b", {}, "書庫共用資料夾"),
+          h("ul", { class: "small" }, plan.library.map((c) => h("li", {}, c)))) : null,
+        h("p", { class: "muted small", style: "margin-top:8px" }, FE.t("內容統計：{0}", stats)),
+      ],
+      foot: (done) => [
+        h("span", { class: "grow" }),
+        h("button", { class: "btn", type: "button", onclick: () => done(false) }, "取消"),
+        goBtn,
+      ],
+    });
+    goBtn.onclick = async () => {
+      goBtn.disabled = true;
+      let r;
+      try { r = await FE.api("/api/books/" + enc(id) + "/migrate", { method: "POST", body: {} }); } catch (e) { goBtn.disabled = false; return FE.fail(e); }
+      close();
+      if (r.status === "done") FE.toast(FE.t("已轉換「{0}」；備份在 {1}", id, r.backup));
+      else if (r.status === "skipped") FE.toast("這本書已經是新格式");
+      else FE.toast(FE.t("轉換失敗，已還原：{0}", r.message || ""), "err");
+      FE.route();
+    };
+  }
+
+  async function migrateShared() {
+    try {
+      const r = await FE.api("/api/library/migrate", { method: "POST", body: {} });
+      FE.toast(FE.t("共用資料夾已轉換：{0}", (r.library || []).join("、")));
+    } catch (e) { return FE.fail(e); }
+    FE.route();
   }
 
   window.spinoffDialog = spinoffDialog;

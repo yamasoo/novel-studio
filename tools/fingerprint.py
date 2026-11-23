@@ -14,8 +14,8 @@ from studio import fingerprint, lang as lang_mod, prompts  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--book", required=True, help="書的資料夾（含 正文/、設定/）")
-    ap.add_argument("--save", action="store_true", help="寫進 設定/風格指紋.json")
+    ap.add_argument("--book", required=True, help="書的資料夾（含 manuscript/、bible/）")
+    ap.add_argument("--save", action="store_true", help="寫進 bible/style-fingerprint.json")
     ap.add_argument("--show", action="store_true", help="顯示現有的指紋（不重算）")
     ap.add_argument("--json", action="store_true", help="直接印 JSON（給程式用）")
     ap.add_argument("--samples", type=int, default=fingerprint.PICK, help="代表句幾句（預設 10）")

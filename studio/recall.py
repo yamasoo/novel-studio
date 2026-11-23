@@ -6,10 +6,10 @@
   寫到第 30 章時，真正有用的是「作者自己寫過的類似場景」——那是文字層的相似，不是名字相同。
 
 怎麼做（不呼叫模型、純本機）
-  1. 把 正文/ 每一章切成段落當文件。
+  1. 把 manuscript/ 每一章切成段落當文件。
   2. 分詞：中日文用「字元 bigram」（不用斷詞），英文用單詞；查詢用同一套。
   3. BM25 排序，取前 k 段；去掉與已選段落幾乎重複的；依字數預算裁剪。
-  4. 索引快取在 .studio/索引/recall.json，用檔案的 size＋mtime 當版本；檔案一動就重建。
+  4. 索引快取在 .studio/index/recall.json，用檔案的 size＋mtime 當版本；檔案一動就重建。
 
 怎麼用
   context.for_chapter 會呼叫 context_block()，以 priority 3 注入（預算不夠時可以被丟）。
@@ -22,8 +22,9 @@ import os
 import re
 
 from . import project
+from . import layout
 
-CACHE_REL = ".studio/索引/recall.json"
+CACHE_REL = layout.STUDIO_RECALL_INDEX
 K1, B = 1.2, 0.75
 MIN_PARA = 40          # 太短的段落（一行對白）不當文件
 MAX_CHARS = 1200       # 注入的字數上限（約 600 tokens 中文）
@@ -51,9 +52,9 @@ def _cache_path(book_dir):
 def _manifest(book_dir):
     """正文檔案的版本指紋：檔名＋大小＋mtime。檔案一改，指紋就變。"""
     items = []
-    for rel in sorted(project._scan_dir(os.path.join(book_dir, "正文")).items()):
+    for rel in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
         no, fn = rel
-        p = os.path.join(book_dir, "正文", fn)
+        p = layout.path(book_dir, layout.MANUSCRIPT, fn)
         try:
             st = os.stat(p)
         except OSError:
@@ -66,8 +67,8 @@ def _manifest(book_dir):
 def paragraphs(book_dir):
     """[(章號, 段號, 文字)]：只收夠長的段落，frontmatter 與標題不算。"""
     out = []
-    for no, fn in sorted(project._scan_dir(os.path.join(book_dir, "正文")).items()):
-        text = project.read_text(os.path.join(book_dir, "正文", fn))
+    for no, fn in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
+        text = project.read_text(layout.path(book_dir, layout.MANUSCRIPT, fn))
         body = project.split_frontmatter(text)[1] if text else ""
         for i, para in enumerate(body.split("\n\n")):
             p = para.strip()

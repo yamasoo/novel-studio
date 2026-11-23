@@ -14,8 +14,8 @@ from studio import lang as lang_mod, prompts, sdna  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--book", required=True, help="書的資料夾（含 正文/）")
-    ap.add_argument("--save", action="store_true", help="寫進 設定/結構DNA.json")
+    ap.add_argument("--book", required=True, help="書的資料夾（含 manuscript/）")
+    ap.add_argument("--save", action="store_true", help="寫進 bible/structure-dna.json")
     ap.add_argument("--show", action="store_true", help="顯示現有的（不重算）")
     ap.add_argument("--json", action="store_true", help="直接印 JSON")
     a = ap.parse_args()

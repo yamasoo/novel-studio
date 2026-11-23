@@ -2,17 +2,30 @@
 """卷綱的唯一解析入口：找某章屬於哪一卷、哪幾章沒有卷綱、下一個卷號。
 
 為什麼要集中：續寫合約與漂移工具原本各有一套（一個找不到退回第一卷、一個退回最後一卷），
-兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`大綱/`、`大綱/卷綱/` 的 `卷綱*.md`）；
-草稿放在 `大綱/草稿/`，不會被當成正式卷綱（見 `docs/卷先行.md`）。
+兩邊都會靜默拿到錯的卷。這裡只認**正式卷綱**（`outline/volumes/` 裡的 `.md`：`vol-01.md`，「幕」是 `act-01.md`；
+作者自己取名的檔也算，卷號看檔名或卷名裡的「第N卷」）。
+草稿放在 `outline/drafts/`（`vol-01.md`、修訂 `vol-01.revision.md`、卷綱更新 `volume-update_ch-…`），
+不會被當成正式卷綱（見 `docs/卷先行.md`）。
 """
 import difflib
 import os
 import re
 
 from . import project, textguard
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
 
-DIRS = ("大綱", "大綱/卷綱")
-DRAFT_DIR = "大綱/草稿"      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的 卷綱*.md
+DIRS = (layout.VOLUMES_SUBDIR,)
+DRAFT_DIR = layout.VOLUME_DRAFTS      # 草稿放獨立資料夾：正式卷綱只認 DIRS 底下的檔
+_STEM = re.compile(r"^(vol|act)-0*(\d+)(?=[.\-_]|$)", re.I)
+
+
+def _kind(f):
+    """卷 或 幕：act-01.md、或舊式檔名裡有「幕」。"""
+    m = _STEM.match(f)
+    if m:
+        return "幕" if m.group(1).lower() == "act" else "卷"
+    return "幕" if "幕" in f else "卷"
 CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 
 
@@ -32,6 +45,14 @@ def _cn_int(s):
     return total or None
 
 
+def no_of(raw, default=None):
+    """表單或參數給的卷號（「3」「三」「第三卷」「vol-03」）→ 整數；認不出回 default。"""
+    raw = str(raw if raw is not None else "").strip()
+    if raw.isdigit():
+        return int(raw)
+    return _num_from_name(raw) or _cn_int(raw) or default
+
+
 def cn_no(n):
     """卷號轉中文寫法：1→一、10→十、11→十一、20→二十；0 或 100 以上退回數字。"""
     digits = "〇一二三四五六七八九"
@@ -48,6 +69,9 @@ def cn_no(n):
 
 
 def _num_from_name(name):
+    m = _STEM.match(name)
+    if m:
+        return int(m.group(2))
     m = re.search(r"第([〇零一二兩三四五六七八九十百\d]+)[卷幕]", name)
     if not m:
         return None
@@ -69,18 +93,18 @@ def list_volumes(book_dir):
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
-            if not (f.endswith(".md") and f.startswith("卷綱")):
+            if not f.endswith(".md"):
                 continue
             rel = "%s/%s" % (sub, f)
             try:
                 fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
             except OSError:
                 continue
-            nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+            nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
             lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-            out.append({"rel": rel, "name": str(fm.get("卷名") or f), "status": str(fm.get("狀態") or ""),
+            out.append({"rel": rel, "name": str(fm.get("title") or f), "status": str(fmkeys.disp("status", fm.get("status")) or ""),
                         "lo": lo, "hi": hi, "no": _num_from_name(f),
-                        "kind": "幕" if "幕" in f else "卷"})
+                        "kind": _kind(f)})
     # 同一章同時被「卷」和「幕」覆蓋時，卷優先（卷末承諾要的是卷，不是幕）
     out.sort(key=lambda v: (v["kind"] != "卷", v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
     return out
@@ -120,38 +144,38 @@ def next_start(book_dir):
 
 
 def draft_rel(no):
-    return "%s/卷綱_第%d卷.md" % (DRAFT_DIR, int(no))
+    return layout.volume_file(int(no), base=DRAFT_DIR)
 
 
 def drafts(book_dir):
-    """`大綱/草稿/` 裡的**新卷**卷綱草稿（卷綱更新草稿不算）。每筆：rel/name/status/lo/hi/no。"""
+    """`outline/drafts/` 裡的**新卷**卷綱草稿（卷綱更新草稿不算）。每筆：rel/name/status/lo/hi/no。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith("卷綱") and not f.startswith("卷綱更新")):
+        if not (f.endswith(".md") and _STEM.match(f) and not f.endswith(layout.VOLUME_REVISION_SUFFIX)):
             continue
         try:
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
         except OSError:
             continue
-        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
         lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
-                    "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("title") or f),
+                    "status": str(fmkeys.disp("status", fm.get("status")) or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["lo"] if v["lo"] is not None else 10 ** 9, v["rel"]))
     return out
 
 
 def plan_drafts(book_dir):
-    """`大綱/草稿/` 裡的卷綱**更新**草稿（卷末體檢產生，不是新卷）。每筆：rel/name/lo/hi。"""
+    """`outline/drafts/` 裡的卷綱**更新**草稿（卷末體檢產生，不是新卷）。每筆：rel/name/lo/hi。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith("卷綱更新")):
+        if not (f.endswith(".md") and f.startswith(layout.VOLUME_UPDATE_PREFIX)):
             continue
         nums = [int(x) for x in re.findall(r"\d+", f)]
         lo, hi = (nums[0], nums[1]) if len(nums) >= 2 else (None, None)
@@ -161,55 +185,68 @@ def plan_drafts(book_dir):
 
 def _heading_volume(line):
     """讀 `### 第N卷：…` 這種標題的卷號；讀不到回 None。"""
-    m = re.match(r"^###\s*第\s*([0-9〇零一二兩三四五六七八九十百]+)\s*卷", (line or "").strip())
+    s = (line or "").strip()
+    m = re.match(r"^###\s*第\s*([0-9〇零一二兩三四五六七八九十百]+)\s*[卷巻]", s) or \
+        re.match(r"^###\s*Volume\s+([0-9]+)\b", s, re.I)
     return _cn_int(m.group(1)) if m else None
+
+
+# 全書大綱「分卷」裡由工作台補上的一節（依書的語言）
+OUTLINE_VOL_HEAD = {"zh-TW": "第 %d 卷：%s", "en": "Volume %d: %s", "ja": "第 %d 巻：%s"}
+OUTLINE_SPAN = {"zh-TW": "篇幅：第 %d 章～第 %d 章", "en": "Length: chapters %d–%d", "ja": "分量：第 %d 章～第 %d 章"}
+OUTLINE_VOL_LINK = {"zh-TW": "卷綱：`%s`（已確認）", "en": "Volume outline: `%s` (approved)", "ja": "巻プロット：`%s`（確定）"}
+
+
+def _is_span(line):
+    return bool(re.match(r"^-\s*(?:篇幅|分量|Length)\s*[：:]", (line or "").strip(), re.I))
 
 
 def contract_bullets(text):
     """從卷綱抓「卷契約」那一段的項目（- 本卷賣點：…），用來帶進全書大綱。"""
-    m = re.search(r"^##\s*卷契約\s*$(.*?)(?=^##\s|\Z)", text or "", re.S | re.M)
+    m = re.search(r"^##\s*" + sections.head_rx("volume-outline", "contract") + r"\s*$(.*?)(?=^##\s|\Z)", text or "", re.S | re.M | re.I)
     if not m:
         return []
     out = []
     for line in m.group(1).splitlines():
         s = line.strip()
-        if s.startswith("- ") and "：" in s:
+        if s.startswith("- ") and re.search(r"[：:]", s):
             out.append(s)
     return out
 
 
 def _bullet_key(line):
     s = (line or "").strip().lstrip("-").strip()
-    return s.split("：", 1)[0].strip() if "：" in s else s
+    parts = re.split(r"[：:]", s, maxsplit=1)
+    return parts[0].strip() if len(parts) > 1 else s
 
 
 def _sync_book_outline(book_dir, no, fm, bullets=None):
-    """把這一卷補進 大綱/全書大綱.md 的「分卷」：缺的一節就追加，缺的卷契約就補上。
+    """把這一卷補進 outline/book.md 的「分卷」：缺的一節就追加，缺的卷契約就補上。
 
     只補不覆蓋：已有的句子不動，章節範圍對不上就只警告。
     """
-    rel = "大綱/全書大綱.md"
+    rel = layout.BOOK_OUTLINE
     p = os.path.join(book_dir, *rel.split("/"))
     if not os.path.isfile(p):
-        return ["沒有 大綱/全書大綱.md，這次沒有同步全書大綱。"]
+        return ["沒有 outline/book.md，這次沒有同步全書大綱。"]
     text = project.read_text(p)
     lines = text.splitlines()
-    head = "## 分卷"
-    start = next((i for i, x in enumerate(lines) if x.strip() == head), None)
+    start = next((i for i, x in enumerate(lines)
+                  if x.startswith("## ") and sections.id_of("book-outline", x[3:]) == "volumes"), None)
     if start is None:
         return ["全書大綱沒有「分卷」段，這次沒有同步（避免把內容塞錯地方）。"]
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-    rng = str(fm.get("章節範圍") or "")
+    rng = str(fm.get("chapter_range") or "")
     nums = [int(x) for x in re.findall(r"\d+", rng)]
     lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
     bullets = [b for b in (bullets or []) if b]
-    name = str(fm.get("卷名") or ("第%d卷" % no))
+    name = str(fm.get("title") or ("第%d卷" % no))
 
     for i in range(start, end):
         if _heading_volume(lines[i]) != no:
             continue
         sec_end = next((j for j in range(i + 1, end) if lines[j].startswith(("### ", "## "))), end)
-        span_line = next((x for x in lines[i:sec_end] if x.strip().startswith("- 篇幅")), "")
+        span_line = next((x for x in lines[i:sec_end] if _is_span(x)), "")
         other = [int(x) for x in re.findall(r"\d+", span_line)]
         if lo is not None and len(other) >= 2 and (other[0], other[1]) != (lo, hi):
             return ["全書大綱的第 %d 卷寫的是第 %d–%d 章，這次是第 %d–%d 章；已保留原本內容。"
@@ -219,13 +256,14 @@ def _sync_book_outline(book_dir, no, fm, bullets=None):
         if not add:
             return []
         # 插在「篇幅」那行後面（沒有就插在標題後面），卷綱連結留在最後
-        at = next((j for j in range(i + 1, sec_end) if lines[j].strip().startswith("- 篇幅")), i + 1)
+        at = next((j for j in range(i + 1, sec_end) if _is_span(lines[j])), i + 1)
         new = lines[:at + 1] + add + lines[at + 1:]
         return _write_outline(book_dir, p, new)
 
-    block = ["### 第 %d 卷：%s" % (no, name), "",
-             "- 篇幅：第 %d 章～第 %d 章" % (lo or 0, hi or 0)] + bullets + \
-            ["- 卷綱：`大綱/卷綱_第%d卷.md`（已確認）" % no, ""]
+    lang = sections.write_lang(lang_mod.book_lang(book_dir))
+    block = ["### " + OUTLINE_VOL_HEAD[lang] % (no, name), "",
+             "- " + OUTLINE_SPAN[lang] % (lo or 0, hi or 0)] + bullets + \
+            ["- " + OUTLINE_VOL_LINK[lang] % layout.volume_file(no), ""]
     return _write_outline(book_dir, p, lines[:end] + [""] + block + lines[end:])
 
 
@@ -246,7 +284,7 @@ def _write_outline(book_dir, p, lines):
 def sync_outline(book_dir, no):
     """把已採用的卷綱重新同步進全書大綱（補缺的卷契約；只補不覆蓋）。"""
     no = int(no)
-    rel = "大綱/卷綱_第%d卷.md" % no
+    rel = layout.volume_file(no)
     p = project.safe_path(book_dir, rel)
     if not os.path.isfile(p):
         raise project.ProjectError("找不到正式的 %s，先採用卷綱再同步。" % rel)
@@ -256,7 +294,7 @@ def sync_outline(book_dir, no):
 
 
 def adopt(book_dir, no):
-    """把 `大綱/草稿/卷綱_第N卷.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
+    """把 `outline/drafts/vol-01.md` 變成正式卷綱（狀態改「已確認」），成功後刪掉草稿。
 
     採用前只檢查最基本的東西（有 frontmatter、有章節範圍、正式檔不存在）：
     章節範圍要不要和前一卷接得起來、內容好不好，是作者看過才算的事，不在這裡自動判斷。
@@ -270,13 +308,13 @@ def adopt(book_dir, no):
     fm, _body = project.split_frontmatter(text)
     if not fm:
         raise project.ProjectError("草稿沒有 frontmatter（類型、卷名、章節範圍），不能採用。")
-    if not str(fm.get("章節範圍") or "").strip():
+    if not str(fm.get("chapter_range") or "").strip():
         raise project.ProjectError("草稿沒有「章節範圍」，不能採用；先補上第幾章到第幾章。")
-    dst_rel = "大綱/卷綱_第%d卷.md" % no
+    dst_rel = layout.volume_file(no)
     dst = project.safe_path(book_dir, dst_rel)
     if os.path.isfile(dst):
         raise project.ProjectError("正式的 %s 已經存在，先確認是不是已經採用過。" % dst_rel)
-    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "狀態", "已確認"))
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "approved"))
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
@@ -291,30 +329,27 @@ def adopt(book_dir, no):
             "warnings": warnings + list(_sync_book_outline(book_dir, no, fm, contract_bullets(text)) or [])}
 
 
-REVISION_PREFIX = "卷綱修訂"
-
-
 def revision_rel(no):
-    return "%s/%s_第%d卷.md" % (DRAFT_DIR, REVISION_PREFIX, int(no))
+    return layout.volume_revision_file(no, base=DRAFT_DIR)
 
 
 def revisions(book_dir):
-    """`大綱/草稿/` 裡的「既有卷修訂」草稿。每筆：rel/name/status/lo/hi/no。"""
+    """`outline/drafts/` 裡的「既有卷修訂」草稿。每筆：rel/name/status/lo/hi/no。"""
     d = os.path.join(book_dir, *DRAFT_DIR.split("/"))
     out = []
     if not os.path.isdir(d):
         return out
     for f in sorted(os.listdir(d)):
-        if not (f.endswith(".md") and f.startswith(REVISION_PREFIX)):
+        if not f.endswith(layout.VOLUME_REVISION_SUFFIX):
             continue
         try:
             fm = project.split_frontmatter(project.read_text(os.path.join(d, f)))[0] or {}
         except OSError:
             continue
-        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("章節範圍") or ""))]
+        nums = [int(x) for x in re.findall(r"\d+", str(fm.get("chapter_range") or ""))]
         lo, hi = (nums[0], nums[-1]) if len(nums) >= 2 else (None, None)
-        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("卷名") or f),
-                    "status": str(fm.get("狀態") or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
+        out.append({"rel": "%s/%s" % (DRAFT_DIR, f), "name": str(fm.get("title") or f),
+                    "status": str(fmkeys.disp("status", fm.get("status")) or ""), "lo": lo, "hi": hi, "no": _num_from_name(f)})
     out.sort(key=lambda v: (v["no"] or 0, v["rel"]))
     return out
 
@@ -355,7 +390,7 @@ def apply_revision(book_dir, no):
         raise project.ProjectError("找不到第 %s 卷的修訂草稿（%s）。" % (no, rel))
     text = project.read_text(src)
     fm, _body = project.split_frontmatter(text)
-    if not str(fm.get("章節範圍") or "").strip():
+    if not str(fm.get("chapter_range") or "").strip():
         raise project.ProjectError("修訂草稿沒有「章節範圍」，先補上第幾章到第幾章再套用。")
     dst = project.safe_path(book_dir, v["rel"])
     try:
@@ -363,7 +398,7 @@ def apply_revision(book_dir, no):
         tracking.backup(book_dir, dst, "卷綱修訂前")
     except Exception:
         pass
-    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "狀態", "已確認"))
+    new_text, note = textguard.guard_text(book_dir, project.set_frontmatter_field(text, "status", "approved"))
     tmp = dst + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(new_text if new_text.endswith("\n") else new_text + "\n")

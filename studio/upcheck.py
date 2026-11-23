@@ -5,13 +5,14 @@
   - `tools/contract_audit.py`（正文寫完之後掃）
   - `tools/card_audit.py` 與整章自動流程的前置檢查（章綱排好、正文還沒寫時先掃）
 
-「未登記角色」目前沒有實作（說明有寫，程式只比對 `設定/角色/` 已登記的角色），
+「未登記角色」目前沒有實作（說明有寫，程式只比對 `bible/characters/` 已登記的角色），
 所以這裡不會回報新名字。
 """
 import os
 import re
 
 from . import context, contract, project
+from . import layout
 
 SPOILER_GAP = 15   # 「提前登場」：只是被提到很正常，差 15 章以上才算劇透風險
 IDLE_GAP = 30      # 「久別重逢」：最後登場之後 30 章又出現（只看主角／配角）
@@ -20,7 +21,7 @@ KEEP_ROLES = ("主角", "主要配角", "配角")
 # 章綱的「禁止事項」是給作者／模型的限制（例如「某角色不得登場」），
 # 裡面的名字不是本章內容；掃章綱時要先整段拿掉，不然會把「不准提到」誤判成「提前提到」。
 FORBIDDEN_SECTION = re.compile(
-    r"^##\s*(?:[0-9一二三四五六七八九十]+[、.．]\s*)?禁止事[項项][^\n]*$.*?(?=^##\s|\Z)",
+    r"^##\s*(?:[0-9一二三四五六七八九十]+[、.．]\s*)?(?:禁止事[項项]|(?i:don'ts))[^\n]*$.*?(?=^##\s|\Z)",
     re.M | re.S)
 
 
@@ -55,7 +56,7 @@ def conflicts(book_dir, no, text, chars=None):
 def findings(book_dir, start, end, cards=False):
     """掃一段章節的衝突。
 
-    cards=True：掃 大綱/章綱（正文還沒寫也能先檢查）；False：掃 正文。
+    cards=True：掃 outline/chapters（正文還沒寫也能先檢查）；False：掃 正文。
     回傳 [{chapter, name, kind, detail, source}]，source 是 章綱 或 正文。
     """
     start, end = int(start), int(end)
@@ -70,11 +71,11 @@ def findings(book_dir, start, end, cards=False):
                 c["source"] = "章綱"
                 out.append(c)
         return out
-    ch = project._scan_dir(os.path.join(book_dir, "正文"))
+    ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
     for no in sorted(n for n in ch if start <= n <= end):
-        text = project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", ch[no])))[1]
+        text = project.split_frontmatter(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, ch[no])))[1]
         for c in conflicts(book_dir, no, text, chars):
-            c["source"] = "正文"
+            c["source"] = "正文"  # literal-ok: 來源標籤（顯示用）
             out.append(c)
     return out
 

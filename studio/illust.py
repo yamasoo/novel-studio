@@ -2,12 +2,12 @@
 """
 插圖：每個章節、角色、勢力、世界觀項目、封面都可以有插圖（全部選用）。
 
-書目錄/插圖/
+書目錄/illust/
 ├── .gitignore                 圖片預設不進 git
-├── 封面/
-├── 章節/第003章/
-├── 角色/林晚/   勢力/沈家/   世界觀/玉珮/
-每個資料夾：圖片 + 同名 .json（提示詞、seed、參數、來源片段）+ _插圖.json（主圖、提示詞草稿）
+├── cover/
+├── chapters/第003章/
+├── characters/林晚/   factions/沈家/   world/玉珮/
+每個資料夾：圖片 + 同名 .json（提示詞、seed、參數、來源片段）+ _illustrations.json（主圖、提示詞草稿）
 
 能在本機做的都在本機做：挑片段（打分）、中文→Danbooru 標籤查表、套用 StyleSelectorXL 樣式表、
 組裝 Anima 提示詞。只有「把中文場景寫成英文描述」這一步需要 AI（另外的任務）。
@@ -23,11 +23,13 @@ import zipfile
 from xml.etree import ElementTree as ET
 
 from . import project, prompts
+from . import layout, sections
 
-ROOT = "插圖"
-INDEX = "_插圖.json"
+ROOT = layout.ILLUST
+INDEX = layout.ILLUST_INDEX
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp")
-ENTITY_DIRS = ("角色", "勢力", "世界觀")
+# （設定資料夾, 顯示用的類別名稱）。插圖資料夾裡用設定資料夾的最後一段當子資料夾（illust/characters/林晚/）
+ENTITY_DIRS = ((layout.CHARACTERS, "角色"), (layout.FACTIONS, "勢力"), (layout.WORLD, "世界觀"))   # literal-ok: 顯示用的類別名稱
 CARD_HEAD = "## 繪圖提示"
 
 DEFAULTS = {
@@ -103,17 +105,18 @@ def lora_hint(path):
 # 目標與路徑
 # ---------------------------------------------------------------------------
 def target_dir(book_dir, target):
-    """target：cover、chapter:3、entity:設定/角色/林晚.md。回傳 (絕對路徑, 相對路徑, 說明)。"""
+    """target：cover、chapter:3、entity:bible/characters/林晚.md。回傳 (絕對路徑, 相對路徑, 說明)。"""
     if target == "cover":
-        rel = ROOT + "/封面"
+        rel = ROOT + "/" + layout.ILLUST_COVER
         label = "封面"
     elif target.startswith("chapter:"):
         no = int(target.split(":", 1)[1])
-        rel = ROOT + "/章節/第%03d章" % no
+        rel = ROOT + "/" + layout.ILLUST_CHAPTERS + "/" + layout.chapter_stem(no)
         label = "第%d章" % no
     elif target.startswith("entity:"):
         f = target.split(":", 1)[1].replace("\\", "/")
-        m = re.match(r"^設定/(角色|勢力|世界觀)/([^/]+)\.md$", f)
+        m = re.match(r"^%s/(%s|%s|%s)/([^/]+)\.md$" % tuple(re.escape(x) for x in (
+            layout.BIBLE, *(layout.parts(s)[-1] for s in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD)))), f)
         if not m:
             raise IllustError("只有角色、勢力、世界觀的設定檔可以加插圖")
         rel = "%s/%s/%s" % (ROOT, m.group(1), m.group(2))
@@ -289,7 +292,7 @@ def delete_image(book_dir, target, name):
     p = os.path.join(d, name)
     if not name.lower().endswith(IMG_EXT) or not os.path.isfile(p):
         raise IllustError("找不到這張圖")
-    bak = os.path.join(book_dir, ".studio", "備份", "插圖")
+    bak = layout.path(book_dir, layout.STUDIO_BACKUP, layout.ILLUST)
     os.makedirs(bak, exist_ok=True)
     stamp = int(time.time())
     shutil.move(p, os.path.join(bak, "%d_%s" % (stamp, name)))
@@ -326,39 +329,48 @@ def overview(book_dir):
     add("cover")
     for r in project.scan_chapters(book_dir):
         add("chapter:%d" % r["no"])
-    for sub in ENTITY_DIRS:
-        d = os.path.join(root, sub)
+    for rel_dir, _ in ENTITY_DIRS:
+        d = os.path.join(root, layout.parts(rel_dir)[-1])
         if os.path.isdir(d):
             for name in sorted(os.listdir(d)):
-                add("entity:設定/%s/%s.md" % (sub, name))
+                add("entity:" + layout.entry(rel_dir, name))
     return out
 
 
 # ---------------------------------------------------------------------------
 # 視覺卡：設定檔裡的「## 繪圖提示」一節
 # ---------------------------------------------------------------------------
+CARD_HEAD_RX = r"## " + sections.head_rx("common", "illust_prompt")
+# 視覺卡的列點欄位：(鍵, 繁中, English, 日本語)
+CARD_FIELDS = (("tags", "標籤", "Tags", "タグ"), ("description", "描述", "Description", "説明"),
+               ("position", "預設位置", "Default position", "既定の位置"))
+
+
 def read_card(text):
-    m = re.search(r"(?ms)^" + re.escape(CARD_HEAD) + r"[^\n]*\n(.*?)(?=^## |\Z)", text or "")
+    m = re.search(r"(?msi)^" + CARD_HEAD_RX + r"[^\n]*\n(.*?)(?=^## |\Z)", text or "")
     if not m:
         return None
     sec = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S)
     card = {"tags": "", "description": "", "position": ""}
     for line in sec.split("\n"):
         s = line.strip().lstrip("-").strip()
-        for key, label in (("tags", "標籤"), ("description", "描述"), ("position", "預設位置")):
-            mm = re.match(r"^%s\s*[:：]\s*(.*)$" % label, s)
+        for key, *labs in CARD_FIELDS:
+            mm = re.match(r"^(?:%s)\s*[:：]\s*(.*)$" % "|".join(map(re.escape, labs)), s, re.I)
             if mm:
                 card[key] = mm.group(1).strip()
     return card if (card["tags"] or card["description"]) else None
 
 
 def write_card(text, card):
-    lines = [CARD_HEAD,
+    lang = sections.write_lang(prompts.cur_lang())
+    i = {"zh-TW": 1, "en": 2, "ja": 3}[lang]
+    sep = ": " if lang == "en" else "："
+    lines = ["## " + sections.label("common", "illust_prompt", lang),
              prompts.cur()["il_card_comment"],
-             "- 標籤：%s" % normalize_tags(card.get("tags", "")),
-             "- 描述：%s" % (card.get("description") or "").strip()]
+             "- %s%s%s" % (CARD_FIELDS[0][i], sep, normalize_tags(card.get("tags", ""))),
+             "- %s%s%s" % (CARD_FIELDS[1][i], sep, (card.get("description") or "").strip())]
     sec = "\n".join(lines) + "\n"
-    pat = re.compile(r"(?ms)^" + re.escape(CARD_HEAD) + r"[^\n]*\n.*?(?=^## |\Z)")
+    pat = re.compile(r"(?msi)^" + CARD_HEAD_RX + r"[^\n]*\n.*?(?=^## |\Z)")
     if pat.search(text):
         return pat.sub(sec + "\n", text, count=1).rstrip() + "\n"
     return text.rstrip() + "\n\n" + sec
@@ -367,8 +379,8 @@ def write_card(text, card):
 def entity_cards(book_dir):
     """所有角色、勢力、世界觀項目的名稱、別名與視覺卡。"""
     out = []
-    for sub in ENTITY_DIRS:
-        for e in project.list_entries(book_dir, "設定/" + sub):
+    for rel_dir, sub in ENTITY_DIRS:
+        for e in project.list_entries(book_dir, rel_dir):
             text = project.read_text(os.path.join(book_dir, e["file"]))
             out.append({"kind": sub, "name": e["name"], "file": e["file"],
                         "aliases": [str(a) for a in (e.get("aliases") or [])],
@@ -381,7 +393,8 @@ def _appearance(text):
     body = project.split_frontmatter(text)[1]
     parts = []
     for m in re.finditer(r"(?ms)^##+\s*([^\n]*)\n(.*?)(?=^## |\Z)", body):
-        if re.search(r"外貌|外觀|長相|形象|樣貌|外表|服裝|特徵|描述|一句話|簡介|概述", m.group(1)):
+        if re.search(r"外貌|外觀|長相|形象|樣貌|外表|服裝|特徵|描述|一句話|簡介|概述"
+                     r"|(?i:looks|appearance|description|one line)|外見|ひとこと", m.group(1)):
             t = re.sub(r"<!--.*?-->", "", m.group(2), flags=re.S).strip()
             if t:
                 parts.append("【%s】%s" % (m.group(1).strip(), t))
@@ -961,7 +974,7 @@ def assemble(spec, cfg, sheet_path=None):
 
 
 # ---------------------------------------------------------------------------
-# 本書畫風設定（插圖/畫風.json）
+# 本書畫風設定（illust/art-style.json）
 # ---------------------------------------------------------------------------
 BOOK_STYLE_DEFAULT = {"styles": [], "artist": "", "extra": "", "negative_extra": "", "width": None, "height": None,
                       "cover_width": 896, "cover_height": 1152}
@@ -969,7 +982,7 @@ BOOK_STYLE_DEFAULT = {"styles": [], "artist": "", "extra": "", "negative_extra":
 
 def load_book_style(book_dir):
     d = dict(BOOK_STYLE_DEFAULT)
-    d.update(_read_json(os.path.join(book_dir, ROOT, "畫風.json"), {}))
+    d.update(_read_json(os.path.join(book_dir, ROOT, layout.ART_STYLE), {}))
     return d
 
 
@@ -979,7 +992,7 @@ def save_book_style(book_dir, data):
         if k in data:
             cur[k] = data[k]
     _ensure_root(book_dir)
-    _write_json(os.path.join(book_dir, ROOT, "畫風.json"), cur)
+    _write_json(os.path.join(book_dir, ROOT, layout.ART_STYLE), cur)
     return cur
 
 
@@ -1047,7 +1060,7 @@ def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind
                                           desc=_il("il_card_desc").format(desc=c["description"]) if c.get("description") else "")
     parts = []
     if kind == "cover":
-        core = project.read_text(os.path.join(book_dir, "設定", "故事核心.md")) if os.path.isfile(os.path.join(book_dir, "設定", "故事核心.md")) else ""
+        core = project.read_text(layout.path(book_dir, layout.STORY_CORE)) if os.path.isfile(layout.path(book_dir, layout.STORY_CORE)) else ""
         parts.append(_il("il_task_cover"))
         parts.append(_il("il_h_core") + project.split_frontmatter(core)[1][:2500])
     elif kind == "entity":

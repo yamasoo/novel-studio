@@ -1,0 +1,20 @@
+{
+ "schema_version": 3,
+ "table": "glossary",
+ "columns": [
+  {"key": "term", "label": "名詞"},
+  {"key": "kind", "label": "類別"},
+  {"key": "explanation", "label": "說明"},
+  {"key": "note", "label": "注意"}
+ ],
+ "items": [
+  {"term": "林晚", "kind": "人名", "explanation": "林家二小姐，主角", "note": "下人稱「二小姐」，大伯母叫「晚丫頭」"},
+  {"term": "沈既白", "kind": "人名", "explanation": "沈家嫡子，前未婚夫", "note": ""},
+  {"term": "沈家", "kind": "勢力", "explanation": "青州鹽商", "note": ""},
+  {"term": "回春堂", "kind": "地名", "explanation": "城南藥鋪", "note": ""},
+  {"term": "鹽引", "kind": "物品", "explanation": "官府發給鹽商的運銷憑證", "note": ""},
+  {"term": "玉珮", "kind": "物品", "explanation": "林母遺物，只剩半塊", "note": "不寫成「玉佩」"}
+ ],
+ "md_sha": "404b8c481c377f9f",
+ "items_sha": "74ff071639e4f29a"
+}

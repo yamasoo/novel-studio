@@ -1,0 +1,43 @@
+---
+type: volume-outline
+title:
+chapter_range:       # e.g. [1, 60]
+status: draft
+---
+
+# Volume outline: {volume title}
+
+## Volume contract
+- Selling point of this volume: <!-- what readers mainly enjoy in this volume -->
+- The lead's goal this volume:
+- Opponent this volume:
+- Payoff at the end: <!-- the big satisfaction the reader must get by the end of the volume -->
+- New hook at the end: <!-- what makes readers want the next volume -->
+
+## Standing rules
+<!-- Limits that hold throughout this volume. Example: the lead cannot use the token's second layer this volume -->
+-
+
+## Plot units
+<!-- Cut the volume into units of 5-15 chapters; each unit is a small "pressure → release" cycle -->
+
+### Unit 1: {name} (ch. 1–10)
+- Starting situation:
+- Conflict:
+- Small climax:
+- Result and cost:
+- Foreshadowing planted:
+
+### Unit 2: {name} (ch. 11–20)
+-
+
+## Emotional curve
+<!-- Mark where this volume presses and where it releases. Roughly one release every 3-5 chapters, and a small climax at the end of each unit -->
+
+## Character arcs
+<!-- How each important character changes in this volume -->
+-
+
+## Foreshadowing in this volume
+| ID | Content | Planted in | Paid off in |
+|---|---|---|---|

@@ -94,8 +94,9 @@ def segments(s):
     return out
 
 
-def fold_units(src):
-    """字數單位：`${unitCh(...)}` 在執行時是「字」或「詞」，翻譯鍵一律以「字」為準（「詞」那組另外手動補在語言檔）。
+def fold_units(src, unit="字"):
+    """字數單位：`${unitCh(...)}` 在執行時是「字」或「詞」（英文書）。extract() 兩種各抽一次，
+    兩組翻譯鍵都進索引；「詞」那組的譯文由 tools/i18n_units.py 從「字」那組推出。
     另外，標了 `// i18n-skip` 的整行不抓（單位函式本身）。"""
     src = "\n".join(ln for ln in src.split("\n") if "// i18n-skip" not in ln)
     out, i, tag = [], 0, "${unitCh("
@@ -109,7 +110,7 @@ def fold_units(src):
             depth += {"(": 1, ")": -1}.get(src[k], 0)
             k += 1
         i = k + 1 if src[k:k + 1] == "}" else k      # 吃掉結尾的 }
-        out.append("字")
+        out.append(unit)
     return "".join(out)
 
 
@@ -341,11 +342,14 @@ def extract():
         src = _read(f)
         if src is None:
             continue
-        src = fold_units(src)
-        strs = [src] if f.endswith(".html") else js_strings(concat_fold(src))
-        for s in strs:
-            for seg in segments(s):
-                keys[seg] = keys.get(seg, 0) + 1
+        for unit in (("字", "詞") if "unitCh(" in src else ("字",)):
+            folded = fold_units(src, unit)
+            strs = [folded] if f.endswith(".html") else js_strings(concat_fold(folded))
+            for s in strs:
+                for seg in segments(s):
+                    if unit == "詞" and seg in keys:
+                        continue            # 跟「字」那組一樣的（不含單位）不重複計數
+                    keys[seg] = keys.get(seg, 0) + 1
     return extract_kit_live(keys)
 
 

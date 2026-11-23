@@ -2,14 +2,16 @@
 """每本書的寫作語言。
 
 存放位置（依序找，找到就用）：
-  1. 設定/故事核心.md 開頭資料區的「語言: zh-TW | en | ja」
-  2. .studio/lang（開書當下還沒有故事核心檔時先記在這裡；開書訪談時會被寫進故事核心）
-  3. 都沒有 → zh-TW（舊書不用改任何東西）
+  1. book.json 的 lang（v3 起的唯一來源；工作台開書、改語言都寫這裡）
+  2. bible/story-core.md 開頭資料區的「語言: zh-TW | en | ja」（舊書；Claude Code 技能目前也寫這裡，P4 改）
+  3. .studio/lang（舊書）
+  4. 都沒有 → zh-TW
 """
 import os
 import re
 
 from . import project
+from . import layout
 
 DEFAULT = "zh-TW"
 SUPPORTED = ("zh-TW", "en", "ja")
@@ -45,8 +47,9 @@ def normalize(value):
     return _ALIASES.get(str(value).strip().lower(), DEFAULT)
 
 
-def _fm_lang(book_dir):
-    p = os.path.join(book_dir, "設定", "故事核心.md")
+def _fm_lang(book_dir, rel=None):
+    """故事核心 frontmatter 的「語言」。rel：故事核心的相對路徑（移轉工具讀舊書時給 v2 的路徑）。"""
+    p = layout.path(book_dir, rel or layout.STORY_CORE)
     try:
         with open(p, encoding="utf-8") as f:
             head = f.read(2000)
@@ -57,7 +60,7 @@ def _fm_lang(book_dir):
     for line in head.split("\n")[1:]:
         if line.strip() == "---":
             break
-        m = re.match(r"\s*語言\s*[:：]\s*(.*?)\s*$", line)
+        m = re.match(r"\s*(?:lang|語言)\s*[:：]\s*(.*?)\s*$", line)
         if m and m.group(1):
             return m.group(1)
     return None
@@ -65,7 +68,7 @@ def _fm_lang(book_dir):
 
 def _file_lang(book_dir):
     try:
-        with open(os.path.join(book_dir, ".studio", "lang"), encoding="utf-8") as f:
+        with open(layout.path(book_dir, layout.STUDIO, "lang"), encoding="utf-8") as f:
             return f.read().strip() or None
     except OSError:
         return None
@@ -74,7 +77,8 @@ def _file_lang(book_dir):
 def book_lang(book_dir):
     if not book_dir:
         return DEFAULT
-    return normalize(_fm_lang(book_dir) or _file_lang(book_dir))
+    from . import bookmeta
+    return normalize(bookmeta.read(book_dir).get("lang") or _fm_lang(book_dir) or _file_lang(book_dir))
 
 
 def book_unit(book_dir):
@@ -82,16 +86,12 @@ def book_unit(book_dir):
 
 
 def set_book_lang(book_dir, value):
-    """設定書的語言：寫 .studio/lang；故事核心檔已存在的話，也同步改裡面的「語言」。"""
-    from . import shared
+    """設定書的語言：只寫 book.json。舊的 .studio/lang 拿掉（免得兩邊不一致）。
+    故事核心 frontmatter 的 lang 是舊書留下的，只在沒有 book.json 時當後備讀，不再寫。"""
+    from . import bookmeta
     lang = normalize(value)
-    os.makedirs(os.path.join(book_dir, ".studio"), exist_ok=True)
-    with open(os.path.join(book_dir, ".studio", "lang"), "w", encoding="utf-8", newline="\n") as f:
-        f.write(lang + "\n")
-    p = os.path.join(book_dir, "設定", "故事核心.md")
-    if os.path.isfile(p):
-        with open(p, encoding="utf-8") as f:
-            text = f.read()
-        if text.startswith("---"):
-            project.write_atomic(p, shared.set_fm(text, "語言", lang))
+    bookmeta.write(book_dir, lang=lang)
+    old = layout.path(book_dir, layout.STUDIO, "lang")
+    if os.path.isfile(old):
+        os.remove(old)
     return lang

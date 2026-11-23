@@ -17,7 +17,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--from", dest="src", required=True, help="參考書（提供風格與結構）")
     ap.add_argument("--provider", help="API 執行者 id（預設用設定裡的）")
-    ap.add_argument("--to", dest="dst", help="要存進哪本書（會寫到 候選/新書草稿/）；不給就只印出來")
+    ap.add_argument("--to", dest="dst", help="要存進哪本書（會寫到 candidates/spinoff/）；不給就只印出來")
     ap.add_argument("--note", default="", help="給模型的補充（題材、想要的感覺…）")
     ap.add_argument("--json", action="store_true", help="印 JSON")
     a = ap.parse_args()

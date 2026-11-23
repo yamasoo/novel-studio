@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-共用庫：放在書庫資料夾的 _共用/ 底下，所有書都能用，不在工作台程式資料夾裡（不會進 git）。
+共用庫：放在書庫資料夾的 _shared/ 底下，所有書都能用，不在工作台程式資料夾裡（不會進 git）。
 
-_共用/
-├── 文風/<名稱>.md        可重複使用的文風（套用時複製到書的 設定/文風.md）
-├── 結構/<名稱>.md        章節結構（套用時複製到書的 設定/章節結構/）
-└── 作者偏好.md           跨書的長期偏好、常犯的毛病、禁用詞（直接生效，不複製）
+_shared/
+├── styles/<名稱>.md      可重複使用的文風（套用時複製到書的 bible/style.md）
+├── structures/<名稱>.md  章節結構（套用時複製到書的 bible/structure/）
+└── author-prefs.md       跨書的長期偏好、常犯的毛病、禁用詞（直接生效，不複製）
 
 文風分析、結構套用、禁用詞比對都在本機完成，不呼叫 AI。
 """
@@ -16,21 +16,25 @@ import time
 from collections import Counter
 
 from . import lang as lang_mod, project
+from . import fmkeys, layout, sections
+from . import tables
 
-SHARED = "_共用"
+SHARED = layout.SHARED
 HERE = os.path.dirname(os.path.abspath(__file__))
-PRESET_DIR = os.path.join(HERE, "presets", "結構")
-STYLE_TEMPLATE = os.path.join(os.path.dirname(HERE), "plugin", "skills", "novel-setup", "templates", "文風.md")
+PRESET_DIR = os.path.join(HERE, "presets", "structures")    # repo 內建的預設結構：檔名是英文 ID，顯示名稱在 frontmatter 的 name
+STYLE_TEMPLATE = os.path.join(os.path.dirname(HERE), "plugin", "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
 METRICS_HEAD = "## 文字指標（程式統計）"
+METRICS_RX = r"## " + sections.head_rx("style", "metrics")       # 三語都認
+SAMPLE_RX = r"## " + sections.head_rx("style", "sample")
 
 PREFS_TEMPLATE = """---
-類型: 共用作者偏好
+type: shared-author-prefs
 ---
 
 # 共用作者偏好
 
 > 所有書都會套用。寫作、改稿、審查時 AI 會讀這份檔案；「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，不用呼叫 AI。
-> 某本書要例外，寫在那本書的 設定/作者偏好.md，以那本書為準。
+> 某本書要例外，寫在那本書的 bible/author-prefs.md，以那本書為準。
 
 ## 長期偏好
 <!-- 一條一行。例：對白後面少用「他說」「她說」，看得出是誰說的就省略 -->
@@ -63,9 +67,9 @@ def shared_dir(library, create=False):
         raise SharedError("還沒有設定書庫資料夾")
     d = os.path.join(library, SHARED)
     if create:
-        for sub in ("文風", "結構"):
+        for sub in (layout.SHARED_STYLES, layout.SHARED_STRUCTURES):
             os.makedirs(os.path.join(d, sub), exist_ok=True)
-        p = os.path.join(d, "作者偏好.md")
+        p = os.path.join(d, layout.SHARED_PREFS)
         if not os.path.isfile(p):
             with open(p, "w", encoding="utf-8", newline="\n") as f:
                 f.write(PREFS_TEMPLATE)
@@ -94,7 +98,7 @@ def safe_shared_path(library, rel):
 def _backup(book_dir, path, tag):
     if os.path.isfile(path):
         from . import tracking      # 只有備份上限要用；放在函式裡免得模組層互相 import
-        bak = os.path.join(book_dir, ".studio", "備份")
+        bak = layout.path(book_dir, layout.STUDIO_BACKUP)
         os.makedirs(bak, exist_ok=True)
         name = "%s_%s.%d.md" % (tag, os.path.splitext(os.path.basename(path))[0], int(time.time()))
         shutil.copy2(path, os.path.join(bak, name))
@@ -102,14 +106,17 @@ def _backup(book_dir, path, tag):
 
 
 def set_fm(text, key, value):
-    """在 frontmatter 設定（value=None 時刪除）一個鍵；沒有 frontmatter 就新增。只處理單行值。"""
-    line = None if value is None else "%s: %s" % (key, value)
+    """在 frontmatter 設定（value=None 時刪除）一個鍵；沒有 frontmatter 就新增。只處理單行值。
+    key 是英文鍵；檔案裡中文、英文寫法都會被換掉，新的一行由 fmkeys 決定寫法。"""
+    key = fmkeys.en(key)
+    line = None if value is None else "%s: %s" % (fmkeys.write_key(key), fmkeys.write_value(key, value))
     if text.startswith("---"):
         lines = text.split("\n")
         for i in range(1, len(lines)):
             if lines[i].strip() == "---":
                 fm = lines[1:i]
-                fm = [x for x in fm if not re.match(r"%s\s*:" % re.escape(key), x)]
+                pat = "|".join(re.escape(k) for k in fmkeys.file_keys(key))
+                fm = [x for x in fm if not re.match(r"(?:%s)\s*:" % pat, x)]
                 if line:
                     fm.append(line)
                 return "\n".join(["---"] + fm + lines[i:])
@@ -134,7 +141,7 @@ def _meaningful(text):
 # 共用作者偏好（直接生效）
 # ---------------------------------------------------------------------------
 def prefs_for_context(book_dir):
-    p = os.path.join(shared_of_book(book_dir), "作者偏好.md")
+    p = os.path.join(shared_of_book(book_dir), layout.SHARED_PREFS)
     if not os.path.isfile(p):
         return ""
     text = project.read_text(p)
@@ -145,7 +152,7 @@ def prefs_for_context(book_dir):
 # 文風庫
 # ---------------------------------------------------------------------------
 def list_styles(library):
-    d = os.path.join(shared_dir(library), "文風")
+    d = os.path.join(shared_dir(library), layout.SHARED_STYLES)
     out = []
     if os.path.isdir(d):
         for f in sorted(os.listdir(d)):
@@ -157,7 +164,7 @@ def list_styles(library):
                 uz = lang_mod.unit_zh(text_lang(text))
                 summ = core or ("平均句長 %s %s・對白 %s・段長 %s %s" % (m.get("平均句長"), uz, m.get("對白比例"), m.get("平均段長"), uz)
                                 if m else _first_line(text))
-                out.append({"name": f[:-3], "file": "文風/" + f, "mtime": os.path.getmtime(p),
+                out.append({"name": f[:-3], "file": layout.SHARED_STYLES + "/" + f, "mtime": os.path.getmtime(p),
                             "summary": summ, "has_metrics": bool(m),
                             "sample": m.get("樣本字數") if m else None, "lang": text_lang(text)})
     return out
@@ -166,7 +173,7 @@ def list_styles(library):
 def text_lang(text):
     """共用文風、結構檔 frontmatter 的「語言」；舊檔沒標＝繁體中文。"""
     fm, _ = project.split_frontmatter(text or "")
-    return lang_mod.normalize(fm.get("語言"))
+    return lang_mod.normalize(fm.get("lang"))
 
 
 def _core_line(text):
@@ -191,35 +198,35 @@ def create_style(library, name, source=None, sample_text=None, exclude=(), lang=
     """source: None（空白範本）或 ("book", 書目錄)。sample_text 有值時附上文字指標與範例段落。
     語言：從書複製就用那本書的語言；否則用 lang，再不然用目前任務的語言。寫進 frontmatter 的「語言」。"""
     name = _name_ok(name)
-    d = os.path.join(shared_dir(library, create=True), "文風")
+    d = os.path.join(shared_dir(library, create=True), layout.SHARED_STYLES)
     p = os.path.join(d, name + ".md")
     if os.path.exists(p):
         raise SharedError("已經有叫「%s」的文風了" % name)
     if source and source[0] == "book":
-        src = os.path.join(source[1], "設定", "文風.md")
+        src = layout.path(source[1], layout.STYLE)
         if not os.path.isfile(src):
-            raise SharedError("這本書還沒有 設定/文風.md")
+            raise SharedError("這本書還沒有 bible/style.md")
         text = project.read_text(src)
         lang = lang_mod.book_lang(source[1])
     else:
         from . import context, prompts
         lang = lang_mod.normalize(lang) if lang else prompts.cur_lang()
         st = os.path.join(context.lang_plugin(os.path.dirname(STYLE_TEMPLATE).rsplit("skills", 1)[0].rstrip("/\\"), lang),
-                          "skills", "novel-setup", "templates", "文風.md")
+                          "skills", *layout.parts(layout.TEMPLATES_IN_SKILLS), layout.TPL_STYLE)
         st = st if os.path.isfile(st) else STYLE_TEMPLATE
-        text = project.read_text(st) if os.path.isfile(st) else "---\n類型: 文風\n---\n\n# 文風\n"
-    text = set_fm(set_fm(set_fm(text, "名稱", name), "類型", "文風"), "語言", lang)
+        text = project.read_text(st) if os.path.isfile(st) else "---\ntype: style\n---\n\n# 文風\n"
+    text = set_fm(set_fm(set_fm(text, "name", name), "type", "文風"), "lang", lang)  # literal-ok: frontmatter 類型值，第四批後半換
     text = re.sub(r"(?m)^# 本書文風\s*$", "# 文風：%s" % name, text, count=1)
     if sample_text:
         text = put_metrics(text, analyze(sample_text, exclude))
         text = put_samples(text, sample_text)
     with open(p, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
-    return {"name": name, "file": "文風/" + name + ".md"}
+    return {"name": name, "file": layout.SHARED_STYLES + "/" + name + ".md"}
 
 
 def restat_style(library, name, sample_text):
-    p = os.path.join(shared_dir(library), "文風", _name_ok(name) + ".md")
+    p = os.path.join(shared_dir(library), layout.SHARED_STYLES, _name_ok(name) + ".md")
     if not os.path.isfile(p):
         raise SharedError("找不到這個文風")
     text = put_metrics(project.read_text(p), analyze(sample_text))
@@ -229,23 +236,23 @@ def restat_style(library, name, sample_text):
 
 
 def apply_style(library, name, book_dir):
-    src = os.path.join(shared_dir(library), "文風", _name_ok(name) + ".md")
+    src = os.path.join(shared_dir(library), layout.SHARED_STYLES, _name_ok(name) + ".md")
     if not os.path.isfile(src):
         raise SharedError("找不到這個文風")
-    dst = os.path.join(book_dir, "設定", "文風.md")
-    _backup(book_dir, dst, "文風")
+    dst = layout.path(book_dir, layout.STYLE)
+    _backup(book_dir, dst, layout.SHARED_STYLES)
     text = project.read_text(src)
-    text = set_fm(set_fm(set_fm(set_fm(text, "類型", "文風"), "來源", "共用文風「%s」" % name), "名稱", None), "語言", None)
+    text = set_fm(set_fm(set_fm(set_fm(text, "type", "文風"), "source", "共用文風「%s」" % name), "name", None), "lang", None)  # literal-ok: frontmatter 類型值，第四批後半換
     project.write_atomic(dst, text)
-    return "設定/文風.md"
+    return layout.STYLE
 
 
 def save_style_from_book(library, name, book_dir, overwrite=False):
     name = _name_ok(name)
-    src = os.path.join(book_dir, "設定", "文風.md")
+    src = layout.path(book_dir, layout.STYLE)
     if not os.path.isfile(src):
-        raise SharedError("這本書還沒有 設定/文風.md")
-    d = os.path.join(shared_dir(library, create=True), "文風")
+        raise SharedError("這本書還沒有 bible/style.md")
+    d = os.path.join(shared_dir(library, create=True), layout.SHARED_STYLES)
     dst = os.path.join(d, name + ".md")
     if os.path.exists(dst) and not overwrite:
         raise SharedError("已經有叫「%s」的文風了" % name)
@@ -256,11 +263,11 @@ def save_style_from_book(library, name, book_dir, overwrite=False):
 
 
 def delete_item(library, kind, name):
-    sub = {"style": "文風", "structure": "結構"}[kind]
+    sub = {"style": layout.SHARED_STYLES, "structure": layout.SHARED_STRUCTURES}[kind]
     p = os.path.join(shared_dir(library), sub, _name_ok(name) + ".md")
     if not os.path.isfile(p):
         raise SharedError("找不到這個檔案")
-    trash = os.path.join(shared_dir(library), ".刪除")
+    trash = os.path.join(shared_dir(library), layout.SHARED_TRASH)
     os.makedirs(trash, exist_ok=True)
     os.replace(p, os.path.join(trash, "%s_%s_%d.md" % (sub, name, int(time.time()))))
 
@@ -313,16 +320,21 @@ def frequent_phrases(*a, **k):
     return _metrics_mod().frequent_phrases(*a, **k)
 
 
+def _cur_lang():
+    from . import prompts
+    return prompts.cur_lang()
+
+
 def metrics_md(m):
     return _metrics_mod().metrics_md(m)
 
 
 def put_metrics(text, m):
     sec = metrics_md(m)
-    pat = re.compile(r"(?ms)^" + re.escape(METRICS_HEAD) + r".*?(?=^## |\Z)")
+    pat = re.compile(r"(?msi)^" + METRICS_RX + r".*?(?=^## |\Z)")
     if pat.search(text):
-        return pat.sub(sec + "\n", text, count=1).rstrip() + "\n"
-    anchor = re.search(r"(?m)^## 範例段落", text)
+        return pat.sub(lambda _m: sec + "\n", text, count=1).rstrip() + "\n"
+    anchor = re.search(r"(?mi)^" + SAMPLE_RX, text)
     if anchor:
         return text[:anchor.start()] + sec + "\n" + text[anchor.start():]
     return text.rstrip() + "\n\n" + sec
@@ -340,17 +352,17 @@ def put_samples(text, sample, limit=400, most=6):
     if not pick:
         return text
     block = "\n\n".join(pick)
-    m = re.search(r"(?ms)^## 範例段落\s*\n(.*?)(?=^## |\Z)", text)
+    m = re.search(r"(?msi)^" + SAMPLE_RX + r"\s*\n(.*?)(?=^## |\Z)", text)
     if m:
         existing = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.S).strip()
         if existing:
             return text
         return text[:m.start(1)] + "<!-- 從分析樣本擷取的開頭幾段，可以換成你最滿意的段落。 -->\n" + block + "\n\n" + text[m.end(1):]
-    return text.rstrip() + "\n\n## 範例段落\n" + block + "\n"
+    return text.rstrip() + "\n\n## %s\n" % sections.label("style", "sample", _cur_lang()) + block + "\n"
 
 
 def parse_metrics(text):
-    m = re.search(r"(?ms)^" + re.escape(METRICS_HEAD) + r"(.*?)(?=^## |\Z)", text or "")
+    m = re.search(r"(?msi)^" + METRICS_RX + r"(.*?)(?=^## |\Z)", text or "")
     if not m:
         return {}
     out = {}
@@ -398,22 +410,22 @@ def compare(target, actual):
 def book_names(book_dir):
     """本書的人名、地名、勢力名與別名（分析高頻詞組時排除）。"""
     names = []
-    for sub in ("設定/角色", "設定/勢力", "設定/世界觀"):
+    for sub in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD):
         for e in project.list_entries(book_dir, sub):
             names.append(e["name"])
             names += [str(a) for a in (e.get("aliases") or [])]
-    _, rows = project.parse_md_table(project.read_text(os.path.join(book_dir, "設定", "名詞表.md"))) \
-        if os.path.isfile(os.path.join(book_dir, "設定", "名詞表.md")) else ([], [])
-    for r in rows:
-        v = r.get("名詞") or r.get("名稱") or ""
+    _, rows = project.parse_md_table(project.read_text(layout.path(book_dir, layout.GLOSSARY))) \
+        if os.path.isfile(layout.path(book_dir, layout.GLOSSARY)) else ([], [])
+    for r in tables.rows_to_keys("glossary", rows):
+        v = r.get("term") or r.get("名稱") or ""   # 名稱：作者自己取的表頭
         if v:
             names.append(v)
     return names
 
 
-def book_sample(book_dir, a=None, b=None, folder="正文"):
+def book_sample(book_dir, a=None, b=None, folder=layout.MANUSCRIPT):
     rows = project.scan_chapters(book_dir)
-    key = "text_file" if folder == "正文" else "candidate_file"
+    key = "text_file" if folder == layout.MANUSCRIPT else "candidate_file"
     texts = []
     for r in rows:
         if r[key] and (a is None or r["no"] >= a) and (b is None or r["no"] <= b):
@@ -423,7 +435,7 @@ def book_sample(book_dir, a=None, b=None, folder="正文"):
 
 def style_deviation_findings(book_dir, text):
     """給「檢查用語與 AI 味」用：本章和本書文風指標差很多時提醒。"""
-    sp = os.path.join(book_dir, "設定", "文風.md")
+    sp = layout.path(book_dir, layout.STYLE)
     if not os.path.isfile(sp):
         return []
     target = parse_metrics(project.read_text(sp))
@@ -438,7 +450,7 @@ def style_deviation_findings(book_dir, text):
         if r["偏離"] == "明顯" and r["指標"] != "每千字AI味信號":
             out.append({"等級": "提醒", "類型": "文風偏差", "行": 0,
                         "片段": "%s：本章 %s，文風設定 %s" % (r["指標"], r["實際"], r["目標"]),
-                        "建議": "和 設定/文風.md 的文字指標差很多；如果是刻意的（例如動作戲句子變短）可以忽略"})
+                        "建議": "和 bible/style.md 的文字指標差很多；如果是刻意的（例如動作戲句子變短）可以忽略"})
     return out
 
 
@@ -448,9 +460,10 @@ def style_deviation_findings(book_dir, text):
 def _structure_info(path, origin):
     text = project.read_text(path)
     fm, _ = project.split_frontmatter(text)
-    name = os.path.splitext(os.path.basename(path))[0]
-    return {"name": name, "origin": origin, "scope": str(fm.get("適用") or ""), "summary": _summary(text),
-            "default": str(fm.get("預設") or "") in ("是", "true", "True", "yes"), "lang": text_lang(text)}
+    stem = os.path.splitext(os.path.basename(path))[0]
+    name = str(fm.get("name") or stem) if origin == "preset" else stem       # 內建結構：檔名是 ID，名稱看 frontmatter
+    return {"name": name, "id": stem, "origin": origin, "scope": str(fm.get("scope") or ""), "summary": _summary(text),
+            "default": fmkeys.value_en("default", fm.get("default")) in ("true", "True", "yes"), "lang": text_lang(text)}
 
 
 def _summary(text):
@@ -461,14 +474,14 @@ def _summary(text):
 def list_structures(library):
     out = []
     if os.path.isdir(PRESET_DIR):
-        for f in sorted(os.listdir(PRESET_DIR)):
-            if f.endswith(".md"):
-                out.append(dict(_structure_info(os.path.join(PRESET_DIR, f), "preset"), file="preset:" + f))
-    d = os.path.join(shared_dir(library), "結構")
+        presets = [dict(_structure_info(os.path.join(PRESET_DIR, f), "preset"), file="preset:" + f)
+                   for f in os.listdir(PRESET_DIR) if f.endswith(".md")]
+        out += sorted(presets, key=lambda x: x["name"])         # 依顯示名稱排（檔名是英文 ID）
+    d = os.path.join(shared_dir(library), layout.SHARED_STRUCTURES)
     if os.path.isdir(d):
         for f in sorted(os.listdir(d)):
             if f.endswith(".md"):
-                out.append(dict(_structure_info(os.path.join(d, f), "mine"), file="結構/" + f))
+                out.append(dict(_structure_info(os.path.join(d, f), "mine"), file=layout.SHARED_STRUCTURES + "/" + f))
     return out
 
 
@@ -476,8 +489,14 @@ def structure_path(library, name, origin):
     name = _name_ok(name)
     if origin == "preset":
         p = os.path.join(PRESET_DIR, name + ".md")
+        if not os.path.isfile(p) and os.path.isdir(PRESET_DIR):          # 用顯示名稱（三幕式）找
+            for f in sorted(os.listdir(PRESET_DIR)):
+                q = os.path.join(PRESET_DIR, f)
+                if f.endswith(".md") and str(project.split_frontmatter(project.read_text(q))[0].get("name") or "") == name:
+                    p = q
+                    break
     else:
-        p = os.path.join(shared_dir(library), "結構", name + ".md")
+        p = os.path.join(shared_dir(library), layout.SHARED_STRUCTURES, name + ".md")
     if not os.path.isfile(p):
         raise SharedError("找不到章節結構「%s」" % name)
     return p
@@ -486,7 +505,7 @@ def structure_path(library, name, origin):
 def copy_preset(library, name, new_name=None):
     src = structure_path(library, name, "preset")
     new_name = _name_ok(new_name or name)
-    d = os.path.join(shared_dir(library, create=True), "結構")
+    d = os.path.join(shared_dir(library, create=True), layout.SHARED_STRUCTURES)
     dst = os.path.join(d, new_name + ".md")
     if os.path.exists(dst):
         raise SharedError("「我的結構」裡已經有「%s」了" % new_name)
@@ -498,7 +517,7 @@ def copy_preset(library, name, new_name=None):
 
 def new_structure(library, name, lang=None):
     name = _name_ok(name)
-    d = os.path.join(shared_dir(library, create=True), "結構")
+    d = os.path.join(shared_dir(library, create=True), layout.SHARED_STRUCTURES)
     p = os.path.join(d, name + ".md")
     if os.path.exists(p):
         raise SharedError("已經有叫「%s」的結構了" % name)
@@ -508,9 +527,9 @@ def new_structure(library, name, lang=None):
 
 
 STRUCTURE_TEMPLATE = """---
-類型: 章節結構
-名稱: {name}
-適用: 單章
+type: chapter-structure
+name: {name}
+scope: 單章
 ---
 
 # {name}
@@ -533,8 +552,8 @@ STRUCTURE_TEMPLATE = """---
 """
 
 
-# 書裡的結構：設定/章節結構/<名稱>.md，frontmatter「預設: 是」的是全書預設；章綱 frontmatter「結構: 名稱」可單章指定
-BOOK_STRUCT_DIR = os.path.join("設定", "章節結構")
+# 書裡的結構：bible/structure/<名稱>.md，frontmatter「預設: 是」的是全書預設；章綱 frontmatter「結構: 名稱」可單章指定
+BOOK_STRUCT_DIR = os.path.join(*layout.parts(layout.BIBLE_STRUCTURE))
 
 
 def book_structures(book_dir):
@@ -544,7 +563,7 @@ def book_structures(book_dir):
         for f in sorted(os.listdir(d)):
             if f.endswith(".md"):
                 info = _structure_info(os.path.join(d, f), "book")
-                info["file"] = "設定/章節結構/" + f
+                info["file"] = layout.BIBLE_STRUCTURE + "/" + f
                 out.append(info)
     return out
 
@@ -555,11 +574,11 @@ def apply_structure(library, name, origin, book_dir, make_default=False):
     os.makedirs(d, exist_ok=True)
     dst = os.path.join(d, name + ".md")
     _backup(book_dir, dst, "章節結構")
-    text = set_fm(set_fm(set_fm(project.read_text(src), "預設", None), "名稱", None), "語言", None)
+    text = set_fm(set_fm(set_fm(project.read_text(src), "default", None), "name", None), "lang", None)
     project.write_atomic(dst, text)
     if make_default or not any(s["default"] for s in book_structures(book_dir)):
         set_book_default(book_dir, name)
-    return "設定/章節結構/%s.md" % name
+    return layout.entry(layout.BIBLE_STRUCTURE, name)
 
 
 def set_book_default(book_dir, name):
@@ -567,7 +586,7 @@ def set_book_default(book_dir, name):
     for s in book_structures(book_dir):
         p = os.path.join(book_dir, s["file"])
         text = project.read_text(p)
-        new = set_fm(text, "預設", "是" if s["name"] == name else None)
+        new = set_fm(text, "default", "是" if s["name"] == name else None)
         found = found or s["name"] == name
         if new != text:
             _backup(book_dir, p, "改預設結構前")
@@ -585,7 +604,7 @@ def set_chapter_structure(book_dir, no, name):
         raise SharedError("這本書沒有「%s」這個結構，請先從共用庫套用" % name)
     p = os.path.join(book_dir, card_path)
     from . import tracking
-    text = set_fm(project.read_text(p), "結構", name or None)
+    text = set_fm(project.read_text(p), "structure", name or None)
     tracking.backup(book_dir, p, "章綱結構前")
     project.write_atomic(p, text)
 
@@ -598,7 +617,7 @@ def structure_for(book_dir, no=None):
         card_path, card = context.card_text(book_dir, no)
         if card:
             fm, _ = project.split_frontmatter(card)
-            name = str(fm.get("結構") or "").strip() or None
+            name = str(fm.get("structure") or "").strip() or None
     if name:
         p = os.path.join(book_dir, BOOK_STRUCT_DIR, name + ".md")
         if os.path.isfile(p):
@@ -614,7 +633,7 @@ def claude_note(book_dir):
     P = prompts.pack(lang.book_lang(book_dir))
     note = P["claude_note"]
     sd = shared_of_book(book_dir)
-    p = os.path.join(sd, "作者偏好.md")
+    p = os.path.join(sd, layout.SHARED_PREFS)
     if os.path.isfile(p) and _meaningful(project.read_text(p)):
         note += P["claude_note_shared"].format(path=p)
     return note

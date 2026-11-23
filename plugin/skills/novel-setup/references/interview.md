@@ -41,7 +41,7 @@
 
 把結果整理成三份檔案的初稿：
 - `CLAUDE.md`：依 references/claude-md-template.md
-- `設定/故事核心.md`：填入已知的部分，未知的保留範本註解
-- `設定/文風.md`：依上面的樣本處理結果
+- `bible/story-core.md`：填入已知的部分，未知的保留範本註解
+- `bible/style.md`：依上面的樣本處理結果
 
 然後用一段白話告訴作者：專案建在哪、已經填了什麼、哪些還空著，以及建議的下一步（通常是用 novel-outline 把故事核心補完，或用 novel-bible 建主角設定）。

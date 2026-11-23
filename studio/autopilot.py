@@ -15,6 +15,7 @@
 import os
 
 from . import drift, project, style_loop
+from . import layout
 
 EVERY = 10
 STOP_MUST = 1        # 這幾章累計幾個「必須修」就停
@@ -46,11 +47,11 @@ def checkpoint(book_dir, upto, every=EVERY, stop_must=STOP_MUST, stop_style=STOP
     chk = checker or default_checker(book_dir)
     must_chapters = []
     if chk:
-        for no, fn in sorted(project._scan_dir(os.path.join(book_dir, "正文")).items()):
+        for no, fn in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
             if not (start <= no <= upto):
                 continue
             try:
-                res = chk.check_file(os.path.join(book_dir, "正文", fn), chk.load_whitelist(book_dir))
+                res = chk.check_file(layout.path(book_dir, layout.MANUSCRIPT, fn), chk.load_whitelist(book_dir))
             except Exception:
                 continue
             n = sum(1 for f in res.get("問題") or [] if f["等級"] == "必須修")

@@ -1,0 +1,336 @@
+{
+ "en": {
+  "drafts": {
+   "bible/characters/Lin Wan.md": "---\ntype: character\nname: Lin Wan\naliases: [Wannie, Second Miss]\nrole: protagonist\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# Lin Wan\n\n## One line\na jilted daughter\n\n## Outer\n- Age / status: seventeen\n- Distinguishing looks: slim\n\n## Inner\n- Wants: the truth\n- Fears: losing the shop\n- Flaw: stubborn\n- Bottom line: never sell\n- Secret: (not stated in the text)\n\n## Voice card\n- blunt\n\n## Relationships\n- Shen: ex-fiance\n- Zhou: shopkeeper\n\n## Character arc\nfrom passive to active\n\n## Notes\n- Appears in 7 chapters (chapters 1-7). Derived from the text by the studio; please check.\n",
+   "bible/characters/Uncle Zhou.md": "---\ntype: character\nname: Uncle Zhou\naliases: []\nrole: supporting\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# Uncle Zhou\n\n## One line\n(not stated in the text)\n\n## Outer\n- Age / status: (not stated in the text)\n- Distinguishing looks: (not stated in the text)\n\n## Inner\n- Wants: (not stated in the text)\n- Fears: (not stated in the text)\n- Flaw: (not stated in the text)\n- Bottom line: (not stated in the text)\n- Secret: (not stated in the text)\n\n## Voice card\n- (not stated in the text)\n\n## Relationships\n- (not stated in the text)\n\n## Character arc\n(not stated in the text)\n\n## Notes\n- Appears in 7 chapters (chapters 1-7). Derived from the text by the studio; please check.\n",
+   "bible/factions/Tianji Pavilion.md": "---\ntype: faction\nname: Tianji Pavilion\nstatus: draft\nrelated_characters: [Lin Wan]\nsource: 從正文反推\n---\n\n# Tianji Pavilion\n\n## One line\nintel\n\n## Basics\n- Size and territory: (not stated in the text)\n- Leader: the master\n- Main members: (not stated in the text)\n- Resources and methods: (not stated in the text)\n\n## Goals and interests\n- What it wants: (not stated in the text)\n- Who it is in conflict with: (not stated in the text)\n- Who it cooperates with: (not stated in the text)\n\n## Internal rules\n(not stated in the text)\n\n## Attitude toward the protagonist\n(not stated in the text)\n\n## Notes\n- Derived from the text by the studio; please check.\n",
+   "bible/glossary.md": "---\ntype: glossary\nsource: 從名詞表整理\n---\n\n# Glossary\n\n> Proper nouns, forms of address and unified spellings. Detailed settings are in the files named in the 注意 column.\n\n| Term | Category | Explanation | Note |\n|---|---|---|---|\n| Tianji Pavilion | 組織 | an intelligence guild | 首次出現：第001章；詳見 bible/factions/Tianji Pavilion.md |\n| Azure Sword | 物品／weapon | a sword with a blue blade | 首次出現：第001章；詳見 bible/world/Azure Sword.md |\n| A passerby | 人物 |  | 首次出現：第002章；出場 1 章 |\n",
+   "bible/story-core.md": "---\ntype: story-core\ntitle: After\nstatus: draft\nsource: 從正文反推\n---\n\n# Story core\n\n## One-line hook\na ledger hides a secret\n\n## Genre and positioning\n- Genre: historical\n- Target readers: romance readers\n- Platform and update rhythm: (author to fill in)\n- Expected length: (author to fill in)\n- Viewpoint: third person\n\n## Selling points\n1. audits\n2. payback\n\n## Protagonist\n- What they want (outer goal): keep the shop\n- What they really need (inner growth): trust\n- Biggest flaw or limit: suspicious\n- Special advantage (if any): (not stated in the text)\n\n## Story engine\nold debts\n\n## Core conflict\n- Main opponent: the Shens\n- Root of the conflict: salt licenses\n\n## Reader contract\n- a secret per volume\n\n## Endgame\nshe runs the house\n\n## Escalation steps\n1. shop\n2. family\n",
+   "bible/world/Azure Sword.md": "---\ntype: world\nname: Azure Sword\nstatus: draft\nsource: 從名詞表整理\n---\n\n# Azure Sword\n\n## One line\na famous blade\n\n## Traits\n- (not stated in the text)\n\n## Origin\n(not stated in the text)\n\n## Role in the story\n(not stated in the text)\n\n## Current state\n(not stated in the text)\n\n## Limits and costs\n- (not stated in the text)\n\n## Notes\n- Appears in 5 chapters (ch. 003–007). Organized from the glossary and the text by the workbench; please verify.\n",
+   "bible/world/Background.md": "---\ntype: world\ncategory: other\ntags: []\nname: Background\nstatus: draft\nsource: 從正文反推\n---\n\n# Background\n\n## One line\n(not stated in the text)\n\n## Rules\n- (not stated in the text)\n\n## Costs and limits\n- (not stated in the text)\n\n## When the reader learns it\nIn the order the text reveals it (see the timeline and the reader-knowledge ledger)\n\n## Relevance to the plot\n(not stated in the text)\n\n## Notes\n- Derived from the text by the studio; please check.\n",
+   "bible/world/Salt Law.md": "---\ntype: world\ncategory: economy\ntags: [salt]\nname: Salt Law\nstatus: draft\nsource: 從正文反推\n---\n\n# Salt Law\n\n## One line\nsalt is everything\n\n## Rules\n- state monopoly\n\n## Costs and limits\n- smuggling is a crime\n\n## When the reader learns it\nIn the order the text reveals it (see the timeline and the reader-knowledge ledger)\n\n## Relevance to the plot\nthe Shens trade salt\n\n## Notes\n- Derived from the text by the studio; please check.\n",
+   "bible/world/Weapons.md": "---\ntype: world\nname: Weapons\nstatus: draft\nsource: 從名詞表整理\n---\n\n# Weapons\n\n## One line\nweapons\n\n## Blades\n- **Azure Sword**：a sword（first appears in chapter 003；詳見 bible/world/Azure Sword.md）\n\n## Rules and limits\n- (not stated in the text)\n\n## Relevance to the plot\n(not stated in the text)\n\n## Notes\n- Organized from the glossary and the text by the workbench; please verify.\n",
+   "outline/book.md": "---\ntype: book-outline\nstatus: draft\nsource: 從正文反推\n---\n\n# Book outline\n\n## Overview\n- Expected volumes and length: 2 volume(s) written so far (derived from the text)\n- Main line in one sentence: the ledger reveals all\n- Ending: she wins\n\n## Volumes\n\n### Volume 1: Jilted\n- Length: 第1～4章\n- Volume goal: audit\n- Main opponent: the aunt\n- Change by the end of the volume: doubt\n- Big climax at the end: the niche\n- What is planted here for later: see the foreshadowing table\n\n### Volume 2: 第二卷\n- Length: 第5～7章\n- Volume goal: (not stated in the text)\n- Main opponent: (not stated in the text)\n- Change by the end of the volume: (not stated in the text)\n- Big climax at the end: (not stated in the text)\n- What is planted here for later: see the foreshadowing table\n",
+   "outline/chapters/ch-0001.md": "---\ntype: chapter-card\nchapter: 1\ntitle: The Missing Milestone\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 1: The Missing Milestone\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n\n## Foreshadowing moves\n- planted F001 (The jade is broken i)\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/chapters/ch-0002.md": "---\ntype: chapter-card\nchapter: 2\ntitle: Names You Have Walked\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 2: Names You Have Walked\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n- A passerby\n\n## Foreshadowing moves\n- none\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/chapters/ch-0003.md": "---\ntype: chapter-card\nchapter: 3\ntitle: c3\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 3: c3\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n\n## Foreshadowing moves\n- advanced F001 (The jade is broken i)\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/chapters/ch-0004.md": "---\ntype: chapter-card\nchapter: 4\ntitle: c4\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 4: c4\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n\n## Foreshadowing moves\n- none\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/chapters/ch-0005.md": "---\ntype: chapter-card\nchapter: 5\ntitle: c5\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 5: c5\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n\n## Foreshadowing moves\n- paid off F001 (The jade is broken i)\n- planted F002 (A hidden niche)\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/chapters/ch-0006.md": "---\ntype: chapter-card\nchapter: 6\ntitle: c6\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 6: c6\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n\n## Foreshadowing moves\n- none\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/chapters/ch-0007.md": "---\ntype: chapter-card\nchapter: 7\ntitle: c7\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# Chapter 7: c7\n\n## Four questions\n1. What the lead wants to do in this chapter: Clear the ledger\n2. Who or what stops them: A missing page\n3. What the situation is after this chapter: She suspects Zhou\n4. Why the reader will keep reading: Who took it\n\n## Function and target emotion\n- Function: advance the plot\n- Main feeling for the reader: tense\n\n## Plot points\n1. Reads the ledger\n2. Finds the gap\n\n## Characters on stage\n- Lin Wan\n- Uncle Zhou\n\n## Foreshadowing moves\n- none\n\n## Don'ts\n- none (chapter already written)\n\n## Ending hook\n- Stops on: Footsteps\n\n## Notes\n- Derived from the text by the studio.\n",
+   "outline/volumes/vol-01.md": "---\ntype: volume-outline\ntitle: Jilted\nchapter_range: [1, 4]\nstatus: draft\nsource: 從正文反推\n---\n\n# Volume outline: Jilted\n\n## Volume contract\n- Selling point of this volume: (not stated in the text)\n- The lead's goal this volume: audit\n- Opponent this volume: the aunt\n- Payoff at the end: the niche\n- New hook at the end: footsteps\n\n## Volume summary\nLin Wan audits.\n\n## Plot units\n\n### Unit 1: The audit (ch. 1–4)\n- Starting situation: jilted\n- Conflict: missing page\n- Small climax: the niche\n- Result and cost: doubts Zhou\n\n## Character arcs\n- Lin Wan: active\n",
+   "outline/volumes/vol-02.md": "---\ntype: volume-outline\ntitle: 第二卷\nchapter_range: [5, 7]\nstatus: draft\nsource: 從正文反推\n---\n\n# Volume outline: 第二卷\n\n## Volume contract\n- Selling point of this volume: (not stated in the text)\n- The lead's goal this volume: (not stated in the text)\n- Opponent this volume: (not stated in the text)\n- Payoff at the end: (not stated in the text)\n- New hook at the end: (not stated in the text)\n\n## Volume summary\nLin Wan audits.\n\n## Plot units\n\n### Unit 1: The niche (ch. 5–7)\n- Starting situation: (not stated in the text)\n- Conflict: Zhou\n- Small climax: (not stated in the text)\n- Result and cost: (not stated in the text)\n\n## Character arcs\n- (not stated in the text)\n",
+   "tracking/characters/Lin Wan.md": "---\ntype: character-state\nname: Lin Wan\nupdated_through: 7\nlast_appearance: 7\n---\n\n# Lin Wan: current state\n\n> Only what changes goes here. Static traits such as personality and appearance are in bible/characters/.\n\n- Identity: shop owner\n- Location: the shop\n- Goal: audit\n- Physical state: tired\n- Emotional state: alert\n- Abilities and resources: the ledger、jade\n- Relationship changes: doubts Zhou\n- Secrets known: (not stated in the text)\n- Unfinished business: the page\n",
+   "tracking/characters/Uncle Zhou.md": "---\ntype: character-state\nname: Uncle Zhou\nupdated_through: 7\nlast_appearance: 7\n---\n\n# Uncle Zhou: current state\n\n> Only what changes goes here. Static traits such as personality and appearance are in bible/characters/.\n\n- Identity: (not stated in the text)\n- Location: (not stated in the text)\n- Goal: (not stated in the text)\n- Physical state: (not stated in the text)\n- Emotional state: (not stated in the text)\n- Abilities and resources: (not stated in the text)\n- Relationship changes: (not stated in the text)\n- Secrets known: (not stated in the text)\n- Unfinished business: (not stated in the text)\n",
+   "tracking/foreshadowing.md": "---\ntype: foreshadowing\nupdated_through: 7\n---\n\n# Foreshadowing\n\n| ID | Content | Planted in | Planned payoff | Last seen | Status | Priority |\n|---|---|---|---|---|---|---|\n| F001 | The jade is broken in half | Ch. 1 |  | Ch. 5 | paid off | high |\n| F002 | A hidden niche | Ch. 5 |  | Ch. 5 | planted | medium |\n",
+   "tracking/reader-knowledge.md": "---\ntype: reader-knowledge\nupdated_through: 7\n---\n\n# Reader knowledge\n\n> What the reader believes so far: \"known\" is what the reader knows; \"question\" is a question the reader is waiting to have answered; \"misbelief\" is something the reader wrongly believes (for a twist).\n> \"Author's truth\" is the answer (optional); an empty \"Resolved in\" means not revealed yet. When writing, do not resolve questions or misbeliefs before their time.\n\n| ID | Type | Content | Author's truth | Planted in | Resolved in | Characters involved |\n|---|---|---|---|---|---|---|\n| R001 | question | Who took the missing page | Uncle Zhou took it | Ch. 1 | Ch. 4 |  |\n| R002 | misbelief | Readers think the aunt did it |  | Ch. 2 |  |  |\n",
+   "tracking/state-card.md": "---\ntype: state-card\nupdated_through: 7\n---\n\n# State card\n\n## 1. Where we are\n- chapter 7\n\n## 2. Main-line progress\n- auditing\n\n## 3. Characters present\n- Lin Wan\n\n## 4. Promises for the next chapter\n- (not stated in the text)\n\n## 5. Long-term constraints\n- half a jade\n\n## 6. Continuity risks\n- the page\n\n## 7. Active foreshadowing\n- F002 niche\n",
+   "tracking/summaries/ch-0001.md": "---\ntype: chapter-summary\nchapter: 1\ntitle: The Missing Milestone\nlength: 425\n---\n\n# Chapter 1: The Missing Milestone\n\n## What happened\nChapter 1: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 1 ends on footsteps outside\n",
+   "tracking/summaries/ch-0002.md": "---\ntype: chapter-summary\nchapter: 2\ntitle: Names You Have Walked\nlength: 383\n---\n\n# Chapter 2: Names You Have Walked\n\n## What happened\nChapter 2: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 2 ends on footsteps outside\n",
+   "tracking/summaries/ch-0003.md": "---\ntype: chapter-summary\nchapter: 3\ntitle: c3\nlength: 60\n---\n\n# Chapter 3: c3\n\n## What happened\nChapter 3: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 3 ends on footsteps outside\n",
+   "tracking/summaries/ch-0004.md": "---\ntype: chapter-summary\nchapter: 4\ntitle: c4\nlength: 60\n---\n\n# Chapter 4: c4\n\n## What happened\nChapter 4: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 4 ends on footsteps outside\n",
+   "tracking/summaries/ch-0005.md": "---\ntype: chapter-summary\nchapter: 5\ntitle: c5\nlength: 60\n---\n\n# Chapter 5: c5\n\n## What happened\nChapter 5: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 5 ends on footsteps outside\n",
+   "tracking/summaries/ch-0006.md": "---\ntype: chapter-summary\nchapter: 6\ntitle: c6\nlength: 60\n---\n\n# Chapter 6: c6\n\n## What happened\nChapter 6: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 6 ends on footsteps outside\n",
+   "tracking/summaries/ch-0007.md": "---\ntype: chapter-summary\nchapter: 7\ntitle: c7\nlength: 60\n---\n\n# Chapter 7: c7\n\n## What happened\nChapter 7: Lin Wan checks the books.\n\n## How the situation changed\nMore doubts\n\n## New people, places and things\nnone\n\n## Ends on\nChapter 7 ends on footsteps outside\n",
+   "tracking/timeline.md": "---\ntype: timeline\nupdated_through: 7\n---\n\n# Timeline\n\n> 「實際發生」 is the truth the author knows; 「讀者目前知道」 is the information boundary while writing.\n\n| ID | Story time | What really happened (author's truth) | What the reader knows now | Revealed in | Characters involved |\n|---|---|---|---|---|---|\n| E001 | Day 1 | the truth of chapter 1 | part of it | Ch. 1 | Lin Wan |\n| E002 | Day 2 | the truth of chapter 2 | part of it | Ch. 2 | Lin Wan |\n| E003 | Day 3 | the truth of chapter 3 | part of it | Ch. 3 | Lin Wan |\n| E004 | Day 4 | the truth of chapter 4 | part of it | Ch. 4 | Lin Wan |\n| E005 | Day 5 | the truth of chapter 5 | part of it | Ch. 5 | Lin Wan |\n| E006 | Day 6 | the truth of chapter 6 | part of it | Ch. 6 | Lin Wan |\n| E007 | Day 7 | the truth of chapter 7 | part of it | Ch. 7 | Lin Wan |\n"
+  },
+  "logs": [
+   "逐章抽取：第1～7章，還有 3 批要跑（已完成 0 章）",
+   "逐章抽取 2／3：第4～6章：有認不得的選項值，照原樣寫入：重要度=很重要",
+   "整理背景設定：有認不得的選項值，照原樣寫入：分類=nonsense",
+   "名詞 3 條（刪掉說明空白的 0 條），開始分類"
+  ],
+  "processed": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "result": "**從正文建立設定完成**（第1～7章）\n\n草稿：設定 9 份、大綱 3 份、章綱 7 份、追蹤 13 份。\n人物 3 位（建角色檔 2 位，其餘列進名詞表）、名詞 2 個、伏筆 2 條、時間線 7 條、讀者認知 2 條。\n名詞表 3 條（組織 1、物品 1、人物 1）；刪掉 0 條沒有內容的；主題檔 1 份（Weapons）；獨立條目 1 份；勢力 1 份。\n\n請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。",
+  "steps": [
+   "extract",
+   "extract",
+   "extract",
+   "chars",
+   "world",
+   "arc",
+   "book",
+   "state",
+   "cls",
+   "fac",
+   "topic",
+   "own"
+  ]
+ },
+ "resume": {
+  "r1": {
+   "logs": [
+    "逐章抽取：第1～7章，還有 3 批要跑（已完成 0 章）"
+   ],
+   "result": "已停止。下次按「繼續」會從斷的地方接著跑（已完成的章節不會重跑）。",
+   "steps": [
+    "extract",
+    "extract"
+   ]
+  },
+  "r2": {
+   "logs": [
+    "逐章抽取：第1～7章，還有 1 批要跑（已完成 6 章）"
+   ],
+   "result": "已停止。下次按「繼續」會從斷的地方接著跑（已完成的章節不會重跑）。",
+   "steps": [
+    "extract",
+    "chars"
+   ]
+  },
+  "r3": {
+   "drafts": {
+    "bible/characters/周叔.md": "---\ntype: character\nname: 周叔\naliases: []\nrole: supporting\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 周叔\n\n## 一句話\n（正文未明確）\n\n## 外在\n- 年齡／身分：（正文未明確）\n- 外貌辨識點：（正文未明確）\n\n## 內在\n- 想要：（正文未明確）\n- 害怕：（正文未明確）\n- 缺陷：（正文未明確）\n- 底線：（正文未明確）\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- （正文未明確）\n\n## 關係\n- （正文未明確）\n\n## 角色弧線\n（正文未明確）\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+    "bible/characters/林晚.md": "---\ntype: character\nname: 林晚\naliases: [晚丫頭, 二小姐]\nrole: protagonist\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 林晚\n\n## 一句話\n被退婚的二小姐\n\n## 外在\n- 年齡／身分：十七歲\n- 外貌辨識點：瘦\n\n## 內在\n- 想要：查清帳\n- 害怕：失去鋪子\n- 缺陷：倔強\n- 底線：不賣鋪子\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- 直接\n\n## 關係\n- 沈既白：前未婚夫\n- 周叔：掌櫃\n\n## 角色弧線\n從被動到主動\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+    "bible/factions/天機閣.md": "---\ntype: faction\nname: 天機閣\nstatus: draft\nrelated_characters: [林晚]\nsource: 從正文反推\n---\n\n# 天機閣\n\n## 一句話\n情報\n\n## 基本資料\n- 規模與地盤：（正文未明確）\n- 首領：閣主\n- 主要成員：（正文未明確）\n- 資源與手段：（正文未明確）\n\n## 目標與利益\n- 想要什麼：（正文未明確）\n- 和誰有衝突：（正文未明確）\n- 和誰有合作：（正文未明確）\n\n## 內部規矩\n（正文未明確）\n\n## 對主角的態度\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+    "bible/glossary.md": "---\ntype: glossary\nsource: 從名詞表整理\n---\n\n# 名詞表\n\n> 專有名詞、稱謂、統一用字。詳細設定在「注意」欄指到的檔案。\n\n| 名詞 | 類別 | 說明 | 注意 |\n|---|---|---|---|\n| 天機閣 | 組織 | 江湖情報組織 | 首次出現：第001章；詳見 bible/factions/天機閣.md |\n| 青雲劍 | 物品／兵器 | 佩劍，劍身青色 | 首次出現：第001章；詳見 bible/world/青雲劍.md |\n| 路人甲 | 人物 |  | 首次出現：第002章；出場 1 章 |\n",
+    "bible/story-core.md": "---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\nsource: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n被退婚後查出家族帳本的秘密\n\n## 題材與定位\n- 題材：古言\n- 目標讀者：女性向\n- 發表平台與更新節奏：（作者補）\n- 預計篇幅：（作者補）\n- 敘事視角：第三人稱\n\n## 賣點（讀者為什麼看）\n1. 查帳\n2. 打臉\n\n## 主角\n- 想要什麼（外在目標）：保住鋪子\n- 真正需要什麼（內在成長）：相信別人\n- 最大的缺陷或限制：多疑\n- 金手指／特殊優勢（有的話）：（正文未明確）\n\n## 故事引擎\n一筆筆舊帳\n\n## 核心衝突\n- 主要對手：沈家\n- 衝突根源：鹽引\n\n## 讀者契約\n- 每卷揭一個秘密\n\n## 終局方向\n掌家\n\n## 升級台階\n1. 鋪子\n2. 家族\n",
+    "bible/world/兵器.md": "---\ntype: world\nname: 兵器\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 兵器\n\n## 一句話\n兵器\n\n## 兵器\n- **青雲劍**：佩劍（首次出現：第003章；詳見 bible/world/青雲劍.md）\n\n## 規則與限制\n- （正文未明確）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從名詞表與正文整理，請作者核對。\n",
+    "bible/world/背景設定.md": "---\ntype: world\ncategory: other\ntags: []\nname: 背景設定\nstatus: draft\nsource: 從正文反推\n---\n\n# 背景設定\n\n## 一句話\n（正文未明確）\n\n## 規則\n- （正文未明確）\n\n## 代價與限制\n- （正文未明確）\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+    "bible/world/青州鹽政.md": "---\ntype: world\ncategory: economy\ntags: [鹽]\nname: 青州鹽政\nstatus: draft\nsource: 從正文反推\n---\n\n# 青州鹽政\n\n## 一句話\n鹽是命脈\n\n## 規則\n- 官鹽專賣\n\n## 代價與限制\n- 私鹽重罪\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n沈家靠鹽\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+    "bible/world/青雲劍.md": "---\ntype: world\nname: 青雲劍\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 青雲劍\n\n## 一句話\n名劍\n\n## 特性\n- （正文未明確）\n\n## 來歷\n（正文未明確）\n\n## 在故事中的作用\n（正文未明確）\n\n## 目前狀態\n（正文未明確）\n\n## 限制與代價\n- （正文未明確）\n\n## 備註\n- 出場 5 章（第003～007章）。由工作台從名詞表與正文整理，請作者核對。\n",
+    "outline/book.md": "---\ntype: book-outline\nstatus: draft\nsource: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽\n- 預計卷數與字數：已寫 2 卷（從正文反推）\n- 主線一句話：查帳查出家族秘密\n- 終局：掌家\n\n## 分卷\n\n### 第一卷：退婚\n- 篇幅：第1～4章\n- 本卷目標：查帳\n- 主要對手：大伯母\n- 卷末變化：懷疑周叔\n- 卷末大高潮：暗格\n- 本卷埋下、留給後面的東西：見伏筆表\n\n### 第二卷：第二卷\n- 篇幅：第5～7章\n- 本卷目標：（正文未明確）\n- 主要對手：（正文未明確）\n- 卷末變化：（正文未明確）\n- 卷末大高潮：（正文未明確）\n- 本卷埋下、留給後面的東西：見伏筆表\n",
+    "outline/chapters/ch-0001.md": "---\ntype: chapter-card\nchapter: 1\ntitle: 退婚當天\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第1章 退婚當天\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 新埋 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/chapters/ch-0002.md": "---\ntype: chapter-card\nchapter: 2\ntitle: 浮字\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第2章 浮字\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n- 路人甲\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/chapters/ch-0003.md": "---\ntype: chapter-card\nchapter: 3\ntitle: c3\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第3章 c3\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 推進 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/chapters/ch-0004.md": "---\ntype: chapter-card\nchapter: 4\ntitle: c4\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第4章 c4\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/chapters/ch-0005.md": "---\ntype: chapter-card\nchapter: 5\ntitle: c5\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第5章 c5\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 回收 F001（玉珮只剩半塊）\n- 新埋 F002（後院的暗格）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/chapters/ch-0006.md": "---\ntype: chapter-card\nchapter: 6\ntitle: c6\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第6章 c6\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/chapters/ch-0007.md": "---\ntype: chapter-card\nchapter: 7\ntitle: c7\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第7章 c7\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+    "outline/volumes/vol-01.md": "---\ntype: volume-outline\ntitle: 退婚\nchapter_range: [1, 4]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：退婚\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：查帳\n- 本卷對手：大伯母\n- 卷末兌現：暗格\n- 卷末新鉤子：腳步聲\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：查帳（第1～4章）\n- 起點局面：退婚\n- 衝突：缺頁\n- 小高潮：發現暗格\n- 結果與代價：懷疑周叔\n\n## 人物弧線\n- 林晚：主動\n",
+    "outline/volumes/vol-02.md": "---\ntype: volume-outline\ntitle: 第二卷\nchapter_range: [5, 7]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：第二卷\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：（正文未明確）\n- 本卷對手：（正文未明確）\n- 卷末兌現：（正文未明確）\n- 卷末新鉤子：（正文未明確）\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：暗格（第5～7章）\n- 起點局面：（正文未明確）\n- 衝突：周叔\n- 小高潮：（正文未明確）\n- 結果與代價：（正文未明確）\n\n## 人物弧線\n- （正文未明確）\n",
+    "tracking/characters/周叔.md": "---\ntype: character-state\nname: 周叔\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 周叔：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：（正文未明確）\n- 位置：（正文未明確）\n- 目標：（正文未明確）\n- 身體狀態：（正文未明確）\n- 情緒狀態：（正文未明確）\n- 能力與資源：（正文未明確）\n- 關係變化：（正文未明確）\n- 知道的秘密：（正文未明確）\n- 未了結的事：（正文未明確）\n",
+    "tracking/characters/林晚.md": "---\ntype: character-state\nname: 林晚\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 林晚：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：鋪主\n- 位置：鋪子\n- 目標：查帳\n- 身體狀態：疲倦\n- 情緒狀態：警覺\n- 能力與資源：帳本、玉珮\n- 關係變化：懷疑周叔\n- 知道的秘密：（正文未明確）\n- 未了結的事：缺頁\n",
+    "tracking/foreshadowing.md": "---\ntype: foreshadowing\nupdated_through: 7\n---\n\n# 伏筆總表\n\n| 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |\n|---|---|---|---|---|---|---|\n| F001 | 玉珮只剩半塊 | 第001章 |  | 第005章 | 已回收 | 高 |\n| F002 | 後院的暗格 | 第005章 |  | 第005章 | 已埋 | 中 |\n",
+    "tracking/reader-knowledge.md": "---\ntype: reader-knowledge\nupdated_through: 7\n---\n\n# 讀者認知\n\n> 讀者讀到目前為止的認知：「已知」是讀者知道的事；「懸念」是讀者在等答案的問題；「誤認」是讀者誤以為的事（反轉用）。\n> 「作者真相」是答案（選填）；「回收章」空白＝還沒揭曉。寫稿時不能提前回收沒到時候的懸念與誤認。\n\n| 編號 | 類型 | 內容 | 作者真相 | 種下章 | 回收章 | 相關角色 |\n|---|---|---|---|---|---|---|\n| R001 | 懸念 | 誰拿走了缺頁 | 周叔拿走的 | 第001章 | 第004章 |  |\n| R002 | 誤認 | 讀者以為大伯母是主謀 |  | 第002章 |  |  |\n",
+    "tracking/state-card.md": "---\ntype: state-card\nupdated_through: 7\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 第7章\n\n## 2. 主線進度\n- 查帳中\n\n## 3. 在場角色\n- 林晚\n\n## 4. 下一章承諾\n- （正文未明確）\n\n## 5. 長期約束\n- 玉珮只剩半塊\n\n## 6. 連續性風險\n- 缺頁\n\n## 7. 活躍伏筆\n- F002 暗格\n",
+    "tracking/summaries/ch-0001.md": "---\ntype: chapter-summary\nchapter: 1\ntitle: 退婚當天\nlength: 461\n---\n\n# 第1章 退婚當天\n\n## 發生了什麼\n第1章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第1章停在門外的腳步聲\n",
+    "tracking/summaries/ch-0002.md": "---\ntype: chapter-summary\nchapter: 2\ntitle: 浮字\nlength: 264\n---\n\n# 第2章 浮字\n\n## 發生了什麼\n第2章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第2章停在門外的腳步聲\n",
+    "tracking/summaries/ch-0003.md": "---\ntype: chapter-summary\nchapter: 3\ntitle: c3\nlength: 112\n---\n\n# 第3章 c3\n\n## 發生了什麼\n第3章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第3章停在門外的腳步聲\n",
+    "tracking/summaries/ch-0004.md": "---\ntype: chapter-summary\nchapter: 4\ntitle: c4\nlength: 112\n---\n\n# 第4章 c4\n\n## 發生了什麼\n第4章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第4章停在門外的腳步聲\n",
+    "tracking/summaries/ch-0005.md": "---\ntype: chapter-summary\nchapter: 5\ntitle: c5\nlength: 112\n---\n\n# 第5章 c5\n\n## 發生了什麼\n第5章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第5章停在門外的腳步聲\n",
+    "tracking/summaries/ch-0006.md": "---\ntype: chapter-summary\nchapter: 6\ntitle: c6\nlength: 112\n---\n\n# 第6章 c6\n\n## 發生了什麼\n第6章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第6章停在門外的腳步聲\n",
+    "tracking/summaries/ch-0007.md": "---\ntype: chapter-summary\nchapter: 7\ntitle: c7\nlength: 112\n---\n\n# 第7章 c7\n\n## 發生了什麼\n第7章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第7章停在門外的腳步聲\n",
+    "tracking/timeline.md": "---\ntype: timeline\nupdated_through: 7\n---\n\n# 時間線\n\n> 「實際發生」是作者知道的真相；「讀者目前知道」是寫作時的資訊邊界。\n\n| 編號 | 故事時間 | 實際發生（作者真相） | 讀者目前知道 | 揭示章 | 相關角色 |\n|---|---|---|---|---|---|\n| E001 | 退婚後第1天 | 第1章的真相 | 一部分 | 第001章 | 林晚 |\n| E002 | 退婚後第2天 | 第2章的真相 | 一部分 | 第002章 | 林晚 |\n| E003 | 退婚後第3天 | 第3章的真相 | 一部分 | 第003章 | 林晚 |\n| E004 | 退婚後第4天 | 第4章的真相 | 一部分 | 第004章 | 林晚 |\n| E005 | 退婚後第5天 | 第5章的真相 | 一部分 | 第005章 | 林晚 |\n| E006 | 退婚後第6天 | 第6章的真相 | 一部分 | 第006章 | 林晚 |\n| E007 | 退婚後第7天 | 第7章的真相 | 一部分 | 第007章 | 林晚 |\n"
+   },
+   "logs": [
+    "逐章抽取：第1～7章，還有 0 批要跑（已完成 7 章）",
+    "名詞 3 條（刪掉說明空白的 0 條），開始分類"
+   ],
+   "processed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "result": "**從正文建立設定完成**（第1～7章）\n\n草稿：設定 9 份、大綱 3 份、章綱 7 份、追蹤 13 份。\n人物 3 位（建角色檔 2 位，其餘列進名詞表）、名詞 2 個、伏筆 2 條、時間線 7 條、讀者認知 2 條。\n名詞表 3 條（組織 1、物品 1、人物 1）；刪掉 0 條沒有內容的；主題檔 1 份（兵器）；獨立條目 1 份；勢力 1 份。\n\n請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。",
+   "steps": [
+    "world",
+    "arc",
+    "book",
+    "state",
+    "cls",
+    "fac",
+    "topic",
+    "own"
+   ]
+  }
+ },
+ "v2cache_after_chars": {
+  "drafts": {
+   "bible/characters/周叔.md": "---\ntype: character\nname: 周叔\naliases: []\nrole: supporting\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 周叔\n\n## 一句話\n（正文未明確）\n\n## 外在\n- 年齡／身分：（正文未明確）\n- 外貌辨識點：（正文未明確）\n\n## 內在\n- 想要：（正文未明確）\n- 害怕：（正文未明確）\n- 缺陷：（正文未明確）\n- 底線：（正文未明確）\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- （正文未明確）\n\n## 關係\n- （正文未明確）\n\n## 角色弧線\n（正文未明確）\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+   "bible/characters/林晚.md": "---\ntype: character\nname: 林晚\naliases: [晚丫頭, 二小姐]\nrole: protagonist\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 林晚\n\n## 一句話\n被退婚的二小姐\n\n## 外在\n- 年齡／身分：十七歲\n- 外貌辨識點：瘦\n\n## 內在\n- 想要：查清帳\n- 害怕：失去鋪子\n- 缺陷：倔強\n- 底線：不賣鋪子\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- 直接\n\n## 關係\n- 沈既白：前未婚夫\n- 周叔：掌櫃\n\n## 角色弧線\n從被動到主動\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+   "bible/factions/天機閣.md": "---\ntype: faction\nname: 天機閣\nstatus: draft\nrelated_characters: [林晚]\nsource: 從正文反推\n---\n\n# 天機閣\n\n## 一句話\n情報\n\n## 基本資料\n- 規模與地盤：（正文未明確）\n- 首領：閣主\n- 主要成員：（正文未明確）\n- 資源與手段：（正文未明確）\n\n## 目標與利益\n- 想要什麼：（正文未明確）\n- 和誰有衝突：（正文未明確）\n- 和誰有合作：（正文未明確）\n\n## 內部規矩\n（正文未明確）\n\n## 對主角的態度\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/glossary.md": "---\ntype: glossary\nsource: 從名詞表整理\n---\n\n# 名詞表\n\n> 專有名詞、稱謂、統一用字。詳細設定在「注意」欄指到的檔案。\n\n| 名詞 | 類別 | 說明 | 注意 |\n|---|---|---|---|\n| 天機閣 | 組織 | 江湖情報組織 | 首次出現：第001章；詳見 bible/factions/天機閣.md |\n| 青雲劍 | 物品／兵器 | 佩劍，劍身青色 | 首次出現：第001章；詳見 bible/world/青雲劍.md |\n| 路人甲 | 人物 |  | 首次出現：第002章；出場 1 章 |\n",
+   "bible/story-core.md": "---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\nsource: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n被退婚後查出家族帳本的秘密\n\n## 題材與定位\n- 題材：古言\n- 目標讀者：女性向\n- 發表平台與更新節奏：（作者補）\n- 預計篇幅：（作者補）\n- 敘事視角：第三人稱\n\n## 賣點（讀者為什麼看）\n1. 查帳\n2. 打臉\n\n## 主角\n- 想要什麼（外在目標）：保住鋪子\n- 真正需要什麼（內在成長）：相信別人\n- 最大的缺陷或限制：多疑\n- 金手指／特殊優勢（有的話）：（正文未明確）\n\n## 故事引擎\n一筆筆舊帳\n\n## 核心衝突\n- 主要對手：沈家\n- 衝突根源：鹽引\n\n## 讀者契約\n- 每卷揭一個秘密\n\n## 終局方向\n掌家\n\n## 升級台階\n1. 鋪子\n2. 家族\n",
+   "bible/world/兵器.md": "---\ntype: world\nname: 兵器\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 兵器\n\n## 一句話\n兵器\n\n## 兵器\n- **青雲劍**：佩劍（首次出現：第003章；詳見 bible/world/青雲劍.md）\n\n## 規則與限制\n- （正文未明確）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從名詞表與正文整理，請作者核對。\n",
+   "bible/world/背景設定.md": "---\ntype: world\ncategory: other\ntags: []\nname: 背景設定\nstatus: draft\nsource: 從正文反推\n---\n\n# 背景設定\n\n## 一句話\n（正文未明確）\n\n## 規則\n- （正文未明確）\n\n## 代價與限制\n- （正文未明確）\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/world/青州鹽政.md": "---\ntype: world\ncategory: economy\ntags: [鹽]\nname: 青州鹽政\nstatus: draft\nsource: 從正文反推\n---\n\n# 青州鹽政\n\n## 一句話\n鹽是命脈\n\n## 規則\n- 官鹽專賣\n\n## 代價與限制\n- 私鹽重罪\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n沈家靠鹽\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/world/青雲劍.md": "---\ntype: world\nname: 青雲劍\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 青雲劍\n\n## 一句話\n名劍\n\n## 特性\n- （正文未明確）\n\n## 來歷\n（正文未明確）\n\n## 在故事中的作用\n（正文未明確）\n\n## 目前狀態\n（正文未明確）\n\n## 限制與代價\n- （正文未明確）\n\n## 備註\n- 出場 5 章（第003～007章）。由工作台從名詞表與正文整理，請作者核對。\n",
+   "outline/book.md": "---\ntype: book-outline\nstatus: draft\nsource: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽\n- 預計卷數與字數：已寫 2 卷（從正文反推）\n- 主線一句話：查帳查出家族秘密\n- 終局：掌家\n\n## 分卷\n\n### 第一卷：退婚\n- 篇幅：第1～4章\n- 本卷目標：查帳\n- 主要對手：大伯母\n- 卷末變化：懷疑周叔\n- 卷末大高潮：暗格\n- 本卷埋下、留給後面的東西：見伏筆表\n\n### 第二卷：第二卷\n- 篇幅：第5～7章\n- 本卷目標：（正文未明確）\n- 主要對手：（正文未明確）\n- 卷末變化：（正文未明確）\n- 卷末大高潮：（正文未明確）\n- 本卷埋下、留給後面的東西：見伏筆表\n",
+   "outline/chapters/ch-0001.md": "---\ntype: chapter-card\nchapter: 1\ntitle: 退婚當天\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第1章 退婚當天\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 新埋 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0002.md": "---\ntype: chapter-card\nchapter: 2\ntitle: 浮字\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第2章 浮字\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n- 路人甲\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0003.md": "---\ntype: chapter-card\nchapter: 3\ntitle: c3\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第3章 c3\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 推進 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0004.md": "---\ntype: chapter-card\nchapter: 4\ntitle: c4\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第4章 c4\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0005.md": "---\ntype: chapter-card\nchapter: 5\ntitle: c5\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第5章 c5\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 回收 F001（玉珮只剩半塊）\n- 新埋 F002（後院的暗格）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0006.md": "---\ntype: chapter-card\nchapter: 6\ntitle: c6\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第6章 c6\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0007.md": "---\ntype: chapter-card\nchapter: 7\ntitle: c7\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第7章 c7\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/volumes/vol-01.md": "---\ntype: volume-outline\ntitle: 退婚\nchapter_range: [1, 4]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：退婚\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：查帳\n- 本卷對手：大伯母\n- 卷末兌現：暗格\n- 卷末新鉤子：腳步聲\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：查帳（第1～4章）\n- 起點局面：退婚\n- 衝突：缺頁\n- 小高潮：發現暗格\n- 結果與代價：懷疑周叔\n\n## 人物弧線\n- 林晚：主動\n",
+   "outline/volumes/vol-02.md": "---\ntype: volume-outline\ntitle: 第二卷\nchapter_range: [5, 7]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：第二卷\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：（正文未明確）\n- 本卷對手：（正文未明確）\n- 卷末兌現：（正文未明確）\n- 卷末新鉤子：（正文未明確）\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：暗格（第5～7章）\n- 起點局面：（正文未明確）\n- 衝突：周叔\n- 小高潮：（正文未明確）\n- 結果與代價：（正文未明確）\n\n## 人物弧線\n- （正文未明確）\n",
+   "tracking/characters/周叔.md": "---\ntype: character-state\nname: 周叔\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 周叔：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：（正文未明確）\n- 位置：（正文未明確）\n- 目標：（正文未明確）\n- 身體狀態：（正文未明確）\n- 情緒狀態：（正文未明確）\n- 能力與資源：（正文未明確）\n- 關係變化：（正文未明確）\n- 知道的秘密：（正文未明確）\n- 未了結的事：（正文未明確）\n",
+   "tracking/characters/林晚.md": "---\ntype: character-state\nname: 林晚\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 林晚：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：鋪主\n- 位置：鋪子\n- 目標：查帳\n- 身體狀態：疲倦\n- 情緒狀態：警覺\n- 能力與資源：帳本、玉珮\n- 關係變化：懷疑周叔\n- 知道的秘密：（正文未明確）\n- 未了結的事：缺頁\n",
+   "tracking/foreshadowing.md": "---\ntype: foreshadowing\nupdated_through: 7\n---\n\n# 伏筆總表\n\n| 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |\n|---|---|---|---|---|---|---|\n| F001 | 玉珮只剩半塊 | 第001章 |  | 第005章 | 已回收 | 高 |\n| F002 | 後院的暗格 | 第005章 |  | 第005章 | 已埋 | 中 |\n",
+   "tracking/reader-knowledge.md": "---\ntype: reader-knowledge\nupdated_through: 7\n---\n\n# 讀者認知\n\n> 讀者讀到目前為止的認知：「已知」是讀者知道的事；「懸念」是讀者在等答案的問題；「誤認」是讀者誤以為的事（反轉用）。\n> 「作者真相」是答案（選填）；「回收章」空白＝還沒揭曉。寫稿時不能提前回收沒到時候的懸念與誤認。\n\n| 編號 | 類型 | 內容 | 作者真相 | 種下章 | 回收章 | 相關角色 |\n|---|---|---|---|---|---|---|\n| R001 | 懸念 | 誰拿走了缺頁 | 周叔拿走的 | 第001章 | 第004章 |  |\n| R002 | 誤認 | 讀者以為大伯母是主謀 |  | 第002章 |  |  |\n",
+   "tracking/state-card.md": "---\ntype: state-card\nupdated_through: 7\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 第7章\n\n## 2. 主線進度\n- 查帳中\n\n## 3. 在場角色\n- 林晚\n\n## 4. 下一章承諾\n- （正文未明確）\n\n## 5. 長期約束\n- 玉珮只剩半塊\n\n## 6. 連續性風險\n- 缺頁\n\n## 7. 活躍伏筆\n- F002 暗格\n",
+   "tracking/summaries/ch-0001.md": "---\ntype: chapter-summary\nchapter: 1\ntitle: 退婚當天\nlength: 461\n---\n\n# 第1章 退婚當天\n\n## 發生了什麼\n第1章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第1章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0002.md": "---\ntype: chapter-summary\nchapter: 2\ntitle: 浮字\nlength: 264\n---\n\n# 第2章 浮字\n\n## 發生了什麼\n第2章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第2章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0003.md": "---\ntype: chapter-summary\nchapter: 3\ntitle: c3\nlength: 112\n---\n\n# 第3章 c3\n\n## 發生了什麼\n第3章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第3章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0004.md": "---\ntype: chapter-summary\nchapter: 4\ntitle: c4\nlength: 112\n---\n\n# 第4章 c4\n\n## 發生了什麼\n第4章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第4章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0005.md": "---\ntype: chapter-summary\nchapter: 5\ntitle: c5\nlength: 112\n---\n\n# 第5章 c5\n\n## 發生了什麼\n第5章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第5章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0006.md": "---\ntype: chapter-summary\nchapter: 6\ntitle: c6\nlength: 112\n---\n\n# 第6章 c6\n\n## 發生了什麼\n第6章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第6章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0007.md": "---\ntype: chapter-summary\nchapter: 7\ntitle: c7\nlength: 112\n---\n\n# 第7章 c7\n\n## 發生了什麼\n第7章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第7章停在門外的腳步聲\n",
+   "tracking/timeline.md": "---\ntype: timeline\nupdated_through: 7\n---\n\n# 時間線\n\n> 「實際發生」是作者知道的真相；「讀者目前知道」是寫作時的資訊邊界。\n\n| 編號 | 故事時間 | 實際發生（作者真相） | 讀者目前知道 | 揭示章 | 相關角色 |\n|---|---|---|---|---|---|\n| E001 | 退婚後第1天 | 第1章的真相 | 一部分 | 第001章 | 林晚 |\n| E002 | 退婚後第2天 | 第2章的真相 | 一部分 | 第002章 | 林晚 |\n| E003 | 退婚後第3天 | 第3章的真相 | 一部分 | 第003章 | 林晚 |\n| E004 | 退婚後第4天 | 第4章的真相 | 一部分 | 第004章 | 林晚 |\n| E005 | 退婚後第5天 | 第5章的真相 | 一部分 | 第005章 | 林晚 |\n| E006 | 退婚後第6天 | 第6章的真相 | 一部分 | 第006章 | 林晚 |\n| E007 | 退婚後第7天 | 第7章的真相 | 一部分 | 第007章 | 林晚 |\n"
+  },
+  "logs": [
+   "逐章抽取：第1～7章，還有 0 批要跑（已完成 7 章）",
+   "名詞 3 條（刪掉說明空白的 0 條），開始分類"
+  ],
+  "processed": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "result": "**從正文建立設定完成**（第1～7章）\n\n草稿：設定 9 份、大綱 3 份、章綱 7 份、追蹤 13 份。\n人物 3 位（建角色檔 2 位，其餘列進名詞表）、名詞 2 個、伏筆 2 條、時間線 7 條、讀者認知 2 條。\n名詞表 3 條（組織 1、物品 1、人物 1）；刪掉 0 條沒有內容的；主題檔 1 份（兵器）；獨立條目 1 份；勢力 1 份。\n\n請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。",
+  "steps": [
+   "world",
+   "arc",
+   "book",
+   "state",
+   "cls",
+   "fac",
+   "topic",
+   "own"
+  ]
+ },
+ "v2cache_after_extract": {
+  "drafts": {
+   "bible/characters/周叔.md": "---\ntype: character\nname: 周叔\naliases: []\nrole: supporting\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 周叔\n\n## 一句話\n（正文未明確）\n\n## 外在\n- 年齡／身分：（正文未明確）\n- 外貌辨識點：（正文未明確）\n\n## 內在\n- 想要：（正文未明確）\n- 害怕：（正文未明確）\n- 缺陷：（正文未明確）\n- 底線：（正文未明確）\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- （正文未明確）\n\n## 關係\n- （正文未明確）\n\n## 角色弧線\n（正文未明確）\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+   "bible/characters/林晚.md": "---\ntype: character\nname: 林晚\naliases: [晚丫頭, 二小姐]\nrole: protagonist\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 林晚\n\n## 一句話\n被退婚的二小姐\n\n## 外在\n- 年齡／身分：十七歲\n- 外貌辨識點：瘦\n\n## 內在\n- 想要：查清帳\n- 害怕：失去鋪子\n- 缺陷：倔強\n- 底線：不賣鋪子\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- 直接\n\n## 關係\n- 沈既白：前未婚夫\n- 周叔：掌櫃\n\n## 角色弧線\n從被動到主動\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+   "bible/factions/天機閣.md": "---\ntype: faction\nname: 天機閣\nstatus: draft\nrelated_characters: [林晚]\nsource: 從正文反推\n---\n\n# 天機閣\n\n## 一句話\n情報\n\n## 基本資料\n- 規模與地盤：（正文未明確）\n- 首領：閣主\n- 主要成員：（正文未明確）\n- 資源與手段：（正文未明確）\n\n## 目標與利益\n- 想要什麼：（正文未明確）\n- 和誰有衝突：（正文未明確）\n- 和誰有合作：（正文未明確）\n\n## 內部規矩\n（正文未明確）\n\n## 對主角的態度\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/glossary.md": "---\ntype: glossary\nsource: 從名詞表整理\n---\n\n# 名詞表\n\n> 專有名詞、稱謂、統一用字。詳細設定在「注意」欄指到的檔案。\n\n| 名詞 | 類別 | 說明 | 注意 |\n|---|---|---|---|\n| 天機閣 | 組織 | 江湖情報組織 | 首次出現：第001章；詳見 bible/factions/天機閣.md |\n| 青雲劍 | 物品／兵器 | 佩劍，劍身青色 | 首次出現：第001章；詳見 bible/world/青雲劍.md |\n| 路人甲 | 人物 |  | 首次出現：第002章；出場 1 章 |\n",
+   "bible/story-core.md": "---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\nsource: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n被退婚後查出家族帳本的秘密\n\n## 題材與定位\n- 題材：古言\n- 目標讀者：女性向\n- 發表平台與更新節奏：（作者補）\n- 預計篇幅：（作者補）\n- 敘事視角：第三人稱\n\n## 賣點（讀者為什麼看）\n1. 查帳\n2. 打臉\n\n## 主角\n- 想要什麼（外在目標）：保住鋪子\n- 真正需要什麼（內在成長）：相信別人\n- 最大的缺陷或限制：多疑\n- 金手指／特殊優勢（有的話）：（正文未明確）\n\n## 故事引擎\n一筆筆舊帳\n\n## 核心衝突\n- 主要對手：沈家\n- 衝突根源：鹽引\n\n## 讀者契約\n- 每卷揭一個秘密\n\n## 終局方向\n掌家\n\n## 升級台階\n1. 鋪子\n2. 家族\n",
+   "bible/world/兵器.md": "---\ntype: world\nname: 兵器\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 兵器\n\n## 一句話\n兵器\n\n## 兵器\n- **青雲劍**：佩劍（首次出現：第003章；詳見 bible/world/青雲劍.md）\n\n## 規則與限制\n- （正文未明確）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從名詞表與正文整理，請作者核對。\n",
+   "bible/world/背景設定.md": "---\ntype: world\ncategory: other\ntags: []\nname: 背景設定\nstatus: draft\nsource: 從正文反推\n---\n\n# 背景設定\n\n## 一句話\n（正文未明確）\n\n## 規則\n- （正文未明確）\n\n## 代價與限制\n- （正文未明確）\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/world/青州鹽政.md": "---\ntype: world\ncategory: economy\ntags: [鹽]\nname: 青州鹽政\nstatus: draft\nsource: 從正文反推\n---\n\n# 青州鹽政\n\n## 一句話\n鹽是命脈\n\n## 規則\n- 官鹽專賣\n\n## 代價與限制\n- 私鹽重罪\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n沈家靠鹽\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/world/青雲劍.md": "---\ntype: world\nname: 青雲劍\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 青雲劍\n\n## 一句話\n名劍\n\n## 特性\n- （正文未明確）\n\n## 來歷\n（正文未明確）\n\n## 在故事中的作用\n（正文未明確）\n\n## 目前狀態\n（正文未明確）\n\n## 限制與代價\n- （正文未明確）\n\n## 備註\n- 出場 5 章（第003～007章）。由工作台從名詞表與正文整理，請作者核對。\n",
+   "outline/book.md": "---\ntype: book-outline\nstatus: draft\nsource: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽\n- 預計卷數與字數：已寫 2 卷（從正文反推）\n- 主線一句話：查帳查出家族秘密\n- 終局：掌家\n\n## 分卷\n\n### 第一卷：退婚\n- 篇幅：第1～4章\n- 本卷目標：查帳\n- 主要對手：大伯母\n- 卷末變化：懷疑周叔\n- 卷末大高潮：暗格\n- 本卷埋下、留給後面的東西：見伏筆表\n\n### 第二卷：第二卷\n- 篇幅：第5～7章\n- 本卷目標：（正文未明確）\n- 主要對手：（正文未明確）\n- 卷末變化：（正文未明確）\n- 卷末大高潮：（正文未明確）\n- 本卷埋下、留給後面的東西：見伏筆表\n",
+   "outline/chapters/ch-0001.md": "---\ntype: chapter-card\nchapter: 1\ntitle: 退婚當天\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第1章 退婚當天\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 新埋 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0002.md": "---\ntype: chapter-card\nchapter: 2\ntitle: 浮字\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第2章 浮字\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n- 路人甲\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0003.md": "---\ntype: chapter-card\nchapter: 3\ntitle: c3\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第3章 c3\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 推進 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0004.md": "---\ntype: chapter-card\nchapter: 4\ntitle: c4\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第4章 c4\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0005.md": "---\ntype: chapter-card\nchapter: 5\ntitle: c5\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第5章 c5\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 回收 F001（玉珮只剩半塊）\n- 新埋 F002（後院的暗格）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0006.md": "---\ntype: chapter-card\nchapter: 6\ntitle: c6\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第6章 c6\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0007.md": "---\ntype: chapter-card\nchapter: 7\ntitle: c7\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第7章 c7\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/volumes/vol-01.md": "---\ntype: volume-outline\ntitle: 退婚\nchapter_range: [1, 4]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：退婚\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：查帳\n- 本卷對手：大伯母\n- 卷末兌現：暗格\n- 卷末新鉤子：腳步聲\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：查帳（第1～4章）\n- 起點局面：退婚\n- 衝突：缺頁\n- 小高潮：發現暗格\n- 結果與代價：懷疑周叔\n\n## 人物弧線\n- 林晚：主動\n",
+   "outline/volumes/vol-02.md": "---\ntype: volume-outline\ntitle: 第二卷\nchapter_range: [5, 7]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：第二卷\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：（正文未明確）\n- 本卷對手：（正文未明確）\n- 卷末兌現：（正文未明確）\n- 卷末新鉤子：（正文未明確）\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：暗格（第5～7章）\n- 起點局面：（正文未明確）\n- 衝突：周叔\n- 小高潮：（正文未明確）\n- 結果與代價：（正文未明確）\n\n## 人物弧線\n- （正文未明確）\n",
+   "tracking/characters/周叔.md": "---\ntype: character-state\nname: 周叔\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 周叔：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：（正文未明確）\n- 位置：（正文未明確）\n- 目標：（正文未明確）\n- 身體狀態：（正文未明確）\n- 情緒狀態：（正文未明確）\n- 能力與資源：（正文未明確）\n- 關係變化：（正文未明確）\n- 知道的秘密：（正文未明確）\n- 未了結的事：（正文未明確）\n",
+   "tracking/characters/林晚.md": "---\ntype: character-state\nname: 林晚\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 林晚：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：鋪主\n- 位置：鋪子\n- 目標：查帳\n- 身體狀態：疲倦\n- 情緒狀態：警覺\n- 能力與資源：帳本、玉珮\n- 關係變化：懷疑周叔\n- 知道的秘密：（正文未明確）\n- 未了結的事：缺頁\n",
+   "tracking/foreshadowing.md": "---\ntype: foreshadowing\nupdated_through: 7\n---\n\n# 伏筆總表\n\n| 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |\n|---|---|---|---|---|---|---|\n| F001 | 玉珮只剩半塊 | 第001章 |  | 第005章 | 已回收 | 高 |\n| F002 | 後院的暗格 | 第005章 |  | 第005章 | 已埋 | 中 |\n",
+   "tracking/reader-knowledge.md": "---\ntype: reader-knowledge\nupdated_through: 7\n---\n\n# 讀者認知\n\n> 讀者讀到目前為止的認知：「已知」是讀者知道的事；「懸念」是讀者在等答案的問題；「誤認」是讀者誤以為的事（反轉用）。\n> 「作者真相」是答案（選填）；「回收章」空白＝還沒揭曉。寫稿時不能提前回收沒到時候的懸念與誤認。\n\n| 編號 | 類型 | 內容 | 作者真相 | 種下章 | 回收章 | 相關角色 |\n|---|---|---|---|---|---|---|\n| R001 | 懸念 | 誰拿走了缺頁 | 周叔拿走的 | 第001章 | 第004章 |  |\n| R002 | 誤認 | 讀者以為大伯母是主謀 |  | 第002章 |  |  |\n",
+   "tracking/state-card.md": "---\ntype: state-card\nupdated_through: 7\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 第7章\n\n## 2. 主線進度\n- 查帳中\n\n## 3. 在場角色\n- 林晚\n\n## 4. 下一章承諾\n- （正文未明確）\n\n## 5. 長期約束\n- 玉珮只剩半塊\n\n## 6. 連續性風險\n- 缺頁\n\n## 7. 活躍伏筆\n- F002 暗格\n",
+   "tracking/summaries/ch-0001.md": "---\ntype: chapter-summary\nchapter: 1\ntitle: 退婚當天\nlength: 461\n---\n\n# 第1章 退婚當天\n\n## 發生了什麼\n第1章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第1章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0002.md": "---\ntype: chapter-summary\nchapter: 2\ntitle: 浮字\nlength: 264\n---\n\n# 第2章 浮字\n\n## 發生了什麼\n第2章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第2章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0003.md": "---\ntype: chapter-summary\nchapter: 3\ntitle: c3\nlength: 112\n---\n\n# 第3章 c3\n\n## 發生了什麼\n第3章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第3章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0004.md": "---\ntype: chapter-summary\nchapter: 4\ntitle: c4\nlength: 112\n---\n\n# 第4章 c4\n\n## 發生了什麼\n第4章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第4章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0005.md": "---\ntype: chapter-summary\nchapter: 5\ntitle: c5\nlength: 112\n---\n\n# 第5章 c5\n\n## 發生了什麼\n第5章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第5章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0006.md": "---\ntype: chapter-summary\nchapter: 6\ntitle: c6\nlength: 112\n---\n\n# 第6章 c6\n\n## 發生了什麼\n第6章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第6章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0007.md": "---\ntype: chapter-summary\nchapter: 7\ntitle: c7\nlength: 112\n---\n\n# 第7章 c7\n\n## 發生了什麼\n第7章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第7章停在門外的腳步聲\n",
+   "tracking/timeline.md": "---\ntype: timeline\nupdated_through: 7\n---\n\n# 時間線\n\n> 「實際發生」是作者知道的真相；「讀者目前知道」是寫作時的資訊邊界。\n\n| 編號 | 故事時間 | 實際發生（作者真相） | 讀者目前知道 | 揭示章 | 相關角色 |\n|---|---|---|---|---|---|\n| E001 | 退婚後第1天 | 第1章的真相 | 一部分 | 第001章 | 林晚 |\n| E002 | 退婚後第2天 | 第2章的真相 | 一部分 | 第002章 | 林晚 |\n| E003 | 退婚後第3天 | 第3章的真相 | 一部分 | 第003章 | 林晚 |\n| E004 | 退婚後第4天 | 第4章的真相 | 一部分 | 第004章 | 林晚 |\n| E005 | 退婚後第5天 | 第5章的真相 | 一部分 | 第005章 | 林晚 |\n| E006 | 退婚後第6天 | 第6章的真相 | 一部分 | 第006章 | 林晚 |\n| E007 | 退婚後第7天 | 第7章的真相 | 一部分 | 第007章 | 林晚 |\n"
+  },
+  "logs": [
+   "逐章抽取：第1～7章，還有 1 批要跑（已完成 6 章）",
+   "名詞 3 條（刪掉說明空白的 0 條），開始分類"
+  ],
+  "processed": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "result": "**從正文建立設定完成**（第1～7章）\n\n草稿：設定 9 份、大綱 3 份、章綱 7 份、追蹤 13 份。\n人物 3 位（建角色檔 2 位，其餘列進名詞表）、名詞 2 個、伏筆 2 條、時間線 7 條、讀者認知 2 條。\n名詞表 3 條（組織 1、物品 1、人物 1）；刪掉 0 條沒有內容的；主題檔 1 份（兵器）；獨立條目 1 份；勢力 1 份。\n\n請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。",
+  "steps": [
+   "extract",
+   "chars",
+   "world",
+   "arc",
+   "book",
+   "state",
+   "cls",
+   "fac",
+   "topic",
+   "own"
+  ]
+ },
+ "zh": {
+  "drafts": {
+   "bible/characters/周叔.md": "---\ntype: character\nname: 周叔\naliases: []\nrole: supporting\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 周叔\n\n## 一句話\n（正文未明確）\n\n## 外在\n- 年齡／身分：（正文未明確）\n- 外貌辨識點：（正文未明確）\n\n## 內在\n- 想要：（正文未明確）\n- 害怕：（正文未明確）\n- 缺陷：（正文未明確）\n- 底線：（正文未明確）\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- （正文未明確）\n\n## 關係\n- （正文未明確）\n\n## 角色弧線\n（正文未明確）\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+   "bible/characters/林晚.md": "---\ntype: character\nname: 林晚\naliases: [晚丫頭, 二小姐]\nrole: protagonist\nfirst_appearance: 1\nstatus: draft\nsource: 從正文反推\n---\n\n# 林晚\n\n## 一句話\n被退婚的二小姐\n\n## 外在\n- 年齡／身分：十七歲\n- 外貌辨識點：瘦\n\n## 內在\n- 想要：查清帳\n- 害怕：失去鋪子\n- 缺陷：倔強\n- 底線：不賣鋪子\n- 秘密：（正文未明確）\n\n## 說話方式（聲音卡）\n- 直接\n\n## 關係\n- 沈既白：前未婚夫\n- 周叔：掌櫃\n\n## 角色弧線\n從被動到主動\n\n## 備註\n- 出場 7 章（第1～7章）。由工作台從正文反推，請作者核對。\n",
+   "bible/factions/天機閣.md": "---\ntype: faction\nname: 天機閣\nstatus: draft\nrelated_characters: [林晚]\nsource: 從正文反推\n---\n\n# 天機閣\n\n## 一句話\n情報\n\n## 基本資料\n- 規模與地盤：（正文未明確）\n- 首領：閣主\n- 主要成員：（正文未明確）\n- 資源與手段：（正文未明確）\n\n## 目標與利益\n- 想要什麼：（正文未明確）\n- 和誰有衝突：（正文未明確）\n- 和誰有合作：（正文未明確）\n\n## 內部規矩\n（正文未明確）\n\n## 對主角的態度\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/glossary.md": "---\ntype: glossary\nsource: 從名詞表整理\n---\n\n# 名詞表\n\n> 專有名詞、稱謂、統一用字。詳細設定在「注意」欄指到的檔案。\n\n| 名詞 | 類別 | 說明 | 注意 |\n|---|---|---|---|\n| 天機閣 | 組織 | 江湖情報組織 | 首次出現：第001章；詳見 bible/factions/天機閣.md |\n| 青雲劍 | 物品／兵器 | 佩劍，劍身青色 | 首次出現：第001章；詳見 bible/world/青雲劍.md |\n| 路人甲 | 人物 |  | 首次出現：第002章；出場 1 章 |\n",
+   "bible/story-core.md": "---\ntype: story-core\ntitle: 退婚之後\nstatus: draft\nsource: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n被退婚後查出家族帳本的秘密\n\n## 題材與定位\n- 題材：古言\n- 目標讀者：女性向\n- 發表平台與更新節奏：（作者補）\n- 預計篇幅：（作者補）\n- 敘事視角：第三人稱\n\n## 賣點（讀者為什麼看）\n1. 查帳\n2. 打臉\n\n## 主角\n- 想要什麼（外在目標）：保住鋪子\n- 真正需要什麼（內在成長）：相信別人\n- 最大的缺陷或限制：多疑\n- 金手指／特殊優勢（有的話）：（正文未明確）\n\n## 故事引擎\n一筆筆舊帳\n\n## 核心衝突\n- 主要對手：沈家\n- 衝突根源：鹽引\n\n## 讀者契約\n- 每卷揭一個秘密\n\n## 終局方向\n掌家\n\n## 升級台階\n1. 鋪子\n2. 家族\n",
+   "bible/world/兵器.md": "---\ntype: world\nname: 兵器\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 兵器\n\n## 一句話\n兵器\n\n## 兵器\n- **青雲劍**：佩劍（首次出現：第003章；詳見 bible/world/青雲劍.md）\n\n## 規則與限制\n- （正文未明確）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從名詞表與正文整理，請作者核對。\n",
+   "bible/world/背景設定.md": "---\ntype: world\ncategory: other\ntags: []\nname: 背景設定\nstatus: draft\nsource: 從正文反推\n---\n\n# 背景設定\n\n## 一句話\n（正文未明確）\n\n## 規則\n- （正文未明確）\n\n## 代價與限制\n- （正文未明確）\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n（正文未明確）\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/world/青州鹽政.md": "---\ntype: world\ncategory: economy\ntags: [鹽]\nname: 青州鹽政\nstatus: draft\nsource: 從正文反推\n---\n\n# 青州鹽政\n\n## 一句話\n鹽是命脈\n\n## 規則\n- 官鹽專賣\n\n## 代價與限制\n- 私鹽重罪\n\n## 讀者何時知道\n依正文揭露的順序（見時間線與讀者認知）\n\n## 與劇情的關係\n沈家靠鹽\n\n## 備註\n- 由工作台從正文反推，請作者核對。\n",
+   "bible/world/青雲劍.md": "---\ntype: world\nname: 青雲劍\nstatus: draft\nsource: 從名詞表整理\n---\n\n# 青雲劍\n\n## 一句話\n名劍\n\n## 特性\n- （正文未明確）\n\n## 來歷\n（正文未明確）\n\n## 在故事中的作用\n（正文未明確）\n\n## 目前狀態\n（正文未明確）\n\n## 限制與代價\n- （正文未明確）\n\n## 備註\n- 出場 5 章（第003～007章）。由工作台從名詞表與正文整理，請作者核對。\n",
+   "outline/book.md": "---\ntype: book-outline\nstatus: draft\nsource: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽\n- 預計卷數與字數：已寫 2 卷（從正文反推）\n- 主線一句話：查帳查出家族秘密\n- 終局：掌家\n\n## 分卷\n\n### 第一卷：退婚\n- 篇幅：第1～4章\n- 本卷目標：查帳\n- 主要對手：大伯母\n- 卷末變化：懷疑周叔\n- 卷末大高潮：暗格\n- 本卷埋下、留給後面的東西：見伏筆表\n\n### 第二卷：第二卷\n- 篇幅：第5～7章\n- 本卷目標：（正文未明確）\n- 主要對手：（正文未明確）\n- 卷末變化：（正文未明確）\n- 卷末大高潮：（正文未明確）\n- 本卷埋下、留給後面的東西：見伏筆表\n",
+   "outline/chapters/ch-0001.md": "---\ntype: chapter-card\nchapter: 1\ntitle: 退婚當天\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第1章 退婚當天\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 新埋 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0002.md": "---\ntype: chapter-card\nchapter: 2\ntitle: 浮字\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第2章 浮字\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n- 路人甲\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0003.md": "---\ntype: chapter-card\nchapter: 3\ntitle: c3\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第3章 c3\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 推進 F001（玉珮只剩半塊）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0004.md": "---\ntype: chapter-card\nchapter: 4\ntitle: c4\nvolume: 1\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第4章 c4\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0005.md": "---\ntype: chapter-card\nchapter: 5\ntitle: c5\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第5章 c5\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 回收 F001（玉珮只剩半塊）\n- 新埋 F002（後院的暗格）\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0006.md": "---\ntype: chapter-card\nchapter: 6\ntitle: c6\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第6章 c6\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/chapters/ch-0007.md": "---\ntype: chapter-card\nchapter: 7\ntitle: c7\nvolume: 2\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第7章 c7\n\n## 本章四問\n1. 主角這章想做什麼：查清帳本\n2. 誰或什麼阻止他：缺頁\n3. 這章結束後局面變成什麼：懷疑周叔\n4. 讀者為什麼還要往下看：誰拿走缺頁\n\n## 本章功能與目標情緒\n- 功能：推進\n- 讀者看完的主要感受：緊張\n\n## 情節點\n1. 翻帳\n2. 發現缺頁\n\n## 出場角色\n- 林晚\n- 周叔\n\n## 伏筆操作\n- 無\n\n## 禁止事項\n- 無（已寫成的章節）\n\n## 章末鉤子\n- 停在：腳步聲\n\n## 備註\n- 由工作台從正文反推。\n",
+   "outline/volumes/vol-01.md": "---\ntype: volume-outline\ntitle: 退婚\nchapter_range: [1, 4]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：退婚\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：查帳\n- 本卷對手：大伯母\n- 卷末兌現：暗格\n- 卷末新鉤子：腳步聲\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：查帳（第1～4章）\n- 起點局面：退婚\n- 衝突：缺頁\n- 小高潮：發現暗格\n- 結果與代價：懷疑周叔\n\n## 人物弧線\n- 林晚：主動\n",
+   "outline/volumes/vol-02.md": "---\ntype: volume-outline\ntitle: 第二卷\nchapter_range: [5, 7]\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：第二卷\n\n## 卷契約\n- 本卷賣點：（正文未明確）\n- 主角本卷目標：（正文未明確）\n- 本卷對手：（正文未明確）\n- 卷末兌現：（正文未明確）\n- 卷末新鉤子：（正文未明確）\n\n## 本卷摘要\n林晚查帳。\n\n## 劇情單元\n\n### 單元1：暗格（第5～7章）\n- 起點局面：（正文未明確）\n- 衝突：周叔\n- 小高潮：（正文未明確）\n- 結果與代價：（正文未明確）\n\n## 人物弧線\n- （正文未明確）\n",
+   "tracking/characters/周叔.md": "---\ntype: character-state\nname: 周叔\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 周叔：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：（正文未明確）\n- 位置：（正文未明確）\n- 目標：（正文未明確）\n- 身體狀態：（正文未明確）\n- 情緒狀態：（正文未明確）\n- 能力與資源：（正文未明確）\n- 關係變化：（正文未明確）\n- 知道的秘密：（正文未明確）\n- 未了結的事：（正文未明確）\n",
+   "tracking/characters/林晚.md": "---\ntype: character-state\nname: 林晚\nupdated_through: 7\nlast_appearance: 7\n---\n\n# 林晚：目前狀態\n\n> 只寫會變的東西。性格、外貌等靜態人設看 bible/characters/。\n\n- 身分：鋪主\n- 位置：鋪子\n- 目標：查帳\n- 身體狀態：疲倦\n- 情緒狀態：警覺\n- 能力與資源：帳本、玉珮\n- 關係變化：懷疑周叔\n- 知道的秘密：（正文未明確）\n- 未了結的事：缺頁\n",
+   "tracking/foreshadowing.md": "---\ntype: foreshadowing\nupdated_through: 7\n---\n\n# 伏筆總表\n\n| 編號 | 內容 | 埋設章 | 預計回收 | 最後出現 | 狀態 | 重要度 |\n|---|---|---|---|---|---|---|\n| F001 | 玉珮只剩半塊 | 第001章 |  | 第005章 | 已回收 | 高 |\n| F002 | 後院的暗格 | 第005章 |  | 第005章 | 已埋 | 中 |\n",
+   "tracking/reader-knowledge.md": "---\ntype: reader-knowledge\nupdated_through: 7\n---\n\n# 讀者認知\n\n> 讀者讀到目前為止的認知：「已知」是讀者知道的事；「懸念」是讀者在等答案的問題；「誤認」是讀者誤以為的事（反轉用）。\n> 「作者真相」是答案（選填）；「回收章」空白＝還沒揭曉。寫稿時不能提前回收沒到時候的懸念與誤認。\n\n| 編號 | 類型 | 內容 | 作者真相 | 種下章 | 回收章 | 相關角色 |\n|---|---|---|---|---|---|---|\n| R001 | 懸念 | 誰拿走了缺頁 | 周叔拿走的 | 第001章 | 第004章 |  |\n| R002 | 誤認 | 讀者以為大伯母是主謀 |  | 第002章 |  |  |\n",
+   "tracking/state-card.md": "---\ntype: state-card\nupdated_through: 7\n---\n\n# 狀態卡\n\n## 1. 目前位置\n- 第7章\n\n## 2. 主線進度\n- 查帳中\n\n## 3. 在場角色\n- 林晚\n\n## 4. 下一章承諾\n- （正文未明確）\n\n## 5. 長期約束\n- 玉珮只剩半塊\n\n## 6. 連續性風險\n- 缺頁\n\n## 7. 活躍伏筆\n- F002 暗格\n",
+   "tracking/summaries/ch-0001.md": "---\ntype: chapter-summary\nchapter: 1\ntitle: 退婚當天\nlength: 461\n---\n\n# 第1章 退婚當天\n\n## 發生了什麼\n第1章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第1章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0002.md": "---\ntype: chapter-summary\nchapter: 2\ntitle: 浮字\nlength: 264\n---\n\n# 第2章 浮字\n\n## 發生了什麼\n第2章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第2章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0003.md": "---\ntype: chapter-summary\nchapter: 3\ntitle: c3\nlength: 112\n---\n\n# 第3章 c3\n\n## 發生了什麼\n第3章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第3章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0004.md": "---\ntype: chapter-summary\nchapter: 4\ntitle: c4\nlength: 112\n---\n\n# 第4章 c4\n\n## 發生了什麼\n第4章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第4章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0005.md": "---\ntype: chapter-summary\nchapter: 5\ntitle: c5\nlength: 112\n---\n\n# 第5章 c5\n\n## 發生了什麼\n第5章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第5章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0006.md": "---\ntype: chapter-summary\nchapter: 6\ntitle: c6\nlength: 112\n---\n\n# 第6章 c6\n\n## 發生了什麼\n第6章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第6章停在門外的腳步聲\n",
+   "tracking/summaries/ch-0007.md": "---\ntype: chapter-summary\nchapter: 7\ntitle: c7\nlength: 112\n---\n\n# 第7章 c7\n\n## 發生了什麼\n第7章林晚查帳。\n\n## 局面變化\n疑點變多\n\n## 新出現的人事物\n無\n\n## 結尾停在\n第7章停在門外的腳步聲\n",
+   "tracking/timeline.md": "---\ntype: timeline\nupdated_through: 7\n---\n\n# 時間線\n\n> 「實際發生」是作者知道的真相；「讀者目前知道」是寫作時的資訊邊界。\n\n| 編號 | 故事時間 | 實際發生（作者真相） | 讀者目前知道 | 揭示章 | 相關角色 |\n|---|---|---|---|---|---|\n| E001 | 退婚後第1天 | 第1章的真相 | 一部分 | 第001章 | 林晚 |\n| E002 | 退婚後第2天 | 第2章的真相 | 一部分 | 第002章 | 林晚 |\n| E003 | 退婚後第3天 | 第3章的真相 | 一部分 | 第003章 | 林晚 |\n| E004 | 退婚後第4天 | 第4章的真相 | 一部分 | 第004章 | 林晚 |\n| E005 | 退婚後第5天 | 第5章的真相 | 一部分 | 第005章 | 林晚 |\n| E006 | 退婚後第6天 | 第6章的真相 | 一部分 | 第006章 | 林晚 |\n| E007 | 退婚後第7天 | 第7章的真相 | 一部分 | 第007章 | 林晚 |\n"
+  },
+  "logs": [
+   "逐章抽取：第1～7章，還有 3 批要跑（已完成 0 章）",
+   "名詞 3 條（刪掉說明空白的 0 條），開始分類"
+  ],
+  "processed": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "result": "**從正文建立設定完成**（第1～7章）\n\n草稿：設定 9 份、大綱 3 份、章綱 7 份、追蹤 13 份。\n人物 3 位（建角色檔 2 位，其餘列進名詞表）、名詞 2 個、伏筆 2 條、時間線 7 條、讀者認知 2 條。\n名詞表 3 條（組織 1、物品 1、人物 1）；刪掉 0 條沒有內容的；主題檔 1 份（兵器）；獨立條目 1 份；勢力 1 份。\n\n請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。",
+  "steps": [
+   "extract",
+   "extract",
+   "extract",
+   "chars",
+   "world",
+   "arc",
+   "book",
+   "state",
+   "cls",
+   "fac",
+   "topic",
+   "own"
+  ]
+ }
+}

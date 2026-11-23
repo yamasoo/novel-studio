@@ -1,0 +1,32 @@
+---
+type: book-outline
+status: draft
+---
+
+# Book outline
+
+## Overview
+- Expected volumes and length:
+- Main line in one sentence: <!-- where the lead goes from and to -->
+- Ending:
+
+## Volumes
+
+### Volume 1: {volume title}
+- Length: <!-- e.g. chapters 1-60, about 180,000 words -->
+- Volume goal: <!-- what the lead must obtain in this volume -->
+- Main opponent:
+- Change by the end of the volume: <!-- how the situation at the end differs from the start -->
+- Big climax at the end:
+- What is planted here for later:
+
+### Volume 2: {volume title}
+-
+
+## Main-line foreshadowing plan
+<!-- List only book-level foreshadowing: which volume plants it, which pays it off -->
+| Foreshadowing | Planted | Payoff |
+|---|---|---|
+
+## Romance and subplot plan
+-

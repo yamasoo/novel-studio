@@ -1,7 +1,7 @@
 """去 AI 味後的保真檢查：比對改前與改後，列出名字、數字、對白、字數的變化。純本機，不花 token。
 
 只列出來給作者看（審查裡是「提醒」，整章自動流程不會自動修回）：去 AI 味有時會合理地把重複的名字改成代稱。
-結果存在 .studio/保真/第NNN章.json，記下改後稿的雜湊；稿子之後又被改過就不再帶進審查。
+結果存在 .studio/fidelity/ch-NNNN.json，記下改後稿的雜湊；稿子之後又被改過就不再帶進審查。
 """
 import json
 import os
@@ -9,8 +9,10 @@ import re
 from collections import Counter
 
 from . import context, goals, lang as lang_mod, project
+from . import layout
+from . import tables
 
-DIR = os.path.join(".studio", "保真")
+DIR = os.path.join(*layout.parts(layout.STUDIO_FIDELITY))
 NAME_DROP = 0.3       # 名字少了三成以上（而且至少少 3 次）才列
 LENGTH_CHANGE = 0.15  # 字數增減超過 15% 才列
 MAX_LIST = 12
@@ -21,11 +23,11 @@ _DIALOGUE = re.compile(r"「([^「」]{2,})」")
 
 def _names(book_dir):
     names = []
-    for sub in ("設定/角色", "設定/勢力", "設定/世界觀"):
+    for sub in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD):
         for e in project.list_entries(book_dir, sub):
             names += [e["name"]] + [str(a) for a in (e.get("aliases") or [])]
-    gl = project.read_table(book_dir, "設定/名詞表.md")
-    key = gl["headers"][0] if gl["headers"] else "名詞"
+    gl = tables.read(book_dir, "glossary", layout.GLOSSARY)
+    key = tables.file_keys(gl)[0] if gl["headers"] else "term"   # 名詞取第一欄
     for r in gl["rows"]:
         names += [t.strip() for t in re.split(r"[／/、,，]", str(r.get(key) or "")) if t.strip()]
     return [n for n in dict.fromkeys(names) if len(n) >= 2]
@@ -73,7 +75,7 @@ def compare(book_dir, before, after):
 
 def save(book_dir, no, path, after, items):
     d = os.path.join(book_dir, DIR)
-    p = os.path.join(d, "第%03d章.json" % no)
+    p = os.path.join(d, layout.chapter_json(no))
     if not items:
         if os.path.isfile(p):
             os.remove(p)
@@ -85,7 +87,7 @@ def save(book_dir, no, path, after, items):
 
 def load(book_dir, no, text):
     """稿子沒再被改過才回傳（雜湊相同）。"""
-    p = os.path.join(book_dir, DIR, "第%03d章.json" % no)
+    p = os.path.join(book_dir, DIR, layout.chapter_json(no))
     if not os.path.isfile(p):
         return []
     try:

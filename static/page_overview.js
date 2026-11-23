@@ -28,7 +28,7 @@
       btn = h("button", {
         class: "sm",
         onclick: async () => {
-          const ok = await FE.confirm(FE.t("重跑第" + a.chapter_no + "章的回寫追蹤？會依正文重新整理這章的摘要、伏筆、時間線、角色狀態等。"));
+          const ok = await FE.confirm(FE.t(`重跑第${a.chapter_no}章的回寫追蹤？會依正文重新整理這章的摘要、伏筆、時間線、角色狀態等。`));
           if (ok) Panel.run("accept", { chapter: a.chapter_no, path: a.path || "" });
         },
       }, "重跑回寫");
@@ -37,13 +37,13 @@
     } else if (a.kind === "懸念久未回收") {
       btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/tracking?t=reader")) }, "查看");
     } else if (a.kind === "設定草稿") {
-      btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/bible?t=草稿")) }, "查看");
+      btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/bible?t=drafts")) }, "查看");
     } else if ((a.kind || "").startsWith("伏筆")) {
       btn = h("button", { class: "sm", onclick: () => FE.go(bookPath("/tracking")) }, "查看");
     }
     const more = a.details && a.details.length > 1
       ? h("details", { class: "small", style: "margin-top:4px" },
-        h("summary", {}, "展開 " + a.details.length + " 項"),
+        h("summary", {}, `展開 ${a.details.length} 項`),
         a.details.map((x) => h("div", {}, x)))
       : null;
     return h("div", { class: "alert " + a.level },
@@ -70,8 +70,17 @@
   // 單純「寫第 N 章」不算轉折：舊書的寫文 primary 留在 page-head，行為與改版前一樣。
   const VOLUME_STEPS = ["volume_end", "volume_next", "cards"];
 
+  // 「開始{0}」是太泛用的範本（會套到書的內容），所以不加語言檔；改成：繁中照舊，
+  // 其他語言用專用鍵的前後綴（標 skip），中間的步驟名照一般規則翻（精確鍵或「第{0}卷卷綱」這類範本）。
   function stepLabel(ns) {
-    return ns.cta || (ns.action === "write" ? ns.label : "開始" + ns.label);
+    if (ns.cta || ns.action === "write") return ns.cta || ns.label;
+    const lang = FE.i18n && FE.i18n.lang;
+    if (!lang || lang === "zh-TW") return `開始${ns.label}`;
+    const [pre, post = ""] = FE.t("開始{0}（下一步按鈕）").split("{0}");
+    return h("span", {},
+      pre ? h("span", { "data-i18n-skip": "" }, pre) : null,
+      h("span", {}, ns.label),
+      post ? h("span", { "data-i18n-skip": "" }, post) : null);
   }
 
   function stepGo(ns) {
@@ -86,15 +95,14 @@
     const extra = [];
     if (ns.id === "settings" && st) {
       extra.push(h("button", { onclick: () => Panel.openForm("promote_drafts", {}) },
-        "草稿轉正式（" + st.drafts + " 份草稿）"));
+        `草稿轉正式（${st.drafts} 份草稿）`));
       extra.push(h("button", { onclick: () => FE.go(bookPath("/bible")) }, "去設定集看看"));
     }
     const now = ns.id === "settings" && st
-      ? "現在：角色 " + st.characters + " 個、勢力 " + st.factions + " 個、世界觀 " + st.worlds + " 個正式檔"
-        + "（門檻：角色 ≥ " + st.min_characters + "，且勢力或世界觀 ≥ 1）。"
+      ? `現在：角色 ${st.characters} 個、勢力 ${st.factions} 個、世界觀 ${st.worlds} 個正式檔（門檻：角色 ≥ ${st.min_characters}，且勢力或世界觀 ≥ 1）。`
       : null;
     return h("div", { class: "card", style: "margin-top:14px" },
-      h("div", { class: "card-title" }, h("h2", {}, "下一步：" + ns.label)),
+      h("div", { class: "card-title" }, h("h2", {}, `下一步：${ns.label}`)),
       h("p", { class: "muted small" }, ns.desc || ""),
       now ? h("p", { class: "muted small" }, now) : null,
       h("div", { class: "row" },
@@ -111,17 +119,17 @@
   function volumeCard(ov) {
     const v = ov && ov.volume;
     if (!v || v.mode !== "卷綱") return null;
-    const title = "第" + v.no + "卷" + (v.name ? "《" + v.name + "》" : "");
-    const bits = ["第" + v.lo + "–" + v.hi + "章",
-      "已寫 " + v.written + "/" + v.total + " 章",
-      "章綱 " + v.planned + "/" + v.total + " 章"];
-    if (v.missing_cards) bits.push("還缺 " + v.missing_cards + " 章章綱");
+    const title = FE.t(`第${v.no}卷`) + (v.name ? "《" + v.name + "》" : "");   // 只翻「第N卷」；卷名是書的內容
+    const bits = [`第${v.lo}–${v.hi}章`,
+      `已寫 ${v.written}/${v.total} 章`,
+      `章綱 ${v.planned}/${v.total} 章`];
+    if (v.missing_cards) bits.push(`還缺 ${v.missing_cards} 章章綱`);
     if (v.full) bits.push("這一卷寫滿了");
     const from = Math.max(v.lo, (ov.next && ov.next.no) || v.lo);
     return h("div", { class: "card", id: "ov-volume", style: "margin-top:14px" },
       h("div", { class: "card-title" }, h("h2", {}, title),
         h("span", { class: "muted small" }, v.rel || "")),
-      h("p", { class: "muted small" }, bits.join("　·　")),
+      h("p", { class: "muted small" }, bits.map((b) => FE.t(b)).join("　·　")),   // 每段各自翻譯再接（接起來的整句對不到翻譯鍵）
       h("div", { class: "row" },
         !v.full
           ? h("button", { onclick: () => pipeModal(from, v.hi) }, "這一卷剩下的用自動跑")
@@ -134,7 +142,7 @@
 
   // 資料夾還不是小說專案（沒有 CLAUDE.md）：依 ov.setup.state 分「訪談進行中／訪談中斷／真的不是小說專案」三態。
   async function renderNonBook(ctx, ov) {
-    const draftPath = "候選/新書草稿/骨架.md";
+    const draftPath = LAYOUT.SPINOFF_DRAFTS + "/" + LAYOUT.SPINOFF_SKELETON_MD;
     let hasDraft = false;
     try {
       await FE.api(B("/file?path=" + encodeURIComponent(draftPath)), { signal: ctx.signal });
@@ -165,7 +173,7 @@
     let title, desc, note = null, buttons;
     if (state === "interviewing") {
       title = "開書訪談正在進行";
-      desc = "題目在右側面板，點選項就好。已經回答 " + (setup.answered || 0) + " 題。";
+      desc = `題目在右側面板，點選項就好。已經回答 ${setup.answered || 0} 題。`;
       if (setup.provider_type === "claude_code") {
         note = h("p", { class: "muted small" },
           "這個模式沒有選項按鈕，建議切到 API 執行者；也可以直接在下方回覆框用文字回答。");
@@ -251,9 +259,9 @@
         h("div", { class: "row" },
           next.has_card
             ? h("button", { class: showNext ? null : "primary", onclick: () => Panel.openForm("write", { from: next.no, to: next.no }) },
-              "寫第" + next.no + "章" + (next.title ? "《" + next.title + "》" : ""))
+              FE.t(`寫第${next.no}章`) + (next.title ? "《" + next.title + "》" : ""))   // 只翻「寫第N章」；章名是書的內容
             : h("button", { class: showNext ? null : "primary", onclick: () => Panel.openForm("chapter_cards", { from: next.no, to: next.no + 9 }) },
-              "排第" + next.no + "–" + (next.no + 9) + "章的章綱"),
+              `排第${next.no}–${next.no + 9}章的章綱`),
           h("button", { onclick: () => pipeModal(next.no) }, "⚡ 整章自動"),
           h("button", { onclick: () => Panel.openForm("review", { from: Math.max(1, ov.latest - 4), to: Math.max(1, ov.latest) }) }, "審查最近章節"),
           h("button", { onclick: () => FE.go(bookPath("/drift")) }, "卷末體檢"))),
@@ -273,10 +281,10 @@
         h("div", { class: "progress" },
           seg(sc["已寫"], "c-written"), seg(sc["已確認"], "c-confirmed"), seg(sc["草稿"], "c-draft"), seg(sc["無章綱"], "c-none")),
         h("div", { class: "legend" },
-          h("span", {}, h("i", { class: "c-written" }), "已寫 " + (sc["已寫"] || 0)),
-          h("span", {}, h("i", { class: "c-confirmed" }), "章綱已確認 " + (sc["已確認"] || 0)),
-          h("span", {}, h("i", { class: "c-draft" }), "章綱草稿 " + (sc["草稿"] || 0)),
-          sc["無章綱"] ? h("span", {}, h("i", { class: "c-none" }), "有正文無章綱 " + sc["無章綱"]) : null)),
+          h("span", {}, h("i", { class: "c-written" }), `已寫 ${sc["已寫"] || 0}`),
+          h("span", {}, h("i", { class: "c-confirmed" }), `章綱已確認 ${sc["已確認"] || 0}`),
+          h("span", {}, h("i", { class: "c-draft" }), `章綱草稿 ${sc["草稿"] || 0}`),
+          sc["無章綱"] ? h("span", {}, h("i", { class: "c-none" }), `有正文無章綱 ${sc["無章綱"]}`) : null)),
       h("div", { class: "grid g2", style: "margin-top:14px" },
         h("div", { class: "card" },
           h("div", { class: "card-title" },
@@ -295,9 +303,9 @@
             class: "click",
             onclick: () => FE.go(bookPath("/ch/" + c.no)),
           },
-            h("td", {}, "第" + c.no + "章"),
+            h("td", {}, `第${c.no}章`),
             h("td", {}, c.title),
-            h("td", { class: "num" }, fmtNum(c.chars) + " " + unitCh(ov.unit))))))
+            h("td", { class: "num" }, `${fmtNum(c.chars)} ${unitCh(ov.unit)}`)))))
         : null);
   }
 

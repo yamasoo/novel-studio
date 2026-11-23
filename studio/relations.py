@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""角色關係表（誰對誰）：追蹤/關係.md
+"""角色關係表（誰對誰）：tracking/relations.md
 
 一個方向一列：「甲 → 乙」和「乙 → 甲」分開記，兩邊的看法可以不一樣。
 關係改變時不覆蓋：舊的那列填上「結束章」，另開一列（起始章＝改變的那一章），所以歷史都留著。
@@ -11,10 +11,13 @@ import os
 import re
 
 from . import project, prompts, tracking
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
+from . import tables
 
-FILE = "追蹤/關係.md"
-DRAFT = "追蹤/關係_草稿.md"
-HEADERS = ["編號", "誰", "對誰", "關係", "態度", "起始章", "結束章", "變化原因"]
+FILE = layout.RELATIONS
+DRAFT = layout.RELATIONS_DRAFT
+HEADERS = tables.headers("relations")   # 檔案裡的表頭（中文）；程式內部的列用英文鍵，見 studio/tables.py
 NEW_BOOK_CHAPTERS = 15   # 沒有關係表又已經寫超過這麼多章，視為舊書，不自動建立（等作者從角色檔轉換）
 
 INTRO = ("> 誰「對」誰的關係，一個方向一列（A 對 B、B 對 A 分開記）。「關係」是身分或定位（師徒、盟友、債主），"
@@ -22,7 +25,7 @@ INTRO = ("> 誰「對」誰的關係，一個方向一列（A 對 B、B 對 A �
          "> 關係改變時舊的那列填「結束章」、另開一列，不要覆蓋；「結束章」空白＝目前有效。起始章空白＝從開頭就是這樣或不確定。\n\n")
 
 _SKIP = re.compile(r"^[（(]?\s*(正文未明確|無|尚無|待補|未定|沒有|不明)\s*[）)]?[。.]?$")
-_TRIVIAL = ("", "無", "（無）", "(無)", "沒有", "無變化", "無新增", "（正文未明確）", "正文未明確", "（無變化）")
+_TRIVIAL = ("", "無", "（無）", "(無)", "(none)", "none", "（なし）", "なし", "沒有", "無變化", "無新增", "（正文未明確）", "正文未明確", "（無變化）")
 
 
 def _norm(s):
@@ -34,7 +37,7 @@ def _cell(v):
 
 
 def _ended(r):
-    return bool(str(r.get("結束章") or "").strip())
+    return bool(str(r.get("end_chapter") or "").strip())
 
 
 def active(rows):
@@ -57,8 +60,8 @@ def faction_merge_map(factions):
 
 def alias_map(book_dir):
     """名稱／別名 → 正式名稱。角色與勢力都對得到；兩個人共用的別名不猜。"""
-    entries = project.list_entries(book_dir, "設定/角色")
-    factions = project.list_entries(book_dir, "設定/勢力")
+    entries = project.list_entries(book_dir, layout.CHARACTERS)
+    factions = project.list_entries(book_dir, layout.FACTIONS)
     merge = faction_merge_map(factions)
     names = {str(e["name"]).strip() for e in entries} | {str(f["name"]).strip() for f in factions}
     owners = {}
@@ -87,24 +90,34 @@ def _path(book_dir, rel):
     return os.path.join(book_dir, *rel.split("/"))
 
 
+def _lang(book_dir):
+    return sections.write_lang(lang_mod.book_lang(book_dir))
+
+
 def _load(book_dir, rel, label=""):
+    """回傳 (表格前的文字, 欄位鍵, 列（英文鍵、內部值）, 表格後的文字)。欄位鍵含作者加的欄。"""
     p = _path(book_dir, rel)
     if os.path.isfile(p):
         before, headers, rows, after = tracking._split_table(project.read_text(p))
-        headers = headers or list(HEADERS)
-        headers = headers + [h for h in HEADERS if h not in headers]
-        return before, headers, rows, after
-    return "---\n類型: 關係\n更新至: %s\n---\n\n# 角色關係\n\n%s" % (label, prompts.cur()["rel_intro"]), list(HEADERS), [], ""
+        keys = [tables._key_any("relations", h) for h in (headers or HEADERS)]
+        keys = keys + [k for k in tables.keys("relations") if k not in keys]
+        return before, keys, tables.rows_to_keys("relations", rows), after
+    lang = _lang(book_dir)
+    return ("---\ntype: relations\nupdated_through: %s\n---\n\n# %s\n\n%s" % (
+        fmkeys.ch_value(label), sections.title("relations", lang), prompts.pack(lang)["rel_intro"]),
+        tables.keys("relations"), [], "")
 
 
-def _save(book_dir, rel, before, headers, rows, after, label):
+def _save(book_dir, rel, before, keys, rows, after, label):
     before = tracking._bump_updated(before, label)
     sep = "" if before.endswith("\n\n") else ("\n" if before.endswith("\n") else "\n\n")
-    tracking._write(_path(book_dir, rel), before + sep + tracking._render_table(headers, rows) + ("\n" + after if after.strip() else "\n"))
+    tracking._write(_path(book_dir, rel), before + sep + tables.render("relations", keys, rows, _lang(book_dir))
+                    + ("\n" + after if after.strip() else "\n"))
 
 
 def read_rows(book_dir, rel=FILE):
-    return project.read_table(book_dir, rel)["rows"]
+    """關係表的列（英文鍵：id、who、toward、relationship、attitude、start_chapter、end_chapter、reason）。"""
+    return tables.read(book_dir, "relations", rel)["rows"]
 
 
 def exists(book_dir):
@@ -112,7 +125,7 @@ def exists(book_dir):
 
 
 def _next_id(rows):
-    nums = [int(m.group(1)) for r in rows for m in [re.match(r"L(\d+)", str(r.get("編號") or ""))] if m]
+    nums = [int(m.group(1)) for r in rows for m in [re.match(r"L(\d+)", str(r.get("id") or ""))] if m]
     return max(nums, default=0) + 1
 
 
@@ -132,30 +145,32 @@ def apply_changes(book_dir, no, items, revision=False):
     added, changed, same = 0, 0, 0
     nxt = _next_id(rows)
     for it in items:
-        who, to = canon(it.get("誰"), amap), canon(it.get("對誰"), amap)
-        rel, att, why = _cell(it.get("關係")), _cell(it.get("態度")), _cell(it.get("原因") or it.get("變化原因"))
+        # 模型回傳的資料經 jsonkeys 換成中文鍵；英文鍵、中文鍵都認
+        who, to = canon(tables.pick(it, "relations", "who"), amap), canon(tables.pick(it, "relations", "toward"), amap)
+        rel, att = _cell(tables.pick(it, "relations", "relationship")), _cell(tables.pick(it, "relations", "attitude"))
+        why = _cell(tables.pick(it, "relations", "reason"))
         if not who or not to or who == to or not (rel or att):
             continue
-        cur = next((r for r in reversed(rows) if r.get("誰") == who and r.get("對誰") == to and not _ended(r)), None)
+        cur = next((r for r in reversed(rows) if r.get("who") == who and r.get("toward") == to and not _ended(r)), None)
         if cur is None:
-            rows.append({"編號": "L%03d" % nxt, "誰": who, "對誰": to, "關係": rel, "態度": att,
-                         "起始章": label, "結束章": "", "變化原因": why})
+            rows.append({"id": "L%03d" % nxt, "who": who, "toward": to, "relationship": rel, "attitude": att,
+                         "start_chapter": label, "end_chapter": "", "reason": why})
             nxt += 1
             added += 1
             continue
-        new_rel, new_att = rel or cur.get("關係", ""), att or cur.get("態度", "")
-        if _norm(new_rel) == _norm(cur.get("關係")) and _norm(new_att) == _norm(cur.get("態度")):
+        new_rel, new_att = rel or cur.get("relationship", ""), att or cur.get("attitude", "")
+        if _norm(new_rel) == _norm(cur.get("relationship")) and _norm(new_att) == _norm(cur.get("attitude")):
             same += 1
             continue
-        if tracking._chno(cur.get("起始章")) == no and str(cur.get("起始章") or "").strip():
+        if tracking._chno(cur.get("start_chapter")) == no and str(cur.get("start_chapter") or "").strip():
             # 同一章重跑回寫：改原來那列，不留下一列長度為零的歷史
-            cur["關係"], cur["態度"] = new_rel, new_att
+            cur["relationship"], cur["attitude"] = new_rel, new_att
             if why:
-                cur["變化原因"] = why
+                cur["reason"] = why
         else:
-            cur["結束章"] = label
-            rows.append({"編號": "L%03d" % nxt, "誰": who, "對誰": to, "關係": new_rel, "態度": new_att,
-                         "起始章": label, "結束章": "", "變化原因": why})
+            cur["end_chapter"] = label
+            rows.append({"id": "L%03d" % nxt, "who": who, "toward": to, "relationship": new_rel, "attitude": new_att,
+                         "start_chapter": label, "end_chapter": "", "reason": why})
             nxt += 1
         changed += 1
     if not (added or changed):
@@ -169,12 +184,12 @@ def apply_changes(book_dir, no, items, revision=False):
 # ---------------------------------------------------------------------------
 def _section(body):
     body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
-    m = re.search(r"(?m)^##\s*關係[^\n]*\n(.*?)(?=^##\s|\Z)", body, re.S)
+    m = re.search(r"(?mi)^##\s*(?:關係|" + sections.head_rx("character", "relationships") + r")[^\n]*\n(.*?)(?=^##\s|\Z)", body, re.S)
     return m.group(1) if m else ""
 
 
 def build_draft(book_dir):
-    entries = project.list_entries(book_dir, "設定/角色")
+    entries = project.list_entries(book_dir, layout.CHARACTERS)
     if not entries:
         raise project.ProjectError("這本書還沒有角色檔，沒有東西可以轉換")
     amap = alias_map(book_dir)
@@ -183,7 +198,7 @@ def build_draft(book_dir):
     label = tracking.chapter_label(to) if to else ""
     before, headers, rows, after = _load(book_dir, FILE, label)
     had = len(rows)
-    have = {(r.get("誰"), r.get("對誰")) for r in rows}
+    have = {(r.get("who"), r.get("toward")) for r in rows}
     nxt = _next_id(rows)
     added, unfiled, per_char = [], set(), 0
     for e in entries:
@@ -203,8 +218,8 @@ def build_draft(book_dir):
             if target not in known:
                 unfiled.add(target)
                 note = "對象沒有角色檔或勢力檔"
-            rows.append({"編號": "L%03d" % nxt, "誰": e["name"], "對誰": target, "關係": desc.rstrip("。.").strip(), "態度": "",
-                         "起始章": "", "結束章": "", "變化原因": note})
+            rows.append({"id": "L%03d" % nxt, "who": e["name"], "toward": target, "relationship": desc.rstrip("。.").strip(),
+                         "attitude": "", "start_chapter": "", "end_chapter": "", "reason": note})
             have.add((e["name"], target))
             nxt += 1
             added.append((e["name"], target))
@@ -214,8 +229,10 @@ def build_draft(book_dir):
         raise project.ProjectError("角色檔的「## 關係」裡沒有可以轉換的內容（或都已經在關係表裡）")
     one_way = sorted({(a, b) for a, b in have if b in known and (b, a) not in have})
     p = _path(book_dir, DRAFT)
-    head = "---\n類型: 關係\n更新至: %s\n狀態: 草稿\n---\n\n# 角色關係（草稿：確認後按「採用」）\n\n%s" % (label, prompts.cur()["rel_intro"])
-    tracking._write(p, head + tracking._render_table(headers, rows) + "\n")
+    lang = _lang(book_dir)
+    head = "---\ntype: relations\nupdated_through: %s\nstatus: draft\n---\n\n# %s%s\n\n%s" % (
+        fmkeys.ch_value(label), sections.title("relations", lang), prompts.pack(lang)["rp_draft_suffix"], prompts.pack(lang)["rel_intro"])
+    tracking._write(p, head + tables.render("relations", headers, rows, lang) + "\n")
     msg = ("**角色關係草稿已建立**（%s）：從 %d 份角色檔轉出 %d 列%s。\n\n"
            % (DRAFT, per_char, len(added), "（原有關係表的 %d 列保留）" % had if had else ""))
     msg += ("這是從角色檔的「## 關係」直接整理的，沒有用模型：起始章先空著，之後回寫時會慢慢補；"
@@ -235,7 +252,7 @@ def adopt_draft(book_dir):
     if os.path.isfile(dst):
         tracking.backup(book_dir, dst, "關係")
     text = project.read_text(src)
-    text = re.sub(r"(?m)^狀態: 草稿\n", "", text, count=1).replace("# 角色關係（草稿：確認後按「採用」）", "# 角色關係", 1)
+    text = re.sub(r"(?m)^(?:status|狀態): (?:draft|草稿)\n", "", text, count=1).replace("# 角色關係（草稿：確認後按「採用」）", "# 角色關係", 1)
     tracking._write(dst, text)
     os.remove(src)
     return FILE
@@ -252,9 +269,9 @@ def discard_draft(book_dir):
 # 檢查用
 # ---------------------------------------------------------------------------
 def has_relation_change(characters):
-    """回寫資料裡，有沒有角色填了「關係變化」。"""
+    """回寫資料（英文鍵）裡，有沒有角色填了「關係變化」（relationship_changes）。"""
     for c in characters or []:
-        if isinstance(c, dict) and str(c.get("關係變化") or "").strip() not in _TRIVIAL:
+        if isinstance(c, dict) and str(c.get("relationship_changes") or "").strip() not in _TRIVIAL:
             return True
     return False
 
@@ -280,15 +297,15 @@ def faction_members(book_dir, amap=None):
     """各勢力的成員：{勢力: {角色: 優先序}}，優先序 0＝首領、1＝主要成員、2＝只列在「相關角色」。
     來源是勢力檔本身（frontmatter 的相關角色、「首領」「主要成員」兩行），重複登記的勢力併在一起。"""
     amap = amap or alias_map(book_dir)
-    entries = project.list_entries(book_dir, "設定/勢力")
+    entries = project.list_entries(book_dir, layout.FACTIONS)
     merge = faction_merge_map(entries)
-    chars = {e["name"] for e in project.list_entries(book_dir, "設定/角色")}
+    chars = {e["name"] for e in project.list_entries(book_dir, layout.CHARACTERS)}
     out = {}
     for e in entries:
         fname = merge.get(str(e["name"]).strip(), str(e["name"]).strip())
         mem = out.setdefault(fname, {})
         fm, body = project.split_frontmatter(project.read_text(_path(book_dir, e["file"])))
-        rel = fm.get("相關角色")
+        rel = fm.get("related_characters")
         cand = [(2, n) for n in _names_in("、".join(str(x) for x in rel) if isinstance(rel, list) else str(rel or ""), amap)]
         for line in body.split("\n"):
             m = re.match(r"^\s*[-*]\s*(首領|領袖|主要成員|成員)\s*[：:]\s*(.+?)\s*$", line)
@@ -302,8 +319,8 @@ def faction_members(book_dir, amap=None):
 
 def graph_data(book_dir):
     """關係圖用的資料：節點（角色、勢力）、勢力成員、全部關係列。前端依章數與篩選條件畫圖。"""
-    chars = project.list_entries(book_dir, "設定/角色")
-    factions = project.list_entries(book_dir, "設定/勢力")
+    chars = project.list_entries(book_dir, layout.CHARACTERS)
+    factions = project.list_entries(book_dir, layout.FACTIONS)
     merge = faction_merge_map(factions)
     members = faction_members(book_dir)
     belongs = {}   # 角色 → 勢力（首領 > 主要成員 > 相關角色；同級取第一個）；也列出其他所屬
@@ -320,5 +337,5 @@ def graph_data(book_dir):
             continue
         nodes.append({"name": f["name"], "kind": "勢力", "role": "", "members": sorted(members.get(f["name"], {}), key=lambda c: members[f["name"]][c])})
     amap = alias_map(book_dir)   # 表格裡寫別名或重複登記的勢力名時，圖上也要對到同一個點
-    rows = [dict(r, 誰=canon(r.get("誰"), amap), 對誰=canon(r.get("對誰"), amap)) for r in read_rows(book_dir)]
+    rows = [dict(r, who=canon(r.get("who"), amap), toward=canon(r.get("toward"), amap)) for r in read_rows(book_dir)]
     return {"nodes": nodes, "rows": rows, "latest": tracking.tracked_to(book_dir) or 0}

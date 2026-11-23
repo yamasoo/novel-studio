@@ -1,0 +1,23 @@
+{
+ "schema_version": 3,
+ "table": "glossary",
+ "columns": [
+  {"key": "term", "label": "Term"},
+  {"key": "kind", "label": "Category"},
+  {"key": "explanation", "label": "Explanation"},
+  {"key": "note", "label": "Note"}
+ ],
+ "items": [
+  {"term": "Wren Alder", "kind": "person", "explanation": "apprentice mapmaker, the lead", "note": "Orrin calls her \"Alder\"; Hob calls her \"Wren\""},
+  {"term": "Hob", "kind": "object", "explanation": "the brass lantern", "note": "always \"Hob\", never \"the lantern\" in dialogue"},
+  {"term": "Master Orrin Vale", "kind": "person", "explanation": "Wren's master, missing", "note": "\"Master Vale\" in formal speech"},
+  {"term": "Hollin Cross", "kind": "place", "explanation": "market town where the shop stands", "note": ""},
+  {"term": "Pellman's Ford", "kind": "place", "explanation": "shallow crossing east of town", "note": "possessive spelling is fixed"},
+  {"term": "Surveyors' Guild", "kind": "faction", "explanation": "official map authority of the Marches", "note": ""},
+  {"term": "Corvin Tarr", "kind": "person", "explanation": "Warden-Surveyor of the Guild", "note": ""},
+  {"term": "Dessa Pike", "kind": "person", "explanation": "Guild clerk", "note": ""},
+  {"term": "Lantern Road", "kind": "place", "explanation": "the erased trade road", "note": "capital L, capital R"}
+ ],
+ "md_sha": "3cab10fac0c69105",
+ "items_sha": "dd1be94147fb04ad"
+}

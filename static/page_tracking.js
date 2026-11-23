@@ -24,13 +24,16 @@
     return /^(前後|左右)/.test(rest) ? n + 2 : n;
   }
 
+  // headers：表頭字串（列以表頭為鍵），或後端 tables.columns() 的 {key, label}（列以英文鍵為鍵、表頭顯示 label）
   function tableNode(id, headers, rows, opts) {
     const o = opts || {};
     const rowClass = o.rowClass || (() => "");
-    const cell = o.cell || ((r, x) => r[x]);
+    const keyOf = (x) => (typeof x === "object" ? x.key : x);
+    const labelOf = (x) => (typeof x === "object" ? x.label : x);
+    const cell = o.cell || ((r, x) => r[keyOf(x)]);
     return h("div", { class: "table-wrap" },
       h("table", id ? { id } : {},
-        h("thead", {}, h("tr", {}, headers.map((x) => h("th", {}, x)))),
+        h("thead", {}, h("tr", {}, headers.map((x) => h("th", {}, labelOf(x))))),
         h("tbody", {}, rows.map((r) => h("tr", { class: rowClass(r) },
           headers.map((x) => h("td", {}, cell(r, x))))))));
   }
@@ -67,7 +70,7 @@
     // 角色對自己所屬（含 also）的勢力：靠框的位置表示，不畫線（舊版 own()）。
     const mine = (c, fac) => !!c && !!fac && c.kind === "角色" && fac.kind === "勢力"
       && (c.faction === fac.name || (c.also || []).includes(fac.name));
-    const own = (r) => mine(byName[r["誰"]], byName[r["對誰"]]) || mine(byName[r["對誰"]], byName[r["誰"]]);
+    const own = (r) => mine(byName[r.who], byName[r.toward]) || mine(byName[r.toward], byName[r.who]);
 
     const out = facs.map((x) => ({ id: idOf(x.name), label: x.name, box: true, data: { kind: "勢力" } }));
     chars.forEach((c) => out.push({
@@ -77,11 +80,11 @@
     }));
     const edges = [];
     rows.forEach((r) => {
-      const a = byName[r["誰"]], b = byName[r["對誰"]];
-      if (!a || !b || r["誰"] === r["對誰"] || own(r)) return;
+      const a = byName[r.who], b = byName[r.toward];
+      if (!a || !b || r.who === r.toward || own(r)) return;
       edges.push({
-        id: "e" + edges.length, source: idOf(r["誰"]), target: idOf(r["對誰"]), label: r["關係"] || "",
-        data: { start: r["起始章"], end: r["結束章"], a: r["誰"], b: r["對誰"] },
+        id: "e" + edges.length, source: idOf(r.who), target: idOf(r.toward), label: r.relationship || "",
+        data: { start: r.start_chapter, end: r.end_chapter, a: r.who, b: r.toward },
       });
     });
     return { nodes: out, edges, rows, byName, chars, facs, idOf, own };
@@ -114,27 +117,26 @@
       const nd = id ? m.byName[bareName(id)] : null;
       if (!nd) {
         detEl.replaceChildren(h("div", { class: "muted small" },
-          "點圖上的人或勢力，這裡會列出他在第 " + st.n + " 章的所有關係。滾輪縮放、拖背景移動。"));
+          `點圖上的人或勢力，這裡會列出他在第 ${st.n} 章的所有關係。滾輪縮放、拖背景移動。`));
         return;
       }
-      const out = m.rows.filter((r) => r["誰"] === nd.name), inn = m.rows.filter((r) => r["對誰"] === nd.name);
+      const out = m.rows.filter((r) => r.who === nd.name), inn = m.rows.filter((r) => r.toward === nd.name);
       const line = (r, to) => h("div", { style: "padding:4px 0;border-bottom:1px dashed var(--line)" },
-        h("b", {}, to ? r["對誰"] : r["誰"]), "　", r["關係"] || "—",
-        r["態度"] ? h("span", { class: "badge", style: "margin-left:6px" }, r["態度"]) : null,
+        h("b", {}, to ? r.toward : r.who), "　", r.relationship || "—",
+        r.attitude ? h("span", { class: "badge", style: "margin-left:6px" }, r.attitude) : null,
         h("div", { class: "muted small" },
-          [r["起始章"] ? r["起始章"] + "起" : "", r["結束章"] ? "到" + r["結束章"] : "目前有效", r["變化原因"] || ""]
+          [r.start_chapter ? `${r.start_chapter}起` : "", r.end_chapter ? `到${r.end_chapter}` : "目前有效", r.reason || ""]
             .filter(Boolean).join("　")));
       detEl.replaceChildren(
         h("div", { style: "font-size:15px;margin-bottom:2px" },
           h("b", {}, nd.name), "　",
           h("span", { class: "muted" }, nd.kind === "勢力" ? "勢力" : (nd.role || "角色"))),
         nd.kind === "角色"
-          ? h("div", { class: "muted small" }, "所屬：" + (nd.faction || "無")
-            + ((nd.also || []).length ? "（也在 " + nd.also.join("、") + "）" : ""))
-          : h("div", { class: "muted small" }, "成員：" + ((nd.members || []).join("、") || "無")),
-        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, "他對別人（" + out.length + "）"),
+          ? h("div", { class: "muted small" }, `所屬：${nd.faction || "無"}${(nd.also || []).length ? `（也在 ${nd.also.join("、")}）` : ""}`)
+          : h("div", { class: "muted small" }, `成員：${(nd.members || []).join("、") || "無"}`),
+        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, `他對別人（${out.length}）`),
         out.length ? h("div", {}, out.map((r) => line(r, true))) : h("div", { class: "muted small" }, "沒有紀錄"),
-        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, "別人對他（" + inn.length + "）"),
+        h("div", { style: "margin:10px 0 2px;font-weight:600;color:var(--ink-2)" }, `別人對他（${inn.length}）`),
         inn.length ? h("div", {}, inn.map((r) => line(r, false))) : h("div", { class: "muted small" }, "沒有紀錄"));
     }
 
@@ -147,8 +149,8 @@
       const visSet = new Set(visChars.map((c) => c.name));
       const facVis = new Set(m.facs.filter((f) => visChars.some((c) => c.faction === f.name)).map((f) => f.name));
       m.rows.forEach((r) => {   // 沒有成員的勢力：只要和看得到的角色或勢力有關係就顯示
-        const a = m.byName[r["誰"]], b = m.byName[r["對誰"]];
-        if (!a || !b || !activeAt({ start: r["起始章"], end: r["結束章"] }, st.n)) return;
+        const a = m.byName[r.who], b = m.byName[r.toward];
+        if (!a || !b || !activeAt({ start: r.start_chapter, end: r.end_chapter }, st.n)) return;
         if (a.kind === "勢力" && (visSet.has(b.name) || facVis.has(b.name))) facVis.add(a.name);
         if (b.kind === "勢力" && (visSet.has(a.name) || facVis.has(a.name))) facVis.add(b.name);
       });
@@ -160,10 +162,9 @@
         return !activeAt(item.data, st.n) || !inGraph(item.data.a) || !inGraph(item.data.b);
       });
       const on = m.edges.filter((e) => activeAt(e.data, st.n) && inGraph(e.data.a) && inGraph(e.data.b));
-      const away = m.rows.filter((r) => !m.own(r) && r["誰"] !== r["對誰"] && m.byName[r["誰"]] && m.byName[r["對誰"]]
-        && activeAt({ start: r["起始章"], end: r["結束章"] }, st.n) && !(inGraph(r["誰"]) && inGraph(r["對誰"]))).length;
-      statEl.textContent = visChars.length + " 個角色 · " + facVis.size + " 個勢力 · " + on.length + " 條關係 · 第 " + st.n + " 章"
-        + (away > 0 ? " · 另有 " + away + " 條涉及未顯示的角色" : "");
+      const away = m.rows.filter((r) => !m.own(r) && r.who !== r.toward && m.byName[r.who] && m.byName[r.toward]
+        && activeAt({ start: r.start_chapter, end: r.end_chapter }, st.n) && !(inGraph(r.who) && inGraph(r.toward))).length;
+      statEl.textContent = `${visChars.length} 個角色 · ${facVis.size} 個勢力 · ${on.length} 條關係 · 第 ${st.n} 章${away > 0 ? ` · 另有 ${away} 條涉及未顯示的角色` : ""}`;
       nEl.textContent = String(st.n);
       if (refit) handle.fit();
     }
@@ -185,7 +186,7 @@
     try {
       await FE.graph.load();
     } catch (e) {
-      canvas.replaceWith(graphHint("關係圖載不起來：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+      canvas.replaceWith(graphHint(`關係圖載不起來：${(e && e.message) || e}　請按 Ctrl+F5 重新整理。`));
       return;
     }
     if (!canvas.isConnected) return;   // 載入期間已經換頁
@@ -195,7 +196,7 @@
         on_select: (item) => { renderDetail(item && item.type === "node" ? item.id : null); },
       });
     } catch (e) {
-      canvas.replaceWith(graphHint("關係圖畫不出來：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+      canvas.replaceWith(graphHint(`關係圖畫不出來：${(e && e.message) || e}　請按 Ctrl+F5 重新整理。`));
       return;
     }
     relGraph = handle;
@@ -217,7 +218,7 @@
     const head = h("div", { class: "page-head" },
       h("div", {},
         h("h1", {}, "伏筆與時間線"),
-        h("div", { class: "sub" }, "這裡是「已經發生的事實」，寫完章節後由 Claude 回寫。目前寫到第 " + latest + " 章。")),
+        h("div", { class: "sub" }, `這裡是「已經發生的事實」，寫完章節後由 Claude 回寫。目前寫到第 ${latest} 章。`)),
       h("div", { class: "row" }, h("button", { onclick: () => Panel.openForm("review_all") }, "伏筆與角色健康檢查")));
 
     let body = null;
@@ -230,22 +231,23 @@
         body = h("div", { class: "card empty" }, h("div", { class: "big" }, "⟲"), "還沒有伏筆紀錄。寫完章節後 Claude 會自動登記。");
       } else {
         const hideBox = h("input", { type: "checkbox", id: "hide-done", checked: true });
-        const table = tableNode("fs-table", d.foreshadow.headers, rows, {
+        // 列是英文鍵（studio/tables.py），表頭用 columns 的 label
+        const table = tableNode("fs-table", d.foreshadow.columns, rows, {
           rowClass: (r) => {
-            const done = ["已回收", "廢棄"].includes(r["狀態"]);
-            const last = chn(r["最後出現"]) || chn(r["埋設章"]);
-            const due = dueCh(r["預計回收"]);
-            const stale = !done && ((["高", "中"].includes(r["重要度"]) && last && latest - last > d.stale_foreshadow) || (due && latest > due));
+            const done = ["已回收", "廢棄"].includes(r.status);
+            const last = chn(r.last_seen) || chn(r.planted_in);
+            const due = dueCh(r.planned_payoff);
+            const stale = !done && ((["高", "中"].includes(r.priority) && last && latest - last > d.stale_foreshadow) || (due && latest > due));
             return (done ? "dim done " : "") + (stale ? "hl" : "");
           },
-          cell: (r, x) => (x === "狀態" ? statusBadgeNode(r[x]) : r[x]),
+          cell: (r, x) => (x.key === "status" ? statusBadgeNode(r.status) : r[x.key]),
         });
         body = h("div", { class: "card" },
           h("div", { class: "row", style: "margin-bottom:8px" },
             h("label", { class: "cb", style: "margin:0" }, hideBox, " 隱藏已回收／廢棄"),
             h("span", { class: "grow" }),
             h("span", { class: "muted small" },
-              "黃底：重要度中以上、超過 " + d.stale_foreshadow + " 章沒出現，或已過預計回收章（「預計回收」要寫成「第N章」才算；「起推進」「呼應」不算）")),
+              `黃底：重要度中以上、超過 ${d.stale_foreshadow} 章沒出現，或已過預計回收章（「預計回收」要寫成「第N章」才算；「起推進」「呼應」不算）`)),
           table);
         after.push(() => {
           const apply = () => table.querySelectorAll("tr.done").forEach((tr) => { tr.style.display = hideBox.checked ? "none" : ""; });
@@ -258,16 +260,17 @@
       body = rows.length
         ? h("div", { class: "card" },
           h("div", { class: "muted small", style: "margin-bottom:8px" }, "「讀者目前知道」是寫作時的資訊邊界；揭示章為「未揭示」的列以黃底標示。"),
-          tableNode(null, d.timeline.headers, rows, { rowClass: (r) => (/未/.test(r["揭示章"] || "") ? "hl" : "") }))
+          tableNode(null, d.timeline.columns, rows, { rowClass: (r) => (/未/.test(r.revealed_in || "") ? "hl" : "") }))
         : h("div", { class: "card empty" }, "還沒有時間線。");
     } else if (t === "reader") {
       const rd = d.reader_draft, rl = d.reader;
-      const isOpen = (r) => r["類型"] !== "已知" && !(chn(r["回收章"]) && chn(r["回收章"]) <= latest);
-      const readerTable = (x, id) => tableNode(id, x.headers, x.rows, {
+      // 列是英文鍵（studio/tables.py），表頭用 columns 的 label
+      const isOpen = (r) => r.type !== "已知" && !(chn(r.resolved_in) && chn(r.resolved_in) <= latest);
+      const readerTable = (x, id) => tableNode(id, x.columns, x.rows, {
         rowClass: (r) => (isOpen(r) ? "" : "dim done"),
-        cell: (r, xh) => (xh === "類型"
-          ? h("span", { class: "badge " + (r[xh] === "誤認" ? "b-warn" : r[xh] === "懸念" ? "b-ok" : "") }, r[xh])
-          : r[xh]),
+        cell: (r, c) => (c.key === "type"
+          ? h("span", { class: "badge " + (r.type === "誤認" ? "b-warn" : r.type === "懸念" ? "b-ok" : "") }, r.type)
+          : r[c.key]),
       });
       const intro = h("div", { class: "muted small", style: "margin-bottom:8px" },
         "讀者讀到目前的認知：", h("b", {}, "懸念"), "是讀者在等答案的問題，", h("b", {}, "誤認"), "是讀者誤以為的事，",
@@ -278,7 +281,7 @@
         const discardBtn = h("button", { class: "sm danger", id: "rp-discard" }, "捨棄");
         parts.push(h("div", { class: "card", style: "margin-bottom:14px;border-color:var(--warn,#c90)" },
           h("div", { class: "card-title" },
-            h("h2", {}, "草稿（" + rd.rows.length + " 條，尚未生效）"),
+            h("h2", {}, `草稿（${rd.rows.length} 條，尚未生效）`),
             h("span", { class: "grow" }),
             adoptBtn,
             h("button", {
@@ -286,11 +289,10 @@
               onclick: () => Panel.run("reader_reconcile", {}),
               title: "拿後面的時間線與章節摘要比對，找出已經揭曉、部分揭曉、重複的條目",
             }, "比對回收"),
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/讀者認知_草稿.md") }, "編輯草稿"),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.READER_KNOWLEDGE_DRAFT) }, "編輯草稿"),
             discardBtn),
           h("div", { class: "muted small", style: "margin-bottom:8px" },
-            "AI 產生的結果（從時間線轉換，或回收比對；比對的逐條理由在草稿最後，按「編輯草稿」可以看）。請檢查：有沒有把你的底牌寫成讀者已經在懷疑的懸念、有沒有漏掉你刻意埋的誤導、回收章對不對。"
-            + (rl.rows.length ? "採用後會取代現在的帳本（舊的會先備份）。" : "")),
+            `AI 產生的結果（從時間線轉換，或回收比對；比對的逐條理由在草稿最後，按「編輯草稿」可以看）。請檢查：有沒有把你的底牌寫成讀者已經在懷疑的懸念、有沒有漏掉你刻意埋的誤導、回收章對不對。${rl.rows.length ? "採用後會取代現在的帳本（舊的會先備份）。" : ""}`),
           readerTable(rd, "rp-draft")));
         after.push(() => {
           adoptBtn.onclick = async () => {
@@ -302,7 +304,7 @@
             } catch (e) { FE.fail(e); }
           };
           discardBtn.onclick = async () => {
-            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/備份）"))) return;
+            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/backup）"))) return;
             try {
               await FE.api(B("/tracking/reader/discard"), { method: "POST", signal });
               FE.route();
@@ -321,7 +323,7 @@
               onclick: () => Panel.run("reader_reconcile", {}),
               title: "拿後面的時間線與章節摘要比對，找出已經揭曉、部分揭曉、重複的條目；結果存成草稿",
             }, "比對回收"),
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/讀者認知.md") }, "編輯")),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.READER_KNOWLEDGE) }, "編輯")),
           intro,
           readerTable(rl, "fs-table"));
         parts.push(card);
@@ -340,16 +342,17 @@
             ? h("div", { style: "margin-top:12px" }, h("button", {
               class: "primary",
               onclick: () => Panel.run("reader_init", {}),
-            }, "從時間線建立（AI 轉換，" + d.timeline.rows.length + " 列）"))
+            }, `從時間線建立（AI 轉換，${d.timeline.rows.length} 列）`))
             : null));
       }
       docEl = h("div", { id: "doc", style: "margin-top:14px" });
       body = h("div", {}, parts, docEl);
     } else if (t === "relations") {
       const rd = d.relations_draft, rl = d.relations;
-      const cols = (x) => x.headers.filter((x2) => x2 !== "編號");
+      // 列是英文鍵（studio/tables.py），表頭用 columns 的 label
+      const cols = (x) => x.columns.filter((c) => c.key !== "id");
       const relTable = (x, id) => tableNode(id, cols(x), x.rows, {
-        rowClass: (r) => (r["結束章"] ? "dim done" : ""),
+        rowClass: (r) => (r.end_chapter ? "dim done" : ""),
       });
       const intro = h("div", { class: "muted small", style: "margin-bottom:8px" },
         "誰對誰的關係，一個方向一列（A 對 B、B 對 A 分開記）。關係改變時，舊的那列會填上「結束章」、另開一列，所以歷史都留著；淡色的列是已經結束的舊關係。寫稿時只帶在場角色之間、目前有效的關係。");
@@ -374,15 +377,14 @@
         if (noteNode) { noteNode.classList.add("small"); noteNode.style.marginBottom = "8px"; }
         parts.push(h("div", { class: "card", style: "margin-bottom:14px;border-color:var(--warn,#c90)" },
           h("div", { class: "card-title" },
-            h("h2", {}, "草稿（" + rd.rows.length + " 列，尚未生效）"),
+            h("h2", {}, `草稿（${rd.rows.length} 列，尚未生效）`),
             h("span", { class: "grow" }),
             adoptBtn,
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/關係_草稿.md") }, "編輯草稿"),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.RELATIONS_DRAFT) }, "編輯草稿"),
             discardBtn),
           noteNode,
           h("div", { class: "muted small", style: "margin-bottom:8px" },
-            "從角色檔的「## 關係」整理出來的，「關係」欄是角色檔那句描述原文。請檢查：對象有沒有認錯人、方向對不對、要不要把描述拆成「關係」和「態度」。"
-            + (rl.rows.length ? "採用後會取代現在的關係表（舊的會先備份）。" : "")),
+            `從角色檔的「## 關係」整理出來的，「關係」欄是角色檔那句描述原文。請檢查：對象有沒有認錯人、方向對不對、要不要把描述拆成「關係」和「態度」。${rl.rows.length ? "採用後會取代現在的關係表（舊的會先備份）。" : ""}`),
           relTable(rd, "rl-draft")));
         after.push(() => {
           adoptBtn.onclick = async () => {
@@ -395,7 +397,7 @@
             } catch (e) { FE.fail(e); }
           };
           discardBtn.onclick = async () => {
-            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/備份）"))) return;
+            if (!(await FE.confirm("捨棄這份草稿？（會移到 .studio/backup）"))) return;
             try {
               await FE.api(B("/tracking/relations/discard"), { method: "POST", signal });
               REL_NOTE = "";
@@ -419,7 +421,7 @@
         parts.push(card);
         after.push(() => {
           mountGraph(card, d).catch((e) => {
-            card.replaceChildren(graphHint("關係圖出錯：" + ((e && e.message) || e) + "　請按 Ctrl+F5 重新整理。"));
+            card.replaceChildren(graphHint(`關係圖出錯：${(e && e.message) || e}　請按 Ctrl+F5 重新整理。`));
           });
         });
       } else if (rl.rows.length) {
@@ -431,7 +433,7 @@
             filterInput,
             h("span", { class: "grow" }),
             rd.rows.length ? null : buildBtn("從角色檔補關係草稿"),
-            h("button", { class: "sm", onclick: () => openCharState("追蹤/關係.md") }, "編輯")),
+            h("button", { class: "sm", onclick: () => openCharState(LAYOUT.RELATIONS) }, "編輯")),
           intro,
           relTable(rl, "fs-table"));
         parts.push(card);
@@ -468,8 +470,8 @@
               h("div", { class: "row" },
                 h("span", { class: "nm", style: "font-size:15px" }, c.name),
                 h("span", { class: "grow" }),
-                gap !== null && gap > 15 ? h("span", { class: "badge b-warn" }, gap + " 章未登場") : null),
-              h("div", { class: "muted small" }, "最後登場：" + (c.last || "—") + "　·　更新至：" + (c.updated_to || "—")));
+                gap !== null && gap > 15 ? h("span", { class: "badge b-warn" }, `${gap} 章未登場`) : null),
+              h("div", { class: "muted small" }, `最後登場：${c.last || "—"}　·　更新至：${c.updated_to || "—"}`));
           })),
           h("div", { id: "doc", style: "margin-top:14px" }))
         : h("div", { class: "card empty" }, "還沒有角色狀態。");
@@ -481,7 +483,7 @@
       body = g.rows.length
         ? h("div", { class: "card" },
           h("div", { class: "row", style: "margin-bottom:8px" },
-            h("span", { class: "muted small" }, g.rows.length + " 條"),
+            h("span", { class: "muted small" }, `${g.rows.length} 條`),
             h("span", { class: "grow" }),
             h("button", {
               class: "sm",
@@ -490,15 +492,15 @@
             }, "整理進設定集"),
             h("button", {
               class: "sm",
-              onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=核心&f=" + enc("設定/名詞表.md")),
+              onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=core&f=" + enc(LAYOUT.GLOSSARY)),
             }, "編輯名詞表")),
-          tableNode(null, g.headers, g.rows))
+          tableNode(null, g.columns, g.rows))
         : h("div", { class: "card empty" }, "名詞表是空的。");
     }
 
     ctx.view(head, tabsNode, body);
     after.forEach((fn) => fn());
-    if (t === "state" && docEl) await docView(docEl, "追蹤/狀態卡.md", { signal });
+    if (t === "state" && docEl) await docView(docEl, LAYOUT.STATE_CARD, { signal });
   }
 
   nsPage("b/:book/tracking", "tracking", { book: true }, render);

@@ -1,0 +1,22 @@
+{
+ "schema_version": 3,
+ "table": "foreshadow",
+ "updated_through": 2,
+ "columns": [
+  {"key": "id", "label": "ID"},
+  {"key": "content", "label": "Content"},
+  {"key": "planted_in", "label": "Planted in"},
+  {"key": "planned_payoff", "label": "Planned payoff"},
+  {"key": "last_seen", "label": "Last seen"},
+  {"key": "status", "label": "Status"},
+  {"key": "priority", "label": "Priority"}
+ ],
+ "items": [
+  {"id": "F001", "content": "Hob lights only for a place Wren has truly stood in", "planted_in": 2, "planned_payoff": 30, "last_seen": 2, "status": "developing", "priority": "high"},
+  {"id": "F002", "content": "Wren erased the road from the master map on Orrin's order", "planted_in": 2, "planned_payoff": 20, "last_seen": 2, "status": "planted", "priority": "high"},
+  {"id": "F003", "content": "Dessa Pike's eyes keep drifting to the old map by the stove", "planted_in": 1, "planned_payoff": 15, "last_seen": 1, "status": "planted", "priority": "medium"},
+  {"id": "F004", "content": "The old map's milestones skip from 40 to 42", "planted_in": 1, "planned_payoff": 12, "last_seen": 1, "status": "planted", "priority": "medium"}
+ ],
+ "md_sha": "72d4d861a1e83626",
+ "items_sha": "4f75a4d6048c26bf"
+}

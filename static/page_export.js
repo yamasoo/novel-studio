@@ -46,7 +46,7 @@
       h("label", { class: "cb" },
         h("input", { type: "checkbox", id: "x-ill", checked: p.include_illust !== false, disabled: !m.illust_chapters }),
         " 在章首放插圖",
-        h("span", { class: "muted small" }, "（" + (m.illust_chapters ? m.illust_chapters + " 章有主圖" : "還沒有章節插圖") + "）")));
+        h("span", { class: "muted small" }, nsShared.paren(m.illust_chapters ? FE.t(`${m.illust_chapters} 章有主圖`) : FE.t("還沒有章節插圖")))));
 
     const resultBox = h("div", { id: "x-result" });
     const listBox = h("div", { id: "x-list" });
@@ -72,7 +72,7 @@
             h("span", { class: "small muted" }, "到"),
             toInput,
             h("span", { class: "small muted" },
-              "（正文共 " + chs.length + " 章，" + fmtNum(chs.reduce((a, c) => a + c.chars, 0)) + " " + unitCh(m.unit) + "；章綱也套用這個範圍）")),
+              `（正文共 ${chs.length} 章，${fmtNum(chs.reduce((a, c) => a + c.chars, 0))} ${unitCh(m.unit)}；章綱也套用這個範圍）`)),
           chs.length ? null : h("div", { class: "muted small", style: "margin:6px 0 0 26px" }, "還沒有採用的正文。候選稿要先採用才會匯出。")),
         h("div", { class: "card" },
           h("h2", { style: "margin-bottom:12px" }, "書籍資訊與排版"),
@@ -120,7 +120,7 @@
             h("button", {
               class: "sm danger", "data-del": x.file,
               onclick: async () => {
-                if (!(await FE.confirm("刪除 " + x.file + "？"))) return;
+                if (!(await FE.confirm(`刪除 ${x.file}？`))) return;
                 try {
                   await FE.api(B("/exports/" + enc(x.file)), { method: "DELETE", signal });
                   renderList((await FE.api(B("/export"), { signal })).exports);
@@ -153,8 +153,8 @@
       try {
         const r = await FE.api(B("/export"), { method: "POST", body, signal });
         const parts = [];
-        if (r.chapters) parts.push(r.chapters + " 章、" + fmtNum(r.chars) + " " + unitCh(r.unit));
-        if (r.docs) parts.push(r.docs + " 份資料");
+        if (r.chapters) parts.push(`${r.chapters} 章、${fmtNum(r.chars)} ${unitCh(r.unit)}`);
+        if (r.docs) parts.push(`${r.docs} 份資料`);
         resultBox.replaceChildren(h("div", { class: "alert ok", style: "margin-top:12px" },
           h("span", { class: "k" }, "完成"),
           h("span", { class: "t" }, r.file + "（" + parts.join("，") + "，" + fmtSize(r.size) + "）"),

@@ -25,7 +25,7 @@
     const filesInput = h("input", { type: "file", id: "im-files", multiple: true, accept: ".txt,.md,.markdown,.docx" });
     const textArea = h("textarea", {
       id: "im-text", rows: "6",
-      placeholder: "第一章 ……" + String.fromCharCode(10) + "正文……" + String.fromCharCode(10, 10) + "第二章 ……",
+      placeholder: `第一章 ……${String.fromCharCode(10)}正文……${String.fromCharCode(10, 10)}第二章 ……`,
     });
     const modeSel = h("select", { id: "im-mode" },
       h("option", { value: "auto" }, "自動（第X章、Chapter N、楔子、番外；找不到再用 # 標題）"),
@@ -109,7 +109,7 @@
       const table = h("div", { class: "table-wrap", style: "max-height:360px" },
         h("table", {},
           h("tr", {},
-            h("th", { class: "num" }, "章"),
+            h("th", { class: "num", "data-i18n-skip": "" }, nsShared.tx("章", "章（表頭）")),
             h("th", {}, "章名"),
             h("th", { class: "num" }, wu === "words" ? "詞數" : "字數"),
             h("th", {}, "檢查"),
@@ -126,22 +126,22 @@
 
       const radioNew = h("input", { type: "radio", name: "im-dest", value: "new", checked: !info.books.length });
       const radioOld = h("input", { type: "radio", name: "im-dest", value: "old", checked: info.books.length > 0, disabled: !info.books.length });
-      const goBtn = h("button", { class: "primary", id: "im-go" }, "匯入 " + r.chapters.length + " 章");
+      const goBtn = h("button", { class: "primary", id: "im-go" }, `匯入 ${r.chapters.length} 章`);
       const resultBox = h("div", { id: "im-result" });
 
       out.replaceChildren(
         h("div", { class: "card", style: "margin-top:14px" },
           h("div", { class: "card-title" },
-            h("h2", {}, "拆章結果：" + r.chapters.length + " 章，" + fmtNum(total) + " " + unitCh(wu),
+            h("h2", {}, `拆章結果：${r.chapters.length} 章，${fmtNum(total)} ${unitCh(wu)}`,
               h("span", { class: flagged ? "badge b-warn" : "badge b-ok", style: "margin-left:8px" },
-                flagged ? flagged + " 章要檢查" : "沒有發現問題")),
+                flagged ? `${flagged} 章要檢查` : "沒有發現問題")),
             h("span", { class: "muted small" }, r.numbered_by_title ? "章號照標題" : "章號依順序")),
           h("div", { class: "row small muted", style: "margin-bottom:8px" },
             r.sources.map((s) => h("span", { class: "badge" },
-              s.name + "：" + s.encoding + (zhOn && s.simplified ? "，簡體字約 " + s.simplified : "")))),
+              s.name + "：" + s.encoding + (zhOn && s.simplified ? `，簡體字約 ${s.simplified}` : "")))),
           r.warnings.map((w) => h("div", { class: "alert warn" }, h("span", { class: "t" }, w))),
           r.preface.map((p) => h("div", { class: "muted small", style: "margin:6px 0" },
-            "開頭文字（" + p.name + "，" + p.chars + " " + unitCh(wu) + "）：" + p.preview + "……")),
+            `開頭文字（${p.name}，${p.chars} ${unitCh(wu)}）：${p.preview}……`)),
           table),
         h("div", { class: "card", style: "margin-top:14px" },
           h("h2", { style: "margin-bottom:10px" }, "3. 放到哪裡"),
@@ -155,8 +155,8 @@
               h("span", {}, "書"), h("select", { id: "im-book" }, bookOptions(info.books, S.book))),
             h("label", { class: "f" },
               h("span", {}, "放進"), h("select", { id: "im-target" },
-                h("option", { value: "正文" }, "正文（直接當成定稿）"),
-                h("option", { value: "候選" }, "候選稿（逐章審閱後再採用）"))),
+                h("option", { value: "manuscript" }, "正文（直接當成定稿）"),
+                h("option", { value: "candidates" }, "候選稿（逐章審閱後再採用）"))),
             h("label", { class: "f", "data-dest": "old" },
               h("span", {}, "書裡已經有同一章時"), h("select", { id: "im-conflict" },
                 h("option", { value: "skip" }, "跳過，保留書裡的"),
@@ -190,7 +190,7 @@
         try {
           const res = await FE.api("/api/import/commit", { method: "POST", body, signal });
           S.books = (await FE.api("/api/books", { signal })).books;
-          const nextStep = res.target === "正文"
+          const nextStep = res.target === "manuscript"
             ? ["已經寫好的書，可以用 ",
               h("a", { href: "#/b/" + enc(res.book) + "/reverse" }, "從正文建立設定"),
               " 讓 AI 從正文反推角色、世界觀、名詞表、大綱、章綱、伏筆與時間線（先存成草稿，不需要開書訪談）；文風可以到「共用庫 → 文風」用這本書的正文分析。"]
@@ -199,9 +199,7 @@
             h("div", { class: "alert ok", style: "margin-top:12px" },
               h("span", { class: "k" }, "完成"),
               h("span", { class: "t" },
-                "匯入 " + res.written.length + " 章（" + fmtNum(res.chars) + " " + unitCh(unitOfLang(IMP.lang)) + "）到《" + res.book + "》的" + res.target + "。" +
-                (res.skipped.length ? "跳過已存在的第 " + res.skipped.join("、") + " 章。" : "") +
-                (res.replaced.length ? "覆蓋了第 " + res.replaced.join("、") + " 章（原檔已備份）。" : "")),
+                `匯入 ${res.written.length} 章（${fmtNum(res.chars)} ${unitCh(unitOfLang(IMP.lang))}）到《${res.book}》的${{ manuscript: "正文", candidates: "候選" }[res.target] || res.target}。${res.skipped.length ? `跳過已存在的第 ${res.skipped.join("、")} 章。` : ""}${res.replaced.length ? `覆蓋了第 ${res.replaced.join("、")} 章（原檔已備份）。` : ""}`),
               h("button", { class: "sm primary", onclick: () => FE.go("#/b/" + enc(res.book)) }, "開啟這本書")),
             h("div", { class: "muted small", style: "margin-top:8px" }, "下一步建議：", nextStep));
           renderNav();

@@ -1,9 +1,9 @@
 """設定索引：只讀本機檔案，不呼叫 AI。
 
-- build(book_dir)：掃描 設定/（世界觀、角色、勢力）與 設定/名詞表.md，找出疑似重複的名稱。
-- rebuild(book_dir)：build 後寫入 設定/_索引.md（給 novel-bible skill 先讀）。
+- build(book_dir)：掃描 bible/（世界觀、角色、勢力）與 bible/glossary.md，找出疑似重複的名稱。
+- rebuild(book_dir)：build 後寫入 bible/_index.md（給 novel-bible skill 先讀）。
 - merge(book_dir, canonical, duplicates)：把疑似重複的設定檔併入保留的那一份。
-  不刪除任何內容：被併入的檔案移到 設定/_已合併/，內文併進保留檔的「併入」段落，
+  不刪除任何內容：被併入的檔案移到 bible/_merged/，內文併進保留檔的「併入」段落，
   名稱加進保留檔的「別名」，名詞表與其他設定裡指向舊檔的路徑改成保留檔。
 """
 
@@ -14,12 +14,14 @@ import re
 import shutil
 
 from . import project
+from . import fmkeys, layout, sections
 
-SETTING_SUBDIRS = ("世界觀", "角色", "勢力")
-MERGE_FOLDERS = ("設定/角色/", "設定/勢力/", "設定/世界觀/")
-INDEX_REL = "設定/_索引.md"
-GLOSSARY_REL = "設定/名詞表.md"
-MERGED_REL = "設定/_已合併"
+# （資料夾, 顯示用的類別名稱）；類別名稱會出現在 API（sub）與索引檔，介面文字在 P5 處理
+SETTING_SUBDIRS = ((layout.WORLD, "世界觀"), (layout.CHARACTERS, "角色"), (layout.FACTIONS, "勢力"))   # literal-ok: 顯示用的類別名稱
+MERGE_FOLDERS = (layout.CHARACTERS + "/", layout.FACTIONS + "/", layout.WORLD + "/")
+INDEX_REL = layout.BIBLE_INDEX
+GLOSSARY_REL = layout.GLOSSARY
+MERGED_REL = layout.BIBLE_MERGED
 
 # 「近似」比對時才去掉的層級後綴：只用來提醒「可能是同一個地方」，結果一律標成近似，不預設勾選。
 # 刻意不包含「迴廊」「要塞」等會指不同地點的詞。
@@ -33,8 +35,8 @@ def _clean(s):
     return str(s or "").replace("|", "/").replace("｜", "/").strip()
 
 
-def _first_line(body, title):
-    m = re.search(r"^##\s*" + re.escape(title) + r"\s*$\n(.*?)(?=^##\s|\Z)", body, re.M | re.S)
+def _first_line(body, doc, sid):
+    m = re.search(r"^##\s*" + sections.head_rx(doc, sid) + r"\s*$\n(.*?)(?=^##\s|\Z)", body, re.M | re.S | re.I)
     if not m:
         return ""
     for line in m.group(1).splitlines():
@@ -59,8 +61,8 @@ def loose_norm(name):
 
 def _setting_rows(book_dir):
     rows = []
-    for sub in SETTING_SUBDIRS:
-        folder = os.path.join(book_dir, "設定", sub)
+    for rel_dir, sub in SETTING_SUBDIRS:
+        folder = layout.path(book_dir, rel_dir)
         if not os.path.isdir(folder):
             continue
         for f in sorted(os.listdir(folder)):
@@ -69,15 +71,15 @@ def _setting_rows(book_dir):
                 continue
             fm, body = project.split_frontmatter(project.read_text(p))
             stem = os.path.splitext(f)[0]
-            aliases = fm.get("別名") or []
+            aliases = fm.get("aliases") or []
             if isinstance(aliases, str):
                 aliases = [a.strip() for a in ALIAS_SPLIT_RE.split(aliases) if a.strip()]
             rows.append({
-                "name": str(fm.get("名稱") or stem),
+                "name": str(fm.get("name") or stem),
                 "aliases": [str(a) for a in aliases],
-                "category": str(fm.get("分類") or "").strip(),
-                "status": str(fm.get("狀態") or "").strip(),
-                "summary": _first_line(body, "一句話")[:80],
+                "category": str(fmkeys.disp("category", fm.get("category")) or "").strip(),
+                "status": str(fmkeys.disp("status", fm.get("status")) or "").strip(),
+                "summary": _first_line(body, fmkeys.value_en("type", fm.get("type")) or "character", "one_line")[:80],
                 "file": project.rel_of(book_dir, p),
                 "sub": sub,
             })
@@ -85,27 +87,27 @@ def _setting_rows(book_dir):
 
 
 def _glossary_rows(book_dir):
-    p = os.path.join(book_dir, GLOSSARY_REL)
-    if not os.path.isfile(p):
+    """名詞表的列。表頭不論書的語言（第一欄是名詞、第二欄類別、第四欄注意，作者改了表頭也照位置取）。"""
+    if not os.path.isfile(os.path.join(book_dir, GLOSSARY_REL)):
         return []
+    t = project.read_table(book_dir, GLOSSARY_REL)
+    hs = t["headers"]
     rows = []
-    for line in project.read_text(p).splitlines():
-        if not line.startswith("|"):
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 3 or cells[0] == "名詞" or set(cells[0]) <= set("-: "):
+    for r in t["rows"]:
+        cells = [str(r.get(h, "")).strip() for h in hs]
+        if len(cells) < 3 or set(cells[0]) <= set("-: "):
             continue
         names = [n.strip() for n in cells[0].split("／") if n.strip()]
         if not names:
             continue
         note = cells[3] if len(cells) > 3 else ""
-        ch = re.search(r"首次出現[：:]\s*第\s*(\d+)\s*章", note)
-        ref = re.search(r"詳見\s*(\S+?\.md)", note)
+        ch = re.search(r"(?:首次出現|初出)[：:]\s*第\s*(\d+)\s*章|First seen:\s*Ch(?:apter)?\.?\s*(\d+)", note, re.I)
+        ref = re.search(r"(?:詳見|詳細は|[Ss]ee)\s*(\S+?\.md)", note)
         rows.append({
             "name": names[0],
             "aliases": names[1:],
             "category": cells[1],
-            "chapter": int(ch.group(1)) if ch else None,
+            "chapter": int(ch.group(1) or ch.group(2)) if ch else None,
             "ref": ref.group(1) if ref else "",
         })
     return rows
@@ -172,44 +174,75 @@ def build(book_dir):
     }
 
 
-def _index_markdown(data):
+# 索引檔的句子：依書的語言（Claude Code 技能會讀這份）。繁中逐字照舊。
+T = {
+    "zh-TW": {"title": "# 設定索引",
+              "gen": "> 由工作台產生於 %s。這是產生物，請勿手動編輯；在設定集按「重建索引」即可覆蓋。",
+              "hint": "> 查詢或衝突檢查時先讀這份索引，只打開命中的檔案。",
+              "settings": "## 設定檔（%d）", "s_fmt": "格式：名稱｜別名｜分類｜狀態｜一句話｜路徑",
+              "glossary": "## 名詞表（%d）", "g_fmt": "格式：名詞｜別名｜類別｜首次出現章｜詳見", "ch": "第%d章",
+              "dups": "## 疑似重複（只列出，未自動合併）", "none": "- （無）", "sep": "、"},
+    "en": {"title": "# Bible index",
+           "gen": "> Generated by the studio on %s. This file is generated; don't edit it by hand. Press \"Rebuild index\" "
+                  "in the story bible to overwrite it.",
+           "hint": "> For lookups and conflict checks, read this index first and open only the files that match.",
+           "settings": "## Setting files (%d)", "s_fmt": "Format: name｜aliases｜category｜status｜one line｜path",
+           "glossary": "## Glossary (%d)", "g_fmt": "Format: term｜aliases｜kind｜first chapter｜see", "ch": "Ch. %d",
+           "dups": "## Possible duplicates (listed only, not merged)", "none": "- (none)", "sep": ", "},
+    "ja": {"title": "# 設定の索引",
+           "gen": "> ワークベンチが %s に作成しました。自動生成のファイルなので手で編集しないでください。"
+                  "設定集の「索引を作り直す」で上書きできます。",
+           "hint": "> 検索や矛盾チェックのときは、まずこの索引を読み、該当するファイルだけを開いてください。",
+           "settings": "## 設定ファイル（%d）", "s_fmt": "形式：名前｜別名｜分類｜状態｜ひとこと｜パス",
+           "glossary": "## 用語集（%d）", "g_fmt": "形式：用語｜別名｜種類｜初出の章｜参照", "ch": "第%d章",
+           "dups": "## 重複の疑い（一覧のみ、統合はしていません）", "none": "- （なし）", "sep": "、"},
+}
+
+
+def _index_markdown(data, lang="zh-TW"):
+    t = T.get(lang) or T["zh-TW"]
+    zh = lang not in T or lang == "zh-TW"
+    # 英文、日文書的分類與狀態寫檔案裡用的英文 ID（跟 frontmatter 一致）；繁中照舊是顯示字
+    cat = (lambda v: v) if zh else (lambda v: fmkeys.value_en("category", v) if v else v)
+    sta = (lambda v: v) if zh else (lambda v: fmkeys.value_en("status", v) if v else v)
     today = data["today"]
     lines = [
-        "# 設定索引",
+        t["title"],
         "",
-        "> 由工作台產生於 %s。這是產生物，請勿手動編輯；在設定集按「重建索引」即可覆蓋。" % today,
-        "> 查詢或衝突檢查時先讀這份索引，只打開命中的檔案。",
+        t["gen"] % today,
+        t["hint"],
         "",
-        "## 設定檔（%d）" % len(data["settings"]),
-        "格式：名稱｜別名｜分類｜狀態｜一句話｜路徑",
+        t["settings"] % len(data["settings"]),
+        t["s_fmt"],
         "",
     ]
     for r in data["settings"]:
         lines.append("- %s｜%s｜%s｜%s｜%s｜%s" % (
-            _clean(r["name"]), _clean("、".join(r["aliases"])), _clean(r["category"]),
-            _clean(r["status"]), _clean(r["summary"]), r["file"]))
-    lines += ["", "## 名詞表（%d）" % len(data["glossary"]), "格式：名詞｜別名｜類別｜首次出現章｜詳見", ""]
+            _clean(r["name"]), _clean(t["sep"].join(r["aliases"])), _clean(cat(r["category"])),
+            _clean(sta(r["status"])), _clean(r["summary"]), r["file"]))
+    lines += ["", t["glossary"] % len(data["glossary"]), t["g_fmt"], ""]
     for r in data["glossary"]:
         lines.append("- %s｜%s｜%s｜%s｜%s" % (
-            _clean(r["name"]), _clean("、".join(r["aliases"])), _clean(r["category"]),
-            ("第%d章" % r["chapter"]) if r["chapter"] is not None else "",
+            _clean(r["name"]), _clean(t["sep"].join(r["aliases"])), _clean(r["category"]),
+            (t["ch"] % r["chapter"]) if r["chapter"] is not None else "",
             _clean(os.path.basename(r["ref"]))))
-    lines += ["", "## 疑似重複（只列出，未自動合併）", ""]
+    lines += ["", t["dups"], ""]
     if data["duplicates"]:
         for g in data["duplicates"]:
             lines.append("- " + " ／ ".join(sorted({m["name"] for m in g["members"]})))
     else:
-        lines.append("- （無）")
+        lines.append(t["none"])
     lines.append("")
     return "\n".join(lines)
 
 
 def rebuild(book_dir):
+    from . import lang as lang_mod
     data = build(book_dir)
     p = os.path.join(book_dir, INDEX_REL)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(_index_markdown(data))
+        f.write(_index_markdown(data, lang_mod.book_lang(book_dir)))
     data["written"] = INDEX_REL
     return data
 
@@ -222,7 +255,7 @@ def _check_setting_file(book_dir, rel):
         raise project.ProjectError("檔案路徑格式錯誤")
     norm_rel = rel.replace("\\", "/").lstrip("/")
     if not norm_rel.startswith(MERGE_FOLDERS) or not norm_rel.endswith(".md"):
-        raise project.ProjectError("只能合併 設定/角色、設定/勢力、設定/世界觀 裡的 .md 檔：" + rel)
+        raise project.ProjectError("只能合併 bible/characters、bible/factions、bible/world 裡的 .md 檔：" + rel)
     p = project.safe_path(book_dir, norm_rel)
     if not os.path.isfile(p):
         raise project.ProjectError("檔案不存在：" + rel)
@@ -230,7 +263,7 @@ def _check_setting_file(book_dir, rel):
 
 
 def _aliases_of(fm):
-    raw = fm.get("別名")
+    raw = fm.get("aliases")
     if not raw:
         return []
     if isinstance(raw, str):
@@ -242,16 +275,16 @@ def _set_aliases(text, aliases):
     """改寫 frontmatter 的「別名」。會連同原本多行的 YAML 清單一起換掉，避免留下殘行。"""
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
-        return "---\n別名: %s\n---\n\n%s" % (json.dumps(aliases, ensure_ascii=False), text)
+        return "---\naliases: %s\n---\n\n%s" % (json.dumps(aliases, ensure_ascii=False), text)
     end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
     if end is None:
         raise project.ProjectError("frontmatter 格式錯誤，無法寫入別名")
-    new_line = "別名: %s" % json.dumps(aliases, ensure_ascii=False)
+    new_line = "aliases: %s" % json.dumps(aliases, ensure_ascii=False)
     out, i, done = [], 1, False
     out.append(lines[0])
     while i < end:
         line = lines[i]
-        if line.startswith("別名:") or line.startswith("別名："):
+        if line.startswith(("aliases:", "別名:", "別名：")):
             if not done:
                 out.append(new_line)
                 done = True
@@ -263,7 +296,7 @@ def _set_aliases(text, aliases):
         out.append(line)
         i += 1
     if not done:
-        pos = next((k + 1 for k, l in enumerate(out) if l.startswith("類型:")), 1)
+        pos = next((k + 1 for k, l in enumerate(out) if l.startswith(("type:", "類型:"))), 1)
         out.insert(pos, new_line)
     out.extend(lines[end:])
     return "\n".join(out)
@@ -288,13 +321,13 @@ def merge(book_dir, canonical, duplicates_rel):
     today = datetime.date.today().isoformat()
     canon_text = project.read_text(canon_path)
     cfm, _ = project.split_frontmatter(canon_text)
-    cname = str(cfm.get("名稱") or os.path.splitext(os.path.basename(canon_rel))[0])
+    cname = str(cfm.get("name") or os.path.splitext(os.path.basename(canon_rel))[0])
     aliases = _aliases_of(cfm)
 
     sections = []
     for r, p in dups:
         fm, body = project.split_frontmatter(project.read_text(p))
-        dname = str(fm.get("名稱") or os.path.splitext(os.path.basename(r))[0])
+        dname = str(fm.get("name") or os.path.splitext(os.path.basename(r))[0])
         for a in [dname] + _aliases_of(fm):
             if a and a != cname and a not in aliases:
                 aliases.append(a)
@@ -315,10 +348,10 @@ def merge(book_dir, canonical, duplicates_rel):
     refs_changed = []
     merged_abs = os.path.normpath(os.path.join(book_dir, MERGED_REL))
     targets = [os.path.join(book_dir, GLOSSARY_REL)]
-    for root, _, files in os.walk(os.path.join(book_dir, "設定")):
+    for root, _, files in os.walk(layout.path(book_dir, layout.BIBLE)):
         if os.path.normpath(root).startswith(merged_abs):
             continue
-        targets += [os.path.join(root, f) for f in files if f.endswith(".md") and f != "_索引.md"]
+        targets += [os.path.join(root, f) for f in files if f.endswith(".md") and f != layout.parts(layout.BIBLE_INDEX)[-1]]
     for tp in set(targets):
         if not os.path.isfile(tp):
             continue
@@ -330,7 +363,7 @@ def merge(book_dir, canonical, duplicates_rel):
             project.write_atomic(tp, new)
             refs_changed.append(os.path.relpath(tp, book_dir).replace("\\", "/"))
 
-    # 3) 舊檔移到 設定/_已合併/（不刪除）
+    # 3) 舊檔移到 bible/_merged/（不刪除）
     dest_dir = os.path.join(book_dir, MERGED_REL)
     os.makedirs(dest_dir, exist_ok=True)
     moved = []

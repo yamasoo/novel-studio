@@ -7,6 +7,8 @@ import os
 import re
 
 from . import contract, lang as lang_mod, project, prompts, recall, shared
+from . import layout
+from . import tables
 
 CJK = re.compile(r"[　-鿿豈-￯]")
 
@@ -151,10 +153,10 @@ def skill_ref(plugin_dir, rel):
 
 def chapter_files(book_dir, no):
     return {k: project._scan_dir(os.path.join(book_dir, *k.split("/"))).get(no)
-            for k in ("大綱/章綱", "正文", "候選", "追蹤/章節摘要")}
+            for k in (layout.CHAPTER_CARDS, layout.MANUSCRIPT, layout.CANDIDATES, layout.SUMMARIES)}
 
 
-def chapter_text(book_dir, no, prefer=("候選", "正文")):
+def chapter_text(book_dir, no, prefer=(layout.CANDIDATES, layout.MANUSCRIPT)):
     for d in prefer:
         f = project._scan_dir(os.path.join(book_dir, d)).get(no)
         if f:
@@ -163,8 +165,8 @@ def chapter_text(book_dir, no, prefer=("候選", "正文")):
 
 
 def card_text(book_dir, no):
-    f = project._scan_dir(os.path.join(book_dir, "大綱", "章綱")).get(no)
-    return ("大綱/章綱/" + f, project.read_text(os.path.join(book_dir, "大綱", "章綱", f))) if f else (None, "")
+    f = project._scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS)).get(no)
+    return (layout.CHAPTER_CARDS + "/" + f, project.read_text(layout.path(book_dir, layout.CHAPTER_CARDS, f))) if f else (None, "")
 
 
 _LATIN = re.compile(r"[A-Za-z]")
@@ -187,7 +189,7 @@ def name_in_text(name, text):
 def mentioned_entities(book_dir, text):
     """找出文字中提到的角色、勢力、世界觀檔案。"""
     hits = []
-    for sub in ("設定/角色", "設定/勢力", "設定/世界觀"):
+    for sub in (layout.CHARACTERS, layout.FACTIONS, layout.WORLD):
         for e in project.list_entries(book_dir, sub):
             names = [e["name"]] + [str(a) for a in (e.get("aliases") or [])]
             if any(name_in_text(n, text) for n in names):
@@ -204,17 +206,17 @@ def foreshadow_for(book_dir, scope, a, b=None, pk=None):
     """伏筆：近期的整條帶、其他還沒回收的只帶一行索引、已回收或廢棄的不帶（被點名的照帶）。
     整條帶：scope（章綱等）點名的編號、預計回收章在 [a−3, b+5]、最後出現在最近 3 章。"""
     b = b or a
-    tbl = project.read_table(book_dir, "追蹤/伏筆.md")
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "foreshadow", layout.FORESHADOWING)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows:
-        return body(read(book_dir, "追蹤/伏筆.md"))
+        return body(read(book_dir, layout.FORESHADOWING))
     ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope or ""))
     full, index = [], []
     for r in rows:
-        rid = str(r.get("編號") or "")
-        done = str(r.get("狀態") or "").strip() in FS_DONE
-        due = _nums(r.get("預計回收"))
-        last = _nums(r.get("最後出現"))
+        rid = str(r.get("id") or "")
+        done = str(r.get("status") or "").strip() in FS_DONE
+        due = _nums(r.get("planned_payoff"))
+        last = _nums(r.get("last_seen"))
         if rid in ids:
             full.append(r)
         elif done:
@@ -225,13 +227,13 @@ def foreshadow_for(book_dir, scope, a, b=None, pk=None):
             index.append(r)
     if pk is not None:
         pk.note("伏筆整條帶 %d、索引 %d（已回收或廢棄的不帶）" % (len(full), len(index)))
-    out = table_md(hs, full) if full else prompts.cur()["fs_none"]
+    out = tables.md("foreshadow", ks, full) if full else prompts.cur()["fs_none"]
     if index:
         def short(s, n=30):
             s = str(s or "").replace("|", "／").replace("\n", " ")
             return s if len(s) <= n else s[:n] + "…"
         out += (prompts.cur()["fs_index_head"] +
-                "\n".join("| %s | %s | %s | %s |" % (r.get("編號", ""), short(r.get("內容")), r.get("預計回收", ""), r.get("重要度", ""))
+                "\n".join("| %s | %s | %s | %s |" % (r.get("id", ""), short(r.get("content")), r.get("planned_payoff", ""), r.get("priority", ""))
                           for r in index))
     return out
 
@@ -246,7 +248,7 @@ _PARTIAL = (r"只知道|不知道|未知|尚未|還沒|以為|誤會|誤認|懷�
             r"|(?i:only knows|does not know|doesn't know|unaware|unknown|not yet|believes|mistakenly|suspects|unclear|unsure|guess|partial)"
             r"|知らない|まだ|誤解|疑って|不明|一部")
 _UNREVEALED = ("未揭示", "未知", "不知道", "尚未", "還不知道", "無", "-", "—", "－", "？", "?",
-               "unrevealed", "unknown", "not yet", "none", "n/a", "N/A", "未公開", "不明", "なし")
+               "unrevealed", "unknown", "not yet", "not revealed", "none", "n/a", "N/A", "未公開", "未開示", "不明", "なし")
 
 
 def _nums(s):
@@ -272,11 +274,11 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
     - 只列「讀者還不知道什麼」（不帶作者真相）：其他還有懸念的列
     - 不帶：其他已經揭曉、和本章無關的列"""
     b = b or a
-    tl = project.read_table(book_dir, "追蹤/時間線.md")
-    rows, hs = tl["rows"], tl["headers"]
+    tl = tables.read(book_dir, "timeline", layout.TIMELINE)
+    rows, ks = tl["rows"], tables.file_keys(tl)
     if not rows:
-        return body(read(book_dir, "追蹤/時間線.md"))
-    full = table_md(hs, rows)
+        return body(read(book_dir, layout.TIMELINE))
+    full = tables.md("timeline", ks, rows)
     if est_tokens(full) <= FILTER_MIN_TOKENS:
         return full
     names = _entity_names(book_dir, scope)
@@ -286,26 +288,26 @@ def timeline_for(book_dir, scope, a, b=None, pk=None):
     ledger = has_reader_ledger(book_dir)   # 有帳本就由帳本負責未解疑問
     keep, opens = [], []
     for r, j in zip(rows, joined):
-        rev = _nums(r.get("揭示章"))
-        known = str(r.get("讀者目前知道") or "").strip()
+        rev = _nums(r.get("revealed_in"))
+        known = str(r.get("reader_knows_now") or "").strip()
         hidden = not known or known in _UNREVEALED or not rev or min(rev) >= a
         recent = any(a - RECENT_CHAPTERS <= n <= b for n in rev)
-        related = str(r.get("編號") or "") in ids or any(n in j for n in names)
+        related = str(r.get("id") or "") in ids or any(n in j for n in names)
         if hidden or recent or related:
             keep.append(r)
         elif not ledger and re.search(_PARTIAL, known):   # 沒有讀者認知帳本時：從措辭猜讀者還不知道的部分
             opens.append(r)
     if pk is not None:
         pk.note("時間線 %d 條：整列帶 %d、只列未解疑問 %d" % (len(rows), len(keep), len(opens)))
-    out = table_md(hs, keep)
+    out = tables.md("timeline", ks, keep)
     if opens:
         out += (prompts.cur()["tl_open_head"] +
-                "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("揭示章", ""), _open_part(str(r.get("讀者目前知道") or "")))
+                "\n".join("| %s | %s | %s |" % (r.get("id", ""), r.get("revealed_in", ""), _open_part(str(r.get("reader_knows_now") or "")))
                           for r in opens))
     return out
 
 
-READER_FILE = "追蹤/讀者認知.md"
+READER_FILE = layout.READER_KNOWLEDGE
 
 
 def has_reader_ledger(book_dir):
@@ -313,10 +315,10 @@ def has_reader_ledger(book_dir):
 
 
 def _reader_open(r, a):
-    """還沒回收（回收章空白或在本章以後）的懸念／誤認。"""
-    if str(r.get("類型") or "").strip() == "已知":
+    """還沒回收（回收章空白或在本章以後）的懸念／誤認。r 是英文鍵的列。"""
+    if str(r.get("type") or "").strip() == "已知":
         return False
-    rec = _nums(r.get("回收章"))
+    rec = _nums(r.get("resolved_in"))
     return not rec or min(rec) >= a
 
 
@@ -326,11 +328,11 @@ def reader_for(book_dir, scope, a, b=None, pk=None):
     - 只列內容（不帶作者真相）：其他還沒回收的懸念與誤認
     - 不帶：已回收的、無關的已知"""
     b = b or a
-    tbl = project.read_table(book_dir, READER_FILE)
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "reader", READER_FILE)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows:
         return ""
-    full = table_md(hs, rows)
+    full = tables.md("reader", ks, rows)
     if est_tokens(full) <= FILTER_MIN_TOKENS:
         return full
     names = _entity_names(book_dir, scope)
@@ -339,102 +341,103 @@ def reader_for(book_dir, scope, a, b=None, pk=None):
     ids = set(re.findall(r"\b[A-Z]{1,2}\d{2,}\b", scope))
     keep, idx = [], []
     for r, j in zip(rows, joined):
-        rid = str(r.get("編號") or "")
+        rid = str(r.get("id") or "")
         related = rid in ids or any(n in j for n in names)
         if _reader_open(r, a):
-            due = any(a <= n <= b for n in _nums(r.get("回收章")))
-            recent = any(a - RECENT_CHAPTERS <= n <= b for n in _nums(r.get("種下章")))
+            due = any(a <= n <= b for n in _nums(r.get("resolved_in")))
+            recent = any(a - RECENT_CHAPTERS <= n <= b for n in _nums(r.get("planted_chapter")))
             (keep if related or due or recent else idx).append(r)
-        elif str(r.get("類型") or "").strip() == "已知" and related:
+        elif str(r.get("type") or "").strip() == "已知" and related:
             keep.append(r)
     if pk is not None:
         pk.note("讀者認知 %d 條：整列帶 %d、只列內容 %d（已回收的不帶）" % (len(rows), len(keep), len(idx)))
-    out = table_md(hs, keep)
+    out = tables.md("reader", ks, keep)
     if idx:
         out += (prompts.cur()["reader_open_head"] +
-                "\n".join("| %s | %s | %s |" % (r.get("編號", ""), r.get("類型", ""), str(r.get("內容", "")).replace("|", "／"))
+                "\n".join("| %s | %s | %s |" % (r.get("id", ""), r.get("type", ""), str(r.get("content", "")).replace("|", "／"))
                           for r in idx))
     return out
 
 
 def reader_for_writeback(book_dir):
     """回寫用：還沒回收的整列帶（要能用原編號回收）；已知只列編號和內容（避免重複登記）。"""
-    tbl = project.read_table(book_dir, READER_FILE)
-    rows, hs = tbl["rows"], tbl["headers"]
+    tbl = tables.read(book_dir, "reader", READER_FILE)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows:
         return ""
     opens = [r for r in rows if _reader_open(r, 0)]
-    known = [r for r in rows if str(r.get("類型") or "").strip() == "已知"]
-    out = table_md(hs, opens)
+    known = [r for r in rows if str(r.get("type") or "").strip() == "已知"]
+    out = tables.md("reader", ks, opens)
     if known:
-        out += prompts.cur()["reader_known_head"] + "\n".join("- %s %s" % (r.get("編號", ""), r.get("內容", "")) for r in known)
+        out += prompts.cur()["reader_known_head"] + "\n".join("- %s %s" % (r.get("id", ""), r.get("content", "")) for r in known)
     return out
 
 
 READER_TITLE = "讀者認知（懸念與誤認不能提前揭曉；回收章在本章範圍內的才可以揭曉）"
 
-RELATION_FILE = "追蹤/關係.md"
+RELATION_FILE = layout.RELATIONS
 RELATION_TITLE = "角色關係（誰對誰目前的關係與態度；已經改變的不能無故倒退，要變就要在劇情裡有原因）"
 RELATION_HISTORY_TITLE = "角色關係（含歷史：誰對誰什麼時候變過；結束章空白＝目前有效）"
-_REL_NOW = ["誰", "對誰", "關係", "態度", "起始章"]
-_REL_ALL = ["誰", "對誰", "關係", "態度", "起始章", "結束章", "變化原因"]
+# 送給模型的關係表欄位（英文鍵；表頭由 tables.md 換回檔案的中文表頭）
+_REL_NOW = ["who", "toward", "relationship", "attitude", "start_chapter"]
+_REL_ALL = ["who", "toward", "relationship", "attitude", "start_chapter", "end_chapter", "reason"]
 
 
 def _scene_chars(book_dir, scope):
     """文字裡提到的角色（正式名稱）。"""
     return {e["name"] for e in mentioned_entities(book_dir, scope)
-            if str(e["file"]).replace("\\", "/").startswith(("設定/角色", "設定/勢力"))}
+            if str(e["file"]).replace("\\", "/").startswith((layout.CHARACTERS, layout.FACTIONS))}
 
 
 def relations_for(book_dir, scope, pk=None, history=False):
     """角色關係：只帶「在場角色之間」的。寫稿帶目前有效的；審查（history）連結束章與變化原因一起帶。"""
-    rows = project.read_table(book_dir, RELATION_FILE)["rows"]
+    rows = tables.read(book_dir, "relations", RELATION_FILE)["rows"]
     if not rows:
         return ""
     chars = _scene_chars(book_dir, scope)
-    pair = [r for r in rows if r.get("誰") in chars and r.get("對誰") in chars]
-    now = [r for r in pair if not str(r.get("結束章") or "").strip()]
+    pair = [r for r in rows if r.get("who") in chars and r.get("toward") in chars]
+    now = [r for r in pair if not str(r.get("end_chapter") or "").strip()]
     if history:
-        pair.sort(key=lambda r: (r.get("誰", ""), r.get("對誰", ""), _nums(r.get("起始章"))[:1] or [0]))
+        pair.sort(key=lambda r: (r.get("who", ""), r.get("toward", ""), _nums(r.get("start_chapter"))[:1] or [0]))
         out_rows, cols = pair, _REL_ALL
     else:
         out_rows, cols = now, _REL_NOW
     if pk is not None:
         pk.note("角色關係 %d 列（在場角色之間%s）" % (len(out_rows), "，含歷史" if history else "，目前有效"))
-    return table_md(cols, out_rows)
+    return tables.md("relations", cols, out_rows)
 
 
 def relations_for_writeback(book_dir, text):
     """回寫用：正文出場角色的、目前有效的關係。AI 只需要報有變的。"""
-    rows = project.read_table(book_dir, RELATION_FILE)["rows"]
+    rows = tables.read(book_dir, "relations", RELATION_FILE)["rows"]
     if not rows:
         return ""
     chars = _scene_chars(book_dir, text)
-    mine = [r for r in rows if (r.get("誰") in chars or r.get("對誰") in chars) and not str(r.get("結束章") or "").strip()]
-    return table_md(_REL_NOW, mine)
+    mine = [r for r in rows if (r.get("who") in chars or r.get("toward") in chars) and not str(r.get("end_chapter") or "").strip()]
+    return tables.md("relations", _REL_NOW, mine)
 
 
 def glossary_for(book_dir, scope, pk=None):
     """名詞表：只帶這一章範圍裡出現的名詞；稱謂類的，說明提到出場角色也帶。表格小時整份帶。"""
-    text = read(book_dir, "設定/名詞表.md")
-    tbl = project.read_table(book_dir, "設定/名詞表.md")
-    rows, hs = tbl["rows"], tbl["headers"]
+    text = read(book_dir, layout.GLOSSARY)
+    tbl = tables.read(book_dir, "glossary", layout.GLOSSARY)
+    rows, ks = tbl["rows"], tables.file_keys(tbl)
     if not rows or est_tokens(body(text)) <= FILTER_MIN_TOKENS:
         return body(text)
-    key = hs[0] if hs else "名詞"
+    key = ks[0] if ks else "term"   # 名詞取第一欄（不論表頭寫什麼）
     names = _entity_names(book_dir, scope)
     keep = []
     for r in rows:
         term = str(r.get(key) or "").strip()
         terms = [t for t in re.split(r"[／/、,，]", term) if t.strip()]
         hit = any(t.strip() in scope for t in terms)
-        if not hit and "稱謂" in str(r.get("類別") or ""):
+        if not hit and "稱謂" in str(r.get("kind") or ""):
             hit = any(n in "|".join(str(v) for v in r.values()) for n in names)
         if hit:
             keep.append(r)
     if pk is not None:
         pk.note("名詞表帶 %d／%d 條" % (len(keep), len(rows)))
-    return table_md(hs, keep)
+    return tables.md("glossary", ks, keep)
 
 
 def table_md(headers, rows):
@@ -446,9 +449,9 @@ def table_md(headers, rows):
 
 
 def recent_summaries(book_dir, before_no, n=3):
-    sums = project._scan_dir(os.path.join(book_dir, "追蹤", "章節摘要"))
+    sums = project._scan_dir(layout.path(book_dir, layout.SUMMARIES))
     nos = sorted(k for k in sums if k < before_no)[-n:]
-    return "\n\n".join(body(read(book_dir, "追蹤/章節摘要/" + sums[k])) for k in nos)
+    return "\n\n".join(body(read(book_dir, layout.SUMMARIES + "/" + sums[k])) for k in nos)
 
 
 def book_rules(book_dir):
@@ -460,8 +463,8 @@ STYLE_KEYS = ("對白比例", "平均句長", "短句比例", "平均段長", "�
 
 
 def style_targets(book_dir):
-    """本書文風的可量測目標：`設定/文風.md` 有填就用填的，沒填就量作者自己的正文。"""
-    m = shared.parse_metrics(read(book_dir, "設定/文風.md"))
+    """本書文風的可量測目標：`bible/style.md` 有填就用填的，沒填就量作者自己的正文。"""
+    m = shared.parse_metrics(read(book_dir, layout.STYLE))
     if not m:
         sample = shared.book_sample(book_dir)
         if not sample.strip():
@@ -495,26 +498,26 @@ def for_chapter(book_dir, plugin_dir, no, budget, include_craft=True, prev_from_
     # priority 0：預算不夠時最後才被砍，因為它比任何單一資料表都可靠。沒有合約就自動略過。
     pk.add(0, "續寫合約（不可變事實，不能違背）", body(contract.text(book_dir)))
     pk.add(0, "第%d章章綱（唯一劇情藍圖）" % no, body(card))
-    pk.add(1, "本書文風（優先於一般寫作技法）", body(read(book_dir, "設定/文風.md")))
+    pk.add(1, "本書文風（優先於一般寫作技法）", body(read(book_dir, layout.STYLE)))
     # 文風目標的「數字」：作者填了就用填的，沒填就量他自己的正文。
     # 光看文風檔的描述不夠——模型會寫成「對白 44%、刪節號幾乎不用」那種樣子，
     # 把實測數字放在 priority 1，寫稿時就有明確的量可以對。
     pk.add(1, "文風目標（可量測；寫的時候讓數字落在目標附近）", style_targets(book_dir))
-    pk.add(1, "作者偏好", body(read(book_dir, "設定/作者偏好.md")))
+    pk.add(1, "作者偏好", body(read(book_dir, layout.AUTHOR_PREFS)))
     pk.add(1, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     sname, stext, sfrom = shared.structure_for(book_dir, no)
     if sname:
         pk.add(1, prompts.cur()["chapter_structure_title"].format(name=sname, src=sfrom), stext)
-    pk.add(2, "狀態卡（目前局勢）", body(read(book_dir, "追蹤/狀態卡.md")))
+    pk.add(2, "狀態卡（目前局勢）", body(read(book_dir, layout.STATE_CARD)))
     # 上一章結尾
-    prev_path, prev = chapter_text(book_dir, no - 1, ("候選", "正文") if prev_from_candidate else ("正文", "候選"))
+    prev_path, prev = chapter_text(book_dir, no - 1, (layout.CANDIDATES, layout.MANUSCRIPT) if prev_from_candidate else (layout.MANUSCRIPT, layout.CANDIDATES))
     if prev:
         pk.add(2, "上一章結尾（%s）" % prev_path, body(prev)[-1200:], keep="tail")
     # 出場角色與相關設定
-    scope = card + "\n" + body(read(book_dir, "追蹤/狀態卡.md"))
+    scope = card + "\n" + body(read(book_dir, layout.STATE_CARD))
     for e in mentioned_entities(book_dir, scope):
         pk.add(3, "設定：%s" % e["name"], body(read(book_dir, e["file"])))
-        st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
+        st = read(book_dir, layout.entry(layout.CHARACTER_STATES, e["name"]))
         if st:
             pk.add(3, "角色目前狀態：%s" % e["name"], body(st))
     fs = foreshadow_for(book_dir, card, no, pk=pk)
@@ -545,18 +548,18 @@ def for_writeback(book_dir, no, text, budget):
     pk = Pack(budget)
     _, card = card_text(book_dir, no)
     pk.add(0, "第%d章正文（已採用）" % no, body(text))
-    pk.add(1, "目前狀態卡（請在此基礎上更新）", body(read(book_dir, "追蹤/狀態卡.md")))
-    pk.add(1, "伏筆總表", body(read(book_dir, "追蹤/伏筆.md")))
-    pk.add(2, "時間線", body(read(book_dir, "追蹤/時間線.md")))
+    pk.add(1, "目前狀態卡（請在此基礎上更新）", body(read(book_dir, layout.STATE_CARD)))
+    pk.add(1, "伏筆總表", body(read(book_dir, layout.FORESHADOWING)))
+    pk.add(2, "時間線", body(read(book_dir, layout.TIMELINE)))
     pk.add(1, "讀者認知帳本（還沒回收的；本章揭曉了就用原編號填回收章）", reader_for_writeback(book_dir))
     for e in mentioned_entities(book_dir, text):
-        st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
+        st = read(book_dir, layout.entry(layout.CHARACTER_STATES, e["name"]))
         if st:
             pk.add(2, "角色目前狀態：%s" % e["name"], body(st))
     pk.add(2, "角色關係（目前有效的；只有本章變了或第一次建立的才寫進 relations）", relations_for_writeback(book_dir, text))
     pk.add(3, "第%d章章綱" % no, body(card))
-    pk.add(3, "名詞表（已登記的不用再列為新增物）", body(read(book_dir, "設定/名詞表.md")))
-    names = [e["name"] for e in project.list_entries(book_dir, "設定/角色")]
+    pk.add(3, "名詞表（已登記的不用再列為新增物）", body(read(book_dir, layout.GLOSSARY)))
+    names = [e["name"] for e in project.list_entries(book_dir, layout.CHARACTERS)]
     pk.add(3, "已建檔的角色", "、".join(names))
     return pk.build()
 
@@ -568,16 +571,16 @@ def for_review(book_dir, plugin_dir, a, b, budget):
     pk.add(1, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     joined = ""
     for n in range(a, b + 1):
-        path, t = chapter_text(book_dir, n, ("正文", "候選"))
+        path, t = chapter_text(book_dir, n, (layout.MANUSCRIPT, layout.CANDIDATES))
         if t:
             pk.add(1, "第%d章正文（%s）" % (n, path), body(t))
             joined += t
         _, card = card_text(book_dir, n)
         pk.add(3, "第%d章章綱" % n, body(card))
-    prev_path, prev = chapter_text(book_dir, a - 1, ("正文",))
+    prev_path, prev = chapter_text(book_dir, a - 1, (layout.MANUSCRIPT,))
     if prev:
         pk.add(2, "前一章結尾", body(prev)[-1000:], keep="tail")
-    pk.add(2, "狀態卡", body(read(book_dir, "追蹤/狀態卡.md")))
+    pk.add(2, "狀態卡", body(read(book_dir, layout.STATE_CARD)))
     cards = "\n".join(card_text(book_dir, n)[1] for n in range(a, b + 1))
     pk.add(2, "伏筆", foreshadow_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     pk.add(2, READER_TITLE, reader_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
@@ -585,18 +588,18 @@ def for_review(book_dir, plugin_dir, a, b, budget):
     pk.add(2, "時間線", timeline_for(book_dir, joined + "\n" + cards, a, b, pk=pk))
     for e in mentioned_entities(book_dir, joined):
         pk.add(3, "設定：%s" % e["name"], body(read(book_dir, e["file"])))
-        st = read(book_dir, "追蹤/角色狀態/%s.md" % e["name"])
+        st = read(book_dir, layout.entry(layout.CHARACTER_STATES, e["name"]))
         if st:
             pk.add(3, "角色目前狀態：%s" % e["name"], body(st))
     pk.add(4, "名詞表", glossary_for(book_dir, joined + "\n" + cards, pk=pk))
-    pk.add(4, "故事核心（讀者契約）", body(read(book_dir, "設定/故事核心.md")))
+    pk.add(4, "故事核心（讀者契約）", body(read(book_dir, layout.STORY_CORE)))
     return pk.build()
 
 
 def for_deslop(book_dir, plugin_dir, budget):
     pk = Pack(budget)
-    pk.add(0, "本書文風（作者允許的寫法不要改）", body(read(book_dir, "設定/文風.md")))
-    pk.add(0, "作者偏好", body(read(book_dir, "設定/作者偏好.md")))
+    pk.add(0, "本書文風（作者允許的寫法不要改）", body(read(book_dir, layout.STYLE)))
+    pk.add(0, "作者偏好", body(read(book_dir, layout.AUTHOR_PREFS)))
     pk.add(0, "共用作者偏好（所有書都適用；和本書衝突時以本書為準）", shared.prefs_for_context(book_dir))
     pk.add(1, "AI 味信號", skill_ref(plugin_dir, "novel-deslop/references/ai-signals.md"))
     pk.add(2, "改寫示範", skill_ref(plugin_dir, "novel-deslop/references/rewrite-examples.md"))
@@ -607,11 +610,11 @@ def for_deslop(book_dir, plugin_dir, budget):
 def for_chat(book_dir, budget):
     pk = Pack(budget)
     pk.add(0, "本書規則", book_rules(book_dir))
-    pk.add(1, "故事核心", body(read(book_dir, "設定/故事核心.md")))
-    pk.add(1, "狀態卡", body(read(book_dir, "追蹤/狀態卡.md")))
-    pk.add(2, "全書大綱", body(read(book_dir, "大綱/全書大綱.md")))
-    pk.add(2, "伏筆總表", body(read(book_dir, "追蹤/伏筆.md")))
-    pk.add(3, "名詞表", body(read(book_dir, "設定/名詞表.md")))
+    pk.add(1, "故事核心", body(read(book_dir, layout.STORY_CORE)))
+    pk.add(1, "狀態卡", body(read(book_dir, layout.STATE_CARD)))
+    pk.add(2, "全書大綱", body(read(book_dir, layout.BOOK_OUTLINE)))
+    pk.add(2, "伏筆總表", body(read(book_dir, layout.FORESHADOWING)))
+    pk.add(3, "名詞表", body(read(book_dir, layout.GLOSSARY)))
     chs = project.scan_chapters(book_dir)
     pk.add(3, "章節列表", "\n".join("第%d章 %s（%s）" % (c["no"], c["title"], "已寫" if c["text_file"] else (c["card_status"] or "")) for c in chs))
     return pk.build()

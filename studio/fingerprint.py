@@ -13,9 +13,10 @@ import json
 import os
 import statistics
 
-from . import contract, lang as lang_mod, project, prompts, shared
+from . import contract, datakeys, lang as lang_mod, project, prompts, shared
+from . import layout
 
-REL = "設定/風格指紋.json"
+REL = layout.STYLE_FINGERPRINT
 VER = 1
 SENT_MIN, SENT_MAX = 40, 120      # 代表句的字數範圍
 PICK = 10
@@ -76,7 +77,7 @@ def _pick(sentences, k=PICK):
 def _entity_names(book_dir):
     """要遮的名字：角色，加上勢力／世界觀的條目名（地名、組織名都是來源的內容）。"""
     names = [c[0] for c in contract.characters(book_dir)]
-    for sub in ("設定/勢力", "設定/世界觀"):
+    for sub in (layout.FACTIONS, layout.WORLD):
         d = os.path.join(book_dir, *sub.split("/"))
         if os.path.isdir(d):
             for f in os.listdir(d):
@@ -93,8 +94,8 @@ def build(book_dir, k=PICK):
         prompts.set_lang(lang)
         metrics, basis = _target_metrics(book_dir)
         names = _entity_names(book_dir)
-        ch = project._scan_dir(os.path.join(book_dir, "正文"))
-        texts = [project.split_frontmatter(project.read_text(os.path.join(book_dir, "正文", ch[no])))[1]
+        ch = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
+        texts = [project.split_frontmatter(project.read_text(layout.path(book_dir, layout.MANUSCRIPT, ch[no])))[1]
                  for no in sorted(ch)]
     finally:
         prompts.set_lang(prev)
@@ -105,17 +106,17 @@ def build(book_dir, k=PICK):
         sents.extend(_sentences(t))
     picked = [_mask(s, names) for s in _pick(sents, k)]
 
-    stats = {"章數": len(lens), "總字數": sum(lens)}
+    stats = {"count": len(lens), "total_length": sum(lens)}
     if lens:
-        stats.update({"平均章長": round(statistics.mean(lens)),
-                      "中位章長": round(statistics.median(lens)),
-                      "最短章長": min(lens), "最長章長": max(lens),
-                      "章長變異": round(statistics.pstdev(lens) / max(1, statistics.mean(lens)), 2)})
+        stats.update({"mean": round(statistics.mean(lens)),
+                      "median": round(statistics.median(lens)),
+                      "min": min(lens), "max": max(lens),
+                      "cv": round(statistics.pstdev(lens) / max(1, statistics.mean(lens)), 2)})
     keep = ("對白比例", "平均句長", "短句比例", "平均段長", "單句成段", "每千字刪節號")
-    metrics = {k: metrics[k] for k in keep if k in metrics}
-    return {"版本": VER, "語言": lang, "章節": stats, "文字指標": metrics,
-            "指標來源": basis, "代表句": picked,
-            "說明": "代表句已把人名遮成「某」；只在生成新書時當語感範例，不要原句照抄。"}
+    metrics = datakeys.metrics_en({k: metrics[k] for k in keep if k in metrics})
+    return {"version": VER, "lang": lang, "chapters": stats, "metrics": metrics,
+            "metrics_source": basis, "exemplars": picked,
+            "note": "代表句已把人名遮成「某」；只在生成新書時當語感範例，不要原句照抄。"}
 
 
 def _target_metrics(book_dir):
@@ -141,17 +142,18 @@ def load(book_dir):
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:
-        return json.load(f)
+        return datakeys.to_en(json.load(f), datakeys.FINGERPRINT)      # 舊檔是中文鍵
 
 
 def show(data):
     if not data:
         return "（還沒有風格指紋；先跑 tools/fingerprint.py --book <書> --save）"
-    ch = data.get("章節") or {}
+    data = datakeys.to_en(data, datakeys.FINGERPRINT)
+    ch = data.get("chapters") or {}
     L = ["語言 %s｜%d 章、%d 字（平均 %.0f 字/章，變異 %.2f）"
-         % (data.get("語言"), ch.get("章數", 0), ch.get("總字數", 0),
-            ch.get("平均章長", 0), ch.get("章長變異", 0)),
-         "文字指標：" + "、".join("%s %s" % (k, v) for k, v in (data.get("文字指標") or {}).items()),
+         % (data.get("lang"), ch.get("count", 0), ch.get("total_length", 0),
+            ch.get("mean", 0), ch.get("cv", 0)),
+         "文字指標：" + "、".join("%s %s" % (k, v) for k, v in datakeys.metrics_zh(data.get("metrics")).items()),
          "代表句（人名已遮）："]
-    L += ["  %d. %s" % (i + 1, s) for i, s in enumerate(data.get("代表句") or [])]
+    L += ["  %d. %s" % (i + 1, s) for i, s in enumerate(data.get("exemplars") or [])]
     return "\n".join(L)

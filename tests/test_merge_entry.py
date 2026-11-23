@@ -8,14 +8,15 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from studio import project, reverse
+from studio import layout  # noqa: E402
 
 OLD = """---
-類型: 角色
-名稱: 桐生沙耶
-別名: []
-定位: ""
-首次登場: 3
-狀態: 正式
+type: character
+name: 桐生沙耶
+aliases: []
+role: ""
+first_appearance: 3
+status: canon
 ---
 
 # 桐生沙耶
@@ -31,13 +32,13 @@ OLD = """---
 """
 
 NEW = """---
-類型: 角色
-名稱: 桐生沙耶
-別名: [沙耶]
-定位: 配角
-首次登場: 3
-狀態: 草稿
-來源: 從正文反推
+type: character
+name: 桐生沙耶
+aliases: [沙耶]
+role: supporting
+first_appearance: 3
+status: draft
+source: 從正文反推
 ---
 
 # 桐生沙耶
@@ -55,20 +56,20 @@ NEW = """---
 
 class EnsureRoleTest(unittest.TestCase):
     def test_blank_role_gets_default(self):
-        text = "---\n類型: 角色\n名稱: 甲\n定位:\n狀態: 草稿\n---\n\n# 甲\n"
+        text = "---\ntype: character\nname: 甲\n定位:\nstatus: draft\n---\n\n# 甲\n"
         out = project.ensure_role(text)
-        self.assertEqual(project.split_frontmatter(out)[0]["定位"], project.DEFAULT_ROLE)
+        self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_missing_role_is_inserted(self):
-        out = project.ensure_role("---\n類型: 角色\n名稱: 甲\n---\n\n# 甲\n")
-        self.assertEqual(project.split_frontmatter(out)[0]["定位"], project.DEFAULT_ROLE)
+        out = project.ensure_role("---\ntype: character\nname: 甲\n---\n\n# 甲\n")
+        self.assertEqual(project.split_frontmatter(out)[0]["role"], project.DEFAULT_ROLE)
 
     def test_existing_role_is_kept(self):
-        text = "---\n類型: 角色\n名稱: 甲\n定位: 主角\n---\n\n# 甲\n"
+        text = "---\ntype: character\nname: 甲\nrole: protagonist\n---\n\n# 甲\n"
         self.assertEqual(project.ensure_role(text), text)
 
     def test_other_types_untouched(self):
-        text = "---\n類型: 勢力\n名稱: 甲\n---\n\n# 甲\n"
+        text = "---\ntype: faction\nname: 甲\n---\n\n# 甲\n"
         self.assertEqual(project.ensure_role(text), text)
 
 
@@ -78,12 +79,12 @@ class MergeEntryTest(unittest.TestCase):
         self.fm = project.split_frontmatter(self.text)[0]
 
     def test_frontmatter_fills_only_blank(self):
-        self.assertEqual(self.fm["別名"], ["沙耶"])
-        self.assertEqual(self.fm["定位"], "配角")
-        self.assertEqual(self.fm["首次登場"], 3)
+        self.assertEqual(self.fm["aliases"], ["沙耶"])
+        self.assertEqual(self.fm["role"], "supporting")
+        self.assertEqual(self.fm["first_appearance"], 3)
 
     def test_status_and_source_not_overwritten(self):
-        self.assertEqual(self.fm["狀態"], "正式")
+        self.assertEqual(self.fm["status"], "canon")
         self.assertNotIn("來源", self.fm)
 
     def test_blank_section_gets_draft_content(self):
@@ -103,7 +104,7 @@ class MergeEntryTest(unittest.TestCase):
 
     def test_layout_is_clean(self):
         self.assertNotIn("## \n", self.text)
-        self.assertTrue(self.text.startswith("---\n類型: 角色\n"))
+        self.assertTrue(self.text.startswith("---\ntype: character\n"))
         self.assertIn("---\n\n# 桐生沙耶", self.text)
         self.assertNotIn("\n\n\n", self.text)
 
@@ -131,22 +132,22 @@ class AdoptMergeTest(unittest.TestCase):
             return f.read()
 
     def test_existing_file_is_merged_not_replaced(self):
-        self.write("設定/角色/桐生沙耶.md", OLD)
-        self.write(reverse.DIR + "/草稿/設定/角色/桐生沙耶.md", NEW)
+        self.write("bible/characters/桐生沙耶.md", OLD)
+        self.write(reverse.DIR + "/drafts/bible/characters/桐生沙耶.md", NEW)
         res = reverse.adopt(self.book, "設定")
         self.assertEqual(res["adopted"], 1)
         self.assertEqual(res["merged"], 1)
         self.assertEqual(res["conflicts"], 1)
-        out = self.read("設定/角色/桐生沙耶.md")
+        out = self.read("bible/characters/桐生沙耶.md")
         self.assertIn("作者寫的設定。", out)          # 作者寫的還在
-        self.assertTrue(os.path.isdir(os.path.join(self.book, ".studio", "備份")))
-        self.assertFalse(os.path.isfile(os.path.join(self.book, reverse.DIR, "草稿", "設定", "角色", "桐生沙耶.md")))
+        self.assertTrue(os.path.isdir(layout.path(self.book, layout.STUDIO_BACKUP)))
+        self.assertFalse(os.path.isfile(os.path.join(self.book, reverse.DIR, layout.REVERSE_DRAFTS, *layout.parts(layout.CHARACTERS), "桐生沙耶.md")))
 
     def test_new_file_is_moved(self):
-        self.write(reverse.DIR + "/草稿/設定/角色/新角色.md", NEW.replace("桐生沙耶", "新角色"))
+        self.write(reverse.DIR + "/drafts/bible/characters/新角色.md", NEW.replace("桐生沙耶", "新角色"))
         res = reverse.adopt(self.book, "設定")
         self.assertEqual(res["merged"], 0)
-        self.assertIn("# 新角色", self.read("設定/角色/新角色.md"))
+        self.assertIn("# 新角色", self.read("bible/characters/新角色.md"))
 
 
 if __name__ == "__main__":

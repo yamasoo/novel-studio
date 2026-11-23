@@ -1,0 +1,22 @@
+{
+ "schema_version": 3,
+ "table": "timeline",
+ "updated_through": 2,
+ "columns": [
+  {"key": "id", "label": "番号"},
+  {"key": "story_time", "label": "作中の時間"},
+  {"key": "what_really_happened", "label": "実際に起きたこと（作者の真実）"},
+  {"key": "reader_knows_now", "label": "読者がいま知っていること"},
+  {"key": "revealed_in", "label": "明かす章"},
+  {"key": "related_characters", "label": "関係する人物"}
+ ],
+ "items": [
+  {"id": "E001", "story_time": "先月", "what_really_happened": "院長ガルドが配合表を書き換え、傷薬に毒草が混ざる", "reader_knows_now": "エルマの責任とされた", "revealed_in": 1, "related_characters": "ガルド・ベルク、エルマ・フェイン"},
+  {"id": "E002", "story_time": "三日前", "what_really_happened": "薬師院の者が、ルゥに毒矢を射る", "reader_knows_now": "矢尻に薬師院の紋があること", "revealed_in": 2, "related_characters": "ルゥ"},
+  {"id": "E003", "story_time": "追放の朝", "what_really_happened": "エルマが薬師院を追放される", "reader_knows_now": "すべて", "revealed_in": 1, "related_characters": "エルマ・フェイン、ガルド・ベルク、トーマス"},
+  {"id": "E004", "story_time": "三日後の夕方", "what_really_happened": "エルマが森で傷ついた竜と出会う", "reader_knows_now": "すべて", "revealed_in": 1, "related_characters": "エルマ・フェイン、ルゥ"},
+  {"id": "E005", "story_time": "その夜", "what_really_happened": "エルマとルゥが竜約を結ぶ", "reader_knows_now": "すべて", "revealed_in": 2, "related_characters": "エルマ・フェイン、ルゥ"}
+ ],
+ "md_sha": "085f406e427469d4",
+ "items_sha": "b8162feb4c93de6c"
+}

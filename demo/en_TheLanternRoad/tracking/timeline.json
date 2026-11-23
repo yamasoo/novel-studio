@@ -1,0 +1,22 @@
+{
+ "schema_version": 3,
+ "table": "timeline",
+ "updated_through": 2,
+ "columns": [
+  {"key": "id", "label": "ID"},
+  {"key": "story_time", "label": "Story time"},
+  {"key": "what_really_happened", "label": "What really happened (author's truth)"},
+  {"key": "reader_knows_now", "label": "What the reader knows now"},
+  {"key": "revealed_in", "label": "Revealed in"},
+  {"key": "related_characters", "label": "Characters involved"}
+ ],
+ "items": [
+  {"id": "E001", "story_time": "Three years ago, autumn", "what_really_happened": "Greywater Bridge collapses; the Guild strikes the road from every official map", "reader_knows_now": "Nothing yet", "revealed_in": "未揭示", "related_characters": "Corvin Tarr, Orrin Vale"},
+  {"id": "E002", "story_time": "Last spring", "what_really_happened": "Orrin has Wren rub the road out of the master map", "reader_knows_now": "Wren erased a line on Orrin's order", "revealed_in": 2, "related_characters": "Wren Alder, Orrin Vale"},
+  {"id": "E003", "story_time": "Three weeks ago", "what_really_happened": "Orrin vanishes from the shop overnight", "reader_knows_now": "Orrin has been missing three weeks", "revealed_in": 1, "related_characters": "Orrin Vale"},
+  {"id": "E004", "story_time": "Day one, afternoon", "what_really_happened": "Dessa Pike takes Orrin's survey books for the Guild", "reader_knows_now": "Everything", "revealed_in": 1, "related_characters": "Wren Alder, Dessa Pike"},
+  {"id": "E005", "story_time": "Day one, night", "what_really_happened": "Wren lights Hob with \"Pellman's Ford\" and sees the silver road", "reader_knows_now": "Everything", "revealed_in": 2, "related_characters": "Wren Alder, Hob"}
+ ],
+ "md_sha": "9c86a85ad46bbdbf",
+ "items_sha": "d992857a6b45f0d8"
+}

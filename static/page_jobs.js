@@ -19,7 +19,7 @@
       h("td", { class: "small" }, fmtTime(r.created)),
       h("td", {},
         r.label,
-        h("div", { class: "muted small" }, r.reason, "　·　", fmtNum(r.chars) + " 字", "　·　…", r.preview)),
+        h("div", { class: "muted small" }, r.reason, "　·　", `${fmtNum(r.chars)} 字`, "　·　…", r.preview)),
       h("td", { style: "white-space:nowrap" }, actions));
   }
 

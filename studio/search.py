@@ -7,15 +7,18 @@ import os
 import re
 
 from . import project
+from . import layout
+from . import ids
 
 SCOPES = {
-    "正文": ("正文", True),
-    "候選": ("候選", True),
-    "章綱": ("大綱", False),
-    "設定": ("設定", False),
-    "追蹤": ("追蹤", False),
+    # 鍵是搜尋範圍 ID（ids.SEARCH_SCOPES）；值：(資料夾, 是否逐章)
+    "manuscript": (layout.MANUSCRIPT, True),
+    "candidates": (layout.CANDIDATES, True),
+    "outline": (layout.OUTLINE, False),
+    "bible": (layout.BIBLE, False),
+    "tracking": (layout.TRACKING, False),
 }
-DEFAULT_SCOPES = ("正文",)
+DEFAULT_SCOPES = ("manuscript",)
 CONTEXT = 40          # 前後文各取幾個字
 MAX_SNIPPETS = 30     # 每份檔案最多回傳幾處
 MAX_FILES = 400
@@ -73,7 +76,8 @@ def _files(book_dir, scope):
         return
     if chapters:
         for no, f in sorted(project._scan_dir(root).items()):
-            yield {"kind": "chapter", "no": no, "title": project.chapter_title_from_filename(f), "path": sub + "/" + f}
+            yield {"kind": "chapter", "no": no, "path": sub + "/" + f,
+                   "title": project.chapter_title(f, project.read_text(os.path.join(root, f)))}
         return
     for dp, dns, fns in os.walk(root):
         dns[:] = sorted(d for d in dns if not d.startswith("."))
@@ -81,7 +85,7 @@ def _files(book_dir, scope):
             if not f.endswith(".md"):
                 continue
             rel = os.path.relpath(os.path.join(dp, f), book_dir).replace("\\", "/")
-            no = project.chapter_no(f) if rel.startswith(("大綱/章綱/", "追蹤/章節摘要/")) else None
+            no = project.chapter_no(f) if rel.startswith((layout.CHAPTER_CARDS + "/", layout.SUMMARIES + "/")) else None
             yield {"kind": "file", "no": no, "title": os.path.splitext(f)[0], "path": rel}
 
 
@@ -105,7 +109,9 @@ def search(book_dir, q, scopes=None):
     terms = parse_query(q)
     if not terms:
         return {"query": q, "terms": [], "results": [], "files": 0, "hits": 0}
-    scopes = [s for s in (scopes or DEFAULT_SCOPES) if s in SCOPES] or list(DEFAULT_SCOPES)
+    # 舊的中文範圍 ID（正文、候選…）照樣接受；重複的只算一次
+    scopes = [s for s in dict.fromkeys(ids.norm("search_scope", x) for x in (scopes or DEFAULT_SCOPES)) if s in SCOPES] \
+        or list(DEFAULT_SCOPES)
     nterms = [norm(t) for t in terms]
     results, hits, truncated = [], 0, False
     for scope in scopes:
@@ -150,7 +156,7 @@ def search(book_dir, q, scopes=None):
                 break
         if truncated:
             break
-    chap = [r for r in results if r["scope"] == "正文"]
+    chap = [r for r in results if r["scope"] == "manuscript"]
     first = min((r["no"] for r in chap if r.get("no")), default=None)
     return {"query": q, "terms": terms, "scopes": scopes, "results": results, "files": len(results), "hits": hits,
             "chapters": len(chap), "first": first, "truncated": truncated}

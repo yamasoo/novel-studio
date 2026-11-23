@@ -10,6 +10,7 @@ import re
 import time
 
 from . import context, project, prompts
+from . import layout, sections
 
 STATUS_LABEL = {"completed": "已寫到", "unmet": "沒寫到", "unknown": "無法判斷", "unverified": "引文對不上"}
 
@@ -26,15 +27,15 @@ def freeze_goals(card_text):
     _, body = project.split_frontmatter(card_text or "")
     body = context.strip_comments(body)
     goals = []
-    m = re.search(r"##\s*情節點\s*\n(.*?)(?=\n##\s|\Z)", body, re.S)
+    m = re.search(r"##\s*" + sections.head_rx("chapter-card", "plot_points") + r"\s*\n(.*?)(?=\n##\s|\Z)", body, re.S | re.I)
     if m:
         for line in m.group(1).split("\n"):
             mm = re.match(r"\s*(?:\d+[.、．)]|[-*])\s*(.+)", line)
             if mm and mm.group(1).strip() and "待補" not in mm.group(1) and not _todo_other(mm.group(1)):
                 goals.append(mm.group(1).strip())
-    m = re.search(r"##\s*章末鉤子\s*\n(.*?)(?=\n##\s|\Z)", body, re.S)
+    m = re.search(r"##\s*" + sections.head_rx("chapter-card", "ending_hook") + r"\s*\n(.*?)(?=\n##\s|\Z)", body, re.S | re.I)
     if m:
-        mm = re.search(r"停在[：:]\s*(.+)", m.group(1))
+        mm = re.search(r"(?:停在|止める場所|Stops on)[：:]\s*(.+)", m.group(1), re.I)
         if mm and mm.group(1).strip() and "待定" not in mm.group(1) and not _todo_other(mm.group(1)):
             goals.append(prompts.cur()["goal_ending"].format(t=mm.group(1).strip()))
     return [{"id": "G%d" % (i + 1), "text": t} for i, t in enumerate(goals)]
@@ -115,17 +116,17 @@ def report_md(no, items):
 
 
 def save(book_dir, no, path, text, items, provider):
-    d = os.path.join(book_dir, ".studio", "核對")
+    d = layout.path(book_dir, layout.STUDIO_CHECK)
     os.makedirs(d, exist_ok=True)
     rec = {"chapter": no, "path": path, "hash": text_hash(text), "checked_at": time.time(),
            "provider": provider, "items": items, "summary": summary(items)}
-    with open(os.path.join(d, "第%03d章.json" % no), "w", encoding="utf-8") as f:
+    with open(os.path.join(d, layout.chapter_json(no)), "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False, indent=1)
     return rec
 
 
 def load(book_dir, no):
-    p = os.path.join(book_dir, ".studio", "核對", "第%03d章.json" % no)
+    p = layout.path(book_dir, layout.STUDIO_CHECK, layout.chapter_json(no))
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:
@@ -136,7 +137,7 @@ def load(book_dir, no):
 
 
 def target(book_dir, no, prefer_candidate=False):
-    order = ("候選", "正文") if prefer_candidate else ("正文", "候選")
+    order = (layout.CANDIDATES, layout.MANUSCRIPT) if prefer_candidate else (layout.MANUSCRIPT, layout.CANDIDATES)
     return context.chapter_text(book_dir, no, order)
 
 

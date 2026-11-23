@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 審查意見與逐段對照修訂。
-- 審查：模型逐條列出意見（附正文原句），存在 .studio/審查/第NNN章.json
-- 修訂：模型依勾選的意見產生修訂稿，不直接覆蓋；存在 .studio/修訂/第NNN章.json，
+- 審查：模型逐條列出意見（附正文原句），存在 .studio/review/ch-NNNN.json
+- 修訂：模型依勾選的意見產生修訂稿，不直接覆蓋；存在 .studio/revisions/ch-NNNN.json，
   由作者逐段選擇保留原文或採用修訂，再套用成候選稿。
 """
 import difflib
@@ -12,6 +12,7 @@ import re
 import time
 
 from . import enums, goals, project, prompts, tracking
+from . import layout
 
 SEVERITIES = ["必須修", "建議修", "提醒"]
 
@@ -33,8 +34,9 @@ def change_table_rule():
     return prompts.cur()["change_table_rule"]
 
 
-def _dir(book_dir, kind):
-    d = os.path.join(book_dir, ".studio", kind)
+def _dir(book_dir, rel):
+    """rel 是 layout 的 .studio 常數（例如 layout.STUDIO_REVIEW）；資料夾不存在就建。"""
+    d = layout.path(book_dir, rel)
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -159,13 +161,13 @@ def merge_local_checks(review, book_dir, path, checker):
 
 def save_review(book_dir, no, path, text, review, provider):
     rec = dict(review, chapter=no, path=path, hash=goals.text_hash(text), checked_at=time.time(), provider=provider)
-    with open(os.path.join(_dir(book_dir, "審查"), "第%03d章.json" % no), "w", encoding="utf-8") as f:
+    with open(os.path.join(_dir(book_dir, layout.STUDIO_REVIEW), layout.chapter_json(no)), "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False, indent=1)
     return rec
 
 
 def load_review(book_dir, no):
-    p = os.path.join(book_dir, ".studio", "審查", "第%03d章.json" % no)
+    p = layout.path(book_dir, layout.STUDIO_REVIEW, layout.chapter_json(no))
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:
@@ -255,7 +257,7 @@ def parse_change_table(report):
         if not s.startswith("|") or re.match(r"^\|[\s:\-|]+\|$", s):
             continue
         cells = [c.strip() for c in s.strip("|").split("|")]
-        if len(cells) < 3 or cells[0] in ("原句", "原文", "Original", "original", "元の文") or not cells[0]:
+        if len(cells) < 3 or cells[0] in ("原句", "原文", "Original", "original", "Original sentence", "元の文") or not cells[0]:
             continue
         items.append({"old": cells[0], "why": cells[1], "new": "｜".join(cells[2:])})
     return items
@@ -270,13 +272,13 @@ def save_revision(book_dir, no, base_path, base_text, new_title, new_text, notes
            "new_title": new_title, "new_text": new_text, "notes": notes, "report": report,
            "created": time.time(), "provider": provider, "kind": kind,
            "items": items if items is not None else (parse_change_table(report) if kind == "deslop" else [])}
-    with open(os.path.join(_dir(book_dir, "修訂"), "第%03d章.json" % no), "w", encoding="utf-8") as f:
+    with open(os.path.join(_dir(book_dir, layout.STUDIO_REVISIONS), layout.chapter_json(no)), "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False, indent=1)
     return rec
 
 
 def load_revision(book_dir, no):
-    p = os.path.join(book_dir, ".studio", "修訂", "第%03d章.json" % no)
+    p = layout.path(book_dir, layout.STUDIO_REVISIONS, layout.chapter_json(no))
     if not os.path.isfile(p):
         return None
     with open(p, encoding="utf-8") as f:
@@ -306,9 +308,9 @@ def load_revision(book_dir, no):
 
 
 def discard_revision(book_dir, no):
-    p = os.path.join(book_dir, ".studio", "修訂", "第%03d章.json" % no)
+    p = layout.path(book_dir, layout.STUDIO_REVISIONS, layout.chapter_json(no))
     if os.path.isfile(p):
-        os.replace(p, os.path.join(_dir(book_dir, "備份"), "修訂_第%03d章.%d.json" % (no, int(time.time()))))
+        os.replace(p, os.path.join(_dir(book_dir, layout.STUDIO_BACKUP), layout.revision_backup_file(no, time.time())))
 
 
 def apply_revision(book_dir, no, choices, checker):
@@ -339,19 +341,17 @@ def apply_revision(book_dir, no, choices, checker):
         discard_revision(book_dir, no)
         from . import fidelity
         fid = fidelity.run(book_dir, no, rec["base_path"], rec["base_text"], text)
-        return {"path": rec["base_path"], "used_new": used_new, "kept_old": kept_old, "from_text": rec["base_path"].startswith("正文"),
+        return {"path": rec["base_path"], "used_new": used_new, "kept_old": kept_old, "from_text": rec["base_path"].startswith(layout.MANUSCRIPT),
                 "kind": "deslop", "backup": os.path.relpath(bak, book_dir).replace("\\", "/"), "fidelity": fid.strip()}
     # 寫成候選稿（原本是候選稿就覆蓋，原本是正文就另存候選，採用時再回寫追蹤）
-    cand_dir = os.path.join(book_dir, "候選")
+    cand_dir = layout.path(book_dir, layout.CANDIDATES)
     os.makedirs(cand_dir, exist_ok=True)
     old = project._scan_dir(cand_dir).get(no)
     if old:
-        tracking.backup(book_dir, os.path.join(cand_dir, old), "候選")
+        tracking.backup(book_dir, os.path.join(cand_dir, old), layout.CANDIDATES)
         os.remove(os.path.join(cand_dir, old))
-    title = re.sub(r'[\\/:*?"<>|]', "", rec.get("new_title") or "") or \
-        project.chapter_title_from_filename(os.path.basename(rec["base_path"])) or "未命名"
-    name = "第%03d章_%s.md" % (no, title)
+    name = layout.chapter_md(no)            # 章名在修訂稿的一級標題裡
     project.write_atomic(os.path.join(cand_dir, name), text)
     discard_revision(book_dir, no)
-    return {"path": "候選/" + name, "used_new": used_new, "kept_old": kept_old,
-            "from_text": rec["base_path"].startswith("正文")}
+    return {"path": layout.CANDIDATES + "/" + name, "used_new": used_new, "kept_old": kept_old,
+            "from_text": rec["base_path"].startswith(layout.MANUSCRIPT)}

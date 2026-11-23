@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-"""英文、日文書的 JSON 鍵：模型寫英文鍵，程式在解析後換回中文鍵，之後的程式照舊。
+"""模型輸出的 JSON 鍵名換算。v3 起程式內部一律用英文鍵。
 
-為什麼：鍵名是中文時，英文、日文書的模型很容易跟著把內容寫成中文。繁中書的提示詞不變（仍是中文鍵）。
+為什麼：鍵名是中文時，英文、日文書的模型很容易跟著把內容寫成中文，所以英文、日文書的提示詞用英文鍵；
+繁中書的提示詞目前仍是中文鍵（P4 再改）。不管模型寫哪一種，進到程式前都換成同一套英文鍵。
 
-- to_zh(data)：遞迴把 dict 的英文鍵換成中文鍵；認不得的鍵、本來就是中文的鍵原樣保留，所以新舊格式都能讀。
-  同時把列舉值（定位、狀態、重要度……）交給 enums.norm 換回中文固定詞。
-- 一張共用表：同一個中文鍵在各 schema 用同一個英文字。工作台原本就用英文的鍵（chapters、items、changes、
-  summary、state_card、foreshadow、timeline、reader、characters、relations、new_entities、report）
+- to_keys(data)：模型資料 → 程式內部的英文鍵。英文鍵、中文鍵、大小寫不同的鍵都認；同時出現時中文鍵優先。
+  同時把列舉值（定位、狀態、重要度……）交給 enums.norm 換回固定詞（值本身到 P3 才改英文）。
+- to_zh(data)：to_keys 的第一步，把各種寫法收斂成中文鍵；另外給測試與稽核工具用。
+- 一張共用表 KEYS（英文 → 中文）：同一個中文鍵在各 schema 用同一個英文字。工作台原本就用英文的鍵（chapters、items、
+  changes、summary、state_card、foreshadow、timeline、reader、characters、relations、new_entities、report）
   不能出現在表裡，test_keys() 會檢查。
-- 一個中文鍵可以有兩個英文字（例如 名詞 的清單叫 terms、條目裡的欄位叫 term），換回來都是同一個中文鍵。
+- 一個中文鍵有兩個英文字的（名詞：terms／term、關係：relationships／relationship），換成英文時依值的型別選：清單用複數。
 """
 from . import enums, prompts
 
@@ -103,6 +105,33 @@ def to_zh(data, unknown=None, values=None):
             continue
         out[zk] = v
     return out
+
+
+# 中文鍵 → 英文鍵（程式內部用）。一個中文鍵有兩個英文字時，依值的型別選：清單用複數那個。
+_PLURAL = {"名詞": ("terms", "term"), "關係": ("relationships", "relationship")}
+ZH_TO_EN = {}
+for _en, _zh in KEYS.items():
+    ZH_TO_EN.setdefault(_zh, _en)
+
+
+def _en_key(k, v):
+    if k in _PLURAL:
+        return _PLURAL[k][0] if isinstance(v, list) else _PLURAL[k][1]
+    return ZH_TO_EN.get(k, k)
+
+
+def to_keys(data, unknown=None, values=None):
+    """模型資料 → 程式內部的英文鍵（v3）。先照 to_zh 收斂（英文、中文、大小寫不同的鍵都認，同時出現時中文鍵優先、
+    列舉值換回固定詞），再把中文鍵換成英文鍵；認不得的鍵原樣保留。"""
+    return _rename(to_zh(data, unknown, values))
+
+
+def _rename(data):
+    if isinstance(data, list):
+        return [_rename(x) for x in data]
+    if not isinstance(data, dict):
+        return data
+    return {_en_key(k, v): _rename(v) for k, v in data.items()}
 
 
 def to_en(data):

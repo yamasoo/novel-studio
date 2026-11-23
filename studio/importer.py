@@ -13,6 +13,8 @@ import zipfile
 from xml.etree import ElementTree as ET
 
 from . import lang as lang_mod, project
+from . import layout
+from . import ids
 
 NUM = r"[0-9０-９一二三四五六七八九十百千零〇兩]+"
 SEP = r"(?:\s*$|[\s:：、.．·\-—　]+(.*?)\s*$)"
@@ -474,18 +476,19 @@ def _fname_title(t):
 
 def _backup_name(name, stamp):
     """覆寫前的備份檔名：和 tracking.backup 同一種樣式（標籤_原檔名.<epoch>.md），備份上限才認得。"""
-    return "匯入前_%s.%d.md" % (os.path.splitext(name)[0], stamp)
+    return layout.import_backup_file(os.path.splitext(name)[0], stamp)
 
 
 def commit(book_dir, payload, opts, checker=None):
-    """寫入書目錄。opts: target（"正文"|"候選"）、conflict（"skip"|"overwrite"）、fix_punct。"""
+    """寫入書目錄。opts: target（ids.IMPORT_TARGETS："manuscript"|"candidates"，舊的「正文」「候選」也接受）、conflict（"skip"|"overwrite"）、fix_punct。"""
     r = plan(payload, opts)
-    target = "候選" if opts.get("target") == "候選" else "正文"
+    target_id = "candidates" if ids.norm("import_target", opts.get("target")) == "candidates" else "manuscript"
+    target = ids.IMPORT_TARGET_FOLDER[target_id]
     tdir = os.path.join(book_dir, target)
     os.makedirs(tdir, exist_ok=True)
     existing = project._scan_dir(tdir)
     written, skipped, replaced = [], [], []
-    bak = os.path.join(book_dir, ".studio", "備份")
+    bak = layout.path(book_dir, layout.STUDIO_BACKUP)
     stamp = int(time.time())
     for c in r["chapters"]:
         no = c["no"]
@@ -506,10 +509,10 @@ def commit(book_dir, payload, opts, checker=None):
             tracking.prune_backups(bak, name)
             os.remove(old)
             replaced.append(no)
-        name = "第%03d章_%s.md" % (no, _fname_title(title))
+        name = layout.chapter_md(no)            # 章名寫在上面的標題（heading）裡
         project.write_atomic(os.path.join(tdir, name), text)
         written.append({"no": no, "file": target + "/" + name, "chars": c["chars"]})
-    return {"target": target, "written": written, "skipped": skipped, "replaced": replaced,
+    return {"target": target_id, "written": written, "skipped": skipped, "replaced": replaced,
             "chars": sum(w["chars"] for w in written)}
 
 

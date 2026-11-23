@@ -7,7 +7,7 @@
 3. 整理：請 AI 根據累積資料寫角色檔、勢力、世界觀、故事核心、全書大綱與卷綱、狀態卡、主要角色的目前狀態。
 4. 本機產生：名詞表、反向章綱、章節摘要、伏筆表、時間線、讀者認知帳本。
 
-全部先存成草稿（.studio/反推/草稿/），分「設定／大綱／章綱／追蹤」四組讓作者採用或捨棄。
+全部先存成草稿（.studio/reverse/drafts/），分「設定／大綱／章綱／追蹤」四組讓作者採用或捨棄。
 推不出來的欄位寫「（正文未明確）」或「待補」，不編造。
 """
 import difflib
@@ -18,9 +18,16 @@ import shutil
 import time
 
 from . import context, enums, project, prompts, tracking
+from . import fmkeys, layout, sections
+from . import lang as lang_mod
+from . import tables
+from . import jsonkeys
+from . import ids
 
-DIR = os.path.join(".studio", "反推")
-GROUPS = ("設定", "大綱", "章綱", "追蹤")
+DIR = os.path.join(*layout.parts(layout.STUDIO_REVERSE))
+GROUPS = ids.REVERSE_GROUPS
+# 訊息裡顯示的分組名稱（介面文字；API 一律用 ids.REVERSE_GROUPS）
+GROUP_LABEL = {"bible": "設定", "outline": "大綱", "cards": "章綱", "tracking": "追蹤"}  # literal-ok: 顯示標籤
 MAX_PER_BATCH = 3
 CORE_MIN_CHAPTERS = 3      # 出場 3 章以上才建角色檔；其他列進名詞表
 MAX_CORE = 40
@@ -104,18 +111,48 @@ def _save(path, data):
     os.replace(tmp, path)
 
 
+# 累積資料（.studio/reverse/cumulative.json）的鍵：v3 起是英文鍵。舊版（中文鍵）的快取讀進來先換算，反推跑到一半升級的書可以續跑。
+CARD_KEYS = (("protagonist_goal", "主角想做什麼"), ("obstacle", "阻礙"), ("new_situation", "局面變成"), ("why_read_on", "讀者為什麼往下看"),
+             ("function", "功能"), ("emotion", "情緒"), ("ending_hook", "章末鉤子"))
+_V2_CARD = dict([(zh, en) for en, zh in CARD_KEYS] + [("情節點", "plot_points"), ("出場", "on_stage"), ("伏筆操作", "foreshadow_ops")])
+_V2_SUMMARY = {zh: en for en, zh in tracking.SUMMARY_KEYS}
+_V2_TERM = {"類別": "kind", "小類": "subtype", "說明": "explanation"}
+
+
+def _ren(d, m):
+    return {m.get(k, k): v for k, v in d.items()} if isinstance(d, dict) else d
+
+
+def upgrade_acc(acc):
+    """舊版累積資料（中文鍵）→ 英文鍵；已經是英文鍵的原樣。"""
+    for key, m in (("summaries", _V2_SUMMARY), ("cards", _V2_CARD), ("terms", _V2_TERM)):
+        if key in acc:
+            acc[key] = {k: _ren(v, m) for k, v in (acc[key] or {}).items()}
+    if "events" in acc:
+        acc["events"] = [tables.row_to_keys("timeline", x) for x in acc["events"] or []]
+    if "fs" in acc:
+        acc["fs"] = [_ren(tables.row_to_keys("foreshadow", x), {"回收章": "resolved_in"}) for x in acc["fs"] or []]
+    if "reader" in acc:
+        acc["reader"] = [tables.row_to_keys("reader", x) for x in acc["reader"] or []]
+    return acc
+
+
+def load_acc(book_dir):
+    return upgrade_acc(_load(_p(book_dir, layout.REVERSE_CUMULATIVE), {}))
+
+
 def chapters(book_dir):
     out = []
-    for no, f in sorted(project._scan_dir(os.path.join(book_dir, "正文")).items()):
-        text = project.read_text(os.path.join(book_dir, "正文", f))
-        out.append({"no": no, "title": project.chapter_title_from_filename(f), "file": "正文/" + f,
+    for no, f in sorted(project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT)).items()):
+        text = project.read_text(layout.path(book_dir, layout.MANUSCRIPT, f))
+        out.append({"no": no, "title": project.chapter_title(f, text), "file": layout.MANUSCRIPT + "/" + f,
                     "chars": project.count_chars(context.body(text))})
     return out
 
 
 def state(book_dir):
     st = _load(_p(book_dir, "state.json"), {})
-    acc = _load(_p(book_dir, "累積.json"), {})
+    acc = _load(_p(book_dir, layout.REVERSE_CUMULATIVE), {})
     st["processed"] = sorted(int(k) for k in (acc.get("summaries") or {}))
     drafts = draft_groups(book_dir)
     for g, items in drafts.items():
@@ -129,7 +166,7 @@ def state(book_dir):
 def reset(book_dir):
     d = _p(book_dir)
     if os.path.isdir(d):
-        bak = os.path.join(book_dir, ".studio", "備份", "反推_%d" % int(time.time()))
+        bak = layout.path(book_dir, layout.STUDIO_BACKUP, "反推_%d" % int(time.time()))
         os.makedirs(os.path.dirname(bak), exist_ok=True)
         shutil.move(d, bak)
 
@@ -186,24 +223,24 @@ def _handoff(acc, first_no):
     if chars:
         lines.append(P["rev_h_known"] + "\n" + "\n".join(
             "- %s%s" % (k, (P["colon"] + P["list_sep"].join(v["aliases"])) if v["aliases"] else "") for k, v in chars))
-    fs = [x for x in (acc.get("fs") or []) if x["狀態"] != "已回收"][-50:]
+    fs = [x for x in (acc.get("fs") or []) if x["status"] != "已回收"][-50:]
     if fs:
-        lines.append(P["rev_h_open_fs"] + "\n" + "\n".join(_t("rev_fs_line", id=x["編號"], ch=x["埋設章"], text=x["內容"]) for x in fs))
-    rp = [x for x in (acc.get("reader") or []) if x["類型"] != "已知" and not x.get("回收章")][-50:]
+        lines.append(P["rev_h_open_fs"] + "\n" + "\n".join(_t("rev_fs_line", id=x["id"], ch=x["planted_in"], text=x["content"]) for x in fs))
+    rp = [x for x in (acc.get("reader") or []) if x["type"] != "已知" and not x.get("resolved_in")][-50:]
     if rp:
-        lines.append(P["rev_h_open_rp"] + "\n" + "\n".join("- %s〔%s〕%s" % (x["編號"], enums.show("type", x["類型"], prompts.cur_lang()), x["內容"])
+        lines.append(P["rev_h_open_rp"] + "\n" + "\n".join("- %s〔%s〕%s" % (x["id"], enums.show("type", x["type"], prompts.cur_lang()), x["content"])
                                                           for x in rp))
     prev = (acc.get("summaries") or {}).get(str(first_no - 1))
     if prev:
-        lines.append(_t("rev_h_prev_end", n=first_no - 1) + "\n" + prev.get("結尾停在", ""))
+        lines.append(_t("rev_h_prev_end", n=first_no - 1) + "\n" + prev.get("ends_on", ""))
     return "\n\n".join(lines)
 
 
 def extract_prompt(book_dir, nos, acc):
     parts = []
     for no in nos:
-        path, text = context.chapter_text(book_dir, no, ("正文",))
-        parts.append(_t("rev_ch_head", n=no, title=project.chapter_title_from_filename(os.path.basename(path or ""))) + "\n" +
+        path, text = context.chapter_text(book_dir, no, (layout.MANUSCRIPT,))
+        parts.append(_t("rev_ch_head", n=no, title=project.chapter_title(path or "", text)) + "\n" +
                      context.body(text))
     hand = _handoff(acc, nos[0])
     return ((hand + "\n\n" if hand else "") + "\n\n".join(parts) + _t("task_mark") +
@@ -223,38 +260,37 @@ def _canon(acc, names):
 
 
 def apply_batch(acc, data, nos, titles):
-    """把一批的抽取結果併進累積資料（本機，不呼叫 AI）。"""
+    """把一批的抽取結果（英文鍵，jsonkeys.to_keys 換過）併進累積資料（本機，不呼叫 AI）。"""
     got = {}
     for ch in (data or {}).get("chapters") or []:
         try:
-            got[int(ch.get("章"))] = ch
+            got[int(ch.get("no"))] = ch
         except (TypeError, ValueError):
             continue
     if len(got) < len(nos) and len((data or {}).get("chapters") or []) == len(nos):
         got = {n: ch for n, ch in zip(nos, data["chapters"])}   # 章號寫錯但數量對：照順序對應
     for no in nos:
         ch = got.get(no) or {}
-        acc.setdefault("summaries", {})[str(no)] = {k: _clean((ch.get("摘要") or {}).get(k)) for k in
-                                                    ("發生了什麼", "局面變化", "新出現的人事物", "結尾停在")}
-        card = ch.get("章綱") or {}
+        acc.setdefault("summaries", {})[str(no)] = {k: _clean((ch.get("chapter_summary") or {}).get(k)) for k, _ in tracking.SUMMARY_KEYS}
+        card = ch.get("chapter_card") or {}
         acc.setdefault("cards", {})[str(no)] = {
             "title": titles.get(no, ""),
-            **{k: _clean(card.get(k)) for k in ("主角想做什麼", "阻礙", "局面變成", "讀者為什麼往下看", "功能", "情緒", "章末鉤子")},
-            "情節點": [_clean(x) for x in (card.get("情節點") or []) if _clean(x)],
-            "出場": [], "伏筆操作": []}
+            **{k: _clean(card.get(k)) for k, _ in CARD_KEYS},
+            "plot_points": [_clean(x) for x in (card.get("plot_points") or []) if _clean(x)],
+            "on_stage": [], "foreshadow_ops": []}
         if ch.get("_lang_mismatch"):
             acc["cards"][str(no)]["lang_flag"] = True
         cd = acc["cards"][str(no)]
         # 人物
         chars = acc.setdefault("chars", {})
         idx = acc.setdefault("alias_index", {})
-        for p in ch.get("人物") or []:
+        for p in ch.get("people") or []:
             if not isinstance(p, dict):
                 continue
-            name = _clean(p.get("名稱"))
+            name = _clean(p.get("name"))
             if len(name) < 2:
                 continue
-            al = [_clean(a) for a in (p.get("別名") or []) if len(_clean(a)) >= 2 and _clean(a) != name]
+            al = [_clean(a) for a in (p.get("aliases") or []) if len(_clean(a)) >= 2 and _clean(a) != name]
             canon = _canon(acc, [name] + al)
             if not canon:
                 canon = name
@@ -267,74 +303,74 @@ def apply_batch(acc, data, nos, titles):
                     idx[a] = canon
             if no not in c["chapters"]:
                 c["chapters"].append(no)
-            note = "；".join(x for x in (_clean(p.get("身分")), _clean(p.get("本章"))) if x)
+            note = "；".join(x for x in (_clean(p.get("identity")), _clean(p.get("this_chapter"))) if x)
             if note:
                 c["notes"].append([no, note])
-            imp = _clean(p.get("重要")) or "次要"
+            imp = _clean(p.get("importance")) or "次要"
             c["votes"][imp] = c["votes"].get(imp, 0) + 1
-            if canon not in cd["出場"]:
-                cd["出場"].append(canon)
+            if canon not in cd["on_stage"]:
+                cd["on_stage"].append(canon)
         # 名詞
         terms = acc.setdefault("terms", {})
-        for t in ch.get("名詞") or []:
+        for t in ch.get("terms") or []:
             if not isinstance(t, dict):
                 continue
-            n = _clean(t.get("名詞"))
+            n = _clean(t.get("term"))
             if len(n) < 2 or n in idx:
                 continue
-            e = terms.setdefault(n, {"類別": _clean(t.get("類別")) or "其他", "小類": _clean(t.get("小類")), "說明": "", "chapters": []})
-            d = _clean(t.get("說明"))
-            if d and len(d) > len(e["說明"]):
-                e["說明"] = d[:120]
+            e = terms.setdefault(n, {"kind": _clean(t.get("kind")) or "其他", "subtype": _clean(t.get("subtype")), "explanation": "", "chapters": []})
+            d = _clean(t.get("explanation"))
+            if d and len(d) > len(e["explanation"]):
+                e["explanation"] = d[:120]
             if no not in e["chapters"]:
                 e["chapters"].append(no)
         # 事件
         evs = acc.setdefault("events", [])
-        for ev in ch.get("事件") or []:
-            if isinstance(ev, dict) and _clean(ev.get("實際發生")):
-                evs.append({"編號": "E%03d" % (len(evs) + 1), "故事時間": _clean(ev.get("故事時間")),
-                            "實際發生（作者真相）": _clean(ev.get("實際發生")), "讀者目前知道": _clean(ev.get("讀者知道")),
-                            "揭示章": tracking.chapter_label(no), "相關角色": _clean(ev.get("相關角色"))})
+        for ev in ch.get("plot_events") or []:
+            if isinstance(ev, dict) and _clean(ev.get("actual_event")):
+                evs.append({"id": "E%03d" % (len(evs) + 1), "story_time": _clean(ev.get("story_time")),
+                            "what_really_happened": _clean(ev.get("actual_event")), "reader_knows_now": _clean(ev.get("reader_knows")),
+                            "revealed_in": tracking.chapter_label(no), "related_characters": _clean(ev.get("related_characters"))})
         # 伏筆
         fs = acc.setdefault("fs", [])
-        by = {x["編號"]: x for x in fs}
-        for f in ch.get("伏筆") or []:
+        by = {x["id"]: x for x in fs}
+        for f in ch.get("foreshadowing") or []:
             if not isinstance(f, dict):
                 continue
-            fid, act = _clean(f.get("編號")), _clean(f.get("動作"))
+            fid, act = _clean(f.get("id")), _clean(f.get("action"))
             if fid in by:
                 x = by[fid]
-                x["最後出現"] = tracking.chapter_label(no)
+                x["last_seen"] = tracking.chapter_label(no)
                 if act == "回收":
-                    x["狀態"], x["回收章"] = "已回收", tracking.chapter_label(no)
-                elif x["狀態"] != "已回收":
-                    x["狀態"] = "推進中"
-                cd["伏筆操作"].append(_t("rev_fs_op_pay" if act == "回收" else "rev_fs_op_adv", id=fid, text=x["內容"][:20]))
-            elif _clean(f.get("內容")) and act != "回收":
-                x = {"編號": "F%03d" % (len(fs) + 1), "內容": _clean(f.get("內容")), "埋設章": tracking.chapter_label(no),
-                     "預計回收": "", "最後出現": tracking.chapter_label(no), "狀態": "已埋",
-                     "重要度": _clean(f.get("重要度")) if _clean(f.get("重要度")) in ("高", "中", "低") else "中"}
+                    x["status"], x["resolved_in"] = "已回收", tracking.chapter_label(no)
+                elif x["status"] != "已回收":
+                    x["status"] = "推進中"
+                cd["foreshadow_ops"].append(_t("rev_fs_op_pay" if act == "回收" else "rev_fs_op_adv", id=fid, text=x["content"][:20]))
+            elif _clean(f.get("content")) and act != "回收":
+                x = {"id": "F%03d" % (len(fs) + 1), "content": _clean(f.get("content")), "planted_in": tracking.chapter_label(no),
+                     "planned_payoff": "", "last_seen": tracking.chapter_label(no), "status": "已埋",
+                     "priority": _clean(f.get("priority")) if _clean(f.get("priority")) in ("高", "中", "低") else "中"}
                 fs.append(x)
-                by[x["編號"]] = x
-                cd["伏筆操作"].append(_t("rev_fs_op_new", id=x["編號"], text=x["內容"][:20]))
+                by[x["id"]] = x
+                cd["foreshadow_ops"].append(_t("rev_fs_op_new", id=x["id"], text=x["content"][:20]))
         # 讀者認知
         rp = acc.setdefault("reader", [])
-        rby = {x["編號"]: x for x in rp}
-        for r in ch.get("讀者") or []:
+        rby = {x["id"]: x for x in rp}
+        for r in ch.get("reader_knowledge") or []:
             if not isinstance(r, dict):
                 continue
-            rid = _clean(r.get("編號"))
+            rid = _clean(r.get("id"))
             if rid in rby:
-                if _clean(r.get("動作")) == "回收" or _clean(r.get("作者真相")):
-                    rby[rid]["回收章"] = tracking.chapter_label(no)
-                    if _clean(r.get("作者真相")):
-                        rby[rid]["作者真相"] = _clean(r.get("作者真相"))
-            elif _clean(r.get("內容")) and _clean(r.get("動作")) != "回收":
-                x = {"編號": "R%03d" % (len(rp) + 1), "類型": _clean(r.get("類型")) if _clean(r.get("類型")) in tracking.RP_TYPES else "懸念",
-                     "內容": _clean(r.get("內容")), "作者真相": _clean(r.get("作者真相")),
-                     "種下章": tracking.chapter_label(no), "回收章": "", "相關角色": ""}
+                if _clean(r.get("action")) == "回收" or _clean(r.get("author_truth")):
+                    rby[rid]["resolved_in"] = tracking.chapter_label(no)
+                    if _clean(r.get("author_truth")):
+                        rby[rid]["author_truth"] = _clean(r.get("author_truth"))
+            elif _clean(r.get("content")) and _clean(r.get("action")) != "回收":
+                x = {"id": "R%03d" % (len(rp) + 1), "type": _clean(r.get("type")) if _clean(r.get("type")) in tracking.RP_TYPES else "懸念",
+                     "content": _clean(r.get("content")), "author_truth": _clean(r.get("author_truth")),
+                     "planted_chapter": tracking.chapter_label(no), "resolved_in": "", "related_characters": ""}
                 rp.append(x)
-                rby[x["編號"]] = x
+                rby[x["id"]] = x
     return acc
 
 
@@ -385,11 +421,11 @@ WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與�
 def world_prompt(acc):
     terms = acc.get("terms") or {}
     other = sorted(terms.items(), key=lambda kv: -len(kv[1]["chapters"]))[:60]
-    lines = [_t("rev_h_top_terms")] + ["- %s〔%s〕%s" % (k, enums.show("term_cat", v["類別"], prompts.cur_lang()), v["說明"]) for k, v in other]
+    lines = [_t("rev_h_top_terms")] + ["- %s〔%s〕%s" % (k, enums.show("term_cat", v["kind"], prompts.cur_lang()), v["explanation"]) for k, v in other]
     sums = acc.get("summaries") or {}
     keys = sorted(sums, key=int)
     pick = keys[::max(1, len(keys) // 12)][:12]
-    lines += ["", _t("rev_h_some_sums")] + [_t("rev_note_line", n=k, text=sums[k]["發生了什麼"]) for k in pick]
+    lines += ["", _t("rev_h_some_sums")] + [_t("rev_note_line", n=k, text=sums[k]["what_happened"]) for k in pick]
     return "\n".join(lines) + "\n\n" + world_schema(), []
 
 
@@ -402,7 +438,7 @@ def arc_prompts(acc):
     for i in range(0, len(keys), ARC_CHAPTERS):
         part = keys[i:i + ARC_CHAPTERS]
         body = "\n".join(_t("rev_arc_line", n=k, title=(acc["cards"].get(str(k)) or {}).get("title", ""),
-                             what=sums[str(k)]["發生了什麼"], change=sums[str(k)]["局面變化"]) for k in part)
+                             what=sums[str(k)]["what_happened"], change=sums[str(k)]["situation_change"]) for k in part)
         out.append(("整理第%d～%d章的劇情段落" % (part[0], part[-1]), part[0], part[-1],
                     _t("rev_arc_intro", a=part[0], b=part[-1]) + "\n\n%s\n\n%s" % (body, arc_schema())))
     return out
@@ -413,10 +449,10 @@ def arc_prompts(acc):
 def book_prompt(acc, arcs, title):
     lines = [_t("rev_book_title", title=title), "", _t("rev_h_arcs")]
     for a in arcs:
-        lines.append(_t("rev_arc_seg_line", a=a["起"], b=a["訖"], text=a.get("段落摘要", "")))
-        for u in a.get("單元") or []:
-            lines.append(_t("rev_unit_line", name=u.get("名稱", ""), range=u.get("起訖", ""), conflict=u.get("衝突", ""),
-                            result=u.get("結果與代價", "")))
+        lines.append(_t("rev_arc_seg_line", a=a["start"], b=a["end"], text=a.get("segment_summary", "")))
+        for u in a.get("units") or []:
+            lines.append(_t("rev_unit_line", name=u.get("name", ""), range=u.get("chapter_range", ""), conflict=u.get("conflict", ""),
+                            result=u.get("outcome_cost", "")))
     core = core_characters(acc)[:8]
     lines += ["", _t("rev_h_main_chars") + _t("list_sep").join(core)]
     return "\n".join(lines) + "\n\n" + book_schema()
@@ -427,12 +463,12 @@ def book_prompt(acc, arcs, title):
 def state_prompt(acc, last_no):
     sums = acc.get("summaries") or {}
     keys = sorted(int(k) for k in sums)[-5:]
-    lines = [_t("rev_h_recent")] + [_t("rev_state_line", n=k, what=sums[str(k)]["發生了什麼"], change=sums[str(k)]["局面變化"],
-                                     end=sums[str(k)]["結尾停在"]) for k in keys]
-    fs = [x for x in acc.get("fs") or [] if x["狀態"] != "已回收"][-20:]
-    lines += ["", _t("rev_h_open_fs")] + ["- %s %s" % (x["編號"], x["內容"]) for x in fs]
-    rp = [x for x in acc.get("reader") or [] if x["類型"] != "已知" and not x.get("回收章")][-15:]
-    lines += ["", _t("rev_h_waiting")] + ["- %s %s" % (x["編號"], x["內容"]) for x in rp]
+    lines = [_t("rev_h_recent")] + [_t("rev_state_line", n=k, what=sums[str(k)]["what_happened"], change=sums[str(k)]["situation_change"],
+                                     end=sums[str(k)]["ends_on"]) for k in keys]
+    fs = [x for x in acc.get("fs") or [] if x["status"] != "已回收"][-20:]
+    lines += ["", _t("rev_h_open_fs")] + ["- %s %s" % (x["id"], x["content"]) for x in fs]
+    rp = [x for x in acc.get("reader") or [] if x["type"] != "已知" and not x.get("resolved_in")][-15:]
+    lines += ["", _t("rev_h_waiting")] + ["- %s %s" % (x["id"], x["content"]) for x in rp]
     return _t("rev_state_head", n=last_no) + "\n".join(lines) + "\n\n" + state_schema()
 
 
@@ -450,7 +486,8 @@ def _v(x):
 
 
 def _write_draft(book_dir, rel, text):
-    path = _p(book_dir, "草稿", *rel.split("/"))
+    text = sections.localize_doc(text, lang_mod.book_lang(book_dir))     # 段落標題與欄位依書的語言
+    path = _p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/"))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text.rstrip("\n") + "\n")
@@ -461,46 +498,47 @@ def _fname(s):
 
 
 def render_character(ch, acc, last_label):
-    name = _clean(ch.get("名稱"))
+    name = _clean(ch.get("name"))
     info = (acc.get("chars") or {}).get(name) or {}
-    al = list(dict.fromkeys([a for a in (ch.get("別名") or []) if a] + info.get("aliases", [])))
+    al = list(dict.fromkeys([a for a in (ch.get("aliases") or []) if a] + info.get("aliases", [])))
     first = min(info.get("chapters") or [0]) or ""
-    rel = "".join("\n- %s" % r for r in (ch.get("關係") or [])) or "\n- " + unknown()
-    text = ("---\n類型: 角色\n名稱: %s\n別名: [%s]\n定位: %s\n首次登場: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# %s\n\n"
+    rels = ch.get("relationships") if "relationships" in ch else ch.get("relationship")   # 清單（正常）或單一字串
+    rel = "".join("\n- %s" % r for r in (rels or [])) or "\n- " + unknown()
+    text = ("---\ntype: character\nname: %s\naliases: [%s]\nrole: %s\nfirst_appearance: %s\nstatus: draft\nsource: 從正文反推\n---\n\n# %s\n\n"
             "## 一句話\n%s\n\n## 外在\n- 年齡／身分：%s\n- 外貌辨識點：%s\n\n## 內在\n- 想要：%s\n- 害怕：%s\n- 缺陷：%s\n- 底線：%s\n- 秘密：%s\n\n"
             "## 說話方式（聲音卡）\n- %s\n\n## 關係%s\n\n## 角色弧線\n%s\n\n## 備註\n%s\n") % (
-        name, ", ".join(al), _clean(ch.get("定位")) or "配角", first, name, _v(ch.get("一句話")), _v(ch.get("年齡身分")),
-        _v(ch.get("外貌")), _v(ch.get("想要")), _v(ch.get("害怕")), _v(ch.get("缺陷")), _v(ch.get("底線")), _v(ch.get("秘密")),
-        _v(ch.get("說話方式")), rel, _v(ch.get("角色弧線")),
+        name, ", ".join(al), fmkeys.write_value("role", _clean(ch.get("role")) or "配角"), first, name, _v(ch.get("one_line")), _v(ch.get("age_identity")),
+        _v(ch.get("looks")), _v(ch.get("wants")), _v(ch.get("fears")), _v(ch.get("flaw")), _v(ch.get("bottom_line")), _v(ch.get("secret")),
+        _v(ch.get("voice")), rel, _v(ch.get("arc")),
         _t("rev_note_char", count=len(info.get("chapters") or []), a=first, b=max(info.get("chapters") or [0]) or "") + _flag(ch))
-    st = ch.get("目前狀態") or {}
+    st = ch.get("current_state") or {}
     last = max(info.get("chapters") or [0]) or 0
-    stext = "---\n類型: 角色狀態\n名稱: %s\n更新至: %s\n最後登場: %s\n---\n\n# %s：目前狀態\n\n%s\n\n" % (
-        name, last_label, tracking.chapter_label(last) if last else "", name, _t("rev_state_note"))
-    stext += "\n".join("- %s：%s" % (k, _v(st.get(k))) for k in tracking.CHAR_FIELDS)
+    stext = "---\ntype: character-state\nname: %s\nupdated_through: %s\nlast_appearance: %s\n---\n\n# %s：目前狀態\n\n%s\n\n" % (
+        name, fmkeys.ch_value(last_label), fmkeys.ch_value(last) if last else "", name, _t("rev_state_note"))
+    stext += "\n".join("- %s：%s" % (label, _v(st.get(k))) for k, label in tracking.CHAR_KEYS)
     return name, text, stext
 
 
 def render_faction(f):
-    name = _clean(f.get("名稱"))
-    return name, ("---\n類型: 勢力\n名稱: %s\n狀態: 草稿\n相關角色: [%s]\n來源: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 基本資料\n"
+    name = _clean(f.get("name"))
+    return name, ("---\ntype: faction\nname: %s\nstatus: draft\nrelated_characters: [%s]\nsource: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 基本資料\n"
                   "- 規模與地盤：%s\n- 首領：%s\n- 主要成員：%s\n- 資源與手段：%s\n\n## 目標與利益\n- 想要什麼：%s\n- 和誰有衝突：%s\n- 和誰有合作：%s\n\n"
                   "## 內部規矩\n%s\n\n## 對主角的態度\n%s\n\n## 備註\n%s\n") % (
-        name, ", ".join(f.get("相關角色") or []), name, _v(f.get("一句話")), _v(f.get("規模與地盤")), _v(f.get("首領")),
-        _v(f.get("主要成員")), _v(f.get("資源與手段")), _v(f.get("想要什麼")), _v(f.get("和誰有衝突")), _v(f.get("和誰有合作")),
-        _v(f.get("內部規矩")), _v(f.get("對主角的態度")), _t("rev_note_review") + _flag(f))
+        name, ", ".join(f.get("related_characters") or []), name, _v(f.get("one_line")), _v(f.get("scale_territory")), _v(f.get("leader")),
+        _v(f.get("key_members")), _v(f.get("resources_means")), _v(f.get("faction_wants")), _v(f.get("conflicts_with")),
+        _v(f.get("cooperates_with")), _v(f.get("internal_rules")), _v(f.get("attitude_to_protagonist")), _t("rev_note_review") + _flag(f))
 
 
 def render_world(w):
-    name = _clean(w.get("名稱")) or _t("rev_bg_name")
-    cat = _clean(w.get("分類"))
-    cat = cat if cat in WORLD_CATS else "其他"
-    tags = [_clean(t) for t in (w.get("標籤") or []) if _clean(t)] if isinstance(w.get("標籤"), list) else []
-    rules = "\n".join("- " + _clean(r) for r in (w.get("規則") or []) if _clean(r)) or "- " + unknown()
-    cost = "\n".join("- " + _clean(r) for r in (w.get("代價與限制") or []) if _clean(r)) or "- " + unknown()
-    return name, ("---\n類型: 世界觀\n分類: %s\n標籤: [%s]\n名稱: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 規則\n%s\n\n## 代價與限制\n%s\n\n"
+    name = _clean(w.get("name")) or _t("rev_bg_name")
+    cat = _clean(w.get("world_category"))
+    cat = fmkeys.write_value("category", cat if cat in WORLD_CATS else "其他")
+    tags = [_clean(t) for t in (w.get("labels") or []) if _clean(t)] if isinstance(w.get("labels"), list) else []
+    rules = "\n".join("- " + _clean(r) for r in (w.get("rules") or []) if _clean(r)) or "- " + unknown()
+    cost = "\n".join("- " + _clean(r) for r in (w.get("costs_limits") or []) if _clean(r)) or "- " + unknown()
+    return name, ("---\ntype: world\ncategory: %s\ntags: [%s]\nname: %s\nstatus: draft\nsource: 從正文反推\n---\n\n# %s\n\n## 一句話\n%s\n\n## 規則\n%s\n\n## 代價與限制\n%s\n\n"
                   "## 讀者何時知道\n%s\n\n## 與劇情的關係\n%s\n\n## 備註\n%s\n") % (
-        cat, ", ".join(tags), name, name, _v(w.get("一句話")), rules, cost, _t("rev_world_when"), _v(w.get("與劇情的關係")),
+        cat, ", ".join(tags), name, name, _v(w.get("one_line")), rules, cost, _t("rev_world_when"), _v(w.get("plot_relevance")),
         _t("rev_note_review") + _flag(w))
 
 
@@ -508,15 +546,16 @@ def render_core(c, title):
     def lst(x):
         items = [i for i in (x or []) if str(i).strip()] if isinstance(x, list) else [x]
         return "\n".join("%d. %s" % (i + 1, _v(v)) for i, v in enumerate(items)) or "1. " + unknown()
-    return ("---\n類型: 故事核心\n書名: %s\n狀態: 草稿\n來源: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n%s\n\n## 題材與定位\n- 題材：%s\n- 目標讀者：%s\n"
+    return ("---\ntype: story-core\ntitle: %s\nstatus: draft\nsource: 從正文反推\n---\n\n# 故事核心\n\n## 一句話鉤子\n%s\n\n## 題材與定位\n- 題材：%s\n- 目標讀者：%s\n"
             "- 發表平台與更新節奏：%s\n- 預計篇幅：%s\n- 敘事視角：%s\n\n## 賣點（讀者為什麼看）\n%s\n\n## 主角\n- 想要什麼（外在目標）：%s\n"
             "- 真正需要什麼（內在成長）：%s\n- 最大的缺陷或限制：%s\n- 金手指／特殊優勢（有的話）：%s\n\n## 故事引擎\n%s\n\n## 核心衝突\n- 主要對手：%s\n- 衝突根源：%s\n\n"
             "## 讀者契約\n%s\n\n## 終局方向\n%s\n\n## 升級台階\n%s\n") % (
-        _clean(c.get("書名")) or title, _v(c.get("一句話鉤子")), _v(c.get("題材")), _v(c.get("目標讀者")), _t("rev_fill"), _t("rev_fill"),
-        _v(c.get("敘事視角")),
-        lst(c.get("賣點")), _v(c.get("主角想要")), _v(c.get("主角需要")), _v(c.get("主角缺陷")), _v(c.get("金手指")),
-        _v(c.get("故事引擎")), _v(c.get("主要對手")), _v(c.get("衝突根源")),
-        "\n".join("- " + _v(x) for x in (c.get("讀者契約") or [])) or "- " + unknown(), _v(c.get("終局方向")), lst(c.get("升級台階"))) + (
+        _clean(c.get("title")) or title, _v(c.get("hook")), _v(c.get("genre")), _v(c.get("target_readers")), _t("rev_fill"), _t("rev_fill"),
+        _v(c.get("pov")),
+        lst(c.get("selling_points")), _v(c.get("protagonist_wants")), _v(c.get("protagonist_needs")), _v(c.get("protagonist_flaw")),
+        _v(c.get("special_edge")), _v(c.get("story_engine")), _v(c.get("main_opponent")), _v(c.get("conflict_root")),
+        "\n".join("- " + _v(x) for x in (c.get("reader_contract") or [])) or "- " + unknown(), _v(c.get("endgame")),
+        lst(c.get("escalation_steps"))) + (
         "\n## 備註%s\n" % _flag(c) if _flag(c) else "")
 
 
@@ -528,34 +567,34 @@ def _vol_name(i):
 
 
 def render_outline(book, vols, arcs):
-    lines = ["---\n類型: 全書大綱\n狀態: 草稿\n來源: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽",
+    lines = ["---\ntype: book-outline\nstatus: draft\nsource: 從正文反推\n---\n\n# 全書大綱\n\n## 總覽",
              "- 預計卷數與字數：" + _t("rev_vols_written", n=len(vols)),
-             "- 主線一句話：%s" % _v((book.get("全書") or {}).get("主線一句話")),
-             "- 終局：%s" % _v((book.get("全書") or {}).get("終局")), "", "## 分卷"]
+             "- 主線一句話：%s" % _v((book.get("whole_book") or {}).get("main_line")),
+             "- 終局：%s" % _v((book.get("whole_book") or {}).get("ending")), "", "## 分卷"]
     files = []
     for i, v in enumerate(vols):
         vn = _vol_name(i)
-        nm = _clean(v.get("卷名")) or vn
-        a, b = int(v.get("起") or 0), int(v.get("訖") or 0)
-        lines += ["", "### %s：%s" % (vn, nm), "- 篇幅：第%d～%d章" % (a, b), "- 本卷目標：%s" % _v(v.get("本卷目標")),
-                  "- 主要對手：%s" % _v(v.get("主要對手")), "- 卷末變化：%s" % _v(v.get("卷末變化")),
-                  "- 卷末大高潮：%s" % _v(v.get("卷末大高潮")), "- 本卷埋下、留給後面的東西：" + _t("rev_see_fs")]
+        nm = _clean(v.get("volume_name")) or vn
+        a, b = int(v.get("start") or 0), int(v.get("end") or 0)
+        lines += ["", "### %s：%s" % (vn, nm), "- 篇幅：第%d～%d章" % (a, b), "- 本卷目標：%s" % _v(v.get("volume_goal")),
+                  "- 主要對手：%s" % _v(v.get("main_opponent")), "- 卷末變化：%s" % _v(v.get("volume_end_change")),
+                  "- 卷末大高潮：%s" % _v(v.get("volume_climax")), "- 本卷埋下、留給後面的東西：" + _t("rev_see_fs")]
         units = []
         for ar in arcs:
-            for u in ar.get("單元") or []:
-                m = re.findall(r"\d+", str(u.get("起訖") or ""))
+            for u in ar.get("units") or []:
+                m = re.findall(r"\d+", str(u.get("chapter_range") or ""))
                 if m and a <= int(m[0]) <= b:
                     units.append(u)
         ut = "\n\n".join("### 單元%s：%s（%s）\n- 起點局面：%s\n- 衝突：%s\n- 小高潮：%s\n- 結果與代價：%s" % (
-            j + 1, _v(u.get("名稱")), _clean(u.get("起訖")), _v(u.get("起點局面")), _v(u.get("衝突")), _v(u.get("小高潮")),
-            _v(u.get("結果與代價"))) for j, u in enumerate(units)) or unknown()
-        arcs_in = [x for x in arcs if x["起"] <= b and x["訖"] >= a]
-        vt = ("---\n類型: 卷綱\n卷名: %s\n章節範圍: 第%03d章～第%03d章\n狀態: 草稿\n來源: 從正文反推\n---\n\n# 卷綱：%s\n\n## 卷契約\n- 本卷賣點：%s\n"
+            j + 1, _v(u.get("name")), _clean(u.get("chapter_range")), _v(u.get("starting_situation")), _v(u.get("conflict")),
+            _v(u.get("mini_climax")), _v(u.get("outcome_cost"))) for j, u in enumerate(units)) or unknown()
+        arcs_in = [x for x in arcs if x["start"] <= b and x["end"] >= a]
+        vt = ("---\ntype: volume-outline\ntitle: %s\nchapter_range: %s\nstatus: draft\nsource: 從正文反推\n---\n\n# 卷綱：%s\n\n## 卷契約\n- 本卷賣點：%s\n"
               "- 主角本卷目標：%s\n- 本卷對手：%s\n- 卷末兌現：%s\n- 卷末新鉤子：%s\n\n## 本卷摘要\n%s\n\n## 劇情單元\n\n%s\n\n## 人物弧線\n%s\n") % (
-            nm, a, b, nm, unknown(), _v(v.get("本卷目標")), _v(v.get("主要對手")), _v(v.get("卷末大高潮")), _v(v.get("卷末新鉤子")),
-            "\n\n".join(x.get("段落摘要", "") for x in arcs_in) or unknown(), ut,
-            "\n".join("- " + _v(x) for x in (v.get("人物弧線") or [])) or "- " + unknown())
-        files.append(("大綱/卷綱_第%d卷.md" % (i + 1), vt))
+            nm, fmkeys.range_value(a, b), nm, unknown(), _v(v.get("volume_goal")), _v(v.get("main_opponent")), _v(v.get("volume_climax")),
+            _v(v.get("volume_new_hook")), "\n\n".join(x.get("segment_summary", "") for x in arcs_in) or unknown(), ut,
+            "\n".join("- " + _v(x) for x in (v.get("character_arcs") or [])) or "- " + unknown())
+        files.append((layout.volume_file(i + 1), vt))
     if _flag(book):
         lines += ["", "## 備註" + _flag(book)]
     return "\n".join(lines) + "\n", files
@@ -563,46 +602,47 @@ def render_outline(book, vols, arcs):
 
 def _vol_of(vols, no):
     for i, v in enumerate(vols):
-        if int(v.get("起") or 0) <= no <= int(v.get("訖") or 0):
-            return _vol_name(i)
+        if int(v.get("start") or 0) <= no <= int(v.get("end") or 0):
+            return (i + 1) if fmkeys.WRITE_VALUES == "en" else _vol_name(i)      # v3：所屬卷存整數
     return ""
 
 
 def render_card(no, card, vols, chars_by_no):
     title = card.get("title") or ""
     todo = _t("rev_todo")
-    pts = "\n".join("%d. %s" % (i + 1, p) for i, p in enumerate(card.get("情節點") or [])) or "1. " + todo
-    fs = "\n".join("- " + x for x in card.get("伏筆操作") or []) or "- " + _t("rev_none")
-    who = "\n".join("- " + x for x in card.get("出場") or chars_by_no) or "- " + todo
-    return ("---\n類型: 章綱\n章號: %d\n章名: %s\n所屬卷: %s\n所屬單元:\n字數目標:\n狀態: 已寫\n來源: 從正文反推\n---\n\n# 第%d章 %s\n\n## 本章四問\n"
+    pts = "\n".join("%d. %s" % (i + 1, p) for i, p in enumerate(card.get("plot_points") or [])) or "1. " + todo
+    fs = "\n".join("- " + x for x in card.get("foreshadow_ops") or []) or "- " + _t("rev_none")
+    who = "\n".join("- " + x for x in card.get("on_stage") or chars_by_no) or "- " + todo
+    return ("---\ntype: chapter-card\nchapter: %d\ntitle: %s\nvolume: %s\nunit:\ntarget_length:\nstatus: written\nsource: 從正文反推\n---\n\n# 第%d章 %s\n\n## 本章四問\n"
             "1. 主角這章想做什麼：%s\n2. 誰或什麼阻止他：%s\n3. 這章結束後局面變成什麼：%s\n4. 讀者為什麼還要往下看：%s\n\n## 本章功能與目標情緒\n"
             "- 功能：%s\n- 讀者看完的主要感受：%s\n\n## 情節點\n%s\n\n## 出場角色\n%s\n\n## 伏筆操作\n%s\n\n## 禁止事項\n%s\n\n"
             "## 章末鉤子\n- 停在：%s\n\n## 備註\n%s\n") % (
-        no, title, _vol_of(vols, no), no, title, card.get("主角想做什麼") or todo, card.get("阻礙") or todo,
-        card.get("局面變成") or todo, card.get("讀者為什麼往下看") or todo, card.get("功能") or todo,
-        card.get("情緒") or todo, pts, who, fs, _t("rev_card_forbid"), card.get("章末鉤子") or todo,
+        no, title, _vol_of(vols, no), no, title, card.get("protagonist_goal") or todo, card.get("obstacle") or todo,
+        card.get("new_situation") or todo, card.get("why_read_on") or todo, card.get("function") or todo,
+        card.get("emotion") or todo, pts, who, fs, _t("rev_card_forbid"), card.get("ending_hook") or todo,
         _t("rev_note_card") + ("\n- " + _t("lang_flag_note") if card.get("lang_flag") else ""))
 
 
 def render_summary(no, title, chars, s):
-    return ("---\n類型: 章節摘要\n章號: %d\n章名: %s\n字數: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title) +
-            "".join("\n## %s\n%s\n" % (k, s.get(k) or prompts.cur()["info_none"]) for k in ("發生了什麼", "局面變化", "新出現的人事物", "結尾停在")))
+    return ("---\ntype: chapter-summary\nchapter: %d\ntitle: %s\nlength: %d\n---\n\n# 第%d章 %s\n" % (no, title, chars, no, title) +
+            "".join("\n## %s\n%s\n" % (head, s.get(k) or prompts.cur()["info_none"]) for k, head in tracking.SUMMARY_KEYS))
 
 
 def render_tables(acc, last_label, core):
-    fs = "---\n類型: 伏筆\n更新至: %s\n---\n\n# 伏筆總表\n\n" % last_label + tracking._render_table(tracking.FS_HEADERS, acc.get("fs") or []) + "\n"
-    tl = ("---\n類型: 時間線\n更新至: %s\n---\n\n# 時間線\n\n%s\n\n" % (last_label, _t("rev_tl_note")) +
-          tracking._render_table(tracking.TL_HEADERS, acc.get("events") or []) + "\n")
+    fs = ("---\ntype: foreshadowing\nupdated_through: %s\n---\n\n# 伏筆總表\n\n" % fmkeys.ch_value(last_label) +
+          tracking._render_table(tracking.FS_HEADERS, tables.rows_to_headers("foreshadow", acc.get("fs") or [])) + "\n")
+    tl = ("---\ntype: timeline\nupdated_through: %s\n---\n\n# 時間線\n\n%s\n\n" % (fmkeys.ch_value(last_label), _t("rev_tl_note")) +
+          tracking._render_table(tracking.TL_HEADERS, tables.rows_to_headers("timeline", acc.get("events") or [])) + "\n")
     rows = []
     terms = acc.get("terms") or {}
     for k, v in sorted(terms.items(), key=lambda kv: (min(kv[1]["chapters"]), kv[0])):
-        rows.append({"名詞": k, "類別": v["類別"], "說明": v["說明"], "注意": "首次出現：第%03d章" % min(v["chapters"])})
+        rows.append({"term": k, "kind": v["kind"], "explanation": v["explanation"], "note": "首次出現：第%03d章" % min(v["chapters"])})
     for k, c in sorted((acc.get("chars") or {}).items(), key=lambda kv: min(kv[1]["chapters"])):
         if k in core:
             continue
         note = c["notes"][0][1] if c["notes"] else ""
-        rows.append({"名詞": "／".join([k] + c["aliases"]), "類別": "人物", "說明": note[:80],
-                     "注意": "首次出現：第%03d章；出場 %d 章" % (min(c["chapters"]), len(c["chapters"]))})
+        rows.append({"term": "／".join([k] + c["aliases"]), "kind": "人物", "explanation": note[:80],
+                     "note": "首次出現：第%03d章；出場 %d 章" % (min(c["chapters"]), len(c["chapters"]))})
     return fs, tl, rows
 
 
@@ -610,14 +650,14 @@ def render_tables(acc, last_label, core):
 # 主流程
 # ---------------------------------------------------------------------------
 def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768, out_reserve=8192, title=""):
-    """call(label, user_text) → 解析後的 dict（失敗丟例外）；log(text) 寫任務紀錄。"""
+    """call(label, user_text) → 解析後的 dict（英文鍵；失敗丟例外）；log(text) 寫任務紀錄。"""
     chs = chapters(book_dir)
     if not chs:
         raise project.ProjectError("這本書的正文是空的，請先匯入舊稿")
     upto = min(upto or chs[-1]["no"], chs[-1]["no"])
     titles = {c["no"]: c["title"] for c in chs}
     st = _load(_p(book_dir, "state.json"), {})
-    acc = _load(_p(book_dir, "累積.json"), {})
+    acc = load_acc(book_dir)
     done = {int(k) for k in (acc.get("summaries") or {})}
     batches = plan_batches(book_dir, upto, budget, out_reserve, start=(max(done) + 1) if done else 1)
     if batches:
@@ -628,8 +668,8 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
             return None
         data = call("逐章抽取 %d／%d：第%d～%d章" % (i, len(batches), nos[0], nos[-1]), extract_prompt(book_dir, nos, acc))
         apply_batch(acc, data, nos, titles)
-        _save(_p(book_dir, "批次", "第%03d-%03d章.json" % (nos[0], nos[-1])), data)
-        _save(_p(book_dir, "累積.json"), acc)
+        _save(_p(book_dir, layout.REVERSE_BATCHES, layout.chapter_range_json(nos[0], nos[-1])), data)
+        _save(_p(book_dir, layout.REVERSE_CUMULATIVE), acc)
     last = max(int(k) for k in acc["summaries"])
     label = tracking.chapter_label(last)
     st.update({"upto": last, "updated": time.time()})
@@ -641,90 +681,103 @@ def run(book_dir, call, log, upto=None, should_stop=lambda: False, budget=32768,
                 raise StopIteration
             syn[key] = call(label_, prompt)
             _save(_p(book_dir, "state.json"), st)
-        return syn[key]
+        d = syn[key]   # 舊版的快取是中文鍵：一律換成英文鍵
+        return jsonkeys.to_keys(d, values=False) if d else d
 
     try:
         chars_out = []
         for j, (lb, pr) in enumerate(char_prompts(acc)):
-            chars_out += (step("chars_%d" % j, lb, pr) or {}).get("角色") or []
+            chars_out += (step("chars_%d" % j, lb, pr) or {}).get("cast") or []
         wp, _fac = world_prompt(acc)
         world = step("world", "整理背景設定", wp)
         arcs = []
         for j, (lb, a, b, pr) in enumerate(arc_prompts(acc)):
             d = step("arc_%d" % j, lb, pr) or {}
-            arcs.append(dict(d, 起=a, 訖=b))
+            arcs.append(dict(d, start=a, end=b))
         book = step("book", "整理故事核心、全書大綱與卷綱", book_prompt(acc, arcs, title))
         sc = step("state", "整理狀態卡", state_prompt(acc, last))
     except StopIteration:
         return None
 
     # 產生草稿
-    d = _p(book_dir, "草稿")
+    d = _p(book_dir, layout.REVERSE_DRAFTS)
     if os.path.isdir(d):
         shutil.rmtree(d)
     core = []
     for ch in chars_out:
-        if not isinstance(ch, dict) or not _clean(ch.get("名稱")):
+        if not isinstance(ch, dict) or not _clean(ch.get("name")):
             continue
         name, text, stext = render_character(ch, acc, label)
         core.append(name)
-        _write_draft(book_dir, "設定/角色/%s.md" % _fname(name), text)
-        _write_draft(book_dir, "追蹤/角色狀態/%s.md" % _fname(name), stext)
-    for w in (world or {}).get("世界觀") or []:
+        _write_draft(book_dir, layout.entry(layout.CHARACTERS, _fname(name)), text)
+        _write_draft(book_dir, layout.entry(layout.CHARACTER_STATES, _fname(name)), stext)
+    for w in (world or {}).get("world") or []:
         if isinstance(w, dict):
             n, t = render_world(w)
-            _write_draft(book_dir, "設定/世界觀/%s.md" % _fname(n), t)
-    _write_draft(book_dir, "設定/故事核心.md", render_core((book or {}).get("故事核心") or {}, title))
-    vols = [v for v in (book or {}).get("卷") or [] if isinstance(v, dict)]
+            _write_draft(book_dir, layout.entry(layout.WORLD, _fname(n)), t)
+    _write_draft(book_dir, layout.STORY_CORE, render_core((book or {}).get("story_core") or {}, title))
+    vols = [v for v in (book or {}).get("volumes") or [] if isinstance(v, dict)]
     if not vols:
-        vols = [{"卷名": "第一卷", "起": 1, "訖": last}]
+        vols = [{"volume_name": "第一卷", "start": 1, "end": last}]
     outline, vfiles = render_outline(book or {}, vols, arcs)
-    _write_draft(book_dir, "大綱/全書大綱.md", outline)
+    _write_draft(book_dir, layout.BOOK_OUTLINE, outline)
     for rel, t in vfiles:
         _write_draft(book_dir, rel, t)
     chinfo = {c["no"]: c for c in chs}
     for k, card in (acc.get("cards") or {}).items():
         no = int(k)
-        _write_draft(book_dir, "大綱/章綱/第%03d章_%s.md" % (no, _fname(card.get("title"))), render_card(no, card, vols, []))
-        _write_draft(book_dir, "追蹤/章節摘要/%s.md" % tracking.chapter_label(no),
+        _write_draft(book_dir, layout.CHAPTER_CARDS + "/" + layout.chapter_md(no), render_card(no, card, vols, []))
+        _write_draft(book_dir, layout.SUMMARIES + "/" + layout.chapter_md(no),
                      render_summary(no, card.get("title", ""), chinfo.get(no, {}).get("chars", 0), acc["summaries"][k]))
     fs, tl, rows = render_tables(acc, label, set(core))
-    _write_draft(book_dir, "追蹤/伏筆.md", fs)
-    _write_draft(book_dir, "追蹤/時間線.md", tl)
+    _write_draft(book_dir, layout.FORESHADOWING, fs)
+    _write_draft(book_dir, layout.TIMELINE, tl)
     # 名詞：細分類、主題檔、重要條目獨立、勢力合併，名詞表留作索引
     from . import glossary_org
     try:
         org = glossary_org.organize(book_dir, rows, call, lambda rel, t: _write_draft(book_dir, rel, t), log=log, step=step)
     except StopIteration:
         return None
-    tracking.write_reader_table(_p(book_dir, "草稿", "追蹤", "讀者認知.md"), acc.get("reader") or [], label, keep_ids=True)
-    stc = "---\n類型: 狀態卡\n更新至: %s\n---\n\n# 狀態卡\n" % label
-    for i, k in enumerate(tracking.STATE_SECTIONS, 1):
+    tracking.write_reader_table(_p(book_dir, layout.REVERSE_DRAFTS, *layout.parts(layout.READER_KNOWLEDGE)), acc.get("reader") or [], label, keep_ids=True)
+    stc = "---\ntype: state-card\nupdated_through: %s\n---\n\n# 狀態卡\n" % fmkeys.ch_value(label)
+    for i, (k, head) in enumerate(tracking.STATE_KEYS, 1):
         items = (sc or {}).get(k) or []
         items = items if isinstance(items, list) else [items]
-        stc += "\n## %d. %s\n%s\n" % (i, k, "\n".join("- " + _clean(x) for x in items if _clean(x)) or "- " + unknown())
-    _write_draft(book_dir, "追蹤/狀態卡.md", stc)
+        stc += "\n## %d. %s\n%s\n" % (i, head, "\n".join("- " + _clean(x) for x in items if _clean(x)) or "- " + unknown())
+    _write_draft(book_dir, layout.STATE_CARD, stc)
     st["done"] = time.time()
     _save(_p(book_dir, "state.json"), st)
     g = draft_groups(book_dir)
     return ("**從正文建立設定完成**（第1～%d章）\n\n草稿：設定 %d 份、大綱 %d 份、章綱 %d 份、追蹤 %d 份。\n"
             "人物 %d 位（建角色檔 %d 位，其餘列進名詞表）、名詞 %d 個、伏筆 %d 條、時間線 %d 條、讀者認知 %d 條。\n%s\n\n"
             "請到這一頁（設定集右上角「從正文建立設定」）逐組核對後按「採用」。推不出來的欄位標成「（正文未明確）」或「待補」。" % (
-                last, len(g["設定"]), len(g["大綱"]), len(g["章綱"]), len(g["追蹤"]), len(acc.get("chars") or {}), len(core),
+                last, len(g["bible"]), len(g["outline"]), len(g["cards"]), len(g["tracking"]), len(acc.get("chars") or {}), len(core),
                 len(acc.get("terms") or {}), len(acc.get("fs") or []), len(acc.get("events") or []), len(acc.get("reader") or []), org))
 
 
 # ---------------------------------------------------------------------------
 # 草稿採用
 # ---------------------------------------------------------------------------
+_FOLDER_GROUP = {folder: g for g, folder in ids.REVERSE_GROUP_FOLDER.items()}
+
+
 def _group_of(rel):
-    if rel.startswith("大綱/章綱/"):
-        return "章綱"
-    return rel.split("/", 1)[0] if rel.split("/", 1)[0] in GROUPS else None
+    """草稿的相對路徑 → 分組 ID（章綱另成一組；其他看第一層資料夾）。"""
+    if rel.startswith(layout.CHAPTER_CARDS + "/"):
+        return "cards"
+    return _FOLDER_GROUP.get(rel.split("/", 1)[0])
+
+
+def _group(group):
+    """API 傳進來的分組：新 ID、舊的中文 ID 都接受；認不得就報錯。"""
+    g = ids.norm("reverse_group", group)
+    if g not in GROUPS:
+        raise project.ProjectError("不認得的分組：%s" % group)
+    return g
 
 
 def draft_groups(book_dir):
-    root = _p(book_dir, "草稿")
+    root = _p(book_dir, layout.REVERSE_DRAFTS)
     out = {g: [] for g in GROUPS}
     if not os.path.isdir(root):
         return out
@@ -734,19 +787,19 @@ def draft_groups(book_dir):
                 rel = os.path.relpath(os.path.join(dp, f), root).replace("\\", "/")
                 g = _group_of(rel)
                 if g:
-                    out[g].append({"rel": rel, "draft": (DIR + "/草稿/" + rel).replace("\\", "/"),
+                    out[g].append({"rel": rel, "draft": (DIR + "/" + layout.REVERSE_DRAFTS + "/" + rel).replace("\\", "/"),
                                    "exists": os.path.isfile(os.path.join(book_dir, *rel.split("/")))})
     for g in out:
         out[g].sort(key=lambda x: x["rel"])
     return out
 
 
-DEFAULT_MODE = {"設定": "merge", "大綱": "keep", "章綱": "copy", "追蹤": "keep"}
-ALLOWED_MODES = {"設定": ("merge", "replace", "keep"), "大綱": ("merge", "replace", "keep"),
-                 "章綱": ("copy",), "追蹤": ("replace", "keep")}
+DEFAULT_MODE = {"bible": "merge", "outline": "keep", "cards": "copy", "tracking": "keep"}
+ALLOWED_MODES = {"bible": ("merge", "replace", "keep"), "outline": ("merge", "replace", "keep"),
+                 "cards": ("copy",), "tracking": ("replace", "keep")}
 # 表格類設定檔：沒有「## 段落」，merge_entry 併不進任何一列（整份反推內容會被丟掉），
 # 所以當機器快照處理——預設／被要求 merge 時一律整份取代，一樣先備份；「保留現有」照舊可用。
-SNAPSHOT_RELS = ("設定/名詞表.md",)
+SNAPSHOT_RELS = (layout.GLOSSARY,)
 
 
 def _mode_for(group, rel, mode=None):
@@ -755,31 +808,27 @@ def _mode_for(group, rel, mode=None):
     if _canon_rel(group, rel) in SNAPSHOT_RELS:
         m = "keep" if m == "keep" else "replace"
     if m not in ALLOWED_MODES[group]:
-        raise project.ProjectError("「%s」不支援「%s」模式" % (group, m))
+        raise project.ProjectError("「%s」不支援「%s」模式" % (GROUP_LABEL.get(group, group), m))
     return m
-CHAPTER_DRAFT_DIR = "大綱/章綱/反推"
+CHAPTER_DRAFT_DIR = layout.REVERSE_CARDS
 
 
 def _canon_rel(group, rel):
-    """草稿要落到哪個正式路徑：卷綱一律「卷綱_第N卷.md」，章綱一律落 大綱/章綱/反推/。"""
-    if group == "章綱":
+    """草稿要落到哪個正式路徑：章綱一律落 outline/chapters/_reverse/；卷綱草稿本來就用正式檔名（vol-01.md）。"""
+    if group == "cards":
         return "%s/%s" % (CHAPTER_DRAFT_DIR, os.path.basename(rel))
-    if group == "大綱" and rel.startswith("大綱/卷綱_第"):
-        no = project._vol_order(os.path.basename(rel))
-        if no != 99:
-            return "大綱/卷綱_第%d卷.md" % no
     return rel
 
 
 def _existing_rel(book_dir, group, rel):
     """這份草稿和哪個正式檔比對。章綱看章號對應的正式章綱，其餘看落點本身。"""
-    if group != "章綱":
+    if group != "cards":
         return _canon_rel(group, rel)
     no = project.chapter_no(os.path.basename(rel))
     if no is None:
         return None
-    f = project._scan_dir(os.path.join(book_dir, "大綱", "章綱")).get(no)
-    return "大綱/章綱/" + f if f else None
+    f = project._scan_dir(layout.path(book_dir, layout.CHAPTER_CARDS)).get(no)
+    return layout.CHAPTER_CARDS + "/" + f if f else None
 
 
 def _read_rel(book_dir, rel):
@@ -790,7 +839,7 @@ def _read_rel(book_dir, rel):
 
 
 def chapter_cards(book_dir):
-    """已採用的反推章綱（大綱/章綱/反推/），給大綱頁的唯讀對照清單。"""
+    """已採用的反推章綱（outline/chapters/_reverse/），給大綱頁的唯讀對照清單。"""
     root = os.path.join(book_dir, *CHAPTER_DRAFT_DIR.split("/"))
     out = []
     if os.path.isdir(root):
@@ -798,20 +847,20 @@ def chapter_cards(book_dir):
             if not f.endswith(".md"):
                 continue
             no = project.chapter_no(f)
+            fm = project.split_frontmatter(project.read_text(os.path.join(root, f)))[0]
             out.append({"rel": "%s/%s" % (CHAPTER_DRAFT_DIR, f), "no": no or 0,
-                        "name": project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
+                        "name": str(fm.get("title") or "") or project.chapter_title_from_filename(f) or os.path.splitext(f)[0]})
     out.sort(key=lambda x: (x["no"] or 10 ** 9, x["rel"]))
     return out
 
 
 def plan_group(book_dir, group):
     """每份草稿的採用決策資料（給前端畫新舊對照；相似度只在後端算）。"""
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     out = []
     for it in draft_groups(book_dir)[group]:
         rel = it["rel"]
-        new = project.read_text(_p(book_dir, "草稿", *rel.split("/")))
+        new = project.read_text(_p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/")))
         old_rel = _existing_rel(book_dir, group, rel)
         old = _read_rel(book_dir, old_rel)
         out.append({
@@ -830,12 +879,11 @@ def plan_group(book_dir, group):
 
 def diff_group(book_dir, group, rel):
     """一份草稿和它會動到的正式檔的逐段差異（給對照視窗）。"""
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     if not any(x["rel"] == rel for x in draft_groups(book_dir)[group]):
-        raise project.ProjectError("「%s」沒有這份草稿：%s" % (group, rel))
+        raise project.ProjectError("「%s」沒有這份草稿：%s" % (GROUP_LABEL.get(group, group), rel))
     old_rel = _existing_rel(book_dir, group, rel)
-    new = project.read_text(_p(book_dir, "草稿", *rel.split("/")))
+    new = project.read_text(_p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/")))
     old = _read_rel(book_dir, old_rel)
     from . import revision
     return {"group": group, "rel": rel, "target": _canon_rel(group, rel), "old_rel": old_rel or "",
@@ -847,15 +895,14 @@ def adopt(book_dir, group, mode=None, files=None):
     """採用這組草稿。
 
     mode：keep（保留現有，什麼都不動）／replace（先備份再整份取代）／merge（先備份再併入，
-    只補空白與缺的段落）／copy（章綱專用：寫進 大綱/章綱/反推/，正式章綱不動）。
+    只補空白與缺的段落）／copy（章綱專用：寫進 outline/chapters/_reverse/，正式章綱不動）。
     mode 省略時用各組預設（設定 merge、大綱／追蹤 keep、章綱 copy）。
     例外：名詞表是表格、沒有「## 段落」，merge 併不進去，一律當快照整份取代（除非選 keep）。
     files：只處理這幾個相對路徑（None＝全部）。舊呼叫 adopt(book_dir, group) 仍可用。
 
     回傳 adopted（實際寫入份數）、merged、kept、backed_up、conflicts、backups（備份檔名）、targets。
     """
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     items = draft_groups(book_dir)[group]
     if not items:
         raise project.ProjectError("「%s」沒有草稿" % group)
@@ -876,7 +923,7 @@ def adopt(book_dir, group, mode=None, files=None):
     for it in items:
         rel = it["rel"]
         m = _mode_for(group, rel, mode)
-        src = _p(book_dir, "草稿", *rel.split("/"))
+        src = _p(book_dir, layout.REVERSE_DRAFTS, *rel.split("/"))
         dst_rel = _canon_rel(group, rel)
         dst = os.path.join(book_dir, *dst_rel.split("/"))
         targets.append({"rel": rel, "mode": m, "dst": dst_rel})
@@ -906,8 +953,7 @@ def adopt(book_dir, group, mode=None, files=None):
 
 
 def discard(book_dir, group):
-    if group not in GROUPS:
-        raise project.ProjectError("不認得的分組：%s" % group)
+    group = _group(group)
     for it in draft_groups(book_dir)[group]:
-        os.remove(_p(book_dir, "草稿", *it["rel"].split("/")))
+        os.remove(_p(book_dir, layout.REVERSE_DRAFTS, *it["rel"].split("/")))
     return {"ok": True}

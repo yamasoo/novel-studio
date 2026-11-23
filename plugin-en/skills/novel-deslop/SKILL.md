@@ -18,7 +18,7 @@ Fix in this order: plot logic and characters → transitions, dialogue, chapter 
 
 ## Before you start
 
-1. In a novel project, read `設定/文風.md` (especially its list of allowed exceptions) and `設定/作者偏好.md`, plus the library-level `_共用/作者偏好.md` if it exists. Anything the author explicitly allows is not a problem. The checker flags the author's banned words automatically.
+1. In a novel project, read `bible/style.md` (especially its list of allowed exceptions) and `bible/author-prefs.md`, plus the library-level `_shared/author-prefs.md` if it exists. Anything the author explicitly allows is not a problem. The checker flags the author's banned words automatically.
 2. Read [references/ai-signals.md](references/ai-signals.md).
 3. When you need rewrite models, read [references/rewrite-examples.md](references/rewrite-examples.md).
 
@@ -27,10 +27,10 @@ Fix in this order: plot logic and characters → transitions, dialogue, chapter 
 `scripts/check_text.py` checks quote and dash consistency, engineering words, AI-tell density, chapter-ending reflections and rhythm, and counts words. Standard library only.
 
 ```bash
-python3 {this skill's directory}/scripts/check_text.py 正文/第001章_章名.md          # one chapter
-python3 {this skill's directory}/scripts/check_text.py 正文/                        # the whole folder
-python3 {this skill's directory}/scripts/check_text.py 正文/第001章_章名.md --fix-punct   # normalize punctuation
-python3 {this skill's directory}/scripts/check_text.py 正文/第001章_章名.md --count       # word count only
+python3 {this skill's directory}/scripts/check_text.py manuscript/ch-0001.md          # one chapter
+python3 {this skill's directory}/scripts/check_text.py manuscript/                        # the whole folder
+python3 {this skill's directory}/scripts/check_text.py manuscript/ch-0001.md --fix-punct   # normalize punctuation
+python3 {this skill's directory}/scripts/check_text.py manuscript/ch-0001.md --count       # word count only
 ```
 
 On Windows use `python` or `py -3` if `python3` is unavailable.
@@ -47,7 +47,7 @@ Findings come in three levels (the level names are fixed tokens):
 Phrases the author uses on purpose that the script would flag (a character's catchphrase, say) go in `.去AI味白名單` in the book folder: one fragment per line, with a `#` line above it noting source and purpose.
 
 ```
-# source: style note, allowed exception; purpose: protagonist's catchphrase
+# source: bible/style.md, allowed exceptions; purpose: protagonist's catchphrase
 you know what I mean
 ```
 
@@ -68,7 +68,7 @@ Only list fragments the author agreed to. Do not add a whitelist entry just beca
    3. **Return it to the character**: comparisons, word choice and rhythm that this point-of-view character would actually have.
 4. **Don't change the facts.** No new plot, no changed attitudes, no change in how much is revealed. A rewrite changes how it is said, not what happens.
 5. **Run the script again** and confirm no 必須修 remain.
-6. **Report to the author** with a table, one row per change: `| 原句 | 為什麼改 | 改成什麼 |` (keep these three header cells exactly). Put the original sentence in "原句" (first 30 words if long), the category in "為什麼改" (canned reaction, telling the reader what to feel, stock simile…), and write "(deleted)" if cut. At most 40 rows; merge many of one kind into "N other cases of the same". After the table add a line or two on what you deliberately kept and why. When running inside the workbench, write the revised full text to the designated temp file and leave the original untouched; the author compares and applies it.
+6. **Report to the author** with a table, one row per change: `| Original sentence | Why changed | Changed to |` (keep these three header cells exactly). Put the original sentence in "Original sentence" (first 30 words if long), the category in "Why changed" (canned reaction, telling the reader what to feel, stock simile…), and write "(deleted)" if cut. At most 40 rows; merge many of one kind into "N other cases of the same". After the table add a line or two on what you deliberately kept and why. When running inside the workbench, write the revised full text to the designated temp file and leave the original untouched; the author compares and applies it.
 
 ## Scope
 

@@ -1,0 +1,25 @@
+{
+ "schema_version": 3,
+ "table": "glossary",
+ "columns": [
+  {"key": "term", "label": "用語"},
+  {"key": "kind", "label": "分類"},
+  {"key": "explanation", "label": "説明"},
+  {"key": "note", "label": "注意"}
+ ],
+ "items": [
+  {"term": "エルマ・フェイン", "kind": "人名", "explanation": "元・王都薬師院の見習い。主人公", "note": "ルゥは「おぬし」と呼ぶ"},
+  {"term": "ルゥ", "kind": "人名", "explanation": "傷ついた小さな竜", "note": "「まことの名」は長いので使わない"},
+  {"term": "ガルド・ベルク", "kind": "人名", "explanation": "王都薬師院の院長", "note": "「院長」と呼ぶ"},
+  {"term": "トーマス", "kind": "人名", "explanation": "薬師院の同僚", "note": ""},
+  {"term": "ミロ", "kind": "人名", "explanation": "灰谷村の少年", "note": ""},
+  {"term": "灰谷村", "kind": "地名", "explanation": "辺境の小さな村", "note": "読みは「はいたにむら」"},
+  {"term": "王都薬師院", "kind": "勢力", "explanation": "王国の薬の管理機関", "note": "紋は天秤と蛇"},
+  {"term": "竜約", "kind": "用語", "explanation": "竜と人の約束", "note": "読みは「りゅうやく」"},
+  {"term": "月涙草", "kind": "物品", "explanation": "月光の下でだけ咲く薬草", "note": "読みは「げつるいそう」"},
+  {"term": "霧根", "kind": "物品", "explanation": "北の崖に生える根", "note": "読みは「きりね」"},
+  {"term": "暁花", "kind": "物品", "explanation": "夜明けの丘に咲く花", "note": "読みは「あかつきばな」"}
+ ],
+ "md_sha": "773ce2949436f113",
+ "items_sha": "26c0545ccd40cd7c"
+}

@@ -32,13 +32,13 @@
     const sm = r ? r.summary : null;
     const badges = r
       ? [
-        h("span", { class: "badge b-ok" }, "已寫到 " + sm.completed),
-        sm.unmet ? h("span", { class: "badge b-bad" }, "沒寫到 " + sm.unmet) : null,
-        sm.unverified ? h("span", { class: "badge b-warn" }, "引文對不上 " + sm.unverified) : null,
-        sm.unknown ? h("span", { class: "badge" }, "無法判斷 " + sm.unknown) : null,
+        h("span", { class: "badge b-ok" }, `已寫到 ${sm.completed}`),
+        sm.unmet ? h("span", { class: "badge b-bad" }, `沒寫到 ${sm.unmet}`) : null,
+        sm.unverified ? h("span", { class: "badge b-warn" }, `引文對不上 ${sm.unverified}`) : null,
+        sm.unknown ? h("span", { class: "badge" }, `無法判斷 ${sm.unknown}`) : null,
         h("span", { class: "muted small" }, fmtTime(r.checked_at) + (r.stale ? "　稿子之後改過，結果可能過時" : "")),
       ]
-      : h("span", { class: "muted small" }, "這份稿子還沒核對（" + d.goals.length + " 項）");
+      : h("span", { class: "muted small" }, `這份稿子還沒核對（${d.goals.length} 項）`);
 
     const checkBtn = h("button", {
       class: "sm",
@@ -105,7 +105,7 @@
             ? h("div", { class: "quote" + (x.located ? "" : " bad"), title: x.located ? "已在正文中找到" : "正文裡找不到這句" },
               (x.located ? "" : "✗ ") + "「" + x.quote + "」")
             : null,
-          x.suggestion ? h("div", { class: "small", style: "color:var(--ink-2)" }, "修法：" + x.suggestion) : null)))
+          x.suggestion ? h("div", { class: "small", style: "color:var(--ink-2)" }, `修法：${x.suggestion}`) : null)))
       : h("div", { class: "muted" }, "沒有發現問題。");
 
     const extra = h("textarea", { id: "rv-extra", rows: "2", placeholder: "例如：第二場對話太長，砍一半" });
@@ -153,14 +153,14 @@
       const card = h("div", { class: "card", style: "margin-bottom:14px" });
       const head = h("div", { class: "row" },
         h("b", {}, ds ? "去 AI 味對照" : "修訂對照"),
-        h("span", { class: "badge" }, rv.changes + " 處變更"),
-        (ds && (rv.items || []).length) ? h("span", { class: "badge" }, "逐處清單 " + rv.items.length + " 條") : null,
-        h("span", { class: "muted small" }, "原稿：" + rv.base_path + "　·　" + fmtTime(rv.created)),
+        h("span", { class: "badge" }, `${rv.changes} 處變更`),
+        (ds && (rv.items || []).length) ? h("span", { class: "badge" }, `逐處清單 ${rv.items.length} 條`) : null,
+        h("span", { class: "muted small" }, `原稿：${rv.base_path}　·　${fmtTime(rv.created)}`),
         h("span", { class: "grow" }),
         h("button", { class: "sm", id: "rv-all-new" }, "全部採用修訂"),
         h("button", { class: "sm", id: "rv-all-old" }, "全部保留原文"));
       const reportText = ds ? (rv.report || "")
-        : "**意見**" + newline + newline + (rv.notes || "") + newline + newline + "**說明**" + newline + newline + (rv.report || "");
+        : `**意見**${newline}${newline}${rv.notes || ""}${newline}${newline}**說明**${newline}${newline}${rv.report || ""}`;
       const reportMd = FE.md.render(reportText);
       reportMd.classList.add("small");
       reportMd.setAttribute("lang", bookLang());
@@ -176,7 +176,7 @@
           reportMd),
         (ds && (rv.unmatched || []).length)
           ? h("div", { class: "muted small", style: "margin-top:6px" },
-            "清單裡有 " + rv.unmatched.length + " 條對不到段落（AI 抄的原句和原稿不完全一樣），只列在上面的清單裡。")
+            `清單裡有 ${rv.unmatched.length} 條對不到段落（AI 抄的原句和原稿不完全一樣），只列在上面的清單裡。`)
           : null);
 
       const blocks = h("div", { class: "rv-blocks" }, rv.blocks.map((b) => {
@@ -184,7 +184,7 @@
           const ps = b.old.map((x) => para(x));
           return b.old.length > 2
             ? h("details", { class: "rv-same" },
-              h("summary", { class: "muted small" }, b.old.length + " 段沒有變更（展開）"), ps)
+              h("summary", { class: "muted small" }, `${b.old.length} 段沒有變更（展開）`), ps)
             : h("div", { class: "rv-same" }, ps);
         }
         const k = String(b.index);
@@ -203,13 +203,13 @@
       }));
 
       const noteText = ds
-        ? "套用後寫回 " + rv.base_path + "（原檔先備份" + (rv.base_path.startsWith("正文") ? "；去 AI 味不改劇情，不用重跑回寫追蹤" : "") + "），並跑一次保真檢查。"
-        : "套用後會存成候選稿" + (rv.base_path.startsWith("正文") ? "（原本的正文不動，採用候選稿時才覆蓋並回寫追蹤）" : "") + "。";
-      const discardBtn = h("button", { class: "sm danger", id: "rv-discard" }, "捨棄這份" + (ds ? "去 AI 味結果" : "修訂"));
+        ? `套用後寫回 ${rv.base_path}（原檔先備份${rv.base_path.startsWith(LAYOUT.MANUSCRIPT) ? "；去 AI 味不改劇情，不用重跑回寫追蹤" : ""}），並跑一次保真檢查。`
+        : `套用後會存成候選稿${rv.base_path.startsWith(LAYOUT.MANUSCRIPT) ? "（原本的正文不動，採用候選稿時才覆蓋並回寫追蹤）" : ""}。`;
+      const discardBtn = h("button", { class: "sm danger", id: "rv-discard" }, `捨棄這份${ds ? "去 AI 味結果" : "修訂"}`);
       const applyBtn = h("button", { class: "primary", id: "rv-apply", disabled: !!rv.stale }, ds ? "套用" : "套用到候選稿");
 
       const foot = h("div", { class: "card row", style: "margin-top:14px;position:sticky;bottom:10px" },
-        h("span", { class: "muted small" }, "點左右兩邊選擇要的版本。" + noteText),
+        h("span", { class: "muted small" }, `點左右兩邊選擇要的版本。${noteText}`),
         h("span", { class: "grow" }),
         discardBtn,
         applyBtn);
@@ -228,7 +228,7 @@
         draw();
       };
       discardBtn.onclick = async () => {
-        if (!(await FE.confirm("捨棄這份修訂？（會移到 .studio/備份）"))) return;
+        if (!(await FE.confirm("捨棄這份修訂？（會移到 .studio/backup）"))) return;
         try {
           await FE.api(B("/revision/" + no + "/discard"), { method: "POST", signal });
           FE.go("#/b/" + enc(S.book) + "/ch/" + no);
@@ -237,7 +237,7 @@
       applyBtn.onclick = async () => {
         try {
           const r = await FE.api(B("/revision/" + no + "/apply"), { method: "POST", body: { choices: choice }, signal });
-          FE.toast("已套用：採用修訂 " + r.used_new + " 處、保留原文 " + r.kept_old + " 處");
+          FE.toast(`已套用：採用修訂 ${r.used_new} 處、保留原文 ${r.kept_old} 處`);
           FE.go("#/b/" + enc(S.book) + "/ch/" + no + "?tab=" + (r.kind === "deslop" && r.from_text ? "text" : "candidate"));
           if (r.kind === "deslop" && r.fidelity) {
             setTimeout(() => {
@@ -285,8 +285,8 @@
 
     // ── 頁首 ──
     const headRow = h("div", { class: "row" },
-      prev ? h("button", { class: "ghost", onclick: () => FE.go("#/b/" + enc(S.book) + "/ch/" + prev.no) }, "← 第" + prev.no + "章") : null,
-      next ? h("button", { class: "ghost", onclick: () => FE.go("#/b/" + enc(S.book) + "/ch/" + next.no) }, "第" + next.no + "章 →") : null);
+      prev ? h("button", { class: "ghost", onclick: () => FE.go("#/b/" + enc(S.book) + "/ch/" + prev.no) }, `← 第${prev.no}章`) : null,
+      next ? h("button", { class: "ghost", onclick: () => FE.go("#/b/" + enc(S.book) + "/ch/" + next.no) }, `第${next.no}章 →`) : null);
 
     // ── 動作列 ──
     const actions = h("div", { class: "row", style: "margin-bottom:12px" },
@@ -297,7 +297,7 @@
         ? h("button", { onclick: () => Panel.openForm("chapter_cards", { from: no, to: no }) }, "補這一章的章綱")
         : null,
       (!c.text_file || c.candidate_file)
-        ? h("button", { onclick: () => pipeModal(no) }, "⚡ 整章自動" + (c.candidate_file ? "（從核對開始）" : ""))
+        ? h("button", { onclick: () => pipeModal(no) }, `⚡ 整章自動${c.candidate_file ? "（從核對開始）" : ""}`)
         : null,
       c.text_file
         ? [
@@ -332,7 +332,7 @@
 
     const recAlerts = myRecs.map((r) => h("div", { class: "alert warn", style: "margin-bottom:10px" },
       h("span", { class: "k" }, "恢復稿"),
-      h("span", { class: "t" }, r.label + "中斷（" + r.reason + "），保留了 " + fmtNum(r.chars) + " 字。"),
+      h("span", { class: "t" }, `${r.label}中斷（${r.reason}），保留了 ${fmtNum(r.chars)} 字。`),
       h("button", { class: "sm primary", onclick: () => Panel.run("recover_continue", { id: r.id }) }, "接著寫完"),
       h("button", { class: "sm", onclick: () => recoverTo(r.id) }, "直接存成候選稿"),
       h("button", { class: "sm", onclick: () => recoverView(r.id) }, "查看"),
@@ -341,7 +341,7 @@
     const rvAlert = (rv && tab !== "revision")
       ? h("div", { class: "alert info", style: "margin-bottom:10px" },
         h("span", { class: "k" }, "待確認修訂"),
-        h("span", { class: "t" }, "有一份修訂（" + rv.changes + " 處變更）等你逐段確認。"),
+        h("span", { class: "t" }, `有一份修訂（${rv.changes} 處變更）等你逐段確認。`),
         h("button", { class: "sm", onclick: () => FE.go(base + "?tab=revision") }, "開啟"))
       : null;
 
@@ -355,8 +355,8 @@
       h("div", { class: "page-head" },
         h("div", {},
           h("div", { class: "muted small" },
-            h("a", { href: "#/b/" + enc(S.book) + "/chapters" }, "章節"), " ／ 第" + no + "章"),
-          h("h1", {}, "第" + no + "章　" + (c.title || ""))),
+            h("a", { href: "#/b/" + enc(S.book) + "/chapters" }, "章節"), ` ／ 第${no}章`),
+          h("h1", {}, `第${no}章　${c.title || ""}`)),
         headRow),
       actions,
       tabsNode,
@@ -399,7 +399,7 @@
 
     if (tab === "candidate" && acceptBtn) {
       acceptBtn.onclick = async () => {
-        if (!(await FE.confirm("採用第" + no + "章？候選稿會移到正文，並請 " + Panel.provName() + " 回寫追蹤資料。"))) return;
+        if (!(await FE.confirm(`採用第${no}章？候選稿會移到正文，並請 ${Panel.provName()} 回寫追蹤資料。`))) return;
         try {
           const r = await FE.api(B("/candidate/" + no + "/accept?provider=" + enc(stepProv("accept"))), { method: "POST", signal });
           Panel.attach(r.job);
@@ -409,7 +409,7 @@
       rejectBtn.onclick = () => {
         const noteArea = h("textarea", { id: "rj-note", rows: "5", placeholder: "例如：林晚太早亮出底牌了，改成先讓掌櫃說漏嘴" });
         FE.modal({
-          title: "退回第" + no + "章候選稿",
+          title: `退回第${no}章候選稿`,
           body: [h("label", { class: "f" }, h("span", {}, "要怎麼改？寫得越具體越好"), noteArea)],
           foot: (done) => [
             h("button", { class: "btn", type: "button", onclick: () => done(false) }, "取消"),
@@ -429,7 +429,7 @@
         });
       };
       discardBtn.onclick = async () => {
-        if (!(await FE.confirm("捨棄這份候選稿？（會移到 .studio/備份，不會永久刪除）"))) return;
+        if (!(await FE.confirm("捨棄這份候選稿？（會移到 .studio/backup，不會永久刪除）"))) return;
         try {
           await FE.api(B("/candidate/" + no + "/discard"), { method: "POST", signal });
           FE.toast("已捨棄");

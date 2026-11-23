@@ -7,10 +7,11 @@ description: Create an English-language novel project: the new-book interview, f
 
 Your job is to help the author build a novel project that can be written for the long haul. The whole novel-* skill set depends on the folder structure and CLAUDE.md created here.
 
-The folder names, file names, frontmatter keys and table headers of the project stay in Chinese exactly as the spec gives them (設定/, 大綱/, 追蹤/, 正文/ …) because the novel studio program reads them. The book itself and every note you write inside the files are in English.
+The folder names, file names, frontmatter keys and table headers of the project stay in Chinese exactly as the spec gives them (bible/, outline/, tracking/, manuscript/ …) because the novel studio program reads them. The book itself and every note you write inside the files are in English.
 
 ## Before you start
 
+0. If the project is still in the old format (Chinese folders such as `設定/` or `正文/`, or a `book.json` whose `schema_version` is below 3), ask the author to press "Convert" for this book on the Novel Studio shelf first, then stop; do not move or rename files yourself.
 1. Read [references/project-layout.md](references/project-layout.md) in full; it is the only specification of folder structure and file formats.
 2. Look at the current folder:
    - **Already has a CLAUDE.md and looks like a novel project** → do not rebuild. Go to "Check an existing project" below.
@@ -27,19 +28,19 @@ Follow [references/interview.md](references/interview.md), one round at a time; 
 
 Create the folders per project-layout.md. Then:
 
-- Copy everything in this skill's `templates/` to the project's `_範本/`, and copy `references/project-layout.md` to `_範本/專案規範.md`. Other skills fetch templates and the spec from `_範本/`.
+- Copy everything in this skill's `templates/` to the project's `_templates/`, and copy `references/project-layout.md` to `_templates/project-rules.md`. Other skills fetch templates and the spec from `_templates/`.
 - Create these blank files from the templates (fill in the frontmatter, keep the template comments as content):
-  - `設定/故事核心.md`, `設定/文風.md`, `設定/作者偏好.md`, `設定/名詞表.md`
-  - `大綱/全書大綱.md`
-  - `追蹤/狀態卡.md`, `追蹤/伏筆.md`, `追蹤/時間線.md`
-- Create empty folders: `設定/世界觀/`, `設定/角色/`, `設定/勢力/`, `設定/草稿/`, `大綱/章綱/`, `正文/`, `候選/`, `追蹤/角色狀態/`, `追蹤/章節摘要/`, `範例/`. Put a `.gitkeep` in each empty folder.
-- Put `語言: en` in the frontmatter of `設定/故事核心.md` (this tells the studio the book is written in English).
+  - `bible/story-core.md`, `bible/style.md`, `bible/author-prefs.md`, `bible/glossary.md`
+  - `outline/book.md`
+  - `tracking/state-card.md`, `tracking/foreshadowing.md`, `tracking/timeline.md`
+- Create empty folders: `bible/world/`, `bible/characters/`, `bible/factions/`, `bible/drafts/`, `outline/chapters/`, `manuscript/`, `candidates/`, `tracking/characters/`, `tracking/summaries/`, `samples/`. Put a `.gitkeep` in each empty folder.
+- Create `book.json` in the project root (the book's ID card; the studio reads the language and format version from it): `{"schema_version": 3, "title": "Book title", "lang": "en", "created": "YYYY-MM-DD"}`.
 
 ### Step 3: fill in the interview results
 
 - Produce `CLAUDE.md` from [references/claude-md-template.md](references/claude-md-template.md).
-- Fill what is known into `設定/故事核心.md` and `設定/文風.md`. Leave the template comment in fields you do not know; do not invent.
-- Prohibitions or long-term requirements the author mentions go into the "special rules" section of `CLAUDE.md` or into `設定/作者偏好.md`.
+- Fill what is known into `bible/story-core.md` and `bible/style.md`. Leave the template comment in fields you do not know; do not invent.
+- Prohibitions or long-term requirements the author mentions go into the "special rules" section of `CLAUDE.md` or into `bible/author-prefs.md`.
 
 ### Step 4: version control (recommended)
 
@@ -58,7 +59,7 @@ Do not start the outline or chapter text on your own during setup.
 
 ## Check an existing project
 
-1. Check against project-layout.md item by item: which folders are missing, which core files are still blank templates, whether `_範本/` exists and is complete (when templates have been updated, add the new templates to `_範本/` without touching files the author has written).
+1. Check against project-layout.md item by item: which folders are missing, which core files are still blank templates, whether `_templates/` exists and is complete (when templates have been updated, add the new templates to `_templates/` without touching files the author has written).
 2. List the result in plain words, e.g. "The structure is complete. Story core and style are filled in; no characters yet; volume one has no volume outline."
 3. For missing files, add only blank templates and never overwrite existing content. Tell the author what you will add first.
 
@@ -70,7 +71,7 @@ When the author pastes a sample, says "analyse my style", "change the style to �
 
 When the author says "from now on …", "remember …", "I usually …" (a **long-term request with a clear scope**):
 
-1. Decide the scope: this book only → write to this book's `設定/作者偏好.md`; the author says all their works → write it here too and suggest also adding it to their personal-level CLAUDE.md (`~/.claude/CLAUDE.md`) so other projects apply it.
+1. Decide the scope: this book only → write to this book's `bible/author-prefs.md`; the author says all their works → write it here too and suggest also adding it to their personal-level CLAUDE.md (`~/.claude/CLAUDE.md`) so other projects apply it.
 2. One preference per line, keeping the limits and exceptions of the original wording (e.g. "use em dashes sparingly, never in dialogue except to mark an interruption" is one line).
 3. Do **not** record: one-off requests like "for this chapter …"; habits you guessed from the author's edits; plot, character or worldbuilding facts (those belong to settings or tracking).
 4. When a new preference conflicts with an old one, ask the author which to replace.

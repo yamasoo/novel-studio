@@ -8,12 +8,18 @@
   const enc = encodeURIComponent;
   const bookPath = (rest) => "#/b/" + encodeURIComponent(S.book) + rest;
 
-  const SEARCH_SCOPES = [["正文", "正文"], ["候選", "候選稿"], ["章綱", "大綱與章綱"], ["設定", "設定集"], ["追蹤", "追蹤"]];
+  // [範圍 ID（studio/ids.py 的 SEARCH_SCOPES）, 顯示文字]
+  const SEARCH_SCOPES = [["manuscript", "正文"], ["candidates", "候選稿"], ["outline", "大綱與章綱"], ["bible", "設定集"], ["tracking", "追蹤"]];
 
   function searchScopes() {
     const v = FE.store.get("search-scopes", null);
-    if (Array.isArray(v) && v.length) return v;
-    return ["正文"];
+    if (Array.isArray(v) && v.length) {
+      // 舊版存的是中文 ID（正文、候選…）：換成新 ID，有變就寫回
+      const n = [...new Set(v.map((x) => nsShared.normId("search_scope", x)))];
+      if (n.join() !== v.join()) FE.store.set("search-scopes", n);
+      return n;
+    }
+    return ["manuscript"];
   }
 
   // 舊版是 SEARCH_SCOPES.find((z) => z[0] === x.scope)[1]，遇到不認識的範圍會炸；這裡查不到就退回原文。
@@ -89,14 +95,14 @@
     S.searchTerms = r.terms;
 
     if (!r.results.length) {
-      box.replaceChildren(h("div", { class: "card empty" }, "找不到「" + r.terms.join("」＋「") + "」。可以勾選更多範圍再試。"));
+      box.replaceChildren(h("div", { class: "card empty" }, `找不到「${r.terms.join("」＋「")}」。可以勾選更多範圍再試。`));
       return;
     }
 
     const openResult = async (x) => {
-      const tab = x.scope === "正文" ? "text" : x.scope === "候選" ? "candidate"
-        : x.no && x.path.startsWith("大綱/章綱/") ? "card"
-          : x.no && x.path.startsWith("追蹤/章節摘要/") ? "summary" : null;
+      const tab = x.scope === "manuscript" ? "text" : x.scope === "candidates" ? "candidate"
+        : x.no && x.path.startsWith(LAYOUT.CHAPTER_CARDS + "/") ? "card"
+          : x.no && x.path.startsWith(LAYOUT.SUMMARIES + "/") ? "summary" : null;
       if (tab) { S.hl = r.terms; FE.go(bookPath("/ch/" + x.no + "?tab=" + tab)); return; }
       await docView(docEl, x.path);
       highlightTerms(docEl, r.terms);
@@ -119,14 +125,14 @@
             onclick: () => openResult(x),
             onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openResult(x); } },
           },
-            x.scope === "正文" ? null : h("span", { class: "badge" }, scopeLabel(x.scope)),
+            x.scope === "manuscript" ? null : h("span", { class: "badge" }, scopeLabel(x.scope)),
             // 舊版是「標籤＋一個空白＋標題」的同一段文字；這裡也併成一個字串。
-            (x.scope === "正文" ? "" : " ") + (x.kind === "chapter" ? "第" + x.no + "章　" + x.title : x.path)),
+            (x.scope === "manuscript" ? "" : " ") + (x.kind === "chapter" ? `第${x.no}章　${x.title}` : x.path)),
           h("span", { class: "grow" }),
-          h("span", { class: "muted small" }, x.count + " 處")),
+          h("span", { class: "muted small" }, `${x.count} 處`)),
         snippets);
       if (x.snippets.length > 3 || x.more) {
-        expand = h("button", { class: "ghost sm", style: "margin-top:4px", "data-expand": String(i) }, "展開其餘 " + more + " 處");
+        expand = h("button", { class: "ghost sm", style: "margin-top:4px", "data-expand": String(i) }, `展開其餘 ${more} 處`);
         expand.onclick = () => {
           card.querySelectorAll('[data-more="' + i + '"]').forEach((d) => { d.style.display = ""; });
           expand.remove();
@@ -137,10 +143,11 @@
     });
 
     // 舊版這整行是一個字串（innerHTML 解析後是單一文字節點），這裡也拼成一個字串。
+    // 巢狀的部分先算好，抽取工具才抓得到每一段的翻譯鍵（翻譯時 {0} 會再逐段翻）
+    const firstText = r.first ? `，第一次在第 ${r.first} 章` : "";
+    const chText = r.chapters ? `出現在 ${r.chapters} 章正文${firstText}；` : "";
     const summaryText =
-      "「" + r.terms.join("」＋「") + "」：" +
-      (r.chapters ? "出現在 " + r.chapters + " 章正文" + (r.first ? "，第一次在第 " + r.first + " 章" : "") + "；" : "") +
-      "共 " + r.files + " 份檔案、" + r.hits + " 處" + (r.truncated ? "（結果太多，只列前面的）" : "");
+      `「${r.terms.join("」＋「")}」：${chText}共 ${r.files} 份檔案、${r.hits} 處${r.truncated ? "（結果太多，只列前面的）" : ""}`;
     const summary = h("div", { class: "muted small", style: "margin:0 0 8px" }, summaryText);
     box.replaceChildren(summary, ...cards);
   }

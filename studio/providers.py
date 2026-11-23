@@ -52,7 +52,7 @@ def choices(provs):
                     for m, lbl in CLAUDE_MODELS]
         elif _supports_models(p) and p.get("models"):
             dm = p.get("model") or ""
-            out.append(dict(base, id=p["id"], label="%s（預設）" % (dm or "預設"), model=dm,
+            out.append(dict(base, id=p["id"], label="%s（預設）" % (dm or "預設"), model=dm, is_default=True,
                             name="%s · %s" % (p.get("name"), dm) if dm else p.get("name")))
             for m in p["models"]:
                 if m.get("id") and m["id"] != dm:
@@ -309,6 +309,11 @@ def key_status(home, prov):
     if env and os.environ.get(env):
         return "環境變數 %s" % env
     return ""
+
+
+def needs_key(prov):
+    """本機服務（llama.cpp 等，網址是 127.0.0.1／localhost）不一定要金鑰；有設就照樣帶上。"""
+    return not _is_local(prov.get("base_url") or "")
 
 
 # ---------------------------------------------------------------------------

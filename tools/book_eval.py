@@ -9,7 +9,7 @@
 
 三種任務，都跑在 demo 三本示範書的副本上（不動原書）：
   continue  遮住最後一章（正文、章節摘要、候選），用前面既有的資料寫這一章
-  deslop    對最後一章跑去 AI 味（原稿不動，結果寫在 .studio/修訂/*.draft.md）
+  deslop    對最後一章跑去 AI 味（原稿不動，結果寫在 .studio/revisions/*.draft.md）
   review    對最後一章跑審查，看工作台實際存下來的審查紀錄
 
 指標以「確定性」為主（自己算，沒有模型雜訊）：
@@ -36,6 +36,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 from studio import context, native, project, prompts, providers, revision, runner, shared, textguard  # noqa: E402
+from studio import layout  # noqa: E402
 
 PLUGIN_DIR = os.path.join(ROOT, "plugin")
 FIXTURES = [("zh-TW", "退婚之後"), ("en", "en_TheLanternRoad"), ("ja", "ja_辺境の薬師と竜の約束")]
@@ -326,8 +327,8 @@ def real_provider(pid):
     if not str(prov.get("model") or "").strip():
         raise SystemExit("執行者「%s」還沒選模型。先到工作台「設定 → AI 執行者」按「測試連線／抓模型清單」選一個，\n"
                          "或用 --provider %s/<模型 id> 指定。" % (prov.get("id"), prov.get("id")))
-    if not providers.key_status(ROOT, prov):
-        env = prov.get("key_env") or "DEEPSEEK_API_KEY"
+    if providers.needs_key(prov) and not providers.key_status(ROOT, prov):
+        env = prov.get("key_env") or "（這個執行者沒設 key_env，請用 1 或 3）"
         hint = ""
         if not providers._keyring():
             hint = ("\n這支 python 讀不到系統金鑰庫（多半是沒安裝 keyring、或不是工作台用的那個 venv）。"
@@ -382,7 +383,7 @@ def copy_book(entry, tmp):
 def mask_from(book, no):
     """把第 no 章以後的稿子全部遮起來（正文、章節摘要、候選），模擬「寫到這裡」的當下。"""
     removed = 0
-    for sub in ("正文", "追蹤/章節摘要", "候選"):
+    for sub in (layout.MANUSCRIPT, layout.SUMMARIES, layout.CANDIDATES):
         d = project._scan_dir(os.path.join(book, sub))
         for n, fn in list(d.items()):
             if n >= no:
@@ -416,13 +417,13 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
         book = copy_book(entry, tmp)
         for task in tasks:
             t0 = time.time()
-            ch = project._scan_dir(os.path.join(book, "正文"))
+            ch = project._scan_dir(layout.path(book, layout.MANUSCRIPT))
             if task == "review":
                 no = target or (max(ch) if ch else 0)
                 if no:
                     run_action(book, lang, "review_notes", {"chapter": no}, prov)
                     rec = revision.load_review(book, no) or {}
-                    body = read(os.path.join(book, "正文", ch[no])) if no in ch else ""
+                    body = read(layout.path(book, layout.MANUSCRIPT, ch[no])) if no in ch else ""
                     out["review"] = score_review(body, rec)
                     if texts is not None:
                         texts["review"] = {"chapter": no, "text": body[:12000],
@@ -430,12 +431,12 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
             elif task == "deslop":
                 no = target or (max(ch) if ch else 0)
                 if no:
-                    src = read(os.path.join(book, "正文", ch[no]))
+                    src = read(layout.path(book, layout.MANUSCRIPT, ch[no]))
                     run_action(book, lang, "deslop", {"chapter": no}, prov)
                     rec = revision.load_revision(book, no) or {}
                     # 去 AI 味的結果：還躺在修訂紀錄裡就取 new_text，已經套用就讀回正文
-                    now_files = project._scan_dir(os.path.join(book, "正文"))
-                    polished = rec.get("new_text") or (read(os.path.join(book, "正文", now_files[no]))
+                    now_files = project._scan_dir(layout.path(book, layout.MANUSCRIPT))
+                    polished = rec.get("new_text") or (read(layout.path(book, layout.MANUSCRIPT, now_files[no]))
                                                        if no in now_files else "")
                     out["deslop"] = score_deslop(book, lang, src, polished or "")
                     if texts is not None:
@@ -444,7 +445,7 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
                 no = target or (max(ch) if ch else 0)
                 if no:
                     # 先量「人類原作」當對照（同一張章綱、同一章），再遮掉它
-                    human = read(os.path.join(book, "正文", ch[no])) if no in ch else ""
+                    human = read(layout.path(book, layout.MANUSCRIPT, ch[no])) if no in ch else ""
                     _, card = context.card_text(book, no)
                     if not card:
                         print("   %-6s continue  跳過：第%d章沒有章綱" % (lang, no), flush=True)
@@ -452,8 +453,8 @@ def eval_book(entry, tasks, prov, judge_on=False, chapter=None, texts=None):
                     ref = score_continue(book, lang, card, human) if human else {}
                     removed = mask_from(book, no)      # 遮住這一章以後的稿子
                     job = run_action(book, lang, "write", {"from": no, "to": no}, prov)
-                    made = project._scan_dir(os.path.join(book, "候選")).get(no)
-                    text = read(os.path.join(book, "候選", made)) if made else ""
+                    made = project._scan_dir(layout.path(book, layout.CANDIDATES)).get(no)
+                    text = read(layout.path(book, layout.CANDIDATES, made)) if made else ""
                     notes = [e.get("text", "") for e in job.events
                              if e["kind"] == "log" and "文風" in (e.get("text") or "")]
                     m = score_continue(book, lang, card, text)

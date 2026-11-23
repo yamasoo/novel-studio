@@ -1,0 +1,22 @@
+{
+ "schema_version": 3,
+ "table": "foreshadow",
+ "updated_through": 2,
+ "columns": [
+  {"key": "id", "label": "番号"},
+  {"key": "content", "label": "内容"},
+  {"key": "planted_in", "label": "仕込んだ章"},
+  {"key": "planned_payoff", "label": "回収予定"},
+  {"key": "last_seen", "label": "最後に出た章"},
+  {"key": "status", "label": "状態"},
+  {"key": "priority", "label": "重要度"}
+ ],
+ "items": [
+  {"id": "F001", "content": "竜約の印が、院長の印章と同じ形をしている", "planted_in": 2, "planned_payoff": 30, "last_seen": 2, "status": "planted", "priority": "high"},
+  {"id": "F002", "content": "ルゥの傷に刺さっていた矢尻に、薬師院の紋がある", "planted_in": 2, "planned_payoff": 20, "last_seen": 2, "status": "developing", "priority": "high"},
+  {"id": "F003", "content": "追放の場で、トーマスが目を伏せた", "planted_in": 1, "planned_payoff": 15, "last_seen": 1, "status": "planted", "priority": "medium"},
+  {"id": "F004", "content": "配合表の棚の鍵を持っていたのは誰か", "planted_in": 1, "planned_payoff": 12, "last_seen": 1, "status": "planted", "priority": "medium"}
+ ],
+ "md_sha": "a873d0b48a638161",
+ "items_sha": "9c9f3340bacf94dc"
+}

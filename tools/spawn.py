@@ -34,7 +34,7 @@ def main():
     print("已建立：%s（語言 %s）" % (res["target"], res["lang"]))
     for rel in res["created"]:
         print("  + " + rel)
-    print("\n下一步：填 大綱/章綱/ 的章綱 → 在章節頁寫第一章。")
+    print("\n下一步：填 outline/chapters/ 的章綱 → 在章節頁寫第一章。")
     return 0
 
 

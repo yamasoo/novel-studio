@@ -15,13 +15,20 @@
 
   const ROLE_ORDER = ["主角", "主要配角", "配角", "反派", "路人"];
   const WORLD_CATS = ["力量體系", "地理與氣候", "歷史與年表", "社會與政治", "經濟與物資", "宗教信仰", "文化與風俗", "科技原理", "載具與兵器", "生態與資源", "其他"];
-  const BIBLE_FOLDER = { "角色": "角色", "勢力": "勢力", "世界觀": "世界觀" };
-  const ENT_TABS = ["角色", "勢力", "世界觀"];
+  // 分頁 ID（studio/ids.py 的 BIBLE_TABS）→ 設定集資料夾（相對於書；路徑來自後端 LAYOUT）
+  const BIBLE_FOLDER = { characters: LAYOUT.CHARACTERS, factions: LAYOUT.FACTIONS, world: LAYOUT.WORLD };
+  const ENT_TABS = ["characters", "factions", "world"];
+  const BIBLE_TABS = ["characters", "factions", "world", "core", "structure", "drafts"];
+  // 分頁上顯示的文字（介面文字，由 i18n 翻譯）
+  const TAB_LABEL = { characters: "角色", factions: "勢力", world: "世界觀", core: "核心", structure: "章節結構", drafts: "草稿" };
 
   // 動態 key（書 id + 分頁名）這一輪維持 localStorage（§9.4 允許）；P6 再換 FE.store。
   const entryFilterKey = (book, t) => "studio.entityFilter." + book + "." + t;
   function loadEntryFilter(book, t) {
-    try { return JSON.parse(localStorage.getItem(entryFilterKey(book, t)) || "null") || {}; } catch (e) { return {}; }
+    try {
+      const raw = localStorage.getItem(entryFilterKey(book, t)) ?? localStorage.getItem(entryFilterKey(book, TAB_LABEL[t]));
+      return JSON.parse(raw || "null") || {};
+    } catch (e) { return {}; }
   }
   function saveEntryFilter(book, t, f) {
     try { localStorage.setItem(entryFilterKey(book, t), JSON.stringify(f)); } catch (e) { /* 無痕模式等情況：略過 */ }
@@ -29,8 +36,8 @@
   function entryMatches(e, f, t) {
     const q = (f.q || "").trim().toLowerCase();
     if (q && ![e.name, ...(e.aliases || []), e.summary || ""].join(" ").toLowerCase().includes(q)) return false;
-    if (t === "角色" && f.role && f.role !== "全部" && (e.role || "未設定") !== f.role) return false;
-    if (t === "世界觀" && f.cat && f.cat !== "全部" && (e.category || "未分類") !== f.cat) return false;
+    if (t === "characters" && f.role && f.role !== "全部" && (e.role || "未設定") !== f.role) return false;
+    if (t === "world" && f.cat && f.cat !== "全部" && (e.category || "未分類") !== f.cat) return false;
     if (f.status && f.status !== "全部" && (e.status || "未設定") !== f.status) return false;
     if (f.tag && f.tag !== "全部" && !(e.tags || []).includes(f.tag)) return false;
     return true;
@@ -46,17 +53,17 @@
     return h("label", { class: "ef" },
       h("span", {}, label),
       h("select", { "data-ef": key }, opts.map(([v, txt, n]) =>
-        h("option", { value: v, selected: (cur || "全部") === v }, txt + "（" + n + "）"))));
+        h("option", { value: v, selected: (cur || "全部") === v }, FE.t(txt) + nsShared.paren(n)))));
   }
 
   function entityFilterBarNode(t, list, f) {
     const withAll = (arr) => [["全部", "全部", list.length], ...arr];
     const out = [];
-    if (t === "角色") {
+    if (t === "characters") {
       const c = countBy(list, (e) => e.role || "未設定");
       out.push(selNode("role", "定位", withAll([...ROLE_ORDER, "未設定"].filter((k) => c[k]).map((k) => [k, k, c[k]])), f.role));
     }
-    if (t === "世界觀") {
+    if (t === "world") {
       const c = countBy(list, (e) => e.category || "未分類");
       const extra = Object.keys(c).filter((k) => !WORLD_CATS.includes(k) && k !== "未分類");
       const keys = [...WORLD_CATS, ...extra, "未分類"].filter((k) => WORLD_CATS.includes(k) || c[k]);
@@ -71,7 +78,7 @@
     list.forEach((e) => (e.tags || []).forEach((x) => { tc[x] = (tc[x] || 0) + 1; }));
     const tagKeys = Object.keys(tc).sort((a, b) => tc[b] - tc[a] || a.localeCompare(b));
     if (tagKeys.length) out.push(selNode("tag", "標籤", withAll(tagKeys.map((k) => [k, k, tc[k]])), f.tag));
-    const grouping = t !== "勢力"
+    const grouping = t !== "factions"
       ? h("label", { class: "ef ef-cb" },
         h("input", { type: "checkbox", "data-ef": "group", checked: !!f.group }), " 分組顯示")
       : null;
@@ -94,7 +101,7 @@
         onchange: (ev) => { ev.target.checked ? pickSet.add(e.file) : pickSet.delete(e.file); },
       }))
       : null;
-    const badge = t === "世界觀" ? (e.category || "未分類") : (e.role || "");
+    const badge = t === "world" ? (e.category || "未分類") : (e.role || "");
     const tagLine = (e.tags || []).length ? h("div", { class: "ds" }, e.tags.join("、")) : null;
     return h("div", {
       class: "item" + (e.file === file ? " active" : ""),
@@ -123,7 +130,7 @@
           onclick: async () => {
             try {
               await FE.api(B("/bible/category"), { method: "POST", body: { files: [file], role: sel.value } });
-              FE.toast("定位改為 " + sel.value);
+              FE.toast(`定位改為 ${sel.value}`);
               refresh();
             } catch (e) { FE.fail(e); }
           },
@@ -141,25 +148,25 @@
       const body = kind === "promote" ? { files, status: "正式" }
         : kind === "role" ? { files, role: rolePick ? rolePick.value : "" }
           : { files, category: toSel ? toSel.value : "" };
-      if (kind === "promote" && !(await FE.confirm("把 " + files.length + " 項轉為正式？"))) return;
+      if (kind === "promote" && !(await FE.confirm(`把 ${files.length} 項轉為正式？`))) return;
       try {
         await FE.api(B("/bible/category"), { method: "POST", body });
         pickSet = new Set();
-        FE.toast(kind === "promote" ? "已轉為正式 " + files.length + " 項"
-          : kind === "role" ? "已改定位 " + files.length + " 項" : "已移入 " + files.length + " 項");
+        FE.toast(kind === "promote" ? `已轉為正式 ${files.length} 項`
+          : kind === "role" ? `已改定位 ${files.length} 項` : `已移入 ${files.length} 項`);
         refresh();
       } catch (e) { FE.toast((e && e.message) || String(e), "err"); }
     };
-    const roleSel = t === "角色"
+    const roleSel = t === "characters"
       ? [h("select", { id: "ef-role" }, ROLE_ORDER.map((r) => h("option", { value: r }, r))),
         h("button", { id: "ef-role-apply", onclick: () => apply("role") }, "改定位")]
       : null;
-    const catSel = t === "世界觀"
+    const catSel = t === "world"
       ? [h("select", { id: "ef-to" }, WORLD_CATS.map((c) => h("option", { value: c }, c))),
         h("button", { id: "ef-apply", onclick: () => apply("category") }, "移入分類")]
       : null;
     return h("div", { class: "ef-bulk" },
-      h("span", { id: "ef-n" }, "已選 " + pickSet.size + " 項"),
+      h("span", { id: "ef-n" }, `已選 ${pickSet.size} 項`),
       roleSel,
       catSel,
       h("button", {
@@ -167,7 +174,7 @@
         onclick: (ev) => {
           const box = ev.target.closest(".list");
           box.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = true; pickSet.add(cb.dataset.pick); });
-          document.querySelector("#ef-n").textContent = "已選 " + pickSet.size + " 項";
+          document.querySelector("#ef-n").textContent = `已選 ${pickSet.size} 項`;
         },
       }, "全選"),
       h("button", {
@@ -175,7 +182,7 @@
         onclick: (ev) => {
           const box = ev.target.closest(".list");
           box.querySelectorAll("input[data-pick]").forEach((cb) => { cb.checked = false; pickSet.delete(cb.dataset.pick); });
-          document.querySelector("#ef-n").textContent = "已選 " + pickSet.size + " 項";
+          document.querySelector("#ef-n").textContent = `已選 ${pickSet.size} 項`;
         },
       }, "清除"),
       h("button", { class: "primary", id: "ef-promote", onclick: () => apply("promote") }, "轉為正式"));
@@ -184,13 +191,13 @@
   function entityListNode(t, list, f, file, refresh) {
     const shown = list.filter((e) => entryMatches(e, f, t));
     const pick = ENT_TABS.includes(t);
-    const head = [h("div", { class: "muted small ef-count" }, "顯示 " + shown.length + " / " + list.length)];
+    const head = [h("div", { class: "muted small ef-count" }, `顯示 ${shown.length} / ${list.length}`)];
     if (pick) head.push(bulkBar(t, refresh));
     if (!list.length) return h("div", {}, head, h("div", { class: "muted" }, "這裡還是空的。"));
     if (!shown.length) return h("div", {}, head, h("div", { class: "muted" }, "沒有符合條件的項目。"));
-    if (f.group && t !== "勢力") {
-      const keyOf = (e) => (t === "角色" ? (e.role || "未設定") : (e.category || "未分類"));
-      const order = t === "角色" ? [...ROLE_ORDER, "未設定"] : [...WORLD_CATS, "未分類"];
+    if (f.group && t !== "factions") {
+      const keyOf = (e) => (t === "characters" ? (e.role || "未設定") : (e.category || "未分類"));
+      const order = t === "characters" ? [...ROLE_ORDER, "未設定"] : [...WORLD_CATS, "未分類"];
       const groups = {};
       shown.forEach((e) => { const k = keyOf(e); (groups[k] = groups[k] || []).push(e); });
       const keys = [...order.filter((k) => groups[k]), ...Object.keys(groups).filter((k) => !order.includes(k))];
@@ -218,7 +225,7 @@
 
   // ── 設定索引：疑似重複勾選合併 ──
   function dupGroupsFor(t, idx) {
-    const prefix = "設定/" + BIBLE_FOLDER[t] + "/";
+    const prefix = BIBLE_FOLDER[t] + "/";
     const out = [];
     (idx.duplicates || []).forEach((g) => {
       const byFile = {};
@@ -251,12 +258,12 @@
         });
         if (!jobs.length) { FE.toast("請先選擇保留的檔案，並勾選要併入的項目。", "err"); return; }
         const total = jobs.reduce((n, j) => n + j.duplicates.length, 0);
-        if (!(await FE.confirm("要併入 " + total + " 個設定檔（" + jobs.length + " 組）嗎？舊檔會移到「設定/_已合併」，不會刪除。"))) return;
+        if (!(await FE.confirm(`要併入 ${total} 個設定檔（${jobs.length} 組）嗎？舊檔會移到「bible/_merged」，不會刪除。`))) return;
         try {
           for (const j of jobs) {
             await FE.api(B("/bible/merge"), { method: "POST", body: j });
           }
-          FE.toast("已併入 " + total + " 個設定檔");
+          FE.toast(`已併入 ${total} 個設定檔`);
           FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(t) + "&f=" + enc(jobs[0].canonical));
         } catch (e) {
           FE.toast((e && e.message) || String(e), "err");
@@ -266,9 +273,9 @@
     }, "合併勾選的項目");
 
     return h("div", { class: "card", id: "dup-box", style: "margin-bottom:12px" },
-      h("div", { class: "row" }, h("b", {}, "疑似重複（" + groups.length + " 組）")),
+      h("div", { class: "row" }, h("b", {}, `疑似重複（${groups.length} 組）`)),
       h("div", { class: "muted small", style: "margin:4px 0 8px" },
-        "選一份「保留」，勾選要「併入」的。被併入的內容會接在保留檔後面（標示待核對），舊檔移到 設定/_已合併，不會刪除。名稱會加進保留檔的別名。"),
+        "選一份「保留」，勾選要「併入」的。被併入的內容會接在保留檔後面（標示待核對），舊檔移到 bible/_merged，不會刪除。名稱會加進保留檔的別名。"),
       groups.map((g, gi) => h("div", { class: "dup-group", style: "border-top:1px solid var(--line,#ddd);padding:6px 0" },
         h("div", { class: "small muted" },
           g.key,
@@ -283,7 +290,7 @@
           h("span", { class: "nm" }, f.names.join("、")),
           h("span", { class: "muted small" }, f.file.split("/").pop()))),
         g.ghosts.length
-          ? h("div", { class: "muted small" }, "名詞表另有：" + g.ghosts.join("、") + "（只在名詞表出現，合併不會改動它）")
+          ? h("div", { class: "muted small" }, `名詞表另有：${g.ghosts.join("、")}（只在名詞表出現，合併不會改動它）`)
           : null)),
       h("div", { class: "row", style: "margin-top:8px" }, mergeBtn));
   }
@@ -291,7 +298,7 @@
   async function rebuildBibleIndex() {
     try {
       const r = await FE.api(B("/bible/index/rebuild"), { method: "POST" });
-      FE.toast("已重建設定索引：設定檔 " + r.counts.settings + " 筆，名詞表 " + r.counts.glossary + " 筆。");
+      FE.toast(`已重建設定索引：設定檔 ${r.counts.settings} 筆，名詞表 ${r.counts.glossary} 筆。`);
     } catch (e) { FE.toast((e && e.message) || String(e), "err"); }
   }
 
@@ -360,7 +367,7 @@
       h("div", { class: "list" }, list.length
         ? list.map((s) => h("div", {
           class: "item" + (s.file === file ? " active" : ""),
-          onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc("章節結構") + "&f=" + enc(s.file)),
+          onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=structure&f=" + enc(s.file)),
         },
           h("div", { class: "row" },
             h("span", { class: "nm" }, s.name),
@@ -370,7 +377,7 @@
         : h("div", { class: "muted" },
           "這本書還沒有章節結構。",
           h("br"),
-          h("a", { href: "#/shared?t=" + enc("章節結構") }, "到共用庫套用一個 →"))),
+          h("a", { href: "#/shared?t=structures" }, "到共用庫套用一個 →"))),
       h("div", {}, actions,
         file ? docEl : h("div", { class: "card empty" },
           h("div", { class: "big" }, "✦"),
@@ -399,24 +406,25 @@
     let file = ctx.query.f || "";
     if (pickKey !== S.book + "|" + t0) { pickSet = new Set(); pickKey = S.book + "|" + t0; }
     const b = await FE.api(B("/bible"), { signal });
-    const t = t0 || "角色";
-    const tabs = ["角色", "勢力", "世界觀", "核心", "章節結構", "草稿"];
+    // 舊網址的中文分頁（bible?t=角色）也接受
+    const t = nsShared.normId("bible_tab", t0) || "characters";
+    const tabs = BIBLE_TABS;
     const list = b[t] || [];
     if (!file && list.length) file = list[0].file;
     const isEnt = ENT_TABS.includes(t);
-    const canDel = !!file && (isEnt || t === "草稿");
+    const canDel = !!file && (isEnt || t === "drafts");
     const filt = isEnt ? loadEntryFilter(S.book, t) : {};
 
     const btns = [];
-    if (t === "核心") btns.push(h("button", { onclick: () => FE.go("#/shared?t=" + enc("文風")) }, "共用文風庫"));
-    if (t === "核心") btns.push([
+    if (t === "core") btns.push(h("button", { onclick: () => FE.go("#/shared?t=styles") }, "共用文風庫"));
+    if (t === "core") btns.push([
       h("button", { onclick: () => Panel.openForm("style") }, "分析／調整文風"),
       h("button", { onclick: () => Panel.openForm("preference") }, "記錄偏好"),
     ]);
-    if (t === "草稿") btns.push(h("button", { class: "primary", onclick: () => Panel.openForm("promote_drafts") }, "草稿轉正式"));
-    if (t === "章節結構") btns.push(h("button", { onclick: () => FE.go("#/shared?t=" + enc("章節結構")) }, "到共用庫選結構"));
+    if (t === "drafts") btns.push(h("button", { class: "primary", onclick: () => Panel.openForm("promote_drafts") }, "草稿轉正式"));
+    if (t === "structure") btns.push(h("button", { onclick: () => FE.go("#/shared?t=structures") }, "到共用庫選結構"));
     if (canDel) btns.push(h("button", { class: "danger", id: "bible-del" }, FE.t("刪除這份")));
-    if (isEnt) btns.push(h("button", { onclick: () => rebuildBibleIndex(), title: "重新產生 設定/_索引.md，給 novel-bible 先讀" }, "重建索引"));
+    if (isEnt) btns.push(h("button", { onclick: () => rebuildBibleIndex(), title: "重新產生 bible/_index.md，給 novel-bible 先讀" }, "重建索引"));
     btns.push(h("button", { class: "primary", onclick: () => bibleGenDialog() }, "生成設定"));
     btns.push(h("button", {
       onclick: () => FE.go("#/b/" + enc(S.book) + "/reverse"),
@@ -426,7 +434,7 @@
     const tabsNode = h("div", { class: "tabs" }, tabs.map((x) => h("button", {
       class: "tab" + (x === t ? " active" : ""),
       onclick: () => FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(x)),
-    }, x, (b[x] && b[x].length) ? [" ", h("span", { class: "badge" }, String(b[x].length))] : null)));
+    }, TAB_LABEL[x], (b[x] && b[x].length) ? [" ", h("span", { class: "badge" }, String(b[x].length))] : null)));
 
     const head = h("div", { class: "page-head" },
       h("div", {},
@@ -434,7 +442,7 @@
         h("div", { class: "sub" }, "靜態設定。角色目前的位置、傷勢、知道什麼，在「伏筆與時間線」頁。")),
       h("div", { class: "row" }, btns));
 
-    if (t === "章節結構") {
+    if (t === "structure") {
       const bsBox = h("div", { id: "bs-box" });
       ctx.view(head, tabsNode, bsBox);
       await renderBookStructures(bsBox, file, signal);
@@ -465,10 +473,10 @@
             e.role ? h("span", { class: "badge" }, e.role) : null,
             e.status === "草稿" ? statusBadgeNode("草稿") : null),
           e.summary ? h("div", { class: "ds" }, e.summary) : null))
-        : (t === "草稿" && b.reverse_drafts
+        : (t === "drafts" && b.reverse_drafts
           ? h("div", { class: "card", style: "margin:0;padding:12px 14px" },
-            h("div", { class: "muted small" }, "這裡是「設定/草稿」（草稿轉正式用）。"),
-            h("div", { style: "margin-top:6px" }, "從正文反推的草稿有 " + b.reverse_drafts + " 份，在〈從正文建立設定〉核對。"),
+            h("div", { class: "muted small" }, "這裡是「bible/drafts」（草稿轉正式用）。"),
+            h("div", { style: "margin-top:6px" }, `從正文反推的草稿有 ${b.reverse_drafts} 份，在〈從正文建立設定〉核對。`),
             h("button", {
               class: "sm primary", style: "margin-top:8px",
               onclick: () => FE.go("#/b/" + enc(S.book) + "/reverse"),
@@ -485,17 +493,17 @@
       document.querySelector("#bible-del").onclick = async () => {
         const ent = list.find((e) => e.file === file) || {};
         const nm = ent.name || file;
-        if (!(await FE.confirm("刪除「" + nm + "」？" + String.fromCharCode(10) + "會移到 .studio/刪除，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。"))) return;
+        if (!(await FE.confirm(`刪除「${nm}」？${String.fromCharCode(10)}會移到 .studio/trash，不會永久刪除；引用到它的地方（關係、伏筆、索引）可能失效。`))) return;
         try {
           const r = await FE.api(B("/bible/delete"), { method: "POST", body: { path: file }, signal });
-          FE.toast(r.warning || "已移到 .studio/刪除", r.warning ? "err" : undefined);
+          FE.toast(r.warning || "已移到 .studio/trash", r.warning ? "err" : undefined);
           FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(t));
         } catch (e) { FE.fail(e); }
       };
     }
     if (isEnt) bindEntryFilter(splitNode, entList, t, list, file, filt);
     if (file) await docView(docEl, file, { signal });
-    if (file && t === "角色") {
+    if (file && t === "characters") {
       const ent = list.find((e) => e.file === file) || {};
       entMeta.replaceChildren(entityMetaNode(file, ent.role, () => FE.route()));
     }

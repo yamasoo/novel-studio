@@ -54,13 +54,13 @@
       h("div", { class: "page-head" },
         h("div", {},
           h("h1", {}, "關於小說工作台"),
-          h("div", { class: "sub" }, "Novel Studio v" + ver + "　·　MIT 授權"))),
+          h("div", { class: "sub" }, `Novel Studio v${ver}　·　MIT 授權`))),
       h("div", { class: "card about" },
         h("p", {}, "用 AI 寫繁體中文長篇連載小說的本機工作台。小說資料（設定、大綱、追蹤、正文）全部是純 Markdown＋YAML，存在你自己的書庫資料夾；網頁介面負責專案管理，寫作流程可以交給 Claude Code，或 DeepSeek、llama.cpp 等 OpenAI 相容模型。"),
         h("ul", { class: "small" },
           h("li", {}, "只在本機執行（127.0.0.1），不會對外開放；工作台本身不會把資料傳到任何地方，只有你按下 AI 動作時，才會把需要的內容送給你選的 AI 服務。"),
           h("li", {}, "你的設定（config.json）與 API 金鑰（secrets.json）只存在工作台資料夾，不會進 git。"),
-          h("li", {}, "書庫、共用庫（書庫的 ", h("code", {}, "_共用"), "）、插圖都在你的書庫資料夾，和工作台程式分開。")),
+          h("li", {}, "書庫、共用庫（書庫的 ", h("code", {}, "_shared"), "）、插圖都在你的書庫資料夾，和工作台程式分開。")),
         h("p", { class: "small muted" }, "本專案以 MIT 授權發布，全文見專案根目錄的 ", h("code", {}, "LICENSE"), "。")),
       ABOUT_LINKS.map(linkCard));
   }

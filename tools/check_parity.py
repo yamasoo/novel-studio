@@ -17,7 +17,7 @@
      三語本來就同形的字串（路徑、檔名、語言名稱）填 "=="，執行期直接顯示原文，不算漏翻。
   6. 提示詞包：鍵與 {變數} 是否一致、英文包有沒有中文句子、長度比例離群（可能漏翻或整段改寫）。
   7. 翻譯新鮮度：tools/i18n.lock.json 記下每個檔案上次同步時的雜湊；繁中改了但 en／ja 沒動 → WARN「待更新翻譯」。
-  8. 示範書範本：demo/ 三語示範書的 `_範本/` 檔案集是否一致（新手照範本做，缺檔就是坑）。
+  8. 示範書範本：demo/ 三語示範書的 `_templates/` 檔案集是否一致（新手照範本做，缺檔就是坑）。
   9. 術語表 i18n/glossary.tsv：語言檔與 README 有沒有用到「禁用譯法」，以及介面譯法是否與表一致。
 
 為什麼要這支：check_i18n.py 驗的是「已存在的鍵彼此一致」，管不到「原始碼新增的字串根本沒進語言檔」，
@@ -51,6 +51,8 @@ NEUTRAL_RX = re.compile(r"[/\\]|\.md\b|&#10;|^Language |^繁體中文$|^日本�
 # 抽取器的已知雜訊：i18n_extract.py 把 JS 模板字串切壞了，真正的句子在原始碼裡（報告 §2.2 A1 註）。
 # 修好抽取器之前先列在這裡，免得覆蓋率永遠被這幾條卡住。
 LOCALE_IGNORE = {
+    # 太泛用的範本：語言檔一加，執行期會套到任何「到…」「…起」開頭結尾的文字（包括書的內容），所以刻意不翻
+    "開始{0}", "採用{0}", "到{0}", "{0}起", "搬進{0}", "・{0}",
     ').join("、")}；其他步驟用上面選的執行者。（設定 → 整章自動流程）',
     'title="這個動作目前只支援 Claude Code"',
     'badge ${/空章|重複|倒退|簡體/.test(f) ?',
@@ -316,6 +318,35 @@ def check_readme():
 # ---------------------------------------------------------------------------
 # 5. 介面翻譯覆蓋率
 # ---------------------------------------------------------------------------
+_SRC_BLOB = None
+
+
+def _src_blob():
+    """前後端原始碼全文：語言檔裡的鍵若還出現在程式字串裡（例如表格欄名、kit 的介面字），就不算失效。"""
+    global _SRC_BLOB
+    if _SRC_BLOB is None:
+        import glob
+        pats = ("app.py", "studio/*.py", "static/*.js", "static/index.html", "vendor/fekit/fe/*.js", "vendor/fekit/py/**/*.py")
+        parts = []
+        for pat in pats:
+            for p in glob.glob(os.path.join(ROOT, pat), recursive=True):
+                parts.append(read(p))
+        _SRC_BLOB = "\n".join(parts)
+    return _SRC_BLOB
+
+
+def _in_src(key):
+    """鍵出現在原始碼裡嗎？有 {0} 的鍵也認後端的 %d／%s 寫法（「寫第 {0} 章」↔ "寫第 %d 章"）。"""
+    blob = _src_blob()
+    if key in blob:
+        return True
+    if not re.search(r"\{\d+\}", key):
+        return False
+    rx = re.escape(key)
+    rx = re.sub(r"\\\{\d+\\\}", r"(?:%[-0-9.]*[dsf]|\\{[^}]*\\})", rx)
+    return re.search(rx, blob) is not None
+
+
 def check_locales():
     inv_path = os.path.join(ROOT, "tools", "i18n_keys.json")
     if not os.path.isfile(inv_path):
@@ -331,7 +362,7 @@ def check_locales():
         d = json.loads(read(p))
         d = {x: y for x, y in d.items() if not x.startswith("_")}
         miss = sorted(inv - set(d))
-        stale = sorted(set(d) - inv)
+        stale = sorted(x for x in set(d) - inv if not _in_src(x))   # 程式裡還有這段字（執行期顯示的資料標籤）不算失效
         empty = [x for x in inv & set(d) if isinstance(d[x], str) and not d[x].strip() and len(x.strip()) > 4]
         pathlike = [x for x in miss if "/" in x or x.endswith(".md")]
         real = [x for x in miss if x not in pathlike]
@@ -396,7 +427,7 @@ def check_prompts():
                     % (n, k, a_s, n, b_s))
     # 英文包有沒有殘留中文句子，交給 check_i18n 判斷：它會先把路徑、第NNN章、JSON 鍵名、
     # 「」欄位名、表格列、<<<>>> 標記剝掉，只看真正的行文。這裡不重複驗，
-    # 免得資料格式（設定/故事核心.md、狀態：草稿、| 編號 | 內容 |）被當成漏翻。
+    # 免得資料格式（bible/story-core.md、狀態：草稿、| 編號 | 內容 |）被當成漏翻。
 
 
 # ---------------------------------------------------------------------------
@@ -428,6 +459,8 @@ def demo_units():
     sets = {k: set(walk(v)) for k, v in books.items()}
     out = []
     for rel in sorted(set.intersection(*sets.values())):
+        if rel.endswith(".json") and rel[:-5] + ".md" in sets["zh"]:
+            continue        # 追蹤表的 JSON 正本跟著 .md 產生，翻譯基準看 .md 就夠
         out.append(tuple(os.path.join(books[k], rel.replace("/", os.sep)) for k in ("zh", "en", "ja")))
     return out
 
@@ -509,18 +542,18 @@ def check_demo():
     if not books:
         add("WARN", "demo", "找不到 demo/ 的三語示範書（資料夾名 en_／ja_ 開頭），跳過範本檔案集比較")
         return
-    # 一本新書的 _範本/ ＝ 17 個範本＋專案規範.md（novel-setup 會把 references/project-layout.md
-    # 複製成「專案規範.md」）。示範書就是要示範這件事，所以三本都該有這 18 個檔。
-    want = set(templates()) | {"專案規範.md"}
-    if not want - {"專案規範.md"}:
+    # 一本新書的 _templates/ ＝ 17 個範本＋project-rules.md（novel-setup 會把 references/project-layout.md
+    # 複製成「project-rules.md」）。示範書就是要示範這件事，所以三本都該有這 18 個檔。
+    want = set(templates()) | {"project-rules.md"}
+    if not want - {"project-rules.md"}:
         add("WARN", "demo", "找不到 plugin/skills/novel-setup/templates/，跳過示範書範本比較")
         return
     for k in ("zh", "en", "ja"):
-        have = {p[len("_範本/"):] for p in walk(books[k]) if p.startswith("_範本/")}
+        have = {p[len("_templates/"):] for p in walk(books[k]) if p.startswith("_templates/")}
         for p in sorted(want - have):
-            add("WARN", "demo", "%s 示範書的 _範本/ 少了 %s（新手照範本做會缺檔）" % (k, p))
+            add("WARN", "demo", "%s 示範書的 _templates/ 少了 %s（新手照範本做會缺檔）" % (k, p))
         for p in sorted(have - want):
-            add("WARN", "demo", "%s 示範書的 _範本/ 多了 %s（不是 novel-setup 會建的檔，確認是不是舊版留下來的）" % (k, p))
+            add("WARN", "demo", "%s 示範書的 _templates/ 多了 %s（不是 novel-setup 會建的檔，確認是不是舊版留下來的）" % (k, p))
 
 
 # ---------------------------------------------------------------------------

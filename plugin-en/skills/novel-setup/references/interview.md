@@ -41,7 +41,7 @@ Handle it yourself only when novel-style cannot be found: make the rules concret
 
 Organise the results into first drafts of three files:
 - `CLAUDE.md`: per references/claude-md-template.md
-- `設定/故事核心.md`: fill in what is known, keep the template comments for what is not
-- `設定/文風.md`: from the sample handling above
+- `bible/story-core.md`: fill in what is known, keep the template comments for what is not
+- `bible/style.md`: from the sample handling above
 
 Then tell the author in plain words where the project was built, what has been filled in, what is still empty, and the suggested next step (usually finishing the story core with novel-outline, or building the lead's profile with novel-bible).

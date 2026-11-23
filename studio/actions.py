@@ -2,6 +2,8 @@
 """工作台按鈕對應的 Claude Code 指令。每個動作回傳 (標題, 提示詞)。
 標題一律用中文（介面靠 i18n 翻譯）；提示詞依書的語言取自 studio/prompts/。"""
 from . import prompts
+from . import layout
+from . import volume
 
 
 def _r(a, b):
@@ -10,7 +12,8 @@ def _r(a, b):
 
 
 def _ch(n):
-    return "第%03d章" % int(n)
+    """提示詞裡的逐章檔名（不含副檔名）：ch-0003"""
+    return layout.chapter_stem(n)
 
 
 ACTIONS = {
@@ -57,16 +60,16 @@ ACTIONS = {
     },
     # ---------------- 設定 ----------------
     "character": {
-        "group": "設定", "label": "新增／補完角色",
+        "group": "設定", "label": "新增／補完角色",  # literal-ok: 動作分組標籤
         "fields": [{"key": "name", "label": "角色名", "type": "text"},
                    {"key": "note", "label": "已知資訊（選填）", "type": "textarea"}],
     },
     "gen_drafts": {
-        "group": "設定", "label": "生成設定草稿（自由描述）",
+        "group": "設定", "label": "生成設定草稿（自由描述）",  # literal-ok: 動作分組標籤
         "fields": [{"key": "text", "label": "要生成什麼？例如：3 個第一卷的反派候選", "type": "textarea"}],
     },
     "bible_from_outline": {
-        "group": "設定", "label": "從大綱長設定",
+        "group": "設定", "label": "從大綱長設定",  # literal-ok: 動作分組標籤
         "fields": [{"key": "roles", "label": "角色", "type": "checkbox", "default": True},
                    {"key": "factions", "label": "勢力", "type": "checkbox", "default": True},
                    {"key": "world", "label": "世界觀（地理、科技、戰術…）", "type": "checkbox", "default": True},
@@ -74,11 +77,11 @@ ACTIONS = {
                    {"key": "urls", "label": "參考網址（選填，每行一個，會抓內文）", "type": "textarea"}],
     },
     "intake": {
-        "group": "設定", "label": "整理內容入庫（貼文字）",
+        "group": "設定", "label": "整理內容入庫（貼文字）",  # literal-ok: 動作分組標籤
         "fields": [{"key": "text", "label": "貼上和其他 AI 或自己的討論內容", "type": "textarea"}],
     },
     "promote_drafts": {
-        "group": "設定", "label": "草稿轉正式",
+        "group": "設定", "label": "草稿轉正式",  # literal-ok: 動作分組標籤
         "fields": [{"key": "text", "label": "勾選要定案的草稿（沒勾＝只列出）", "type": "drafts"}],
     },
     # ---------------- 寫作 ----------------
@@ -108,8 +111,8 @@ ACTIONS = {
     },
     "revise_notes": {"group": "品質", "label": "依意見修訂", "hidden": True, "fields": []},
     "recover_continue": {"group": "寫作", "label": "續寫恢復稿", "hidden": True, "fields": []},
-    "illust_prompt": {"group": "插圖", "label": "產生插圖提示詞", "hidden": True, "fields": []},
-    "visual_card": {"group": "插圖", "label": "產生視覺卡", "hidden": True, "fields": []},
+    "illust_prompt": {"group": "插圖", "label": "產生插圖提示詞", "hidden": True, "fields": []},  # literal-ok: 動作分組標籤
+    "visual_card": {"group": "插圖", "label": "產生視覺卡", "hidden": True, "fields": []},  # literal-ok: 動作分組標籤
     "style_design": {"group": "專案", "label": "設計文風", "hidden": True, "fields": []},
     "reader_init": {"group": "專案", "label": "從時間線建立讀者認知", "hidden": True, "fields": []},
     "reader_reconcile": {"group": "專案", "label": "比對讀者認知回收", "hidden": True, "fields": []},
@@ -168,10 +171,12 @@ def build(action, p, book_name, lang="zh-TW"):
     if action == "volume_draft":
         v = str(p.get("volume") or "一").strip()
         a, b = _r(p.get("from") or 1, p.get("to"))
-        return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, extra=extra))
+        f = layout.volume_file(volume.no_of(v, 1), base=layout.VOLUME_DRAFTS)
+        return ("第%s卷卷綱草稿" % v, tpl("volume_draft", v=v, a=a, b=b, file=f, extra=extra))
     if action == "volume_revise":
         v = str(p.get("volume") or "").strip()
-        return ("修訂第%s卷卷綱" % v, tpl("volume_revise", v=v, extra=extra))
+        f = layout.volume_revision_file(volume.no_of(v, 1))
+        return ("修訂第%s卷卷綱" % v, tpl("volume_revise", v=v, file=f, extra=extra))
     if action == "chapter_cards":
         a, b = _r(p.get("from") or 1, p.get("to"))
         if p.get("auto"):   # 整章自動流程：不先給總覽，直接寫入
@@ -219,7 +224,7 @@ def build(action, p, book_name, lang="zh-TW"):
         return ("健康檢查", tpl("review_all"))
     if action == "deslop":
         n = int(p.get("chapter"))
-        where = "候選/" if p.get("candidate") else "正文/"
+        where = layout.CANDIDATES + "/" if p.get("candidate") else layout.MANUSCRIPT + "/"
         return ("去AI味 第%d章" % n, tpl("deslop", where=where, ch=_ch(n), n=n, extra=extra))
 
     if action == "free":

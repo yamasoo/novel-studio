@@ -1,7 +1,7 @@
 /* 共用庫頁（轉移計畫 §8.2.12）：從 app.js 的 viewShared（原 1798-1947）搬過來，
    連同只有它在用的 styleAiModal／sampleSourceHtml／sampleSourceBind／sampleSourceValue／compareTable／STYLE_GENRES（原 1656-1796）。
    舊 route() 對 shared 沒有 setBook 也沒有 clearBook，所以 options 給 {}。
-   文風任務照舊 Panel.attach(job)（job 的 book 是 _共用，base 由 panelBase 決定）；
+   文風任務照舊 Panel.attach(job)（job 的 book 是 _shared，base 由 panelBase 決定）；
    S.onSharedJob 改成每次 render 設定、ctx.signal abort 時清掉，避免換頁後還指到舊頁。
    書名／執行者下拉直接用 app.js 的節點版 bookOptions／provOptions／provSelect。 */
 (function () {
@@ -14,7 +14,7 @@
 
   const SS_LABELS = {
     none: "不附樣本", book: "某本書的正文", text: "貼上文字",
-    files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 設定/文風.md", blank: "空白範本（自己填）",
+    files: "上傳檔案（.txt、.md、.docx）", copy_book: "複製某本書現有的 bible/style.md", blank: "空白範本（自己填）",
   };
   const STYLE_GENRES = ["本格推理", "冷硬派", "心理驚悚", "恐怖怪談", "仙俠修真", "武俠", "西式奇幻", "科幻", "現代言情", "古言宮鬥",
     "都市爽文", "歷史架空", "都市寫實", "輕小說", "黑色幽默", "鄉土地域", "太空歌劇"];
@@ -94,7 +94,7 @@
   }
 
   async function styleAiModal(mode, books, name, signal) {
-    const titles = { design: "請 AI 設計文風", revise: "請 AI 調整「" + (name || "") + "」", test: "照「" + (name || "") + "」試寫一段" };
+    const titles = { design: "請 AI 設計文風", revise: `請 AI 調整「${name || ""}」`, test: `照「${name || ""}」試寫一段` };
     let body;
     if (mode === "design") {
       const chips = h("div", { class: "chips", id: "sa-chips" },
@@ -123,11 +123,11 @@
           h("div", { style: "margin-top:8px" }, sampleSourceNodes(books, ["none", "text", "files", "book"]))),
         h("label", { class: "cb" },
           h("input", { type: "checkbox", id: "sa-over" }),
-          " 同名文風已存在時覆蓋（舊版會備份到 _共用/.備份）"),
+          " 同名文風已存在時覆蓋（舊版會備份到 _shared/.backup）"),
       ];
     } else if (mode === "revise") {
       body = [
-        h("p", { class: "muted small" }, "只改和你意見相關的條目，其他原樣保留；完成後會列出「舊 → 新」。舊版會備份到 ", h("code", {}, "_共用/.備份"), "。"),
+        h("p", { class: "muted small" }, "只改和你意見相關的條目，其他原樣保留；完成後會列出「舊 → 新」。舊版會備份到 ", h("code", {}, "_shared/.backup"), "。"),
         h("label", { class: "f" }, h("span", {}, "要怎麼調整"),
           h("textarea", { id: "sa-note", rows: "5", placeholder: "例如：對白再口語一點；比喻太多，一場最多一個；補一段打鬥的範例；這份太簡單了，照十三個面向補完整" })),
         h("details", { style: "margin:6px 0 10px" },
@@ -206,17 +206,19 @@
     const o = await FE.api("/api/shared", { signal });
     S.sharedBooks = o.books;
     S.sharedLangs = o.book_langs || {};
-    const tab = ctx.query.t || "文風";
+    // 分頁 ID 見 studio/ids.py 的 SHARED_TABS；舊網址的中文分頁（?t=文風）也接受
+    const tab = nsShared.normId("shared_tab", ctx.query.t) || "styles";
     let file = ctx.query.f || "";
-    const tabs = ["文風", "章節結構", "共用作者偏好"];
+    const tabs = ["styles", "structures", "prefs"];
+    const TAB_LABEL = { styles: "文風", structures: "章節結構", prefs: "共用作者偏好" };
 
     // 任務完成後刷新共用庫；換頁就把回呼清掉，避免指到已經不存在的頁面
     const onSharedJob = (job) => {
       if (job.status !== "done") return;
       const n = styleJobTarget;
-      if (n) FE.toast("文風「" + n + "」已更新");
+      if (n) FE.toast(`文風「${n}」已更新`);
       if (location.hash.startsWith("#/shared")) {
-        if (n) FE.go("#/shared?t=" + enc("文風") + "&f=" + enc("文風/" + n + ".md"));
+        if (n) FE.go("#/shared?t=styles&f=" + enc(LAYOUT.SHARED_STYLES + "/" + n + ".md"));
         else FE.route();
       }
     };
@@ -234,7 +236,7 @@
       ctx.view(
         h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "共用庫"), h("div", { class: "sub" }, "所有書都能用的文風、章節結構與作者偏好"))),
         h("div", { class: "card" },
-          h("p", {}, "共用庫是書庫裡的 ", h("code", {}, "_共用"), " 資料夾，跟著你的小說資料走，不在工作台的程式資料夾裡，所以不會被推上 GitHub。"),
+          h("p", {}, "共用庫是書庫裡的 ", h("code", {}, "_shared"), " 資料夾，跟著你的小說資料走，不在工作台的程式資料夾裡，所以不會被推上 GitHub。"),
           h("ul", { class: "muted small" },
             h("li", {}, "文風：可以重複使用、從範例文字統計出文字指標"),
             h("li", {}, "章節結構：起承轉合、壓抑爆發等節拍範本，寫章節和排章綱時參考"),
@@ -245,24 +247,24 @@
     }
 
     let list = [];
-    if (tab === "文風") {
-      list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, lang: s.lang, badge: s.has_metrics ? "已統計 " + fmtNum(+s.sample) + " 字" : "" }));
-    } else if (tab === "章節結構") {
+    if (tab === "styles") {
+      list = o.styles.map((s) => ({ file: s.file, name: s.name, desc: s.summary, lang: s.lang, badge: s.has_metrics ? `已統計 ${fmtNum(+s.sample)} 字` : "" }));
+    } else if (tab === "structures") {
       list = o.structures.map((s) => ({ file: s.file, name: s.name, desc: s.summary, badge: s.origin === "preset" ? "內建" : "我的", lang: s.lang, scope: s.scope, origin: s.origin }));
     } else {
-      file = "作者偏好.md";
+      file = LAYOUT.SHARED_PREFS;
     }
     if (!file && list.length) file = list[0].file;
     const curItem = list.find((x) => x.file === file);
     const books = o.books;
 
     const headButtons = {
-      "文風": [
+      styles: [
         h("button", { id: "sh-ai-style" }, "✦ 請 AI 設計文風"),
         h("button", { class: "primary", id: "sh-new-style" }, "新增文風"),
       ],
-      "章節結構": [h("button", { class: "primary", id: "sh-new-struct" }, "新增結構")],
-      "共用作者偏好": [],
+      structures: [h("button", { class: "primary", id: "sh-new-struct" }, "新增結構")],
+      prefs: [],
     };
 
     const docEl = h("div", { id: "doc" },
@@ -273,7 +275,7 @@
       tabs.map((x) => h("button", {
         class: "tab" + (x === tab ? " active" : ""),
         onclick: () => FE.go(BASE + "?t=" + enc(x)),
-      }, x, (x === "共用作者偏好" && o.prefs.active) ? [" ", h("span", { class: "badge b-ok" }, "生效中")] : null)));
+      }, TAB_LABEL[x], (x === "prefs" && o.prefs.active) ? [" ", h("span", { class: "badge b-ok" }, "生效中")] : null)));
 
     const listNode = h("div", { class: "list" },
       list.length
@@ -287,28 +289,28 @@
             e.lang && e.lang !== "zh-TW" ? h("span", { class: "badge" }, e.lang === "en" ? "English" : "日本語") : null,
             e.badge ? h("span", { class: "badge" }, e.badge) : null),
           e.desc ? h("div", { class: "ds" }, e.desc) : null,
-          e.scope ? h("div", { class: "ds" }, "適用：" + e.scope) : null))
-        : h("div", { class: "muted" }, "還沒有" + tab + "。按右上角新增。"));
+          e.scope ? h("div", { class: "ds" }, `適用：${e.scope}`) : null))
+        : h("div", { class: "muted" }, `還沒有${TAB_LABEL[tab]}。按右上角新增。`));
 
     ctx.view(
       h("div", { class: "page-head" },
         h("div", {}, h("h1", {}, "共用庫"),
-          h("div", { class: "sub" }, "所有書都能用；放在書庫的 ", h("code", {}, "_共用"), " 資料夾，不會進 git")),
+          h("div", { class: "sub" }, "所有書都能用；放在書庫的 ", h("code", {}, "_shared"), " 資料夾，不會進 git")),
         h("div", { class: "row" }, headButtons[tab])),
       tabsNode,
-      tab === "共用作者偏好"
+      tab === "prefs"
         ? [
           h("div", { class: "alert info", style: "margin-bottom:12px" },
             h("span", { class: "k" }, "怎麼生效"),
             h("span", { class: "t" },
-              "寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 設定/作者偏好.md 衝突時以書為準）。「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 ",
+              "寫作、改稿、去 AI 味、審查時，Claude Code 和其他模型都會讀這份檔案（和各書的 bible/author-prefs.md 衝突時以書為準）。「禁用詞」一節由程式在「檢查用語與 AI 味」時逐字比對，目前有 ",
               h("b", {}, String(o.prefs.banned)),
-              " 個。各書的 設定/作者偏好.md 也可以加「## 禁用詞」一節。")),
+              " 個。各書的 bible/author-prefs.md 也可以加「## 禁用詞」一節。")),
           docEl,
         ]
         : h("div", { class: "split" }, listNode, h("div", {}, actionsEl, docEl)));
 
-    if (tab === "文風") {
+    if (tab === "styles") {
       ctx.view; // no-op：節點已放好
       document.querySelector("#sh-ai-style").onclick = () => styleAiModal("design", books, null, signal);
       document.querySelector("#sh-new-style").onclick = () => {
@@ -339,8 +341,8 @@
                   if (!v.name) return FE.toast("請輸入名稱", "err");
                   const r = await FE.api("/api/shared/styles", { method: "POST", body: v, signal });
                   close();
-                  FE.toast("已建立文風「" + r.name + "」");
-                  FE.go(BASE + "?t=" + enc("文風") + "&f=" + enc(r.file));
+                  FE.toast(`已建立文風「${r.name}」`);
+                  FE.go(BASE + "?t=styles&f=" + enc(r.file));
                 } catch (e) { FE.fail(e); }
               },
             }, "建立"),
@@ -365,9 +367,9 @@
         applyBtn.onclick = () => {
           const bookSel = h("select", { id: "ap-book" }, bookOptions(books, S.book, curItem.lang));
           const close = FE.modal({
-            title: "把「" + name + "」套用到書",
+            title: `把「${name}」套用到書`,
             body: [
-              h("p", { class: "muted small" }, "會複製成那本書的 ", h("code", {}, "設定/文風.md"), "。原本的文風檔會先備份到 ", h("code", {}, ".studio/備份"), "。之後在書裡修改不會影響共用庫。"),
+              h("p", { class: "muted small" }, "會複製成那本書的 ", h("code", {}, "bible/style.md"), "。原本的文風檔會先備份到 ", h("code", {}, ".studio/backup"), "。之後在書裡修改不會影響共用庫。"),
               h("label", { class: "f" }, h("span", {}, "套用到"), bookSel),
             ],
             foot: (done) => [
@@ -378,7 +380,7 @@
                   try {
                     await FE.api("/api/shared/styles/" + enc(name) + "/apply", { method: "POST", body: { book: bookSel.value }, signal });
                     close();
-                    FE.toast("已套用到《" + bookSel.value + "》");
+                    FE.toast(`已套用到《${bookSel.value}》`);
                   } catch (e) { FE.fail(e); }
                 },
               }, "套用"),
@@ -392,7 +394,7 @@
           const toInput = h("input", { type: "number", id: "cp-to", class: "num-in", placeholder: "全部" });
           const out = h("div", { id: "cp-out", style: "margin-top:12px" });
           FE.modal({
-            title: "「" + name + "」和正文比較",
+            title: `「${name}」和正文比較`,
             body: [
               h("p", { class: "muted small" }, "在本機統計那本書的正文，和這個文風的文字指標並排比較。"),
               h("div", { class: "row" },
@@ -411,7 +413,7 @@
                         signal,
                       });
                       out.replaceChildren(...[compareTableNode(r.rows),
-                        h("div", { class: "muted small", style: "margin-top:8px" }, "正文高頻詞組：" + r.actual["高頻詞組"])]);
+                        h("div", { class: "muted small", style: "margin-top:8px" }, `正文高頻詞組：${r.actual["高頻詞組"]}`)]);
                     } catch (e) { FE.fail(e); }
                   },
                 }, "比較")),
@@ -422,7 +424,7 @@
 
         restatBtn.onclick = () => {
           const close = FE.modal({
-            title: "重新統計「" + name + "」的文字指標",
+            title: `重新統計「${name}」的文字指標`,
             body: [
               h("p", { class: "muted small" }, "只會更新「文字指標」一節，你寫的其他內容不動。"),
               sampleSourceNodes(books, ["book", "text", "files"]),
@@ -446,16 +448,16 @@
         };
 
         delBtn.onclick = async () => {
-          if (!(await FE.confirm("刪除文風「" + name + "」？（會移到 _共用/.刪除，不會永久刪除）"))) return;
+          if (!(await FE.confirm(`刪除文風「${name}」？（會移到 _shared/.trash，不會永久刪除）`))) return;
           try {
             await FE.api("/api/shared/styles/" + enc(name), { method: "DELETE", signal });
-            FE.go(BASE + "?t=" + enc("文風"));
+            FE.go(BASE + "?t=styles");
           } catch (e) { FE.fail(e); }
         };
       }
     }
 
-    if (tab === "章節結構") {
+    if (tab === "structures") {
       document.querySelector("#sh-new-struct").onclick = () => {
         const nameInput = h("input", { type: "text", id: "nt-name", placeholder: "例如：雙線交錯" });
         const close = FE.modal({
@@ -476,7 +478,7 @@
                     signal,
                   });
                   close();
-                  FE.go(BASE + "?t=" + enc("章節結構") + "&f=" + enc("結構/" + r.name + ".md"));
+                  FE.go(BASE + "?t=structures&f=" + enc(LAYOUT.SHARED_STRUCTURES + "/" + r.name + ".md"));
                 } catch (e) { FE.fail(e); }
               },
             }, "建立"),
@@ -500,9 +502,9 @@
           const bookSel = h("select", { id: "sa-book" }, bookOptions(books, S.book, curItem.lang));
           const defBox = h("input", { type: "checkbox", id: "sa-def", checked: !(curItem.scope && curItem.scope.includes("卷")) });
           const close = FE.modal({
-            title: "把「" + name + "」套用到書",
+            title: `把「${name}」套用到書`,
             body: [
-              h("p", { class: "muted small" }, "會複製到那本書的 ", h("code", {}, "設定/章節結構/"), "。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。"),
+              h("p", { class: "muted small" }, "會複製到那本書的 ", h("code", {}, "bible/structure/"), "。設為全書預設後，每章寫稿都會參考這個節拍；個別章節可以在章節頁改用別的結構。"),
               h("label", { class: "f" }, h("span", {}, "套用到"), bookSel),
               h("label", { class: "cb" }, defBox, " 設為全書預設"),
             ],
@@ -518,7 +520,7 @@
                       signal,
                     });
                     close();
-                    FE.toast("已套用到《" + bookSel.value + "》");
+                    FE.toast(`已套用到《${bookSel.value}》`);
                   } catch (e) { FE.fail(e); }
                 },
               }, "套用"),
@@ -540,17 +542,17 @@
               if (!nn) return;
               try {
                 const r = await FE.api("/api/shared/structures", { method: "POST", body: { copy_preset: name, name: nn }, signal });
-                FE.go(BASE + "?t=" + enc("章節結構") + "&f=" + enc("結構/" + r.name + ".md"));
+                FE.go(BASE + "?t=structures&f=" + enc(LAYOUT.SHARED_STRUCTURES + "/" + r.name + ".md"));
               } catch (e) { FE.fail(e); }
             });
           };
         }
         if (delBtn) {
           delBtn.onclick = async () => {
-            if (!(await FE.confirm("刪除結構「" + name + "」？（會移到 _共用/.刪除；已套用到書裡的複本不受影響）"))) return;
+            if (!(await FE.confirm(`刪除結構「${name}」？（會移到 _shared/.trash；已套用到書裡的複本不受影響）`))) return;
             try {
               await FE.api("/api/shared/structures/" + enc(name), { method: "DELETE", signal });
-              FE.go(BASE + "?t=" + enc("章節結構"));
+              FE.go(BASE + "?t=structures");
             } catch (e) { FE.fail(e); }
           };
         }

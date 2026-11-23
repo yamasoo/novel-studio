@@ -1,0 +1,22 @@
+{
+ "schema_version": 3,
+ "table": "foreshadow",
+ "updated_through": 2,
+ "columns": [
+  {"key": "id", "label": "編號"},
+  {"key": "content", "label": "內容"},
+  {"key": "planted_in", "label": "埋設章"},
+  {"key": "planned_payoff", "label": "預計回收"},
+  {"key": "last_seen", "label": "最後出現"},
+  {"key": "status", "label": "狀態"},
+  {"key": "priority", "label": "重要度"}
+ ],
+ "items": [
+  {"id": "F001", "content": "玉珮靠近相關的人或物會發熱", "planted_in": 1, "planned_payoff": 30, "last_seen": 2, "status": "developing", "priority": "high"},
+  {"id": "F002", "content": "浮字：沈家欠的，不止一紙婚書", "planted_in": 2, "planned_payoff": 30, "last_seen": 2, "status": "planted", "priority": "high"},
+  {"id": "F003", "content": "沈既白拇指上的舊玉扳指", "planted_in": 1, "planned_payoff": 20, "last_seen": 1, "status": "planted", "priority": "medium"},
+  {"id": "F004", "content": "周老太爺看見玉珮時站起又坐下", "planted_in": 1, "planned_payoff": 15, "last_seen": 1, "status": "planted", "priority": "medium"}
+ ],
+ "md_sha": "808eaf90a69a781e",
+ "items_sha": "6e1c2e39fb0320b6"
+}

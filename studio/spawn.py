@@ -2,8 +2,8 @@
 """建專案（P6 Step 5）：用風格指紋與結構 DNA 建出一本新書的骨架。
 
 產出的是「可以馬上開始填」的書，不是成品：
-  資料夾骨架、18 份 _範本、CLAUDE.md、設定/文風.md（含文字指標）、
-  設定/章節結構/結構.md、指紋與 DNA 的副本、前三章章綱的空白模板。
+  資料夾骨架、18 份 _範本、CLAUDE.md、bible/style.md（含文字指標）、
+  bible/structure/structure.md、指紋與 DNA 的副本、前三章章綱的空白模板。
 
 不呼叫模型、不改任何既有檔案；目標資料夾不是空的就拒絕。
 """
@@ -11,14 +11,15 @@ import json
 import os
 import shutil
 
-from . import fingerprint, project, sdna
+from . import datakeys, fingerprint, project, sdna
+from . import layout, sections
 
-KEY_DIRS = ("正文", "候選", "大綱/章綱", "大綱/卷綱", "追蹤/章節摘要", "追蹤/角色狀態",
-            "設定/角色", "設定/勢力", "設定/世界觀", "設定/章節結構", "範例")
-LIVE_FILES = ("設定/故事核心.md", "設定/名詞表.md", "設定/作者偏好.md",
-              "追蹤/伏筆.md", "追蹤/時間線.md", "追蹤/狀態卡.md",
-              "追蹤/讀者認知.md", "追蹤/關係.md",
-              "大綱/全書大綱.md", "大綱/卷綱/卷綱_第一卷.md")
+KEY_DIRS = (layout.MANUSCRIPT, layout.CANDIDATES, layout.CHAPTER_CARDS, layout.VOLUMES_SUBDIR, layout.SUMMARIES, layout.CHARACTER_STATES,
+            layout.CHARACTERS, layout.FACTIONS, layout.WORLD, layout.BIBLE_STRUCTURE, layout.SAMPLES)
+LIVE_FILES = (layout.STORY_CORE, layout.GLOSSARY, layout.AUTHOR_PREFS,
+              layout.FORESHADOWING, layout.TIMELINE, layout.STATE_CARD,
+              layout.READER_KNOWLEDGE, layout.RELATIONS,
+              layout.BOOK_OUTLINE, layout.OUTLINE_VOLUME_ONE)
 CARD_SECTIONS = """## 本章四問
 1. 主角這章想做什麼：
 2. 誰或什麼阻止他：
@@ -44,7 +45,7 @@ CARD_SECTIONS = """## 本章四問
 def template_dir():
     """範本從示範書拿（它被 check_parity 盯著，一定有 18 份）。"""
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(here, "demo", "退婚之後", "_範本")
+    return os.path.join(here, "demo", "退婚之後", layout.TEMPLATES)
 
 
 def _write(p, text):
@@ -60,15 +61,17 @@ def _lang_label(lang):
 
 
 def style_md(title, fp, dna):
-    m = (fp or {}).get("文字指標") or {}
-    ch = (fp or {}).get("章節") or {}
-    d = dna or {}
-    pov = (d.get("視角") or {}).get("人稱") or "（待填）"
-    ratio = ((d.get("對白") or {}).get("比例"))
-    rows = "\n".join("| %s | %s |" % (k, v) for k, v in m.items()) or "| （待量測） | |"
+    fp = datakeys.to_en(fp or {}, datakeys.FINGERPRINT)
+    dna = datakeys.to_en(dna or {}, datakeys.DNA)
+    m = fp.get("metrics") or {}
+    d = dna
+    pov = (d.get("pov") or {}).get("person") or "（待填）"
+    ratio = ((d.get("dialogue") or {}).get("ratio"))
+    # 文風檔的「文字指標」表照舊用中文指標名稱（parse_metrics 讀的是這一套）
+    rows = "\n".join("| %s | %s |" % (k, v) for k, v in datakeys.metrics_zh(m).items()) or "| （待量測） | |"
     return """---
-類型: 文風
-狀態: 草稿
+type: style
+status: draft
 ---
 
 # 《%s》本書文風
@@ -103,43 +106,46 @@ def style_md(title, fp, dna):
 | 指標 | 數值 |
 |---|---|
 %s
-""" % (title, pov, _lang_label((fp or {}).get("語言") or "zh-TW"),
-       (m.get("平均句長") or "—"), (m.get("短句比例") or "—"),
-       (m.get("平均段長") or "—"), (m.get("單句成段") or "—"),
+""" % (title, pov, _lang_label(fp.get("lang") or "zh-TW"),
+       (m.get("avg_sentence_length") or "—"), (m.get("short_sentence_ratio") or "—"),
+       (m.get("avg_paragraph_length") or "—"), (m.get("single_sentence_paragraphs") or "—"),
        (("%.0f%%" % (ratio * 100)) if isinstance(ratio, (int, float)) else "—"),
-       ("- 章與章之間的對白比例變異 %.2f\n" % (d.get("對白") or {}).get("章間變異", 0)
-        if d.get("對白") else ""),
+       ("- 章與章之間的對白比例變異 %.2f\n" % (d.get("dialogue") or {}).get("chapter_cv", 0)
+        if d.get("dialogue") else ""),
        rows)
 
 
 def structure_md(*, dna, fp, title):
-    d = dna or {}
-    ch = (d.get("章節") or {})
-    curve = d.get("章長曲線") or []
-    chs = (fp or {}).get("章節") or {}
+    fp = datakeys.to_en(fp or {}, datakeys.FINGERPRINT)
+    dna = datakeys.to_en(dna or {}, datakeys.DNA)
+    d = dna
+    ch = (d.get("chapters") or {})
+    curve = d.get("length_curve") or []
+    chs = fp.get("chapters") or {}
     lines = ["# 《%s》章節結構（骨架）" % title, "",
              "> 這些數字是從參考書量出來的骨架，不是規定；寫作時拿來對照。", "",
-             "## 視角", "- %s（%s）" % ((d.get("視角") or {}).get("人稱") or "—",
-                                        (d.get("視角") or {}).get("依據") or "—"), "",
+             "## 視角", "- %s（%s）" % ((d.get("pov") or {}).get("person") or "—",
+                                        (d.get("pov") or {}).get("basis") or "—"), "",
              "## 章長", "- 平均 %s 字、最短 %s、最長 %s、變異 %s"
-             % (ch.get("平均") or chs.get("平均章長") or "—", ch.get("最短") or chs.get("最短章長") or "—",
-                ch.get("最長") or chs.get("最長章長") or "—", ch.get("變異") or chs.get("章長變異") or "—"),
+             % (ch.get("mean") or chs.get("mean") or "—", ch.get("min") or chs.get("min") or "—",
+                ch.get("max") or chs.get("max") or "—", ch.get("cv") or chs.get("cv") or "—"),
              "- 章長曲線（十段、1.0＝平均）：%s" % ("、".join("%.2f" % x for x in curve) or "—"), "",
              "## 對白節奏", "- 對白行比例 %s、章間變異 %s"
-             % (("%.0f%%" % ((d.get("對白") or {}).get("比例", 0) * 100)) if d.get("對白") else "—",
-                (d.get("對白") or {}).get("章間變異") or "—"), "",
+             % (("%.0f%%" % ((d.get("dialogue") or {}).get("ratio", 0) * 100)) if d.get("dialogue") else "—",
+                (d.get("dialogue") or {}).get("chapter_cv") or "—"), "",
              "## 段落", "- 平均段長 %s、單句成段 %s"
-             % ((d.get("段落") or {}).get("平均段長") or "—", (d.get("段落") or {}).get("單句成段") or "—"), ""]
+             % ((d.get("paragraphs") or {}).get("avg_paragraph_length") or "—",
+                (d.get("paragraphs") or {}).get("single_sentence_paragraphs") or "—"), ""]
     return "\n".join(lines)
 
 
 def card_md(title, no):
     return """---
-類型: 章綱
-章號: %d
-章名: %s
-所屬卷: 第一卷
-狀態: 草稿
+type: chapter-card
+chapter: %d
+title: %s
+volume: 1
+status: draft
 ---
 
 # 第%d章 %s
@@ -164,42 +170,57 @@ def create(target, title, fp=None, dna=None, cards=3, source=""):
     for sub in KEY_DIRS:
         os.makedirs(os.path.join(target, *sub.split("/")), exist_ok=True)
 
-    # 18 份範本
-    dst_tpl = os.path.join(target, "_範本")
-    shutil.copytree(tpl, dst_tpl)
-    created.append("_範本/（%d 份）" % len(os.listdir(dst_tpl)))
+    fp = datakeys.to_en(fp, datakeys.FINGERPRINT) if fp else fp
+    dna = datakeys.to_en(dna, datakeys.DNA) if dna else dna
+    lang = (fp or {}).get("lang") or (dna or {}).get("lang") or "zh-TW"
 
-    # 空的「活檔」：從範本複製，狀態改成草稿（範本檔名不一定同名，這裡做對應）
+    # 18 份範本（段落標題依書的語言）
+    dst_tpl = layout.path(target, layout.TEMPLATES)
+    shutil.copytree(tpl, dst_tpl)
+    for f in os.listdir(dst_tpl):
+        fp_ = os.path.join(dst_tpl, f)
+        if f.endswith(".md"):
+            t = project.read_text(fp_)
+            t2 = sections.localize_doc(t, lang)
+            if t2 != t:
+                _write(fp_, t2)
+    created.append("_templates/（%d 份）" % len(os.listdir(dst_tpl)))
+
+    # 空的「活檔」：從範本複製，狀態改成草稿（目的地與範本檔名的對應在 layout.LIVE_TEMPLATES）
     for rel in LIVE_FILES:
-        src_name = "卷綱.md" if rel.endswith("卷綱_第一卷.md") else os.path.basename(rel)
+        src_name = layout.LIVE_TEMPLATES[rel]
         src = os.path.join(tpl, src_name)
         if not os.path.isfile(src):
             continue
         text = project.read_text(src)
-        text = project.set_frontmatter_field(text, "狀態", "草稿") if "---" in text[:10] else text
-        _write(os.path.join(target, *rel.split("/")), text)
+        text = project.set_frontmatter_field(text, "status", "draft") if "---" in text[:10] else text
+        _write(os.path.join(target, *rel.split("/")), sections.localize_doc(text, lang))
         created.append(rel)
 
-    lang = (fp or {}).get("語言") or (dna or {}).get("語言") or "zh-TW"
-    _write(os.path.join(target, "設定", "文風.md"), style_md(title, fp, dna))
-    created.append("設定/文風.md")
-    _write(os.path.join(target, "設定", "章節結構", "結構.md"), structure_md(dna=dna, fp=fp, title=title))
-    created.append("設定/章節結構/結構.md")
+    _write(layout.path(target, layout.STYLE), sections.localize_doc(style_md(title, fp, dna), lang))
+    created.append(layout.STYLE)
+    _write(layout.path(target, layout.BOOK_STRUCTURE), structure_md(dna=dna, fp=fp, title=title))
+    created.append(layout.BOOK_STRUCTURE)
     if fp:
-        _write(os.path.join(target, "設定", "風格指紋.json"), json.dumps(fp, ensure_ascii=False, indent=1))
-        created.append("設定/風格指紋.json")
+        _write(layout.path(target, layout.STYLE_FINGERPRINT), json.dumps(fp, ensure_ascii=False, indent=1))
+        created.append(layout.STYLE_FINGERPRINT)
     if dna:
-        _write(os.path.join(target, "設定", "結構DNA.json"), json.dumps(dna, ensure_ascii=False, indent=1))
-        created.append("設定/結構DNA.json")
+        _write(layout.path(target, layout.STRUCTURE_DNA), json.dumps(dna, ensure_ascii=False, indent=1))
+        created.append(layout.STRUCTURE_DNA)
 
     _write(os.path.join(target, "CLAUDE.md"), claude_md(title, lang, fp, dna, source))
     created.append("CLAUDE.md")
+    from . import bookmeta
+    bookmeta.write(target, title=title, lang=lang)    # 語言只記在 book.json（故事核心不再記）
+    created.append(layout.BOOK_META)
 
     for i in range(1, max(1, int(cards)) + 1):
-        rel = "大綱/章綱/第%03d章_待填.md" % i
-        _write(os.path.join(target, *rel.split("/")), card_md("（待填）", i))
+        rel = layout.CHAPTER_CARDS + "/" + layout.chapter_md(i)
+        _write(os.path.join(target, *rel.split("/")), sections.localize_doc(card_md("（待填）", i), lang))
         created.append(rel)
 
+    from . import trackjson
+    trackjson.sync(target)          # 新建的追蹤表補上 JSON 正本
     return {"target": target, "created": created, "lang": lang}
 
 
@@ -207,30 +228,35 @@ def seed(book_dir, title, fp, dna, source=""):
     """把「從參考書量到的東西」補進一本**已經存在**的書（工作台開新書時用）。
 
     只寫這幾個檔，不動 CLAUDE.md 與其他內容：
-      設定/文風.md（原本是空範本才寫）、設定/章節結構/結構.md、
-      設定/風格指紋.json、設定/結構DNA.json
+      bible/style.md（原本是空範本才寫）、bible/structure/structure.md、
+      bible/style-fingerprint.json、bible/structure-dna.json
     """
+    fp = datakeys.to_en(fp, datakeys.FINGERPRINT) if fp else fp
+    dna = datakeys.to_en(dna, datakeys.DNA) if dna else dna
     created = []
-    p = os.path.join(book_dir, "設定", "文風.md")
+    p = layout.path(book_dir, layout.STYLE)
     text = project.read_text(p) if os.path.isfile(p) else ""
     from . import shared
     if not shared.parse_metrics(text):          # 已經有指標就不覆蓋（尊重作者手填的）
-        _write(p, style_md(title, fp, dna))
-        created.append("設定/文風.md")
-    _write(os.path.join(book_dir, "設定", "章節結構", "結構.md"), structure_md(dna=dna, fp=fp, title=title))
-    created.append("設定/章節結構/結構.md")
+        from . import lang as lang_mod
+        _write(p, sections.localize_doc(style_md(title, fp, dna), lang_mod.book_lang(book_dir)))
+        created.append(layout.STYLE)
+    _write(layout.path(book_dir, layout.BOOK_STRUCTURE), structure_md(dna=dna, fp=fp, title=title))
+    created.append(layout.BOOK_STRUCTURE)
     if fp:
-        _write(os.path.join(book_dir, "設定", "風格指紋.json"), json.dumps(fp, ensure_ascii=False, indent=1))
-        created.append("設定/風格指紋.json")
+        _write(layout.path(book_dir, layout.STYLE_FINGERPRINT), json.dumps(fp, ensure_ascii=False, indent=1))
+        created.append(layout.STYLE_FINGERPRINT)
     if dna:
-        _write(os.path.join(book_dir, "設定", "結構DNA.json"), json.dumps(dna, ensure_ascii=False, indent=1))
-        created.append("設定/結構DNA.json")
+        _write(layout.path(book_dir, layout.STRUCTURE_DNA), json.dumps(dna, ensure_ascii=False, indent=1))
+        created.append(layout.STRUCTURE_DNA)
     return created
 
 
 def claude_md(title, lang, fp, dna, source=""):
-    ch = (fp or {}).get("章節") or {}
-    pov = (dna.get("視角") or {}).get("人稱") if dna else "（待填）"
+    fp = datakeys.to_en(fp or {}, datakeys.FINGERPRINT)
+    dna = datakeys.to_en(dna or {}, datakeys.DNA)
+    ch = fp.get("chapters") or {}
+    pov = (dna.get("pov") or {}).get("person") if dna else "（待填）"
     return """# 《%s》
 
 > 這本書的骨架由工作台產生%s。故事內容由你決定，這裡只放規則。
@@ -242,17 +268,17 @@ def claude_md(title, lang, fp, dna, source=""):
 - 對白比例：約 %s
 
 ## 資料夾
-- 設定／正文／候選／大綱／追蹤／範例，完整說明見 `_範本/專案規範.md`
-- `設定/文風.md` 有文字指標；寫稿時工作台會把這些數字放進上下文
+- bible／manuscript／candidates／outline／tracking／samples，完整說明見 `_templates/project-rules.md`
+- `bible/style.md` 有文字指標；寫稿時工作台會把這些數字放進上下文
 
 ## 寫作規則
-- 續寫時以 `大綱/章綱/` 的章綱為唯一劇情藍圖
+- 續寫時以 `outline/chapters/` 的章綱為唯一劇情藍圖
 - 章尾停在具體畫面，不寫感悟或預告
-- 每次改設定或追蹤，順手更新 `追蹤/`
+- 每次改設定或追蹤，順手更新 `tracking/`
 
 ## 這本書從哪裡來
 - 骨架參考：%s（只取風格指紋與結構 DNA，沒有沿用任何名字或事件）
 """ % (title, ("（參考：%s）" % source) if source else "", _lang_label(lang), pov,
-       ch.get("平均章長") or "—",
-       ("%.0f%%" % (((dna or {}).get("對白") or {}).get("比例", 0) * 100)) if dna and dna.get("對白") else "—",
+       ch.get("mean") or "—",
+       ("%.0f%%" % ((dna.get("dialogue") or {}).get("ratio", 0) * 100)) if dna.get("dialogue") else "—",
        source or "—")

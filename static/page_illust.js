@@ -78,7 +78,7 @@
 
   function imageModal(target, img, reload, reuse) {
     const origin = img.origin === "upload" ? "上傳"
-      : img.origin === "comfy" ? "ComfyUI" + (img.comfy_profile ? "・" + img.comfy_profile : "") : "Forge";
+      : img.origin === "comfy" ? "ComfyUI" + (img.comfy_profile ? `・${img.comfy_profile}` : "") : "Forge";
     const mainBtn = img.main
       ? h("span", { class: "badge b-ok" }, "主圖")
       : h("button", { class: "sm primary", id: "iv-main" }, "設為主圖");
@@ -95,7 +95,7 @@
           ? h("details", {},
             h("summary", { class: "small" }, "提示詞"),
             h("pre", { class: "pre" }, img.prompt),
-            img.negative ? h("pre", { class: "pre muted" }, "負面：" + img.negative) : null)
+            img.negative ? h("pre", { class: "pre muted" }, `負面：${img.negative}`) : null)
           : null,
       ],
       foot: (done) => [
@@ -119,7 +119,7 @@
     if (copyBtn) copyBtn.onclick = () => { navigator.clipboard.writeText(img.prompt).then(() => FE.toast("已複製")); };
     if (reuseBtn) reuseBtn.onclick = () => { close(); reuse(img); };
     delBtn.onclick = async () => {
-      if (!(await FE.confirm("刪除這張圖？（會移到 .studio/備份/插圖）"))) return;
+      if (!(await FE.confirm("刪除這張圖？（會移到 .studio/backup/illust）"))) return;
       try {
         await FE.api(B("/illust/delete"), { method: "POST", body: { target, file: img.file } });
         close();
@@ -128,7 +128,7 @@
     };
   }
 
-  // 插圖區塊：target = cover | chapter:N | entity:設定/角色/X.md
+  // 插圖區塊：target = cover | chapter:N | entity:bible/characters/X.md
   async function renderIllust(el, target, opts = {}) {
     const cfgR = await illCfg();
     let info;
@@ -166,7 +166,7 @@
     const textSection = () => [
       h("h3", {}, "圖中文字"),
       h("div", { class: "muted small", style: "margin-bottom:6px" },
-        "MOSS-Image 會照引號裡的字畫出來，中文、英文都可以（英文最穩）。要換行就在文字裡打 " + String.fromCharCode(92) + "n。最多 6 條；沒有加就不放文字。"),
+        `MOSS-Image 會照引號裡的字畫出來，中文、英文都可以（英文最穩）。要換行就在文字裡打 ${String.fromCharCode(92)}n。最多 6 條；沒有加就不放文字。`),
       isCover
         ? h("label", {
           class: "chip" + (D.texts.some((x) => x.book) ? " on" : ""), style: "margin-bottom:6px",
@@ -196,7 +196,7 @@
         h("img", { loading: "lazy", src: imgUrl(im.path), alt: "" }),
         im.main ? h("span", { class: "badge b-ok" }, "主圖") : null)))
       : h("div", { class: "muted small" },
-        "還沒有插圖。" + (isCh ? "可以挑一段來畫，或直接上傳。" : "可以產生提示詞送 Forge，或直接上傳。")));
+        `還沒有插圖。${isCh ? "可以挑一段來畫，或直接上傳。" : "可以產生提示詞送 Forge，或直接上傳。"}`));
 
     const charRows = () => {
       if (!ents) return h("div", { class: "muted small" }, "載入中……");
@@ -220,7 +220,7 @@
             h("td", {}, h("input", { type: "text", "data-act": String(i), value: c.action || "", placeholder: "這張圖裡的動作、表情（英文標籤）" })),
             h("td", { class: "small muted" }, c.tags
               ? (c.tags.length > 60 ? c.tags.slice(0, 60) : c.tags)
-              : h("a", { href: "#/b/" + enc(S.book) + "/bible?t=" + enc("角色") + "&f=" + enc(c.file || "") }, "先建立視覺卡")))))
+              : h("a", { href: "#/b/" + enc(S.book) + "/bible?t=characters&f=" + enc(c.file || "") }, "先建立視覺卡")))))
           : null,
         places.length
           ? [h("div", { class: "small muted", style: "margin:8px 0 4px" }, "地點、物件（有視覺卡的會帶入場景）"),
@@ -251,14 +251,14 @@
               h("span", { class: "muted small" }, "程式在本機依動作詞、畫面詞、章綱情節點打分，不用 AI；也可以直接貼上或修改下面的文字。")),
             picks
               ? h("div", { class: "ill-picks" }, picks.map((p, i) => h("div", { class: "ill-pick", "data-p": String(i) },
-                h("div", { class: "small muted" }, "分數 " + p.score + "　" + p.reasons),
+                h("div", { class: "small muted" }, `分數 ${p.score}　${p.reasons}`),
                 p.text.length > 160 ? p.text.slice(0, 160) + "……" : p.text)))
               : null,
             h("textarea", { id: "il-passage", rows: "4", placeholder: "要畫的片段" }, D.passage),
           ] : null,
-          h("h3", {}, (isCh ? "2. " : "") + "出場角色與地點"),
+          h("h3", {}, `${isCh ? "2. " : ""}出場角色與地點`),
           h("div", { id: "il-chars" }, charRows()),
-          h("h3", {}, (isCh ? "3. " : "") + "畫面描述"),
+          h("h3", {}, `${isCh ? "3. " : ""}畫面描述`),
           h("div", { class: "row", style: "margin-bottom:8px" },
             h("select", { id: "il-prov" }, provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true })),
             h("button", { class: "sm primary", id: "il-ai" }, "AI 產生畫面描述"),
@@ -276,7 +276,7 @@
             h("label", { class: "f" }, h("span", {}, "構圖、鏡頭標籤"), h("input", { type: "text", "data-k": "composition", value: D.composition || "", placeholder: "cowboy shot, from side, close-up" })),
             h("label", { class: "f" }, h("span", {}, "額外標籤"), h("input", { type: "text", "data-k": "extra", value: D.extra || "" }))),
           h("label", { class: "f" }, h("span", {}, "英文描述（兩三句）"), h("textarea", { "data-k": "sentences", rows: "3" }, D.sentences || "")),
-          h("h3", {}, (isCh ? "4. " : "") + "畫風與出圖"),
+          h("h3", {}, `${isCh ? "4. " : ""}畫風與出圖`),
           h("div", { class: "grid g2" },
             h("div", { class: "f" }, h("span", {}, "畫風"),
               h("div", { class: "row" },
@@ -300,22 +300,22 @@
                 cfgR.sizes.map(([n, w, hh]) => h("option", { value: w + "x" + hh, selected: w === +D.width && hh === +D.height }, n + " " + w + "×" + hh)),
                 cfgR.sizes.some(([, w, hh]) => w === +D.width && hh === +D.height)
                   ? null
-                  : h("option", { value: D.width + "x" + D.height, selected: true }, "目前 " + D.width + "×" + D.height))),
+                  : h("option", { value: D.width + "x" + D.height, selected: true }, `目前 ${D.width}×${D.height}`))),
             h("label", { class: "f" }, h("span", {}, "種子（-1＝隨機）"), h("input", { type: "number", "data-k": "seed", value: String(D.seed) })),
             h("label", { class: "f" }, h("span", {}, "張數"),
               h("select", { "data-k": "count" }, [1, 2, 3, 4].map((n) => h("option", { value: String(n), selected: +D.count === n }, String(n)))))),
           (isComfy && curProf().kind === "moss") ? textSection() : null,
           h("div", { class: "row" },
             h("button", { class: "sm", id: "il-asm" }, "組裝提示詞"),
-            h("span", { class: "muted small" }, "組裝後可以直接修改最終提示詞，或複製到 " + genName() + " 自己用。")),
+            h("span", { class: "muted small" }, `組裝後可以直接修改最終提示詞，或複製到 ${genName()} 自己用。`)),
           final ? [
             h("label", { class: "f", style: "margin-top:8px" }, h("span", {}, "正向提示詞"), h("textarea", { id: "il-pos", rows: "7" }, final.positive)),
             h("label", { class: "f" }, h("span", {}, "負面提示詞"), h("textarea", { id: "il-neg", rows: "2" }, final.negative)),
-            (final.notes && final.notes.length) ? h("div", { class: "small muted" }, "標籤檢查：" + final.notes.join("；")) : null,
+            (final.notes && final.notes.length) ? h("div", { class: "small muted" }, `標籤檢查：${final.notes.join("；")}`) : null,
             h("div", { class: "row", style: "margin-top:8px" },
               h("button", { class: "sm", id: "il-copy" }, "複製正向提示詞"),
               h("span", { class: "grow" }),
-              h("button", { class: "primary", id: "il-gen" }, "送 " + genName() + " 出圖")),
+              h("button", { class: "primary", id: "il-gen" }, `送 ${genName()} 出圖`)),
           ] : null)
           : null));
       bind();
@@ -369,17 +369,17 @@
           ...active.map((x) => (x.status === "running"
             ? (x.backend === "comfy"
               ? h("div", { class: "ill-prog" },
-                h("span", {}, "ComfyUI " + (x.phase === "pending" ? "排隊中" : "出圖中") + "（" + x.profile + "，" + (x.elapsed || 0) + " 秒）"),
+                h("span", {}, `ComfyUI ${x.phase === "pending" ? "排隊中" : "出圖中"}（${x.profile}，${x.elapsed || 0} 秒）`),
                 h("div", { class: "bar indet" }, h("i", {})),
                 h("button", { class: "sm", "data-cancel": String(x.id) }, "停止"))
               : h("div", { class: "ill-prog" },
-                h("span", {}, "Forge 出圖中 " + Math.round(x.progress * 100) + "%" + (x.eta ? "（約 " + Math.ceil(x.eta) + " 秒）" : "")),
+                h("span", {}, `Forge 出圖中 ${Math.round(x.progress * 100)}%${x.eta ? `（約 ${Math.ceil(x.eta)} 秒）` : ""}`),
                 h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(x.progress * 100) + "%" })),
                 h("button", { class: "sm", "data-cancel": String(x.id) }, "停止")))
-            : h("div", {}, "排隊中（seed " + x.seed + "）", h("button", { class: "sm", "data-cancel": String(x.id) }, "取消")))),
-          others ? h("div", { class: "muted" }, "另外還有 " + others + " 張在排隊") : null,
+            : h("div", {}, `排隊中（seed ${x.seed}）`, h("button", { class: "sm", "data-cancel": String(x.id) }, "取消")))),
+          others ? h("div", { class: "muted" }, `另外還有 ${others} 張在排隊`) : null,
           mine.filter((x) => x.status === "error" && Date.now() / 1000 - x.created < 600).slice(-1)
-            .map((x) => h("div", { class: "err" }, "出圖失敗：" + x.error)));
+            .map((x) => h("div", { class: "err" }, `出圖失敗：${x.error}`)));
         q.querySelectorAll("[data-cancel]").forEach((b) => {
           b.onclick = () => FE.api("/api/illust/queue/" + b.dataset.cancel + "/cancel", { method: "POST" });
         });
@@ -451,7 +451,7 @@
         try {
           const files = await readFiles(ev.target);
           await FE.api(B("/illust/upload"), { method: "POST", body: { target, files } });
-          FE.toast("已上傳 " + files.length + " 張");
+          FE.toast(`已上傳 ${files.length} 張`);
           reload();
         } catch (e) { FE.fail(e); }
       };
@@ -543,7 +543,7 @@
               width: D.width, height: D.height, draft: D, profile: isComfy ? D.profile : null,
             },
           });
-          FE.toast("已送到 " + genName());
+          FE.toast(`已送到 ${genName()}`);
           pollQueue();
         } catch (e) { FE.fail(e); }
       };
@@ -582,7 +582,7 @@
         const extraInput = h("input", { type: "text", id: "bs-extra", value: bs.extra || "" });
         const negInput = h("input", { type: "text", id: "bs-neg", value: bs.negative_extra || "" });
         const sizeSel = h("select", { id: "bs-size" },
-          h("option", { value: "" }, "用全域預設（" + cfgR.config.width + "×" + cfgR.config.height + "）"),
+          h("option", { value: "" }, `用全域預設（${cfgR.config.width}×${cfgR.config.height}）`),
           cfgR.sizes.map(([n, w, hh]) => h("option", { value: w + "x" + hh, selected: w === bs.width && hh === bs.height }, n + " " + w + "×" + hh)));
         const csizeSel = h("select", { id: "bs-csize" },
           cfgR.sizes.map(([n, w, hh]) => h("option", { value: w + "x" + hh, selected: w === bs.cover_width && hh === bs.cover_height }, n + " " + w + "×" + hh)));
@@ -623,7 +623,7 @@
     const o = await FE.api(B("/illust/overview"), { signal });
     const link = (it) => (it.target === "cover" ? "#/b/" + enc(S.book) + "/illust?t=" + enc("封面")
       : it.target.startsWith("chapter:") ? "#/b/" + enc(S.book) + "/ch/" + it.target.split(":")[1] + "?tab=illust"
-        : "#/b/" + enc(S.book) + "/bible?t=" + enc(it.target.split("/")[1]) + "&f=" + enc(it.target.slice(7)));
+        : "#/b/" + enc(S.book) + "/bible?t=" + enc(nsShared.normId("bible_tab", it.target.split("/")[1])) + "&f=" + enc(it.target.slice(7)));
     body.replaceChildren(o.items.length
       ? h("div", { class: "ill-overview" }, o.items.map((it) => h("a", { class: "ill-ov", href: link(it) },
         h("img", { loading: "lazy", src: imgUrl(it.main), alt: "" }),

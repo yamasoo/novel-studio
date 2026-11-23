@@ -41,5 +41,25 @@
     fmtNum(n) { return fmtNum(n); },
     unitCh(unit) { return unitCh(unit); },
     unitOfBook(id) { return unitOfBook(id); },
+    // 括號依介面語言：英文用半形「 (…)」，繁中、日文照舊全形「（…）」。
+    // 「已翻好的片段＋括號」接起來用這個，不要做「{0}（{1}）」這種範本鍵（太泛用，會套到書的內容）。
+    // 同一段中文在不同地方要不同譯法時用：繁中照原文顯示，其他語言查另一個翻譯鍵。
+    // 呼叫端的元素要標 data-i18n-skip，免得原文又被當成一般文字翻一次。
+    tx(zh, key) {
+      const lang = window.FE && FE.i18n && FE.i18n.lang;
+      return !lang || lang === "zh-TW" ? zh : FE.t(key);
+    },
+    paren(s) {
+      return (window.FE && FE.i18n && FE.i18n.lang === "en") ? " (" + s + ")" : "（" + s + "）";
+    },
+    // 舊識別值（中文 ID、v2 資料夾名稱）→ 新 ID；kind 見 studio/ids.py（bible_tab、reverse_group、search_scope、import_target）。
+    // 認不得的原樣回傳，交給呼叫端判斷。
+    normId(kind, v) {
+      if (v === null || v === undefined) return v;
+      const ids = window.NS_IDS || { aliases: {}, valid: {} };
+      if ((ids.valid[kind] || []).includes(v)) return v;
+      const a = ids.aliases[kind] || {};
+      return Object.prototype.hasOwnProperty.call(a, v) ? a[v] : v;
+    },
   };
 })();

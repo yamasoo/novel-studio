@@ -43,18 +43,21 @@
       const b = parseInt(toInput.value, 10) || a;
       const t0 = Date.now();
       const sec = h("span", { id: "dr-sec" }, "0");
-      out.replaceChildren(h("div", { class: "card" }, h("p", { class: "muted" }, "檢查第 " + a + "–" + b + " 章…（", sec, " 秒）")));
+      out.replaceChildren(h("div", { class: "card" }, h("p", { class: "muted" }, `檢查第 ${a}–${b} 章…（`, sec, " 秒）")));
       const tick = setInterval(() => {
         if (!ctx.active()) { clearInterval(tick); return; }
         sec.textContent = ((Date.now() - t0) / 1000).toFixed(0);
       }, 500);
       try {
-        const r = await FE.api(B("/drift?from=" + a + "&to=" + b), { signal });
+        // 報告跟介面語言（後端依 lang 寫好，不再經過頁面翻譯）
+        const r = await FE.api(B("/drift?from=" + a + "&to=" + b + "&lang=" + encodeURIComponent((FE.i18n && FE.i18n.lang) || "zh-TW")), { signal });
         clearInterval(tick);
         const planOut = h("div", { id: "dr-plan-out" });
-        const planBtn = h("button", { id: "dr-plan" }, "產生卷綱更新草稿（用 " + Panel.provName() + "）");
+        const planBtn = h("button", { id: "dr-plan" }, `產生卷綱更新草稿（用 ${Panel.provName()}）`);
+        const repNode = FE.md.render(r.report || "");
+        repNode.setAttribute("data-i18n-skip", "");
         out.replaceChildren(h("div", { class: "card" },
-          FE.md.render(r.report || ""),
+          repNode,
           h("div", { class: "row", style: "margin-top:10px" },
             h("span", { class: "grow" }),
             planBtn),
@@ -73,7 +76,7 @@
             clearInterval(tick2);
             if (p.error) {
               planOut.replaceChildren(
-                h("p", { class: "muted small", style: "color:#b45309" }, "產生失敗：" + p.error),
+                h("p", { class: "muted small", style: "color:#b45309" }, `產生失敗：${p.error}`),
                 h("p", { class: "muted small" }, "沒有存任何草稿，卷綱也沒動。可以再試一次，或換一個執行者。"));
               return;
             }
@@ -81,7 +84,7 @@
             if (w1.length) FE.toast(w1.join("；"), "err");
             const applyBtn = h("button", { id: "dr-apply" }, "附加到卷綱");
             planOut.replaceChildren(
-              FE.md.render(p.plan_md || ""),
+              (() => { const n = FE.md.render(p.plan_md || ""); n.setAttribute("data-i18n-skip", ""); return n; })(),   // 草稿是書的語言寫的檔案
               h("div", { class: "row" }, h("span", { class: "grow" }), applyBtn),
               h("p", { class: "muted small" }, "附加＝在 ", h("code", {}, p.volume_file), " 末尾加一節，不會覆蓋原本的卷綱。"));
             applyBtn.onclick = async () => {
@@ -89,7 +92,7 @@
                 const res = await FE.api(B("/drift/apply"), { method: "POST", body: { from: a, to: b, draft: p.draft }, signal });
                 const w2 = res.warnings || [];
                 if (w2.length) FE.toast(w2.join("；"), "err");
-                else FE.toast("已附加到 " + res.volume_file);
+                else FE.toast(`已附加到 ${res.volume_file}`);
                 planOut.replaceChildren(h("p", { class: "muted" }, "已附加到 ", h("code", {}, res.volume_file), "（原本的內容沒動）。"));
               } catch (e) { FE.fail(e); }
             };

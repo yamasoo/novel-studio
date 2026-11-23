@@ -12,13 +12,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 from studio import contract, project, similarity  # noqa: E402
+from studio import layout  # noqa: E402
 
 LIMITS = similarity.LIMITS
 
 
 def book_text(d):
-    ch = project._scan_dir(os.path.join(d, "正文"))
-    return "\n".join(project.split_frontmatter(project.read_text(os.path.join(d, "正文", ch[no])))[1]
+    ch = project._scan_dir(os.path.join(d, "manuscript"))
+    return "\n".join(project.split_frontmatter(project.read_text(layout.path(d, layout.MANUSCRIPT, ch[no])))[1]
                      for no in sorted(ch))
 
 

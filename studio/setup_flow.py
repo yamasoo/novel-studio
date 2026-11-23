@@ -10,22 +10,23 @@
 
 卷層（第二卷之後）：範圍一律以正式卷綱 frontmatter 的「章節範圍」為準（`volume.find`），
 沒有卷綱就當單卷、開放到最後一章；「卷末體檢做過了嗎」只看卷綱檔尾的更新草稿或
-`大綱/草稿/卷綱更新_第a-b章.md`，不另外存狀態檔。
+`outline/drafts/volume-update_ch-aaaa-bbbb.md`，不另外存狀態檔。
 """
 import json
 import os
 
 from . import project, volume
+from . import layout
 
-CORE = "設定/故事核心.md"
-STYLE = "設定/文風.md"
-MASTER = "大綱/全書大綱.md"
-VOLUME_FILES = ("大綱/卷綱_第1卷.md", "大綱/卷一卷綱.md", "大綱/卷綱_第一卷.md")
-CARD_DIR = "大綱/章綱"
-CHAR_DIR = "設定/角色"
-FACTION_DIR = "設定/勢力"
-WORLD_DIR = "設定/世界觀"
-BIBLE_DRAFT_DIR = "設定/草稿"
+CORE = layout.STORY_CORE
+STYLE = layout.STYLE
+MASTER = layout.BOOK_OUTLINE
+VOLUME_FILES = (layout.OUTLINE_VOLUME_ONE,)
+CARD_DIR = layout.CHAPTER_CARDS
+CHAR_DIR = layout.CHARACTERS
+FACTION_DIR = layout.FACTIONS
+WORLD_DIR = layout.WORLD
+BIBLE_DRAFT_DIR = layout.BIBLE_DRAFTS
 MIN_CHARACTERS = 3          # 初始設定過關的角色正式檔門檻
 
 # 六步：id 給前端當 key，action／prefill 給 Panel.openForm 用（go 給換頁型步驟用）
@@ -80,7 +81,7 @@ def _entries(book_dir, rel):
 def settings_state(book_dir):
     """初始設定：角色正式檔 ≥ 3，且勢力或世界觀至少一個非空檔。
 
-    草稿（設定/草稿/）不算完成——要按「草稿轉正式」才會變成角色／勢力／世界觀；
+    草稿（bible/drafts/）不算完成——要按「草稿轉正式」才會變成角色／勢力／世界觀；
     這裡同時回草稿數，讓下一步卡可以說「N 份草稿等你轉正式」。
     """
     chars = _entries(book_dir, CHAR_DIR)
@@ -196,11 +197,11 @@ def volume_state(book_dir):
 
 
 def _volume_checked(book_dir, vol):
-    """這一卷做過卷末體檢了嗎：卷綱檔尾已有更新草稿，或 大綱/草稿/ 裡有對應的更新草稿。"""
+    """這一卷做過卷末體檢了嗎：卷綱檔尾已有更新草稿，或 outline/drafts/ 裡有對應的更新草稿。"""
     text = _read(book_dir, vol["rel"]) if vol.get("rel") else None
     if text and "卷綱更新草稿" in text:
         return True
-    return _read(book_dir, "大綱/草稿/卷綱更新_第%d-%d章.md" % (vol["lo"], vol["hi"])) is not None
+    return _read(book_dir, layout.volume_update_draft(vol["lo"], vol["hi"])) is not None
 
 
 def _plain_write_next(book_dir):
@@ -227,9 +228,10 @@ def _volume_next(book_dir):
     if vol["full"]:
         no, start = (vol["no"] or 0) + 1, vol["hi"] + 1
         cn = volume.cn_no(no)
-        return {"id": "volume_next", "label": "第%s卷卷綱" % cn,
+        # 標籤用阿拉伯數字（跟總覽卷卡的「第1卷」一致，介面翻譯才對得上）；表單的卷號照舊收中文數字
+        return {"id": "volume_next", "label": "第%d卷卷綱" % no,
                 "action": "volume_draft", "prefill": {"volume": cn, "from": start, "to": start + 9},
-                "desc": "上一卷寫滿了。先把第%s卷的卷綱定下來（第%d 章起），再排這一卷的章綱。" % (cn, start)}
+                "desc": "上一卷寫滿了。先把第%d卷的卷綱定下來（第%d 章起），再排這一卷的章綱。" % (no, start)}
     chs = project.scan_chapters(book_dir)
     have = {c["no"] for c in chs if c.get("card_file") or c.get("text_file")}
     written = {c["no"] for c in chs if c.get("text_file")}
@@ -265,7 +267,7 @@ def next_step(book_dir):
 
 def _had_setup_job(book_dir):
     """這本書以前有沒有跑過開書訪談（.studio/jobs 裡有 setup_new 的紀錄）。"""
-    d = os.path.join(book_dir, ".studio", "jobs")
+    d = layout.path(book_dir, layout.STUDIO, "jobs")
     if not os.path.isdir(d):
         return False
     for f in os.listdir(d):
@@ -330,7 +332,7 @@ def report(book_dir, meta=None):
     answers = params.get("answers") or {}
     files = [_file_row(book_dir, "CLAUDE.md", "本書規則"),
              _file_row(book_dir, CORE, "故事核心"),
-             _file_row(book_dir, STYLE, "文風")]
+             _file_row(book_dir, STYLE, "文風")]  # literal-ok: 顯示標籤
     defaults = [{"q": v.get("q") or k, "key": k} for k, v in answers.items() if isinstance(v, dict) and v.get("default")]
     pending = [f["label"] for f in files if not f["ok"]]
     return {

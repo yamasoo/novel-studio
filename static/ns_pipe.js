@@ -52,7 +52,7 @@
       : null;
     return h("div", { class: "pstep " + s.status, title: s.note || "" },
       h("span", { class: "pi" }, PIPE_ICON[s.status] || "○"),
-      h("span", { class: "pl" }, s.label, who ? h("span", { class: "muted small" }, "（" + provName(who) + "）") : null),
+      h("span", { class: "pl" }, s.label, who ? h("span", { class: "muted small" }, nsShared.paren(FE.t(provName(who)))) : null),
       s.note ? h("span", { class: "pn" }, s.note) : null,
       rewind);
   }

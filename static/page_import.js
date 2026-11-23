@@ -109,7 +109,7 @@
       const table = h("div", { class: "table-wrap", style: "max-height:360px" },
         h("table", {},
           h("tr", {},
-            h("th", { class: "num" }, "章"),
+            h("th", { class: "num", "data-i18n-skip": "" }, nsShared.tx("章", "章（表頭）")),
             h("th", {}, "章名"),
             h("th", { class: "num" }, wu === "words" ? "詞數" : "字數"),
             h("th", {}, "檢查"),

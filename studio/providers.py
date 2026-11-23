@@ -52,7 +52,7 @@ def choices(provs):
                     for m, lbl in CLAUDE_MODELS]
         elif _supports_models(p) and p.get("models"):
             dm = p.get("model") or ""
-            out.append(dict(base, id=p["id"], label="%s（預設）" % (dm or "預設"), model=dm,
+            out.append(dict(base, id=p["id"], label="%s（預設）" % (dm or "預設"), model=dm, is_default=True,
                             name="%s · %s" % (p.get("name"), dm) if dm else p.get("name")))
             for m in p["models"]:
                 if m.get("id") and m["id"] != dm:

@@ -93,7 +93,7 @@
   }
 
   function volCard(v, signal) {
-    const dim = (x) => h("span", { class: "muted small" }, FE.t("第 {0}–{1} 章", x.lo, x.hi) + (x.status ? "（" + x.status + "）" : ""));
+    const dim = (x) => h("span", { class: "muted small" }, FE.t("第 {0}–{1} 章", x.lo, x.hi) + (x.status ? nsShared.paren(FE.t(x.status)) : ""));
     const vols = (v.volumes || []).map((x) => h("div", { class: "row" },
       h("span", {}, x.name, " ", dim(x)),
       h("span", { class: "grow" }),

@@ -213,8 +213,9 @@ function provOptions(cur, opts = {}) {
     if (!g) { g = { base: c.base, label: c.group, items: [] }; groups.push(g); }
     g.items.push(c);
   });
+  // 每段先翻好再接：整段接起來的「Sonnet（用訂閱額度）」對不到翻譯鍵
   const one = (c, text) => FE.h("option", { value: c.id, selected: c.id === cur },
-    text + (opts.unset && c.unset ? "（未設定）" : "") + (opts.claudeNote && c.type === "claude_code" ? "（用訂閱額度）" : ""));
+    (c.is_default && text === c.label ? (c.model || FE.t("預設")) + FE.t("（預設）") : FE.t(text)) + (opts.unset && c.unset ? FE.t("（未設定）") : "") + (opts.claudeNote && c.type === "claude_code" ? FE.t("（用訂閱額度）") : ""));
   return groups.map((g) => g.items.length === 1 ? one(g.items[0], g.items[0].name)
     : FE.h("optgroup", { label: g.label }, g.items.map((c) => one(c, c.label))));
 }

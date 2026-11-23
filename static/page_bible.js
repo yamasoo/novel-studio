@@ -53,7 +53,7 @@
     return h("label", { class: "ef" },
       h("span", {}, label),
       h("select", { "data-ef": key }, opts.map(([v, txt, n]) =>
-        h("option", { value: v, selected: (cur || "全部") === v }, txt + "（" + n + "）"))));
+        h("option", { value: v, selected: (cur || "全部") === v }, FE.t(txt) + nsShared.paren(n)))));
   }
 
   function entityFilterBarNode(t, list, f) {

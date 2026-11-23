@@ -46,7 +46,7 @@
       h("label", { class: "cb" },
         h("input", { type: "checkbox", id: "x-ill", checked: p.include_illust !== false, disabled: !m.illust_chapters }),
         " 在章首放插圖",
-        h("span", { class: "muted small" }, "（" + (m.illust_chapters ? `${m.illust_chapters} 章有主圖` : "還沒有章節插圖") + "）")));
+        h("span", { class: "muted small" }, nsShared.paren(m.illust_chapters ? FE.t(`${m.illust_chapters} 章有主圖`) : FE.t("還沒有章節插圖")))));
 
     const resultBox = h("div", { id: "x-result" });
     const listBox = h("div", { id: "x-list" });

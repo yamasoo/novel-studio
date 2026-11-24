@@ -2113,5 +2113,10 @@
  "收起": "Collapse",
  "展開設定": "Expand",
  "設定本文": "Entry Text",
- "重設篩選": "Reset filters"
+ "重設篩選": "Reset filters",
+ "合併…": "Merge…",
+ "請先勾選至少 2 個要合併的項目": "Select at least 2 items to merge first",
+ "合併勾選的設定項目": "Merge selected setting entries",
+ "請選擇要保留哪一份當主檔。其餘項目的名稱會加入主檔別名、內容附在檔尾（不遺失），舊檔會移到 bible/_merged/；若為角色會同步更新角色狀態檔與關係表。": "Choose which entry to keep as the main file. Other entries' names are added as aliases, their contents are appended at the end (no data lost), old files move to bible/_merged/, and for characters their state files and relationship table are updated too.",
+ "確認合併": "Confirm merge"
 }

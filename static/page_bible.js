@@ -143,7 +143,8 @@
   }
 
   // 批次工具列的按鈕（每次重畫都重建，事件直接綁在節點上）
-  function bulkBar(t, refresh) {
+  function bulkBar(t, list, refresh) {
+    const byFile = Object.fromEntries((list || []).map((e) => [e.file, e]));
     const apply = async (kind) => {
       const files = [...pickSet];
       if (!files.length) { FE.toast("請先勾選要處理的項目。", "err"); return; }
@@ -189,6 +190,53 @@
           document.querySelector("#ef-n").textContent = `已選 ${pickSet.size} 項`;
         },
       }, "清除"),
+      h("button", {
+        id: "ef-merge",
+        onclick: () => {
+          const files = [...pickSet];
+          if (files.length < 2) { FE.toast("請先勾選至少 2 個要合併的項目", "err"); return; }
+          // 預設選第一個非草稿（正式）項目當保留主檔
+          let canon = files.find((f) => byFile[f] && byFile[f].status !== "草稿") || files[0];
+          const radios = files.map((f) => {
+            const e = byFile[f] || { name: f };
+            return h("label", {},
+              h("input", {
+                type: "radio", name: "ef-merge-canon", value: f, checked: f === canon,
+                onchange: () => { canon = f; },
+              }),
+              h("span", {},
+                h("b", {}, e.name || f),
+                h("small", {}, (e.status ? e.status + " · " : "") + (e.summary || f))));
+          });
+          FE.modal({
+            title: "合併勾選的設定項目",
+            body: [
+              h("p", { class: "small muted" }, "請選擇要保留哪一份當主檔。其餘項目的名稱會加入主檔別名、內容附在檔尾（不遺失），舊檔會移到 bible/_merged/；若為角色會同步更新角色狀態檔與關係表。"),
+              h("div", { class: "seg" }, radios),
+            ],
+            foot: (done) => [
+              h("button", { class: "btn", type: "button", onclick: () => done(false) }, "取消"),
+              h("button", {
+                class: "btn btn-primary", type: "button",
+                onclick: async () => {
+                  const duplicates = files.filter((x) => x !== canon);
+                  try {
+                    const rep = await FE.api(B("/bible/merge"), { method: "POST", body: { canonical: canon, duplicates } });
+                    pickSet = new Set();
+                    done(true);
+                    const extra = [];
+                    if (rep.state_merged && rep.state_merged.length) extra.push(`狀態檔 ${rep.state_merged.length} 份`);
+                    if (rep.relations_updated) extra.push(`關係表 ${rep.relations_updated} 處`);
+                    const note = (rep.visual_cards_note || []).join("；");
+                    FE.toast(`已合併 ${duplicates.length} 項` + (extra.length ? `（連動：${extra.join("、")}）` : "") + (note ? `。${note}` : ""));
+                    FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(t) + "&f=" + enc(canon));
+                  } catch (e) { FE.fail(e); }
+                },
+              }, "確認合併"),
+            ],
+          });
+        },
+      }, "合併…"),
       h("button", { class: "primary", id: "ef-promote", onclick: () => apply("promote") }, "轉為正式"));
   }
 
@@ -196,7 +244,7 @@
     const shown = list.filter((e) => entryMatches(e, f, t));
     const pick = ENT_TABS.includes(t);
     const head = [h("div", { class: "muted small ef-count" }, `顯示 ${shown.length} / ${list.length}`)];
-    if (pick) head.push(bulkBar(t, refresh));
+    if (pick) head.push(bulkBar(t, list, refresh));
     if (!list.length) return h("div", {}, head, h("div", { class: "muted" }, "這裡還是空的。"));
     if (!shown.length) return h("div", {}, head, h("div", { class: "muted" }, "沒有符合條件的項目。"));
     if (f.group && t !== "factions") {

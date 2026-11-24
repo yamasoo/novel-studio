@@ -13,7 +13,7 @@ import os
 import re
 import shutil
 
-from . import project
+from . import lang as lang_mod, project, relations, tracking, visual_card
 from . import fmkeys, layout, sections
 
 # （資料夾, 顯示用的類別名稱）；類別名稱會出現在 API（sub）與索引檔，介面文字在 P5 處理
@@ -302,6 +302,110 @@ def _set_aliases(text, aliases):
     return "\n".join(out)
 
 
+def _merge_heading(dname, today, lang):
+    if lang == "en":
+        return "Merged: %s (%s, to review)" % (dname, today)
+    if lang == "ja":
+        return "統合：%s（%s、要確認）" % (dname, today)
+    return "併入：%s（%s，待核對）" % (dname, today)
+
+
+def _merge_char_states(book_dir, cname, dnames, dest_dir, today, lang):
+    """合併角色時連動處理 tracking/characters/<名>.md。回傳處理清單。"""
+    st_root = layout.path(book_dir, layout.CHARACTER_STATES)
+    if not os.path.isdir(st_root):
+        return []
+    canon_st = os.path.join(st_root, project.safe_filename(cname, 40) + ".md")
+    merged = []
+    for dname in dnames:
+        cand = os.path.join(st_root, project.safe_filename(dname, 40) + ".md")
+        if not os.path.isfile(cand) or os.path.normcase(cand) == os.path.normcase(canon_st):
+            continue
+        dup_text = project.read_text(cand)
+        if os.path.isfile(canon_st):
+            tracking.backup(book_dir, canon_st, "合併前")
+            _, body = project.split_frontmatter(dup_text)
+            lines = body.strip("\n").split("\n")
+            if lines and lines[0].startswith("# "):
+                lines = lines[1:]
+            lines = [("#" + l) if l.startswith("## ") else l for l in lines]
+            cur = project.read_text(canon_st).rstrip("\n")
+            sec = "\n\n## %s\n\n%s\n" % (_merge_heading(dname, today, lang), "\n".join(lines).strip())
+            project.write_atomic(canon_st, cur + sec)
+            os.makedirs(dest_dir, exist_ok=True)
+            dst = os.path.join(dest_dir, "state_" + os.path.basename(cand))
+            if os.path.exists(dst):
+                stem, ext = os.path.splitext(dst)
+                dst = "%s_%s%s" % (stem, datetime.datetime.now().strftime("%H%M%S"), ext)
+            shutil.move(cand, dst)
+        else:
+            updated = project.set_frontmatter_field(dup_text, "name", cname)
+            project.write_atomic(canon_st, updated)
+            os.makedirs(dest_dir, exist_ok=True)
+            dst = os.path.join(dest_dir, "state_" + os.path.basename(cand))
+            if os.path.exists(dst):
+                stem, ext = os.path.splitext(dst)
+                dst = "%s_%s%s" % (stem, datetime.datetime.now().strftime("%H%M%S"), ext)
+            shutil.move(cand, dst)
+        merged.append(dname)
+    return merged
+
+
+def _merge_relations(book_dir, cname, dnames):
+    """合併角色時把關係表裡的舊角色名改指向保留名，移除自己對自己與重複列。回傳異動筆數。"""
+    if not dnames or not relations.exists(book_dir):
+        return 0
+    old_set = set(dnames)
+    before, keys, rows, after = relations._load(book_dir, relations.FILE)
+    changed = 0
+    new_rows, seen = [], set()
+    for r in rows:
+        nr = dict(r)
+        w, tw = str(nr.get("who") or "").strip(), str(nr.get("toward") or "").strip()
+        if w in old_set:
+            nr["who"] = cname
+            changed += 1
+        if tw in old_set:
+            nr["toward"] = cname
+            changed += 1
+        w2, tw2 = str(nr.get("who") or "").strip(), str(nr.get("toward") or "").strip()
+        if w2 and w2 == tw2:
+            changed += 1
+            continue
+        sig = (w2, tw2, str(nr.get("relationship") or "").strip(), str(nr.get("attitude") or "").strip(),
+               str(nr.get("start_chapter") or "").strip(), str(nr.get("end_chapter") or "").strip())
+        if sig in seen:
+            changed += 1
+            continue
+        seen.add(sig)
+        new_rows.append(nr)
+    if changed:
+        tracking.backup(book_dir, layout.path(book_dir, relations.FILE), "合併前")
+        relations._save(book_dir, relations.FILE, before, keys, new_rows, after, "")
+    return changed
+
+
+def _merge_visual_cards(book_dir, canon_rel, cname, aliases, dup_infos):
+    """合併角色時連動結構化視覺卡：主檔沒有就轉移舊檔視覺卡；兩邊都有就回傳提醒。"""
+    notes = []
+    canon_vc = visual_card.find_by_source(book_dir, canon_rel, char_name=cname)
+    for r, dname in dup_infos:
+        dup_vc = visual_card.find_by_source(book_dir, r, char_name=dname)
+        if not dup_vc:
+            continue
+        if not canon_vc:
+            card = dict(dup_vc["card"])
+            card["name"] = cname
+            card["source"] = canon_rel
+            card["aliases"] = list(dict.fromkeys(list(card.get("aliases") or []) + list(aliases or [])))
+            visual_card.save_card(book_dir, card, backup_tag="合併前")
+            canon_vc = {"file": dup_vc["file"], "card": card}
+            notes.append("已將視覺卡 %s 轉指向 %s" % (dup_vc["file"], cname))
+        elif dup_vc["file"] != canon_vc["file"]:
+            notes.append("兩邊都有視覺卡（%s 與 %s），請於角色視覺卡分頁確認保留哪一份" % (canon_vc["file"], dup_vc["file"]))
+    return notes
+
+
 def merge(book_dir, canonical, duplicates_rel):
     canon_rel, canon_path = _check_setting_file(book_dir, canonical)
     if not isinstance(duplicates_rel, list) or not duplicates_rel:
@@ -319,15 +423,17 @@ def merge(book_dir, canonical, duplicates_rel):
         dups.append((r, p))
 
     today = datetime.date.today().isoformat()
+    book_lang = sections.write_lang(lang_mod.book_lang(book_dir))
     canon_text = project.read_text(canon_path)
     cfm, _ = project.split_frontmatter(canon_text)
     cname = str(cfm.get("name") or os.path.splitext(os.path.basename(canon_rel))[0])
     aliases = _aliases_of(cfm)
 
-    sections = []
+    sec_blocks, dup_infos = [], []
     for r, p in dups:
         fm, body = project.split_frontmatter(project.read_text(p))
         dname = str(fm.get("name") or os.path.splitext(os.path.basename(r))[0])
+        dup_infos.append((r, dname))
         for a in [dname] + _aliases_of(fm):
             if a and a != cname and a not in aliases:
                 aliases.append(a)
@@ -336,20 +442,23 @@ def merge(book_dir, canonical, duplicates_rel):
             body_lines = body_lines[1:]
         # 併入的內容標題降一級，避免和保留檔的「一句話」等標題重複
         body_lines = [("#" + l) if l.startswith("## ") else l for l in body_lines]
-        sections.append("\n\n## 併入：%s（%s，待核對）\n\n%s" % (dname, today, "\n".join(body_lines).strip()))
+        sec_blocks.append("\n\n## %s\n\n%s" % (_merge_heading(dname, today, book_lang), "\n".join(body_lines).strip()))
 
-    # 1) 保留檔：加別名、附上併入內容
+    # 1) 保留檔：先備份、加別名、附上併入內容
+    tracking.backup(book_dir, canon_path, "合併前")
     new_text = _set_aliases(canon_text, aliases) if aliases else canon_text
-    new_text = new_text.rstrip("\n") + "".join(sections) + "\n"
+    new_text = new_text.rstrip("\n") + "".join(sec_blocks) + "\n"
     project.write_atomic(canon_path, new_text)
 
     # 2) 把指向舊檔的路徑改成保留檔（名詞表、其他設定檔）
     replacements = {r: canon_rel for r, _ in dups}
     refs_changed = []
     merged_abs = os.path.normpath(os.path.join(book_dir, MERGED_REL))
+    vc_abs = os.path.normpath(layout.path(book_dir, layout.VISUAL_CARDS))
     targets = [os.path.join(book_dir, GLOSSARY_REL)]
     for root, _, files in os.walk(layout.path(book_dir, layout.BIBLE)):
-        if os.path.normpath(root).startswith(merged_abs):
+        norm_root = os.path.normpath(root)
+        if norm_root.startswith(merged_abs) or norm_root.startswith(vc_abs):
             continue
         targets += [os.path.join(root, f) for f in files if f.endswith(".md") and f != layout.parts(layout.BIBLE_INDEX)[-1]]
     for tp in set(targets):
@@ -360,6 +469,7 @@ def merge(book_dir, canonical, duplicates_rel):
         for old, newp in replacements.items():
             new = new.replace(old, newp)
         if new != t:
+            tracking.backup(book_dir, tp, "合併前")
             project.write_atomic(tp, new)
             refs_changed.append(os.path.relpath(tp, book_dir).replace("\\", "/"))
 
@@ -375,4 +485,20 @@ def merge(book_dir, canonical, duplicates_rel):
         shutil.move(p, dest)
         moved.append({"from": r, "to": os.path.relpath(dest, book_dir).replace("\\", "/")})
 
-    return {"canonical": canon_rel, "merged": moved, "aliases": aliases, "refs_changed": refs_changed}
+    # 4) 角色合併連動：角色狀態檔、角色關係表、結構化視覺卡
+    state_merged, rel_updated, vc_notes = [], 0, []
+    if canon_rel.startswith(layout.CHARACTERS + "/"):
+        dnames = [dn for _, dn in dup_infos if dn and dn != cname]
+        state_merged = _merge_char_states(book_dir, cname, dnames, dest_dir, today, book_lang)
+        rel_updated = _merge_relations(book_dir, cname, dnames)
+        vc_notes = _merge_visual_cards(book_dir, canon_rel, cname, aliases, dup_infos)
+
+    return {
+        "canonical": canon_rel,
+        "merged": moved,
+        "aliases": aliases,
+        "refs_changed": refs_changed,
+        "state_merged": state_merged,
+        "relations_updated": rel_updated,
+        "visual_cards_note": vc_notes,
+    }

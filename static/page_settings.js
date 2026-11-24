@@ -83,9 +83,16 @@
 
     const saveBtn = h("button", { class: "primary", id: "c-save" }, "儲存設定");
 
-    ctx.view(
-      h("div", { class: "page-head" },
-        h("div", {}, h("h1", {}, "設定"), h("div", { class: "sub" }, `小說工作台 v${r.version || ""}`))),
+    const TABS = [
+      ["general", "一般與書庫"],
+      ["ai", "AI 執行者"],
+      ["writing", "寫稿與自動流程"],
+      ["illust", "插圖後端"],
+    ];
+    let curTab = FE.store.get("settings.tab", "general");
+    if (!TABS.some(([id]) => id === curTab)) curTab = "general";
+
+    const tabGeneral = h("div", { class: "tab-pane" + (curTab === "general" ? "" : " hidden"), "data-tp": "general" },
       h("div", { class: "card" },
         h("h2", { style: "margin-bottom:12px" }, "服務"),
         h("div", { class: "row", style: "align-items:flex-end" },
@@ -104,6 +111,21 @@
         h("label", { class: "f" }, h("span", {}, "書庫資料夾（每本書是裡面的一個子資料夾）"), libInput),
         h("div", { class: "muted small" }, r.library_exists ? "✓ 資料夾存在" : "✗ 資料夾不存在，儲存時會自動建立")),
       h("div", { class: "card" },
+        h("h2", { style: "margin-bottom:12px" }, "警示"),
+        h("div", { class: "grid g2" },
+          h("label", { class: "f" }, h("span", {}, "伏筆幾章沒出現就提醒"), sfInput),
+          h("label", { class: "f" }, h("span", {}, "角色幾章沒登場就提醒"), scInput))));
+
+    const tabAi = h("div", { class: "tab-pane" + (curTab === "ai" ? "" : " hidden"), "data-tp": "ai" },
+      h("div", { class: "card" },
+        h("h2", { style: "margin-bottom:4px" }, "AI 執行者"),
+        h("div", { class: "muted small", style: "margin-bottom:12px" },
+          "Claude Code 用你的訂閱，會自己讀寫檔案，所有功能都能用。其他模型（Google Gemini、DeepSeek、本機 llama.cpp 等）由工作台組裝資料再送出，所有按鈕都能用，結果由工作台檢查後寫檔。"),
+        h("label", { class: "f" }, h("span", {}, "預設執行者"), defProvSel),
+        keyStoreBox,
+        provList,
+        provAddBtn),
+      h("div", { class: "card" },
         h("h2", { style: "margin-bottom:12px" }, "Claude Code 執行者"),
         h("div", { class: "kv", style: "margin-bottom:12px" },
           h("span", { class: "k" }, "偵測結果"),
@@ -117,15 +139,9 @@
         h("div", { class: "muted small", style: "margin:-6px 0 12px" },
           "novel-* skills 已內建在工作台的 ", h("code", {}, "plugin"), " 資料夾，會自動載入，不用填。這裡只放你想讓 Claude 額外讀取的資料夾（例如參考資料）。"),
         h("label", { class: "f" }, h("span", {}, "額外允許的工具（一行一個）"), toolsArea),
-        h("div", { class: "muted small" }, "預設允許 skill、python 檢查腳本與 git。Claude 會在書目錄裡執行，看不到書目錄以外的東西。")),
-      h("div", { class: "card" },
-        h("h2", { style: "margin-bottom:4px" }, "AI 執行者"),
-        h("div", { class: "muted small", style: "margin-bottom:12px" },
-          "Claude Code 用你的訂閱，會自己讀寫檔案，所有功能都能用。其他模型（DeepSeek、本機 llama.cpp 等 OpenAI 相容服務）由工作台組裝資料再送出，所有按鈕都能用，結果由工作台檢查後寫檔。"),
-        h("label", { class: "f" }, h("span", {}, "預設執行者"), defProvSel),
-        keyStoreBox,
-        provList,
-        provAddBtn),
+        h("div", { class: "muted small" }, "預設允許 skill、python 檢查腳本與 git。Claude 會在書目錄裡執行，看不到書目錄以外的東西。")));
+
+    const tabWriting = h("div", { class: "tab-pane" + (curTab === "writing" ? "" : " hidden"), "data-tp": "writing" },
       h("div", { class: "card" },
         h("h2", { style: "margin-bottom:12px" }, "寫稿品質（非 Claude 模型）"),
         h("label", { class: "cb" }, reconBox, " 寫章節前先做定稿對帳（多一次小呼叫，比對章綱事件和已定稿事實）"),
@@ -149,14 +165,27 @@
         h("div", { class: "muted small" }, "連續寫才有效。檢查點會看這幾章有沒有「必須修」與文風偏離，不及格就停在那一章等人（漂移線索只記錄、不停）。成本：每次檢查都是本機計算，不花錢。"),
         h("div", { class: "f", style: "margin-top:12px" }, h("span", {}, "各步驟的執行者（面板上對應的按鈕也預設用這裡的分配）")),
         pprovGrid,
-        h("div", { class: "muted small" }, "建議：寫章節、去 AI 味、修訂用寫作品質最好的模型；審查可以換另一個模型交叉檢查；定稿回寫追蹤會改寫時間線與伏筆，不建議交給小型本機模型。指定的執行者連不上時，流程會停在那一步。")),
-      illCard,
-      h("div", { class: "card" },
-        h("h2", { style: "margin-bottom:12px" }, "警示"),
-        h("div", { class: "grid g2" },
-          h("label", { class: "f" }, h("span", {}, "伏筆幾章沒出現就提醒"), sfInput),
-          h("label", { class: "f" }, h("span", {}, "角色幾章沒登場就提醒"), scInput))),
-      h("div", { class: "row", style: "margin-top:14px" }, h("span", { class: "grow" }), saveBtn));
+        h("div", { class: "muted small" }, "建議：寫章節、去 AI 味、修訂用寫作品質最好的模型；審查可以換另一個模型交叉檢查；定稿回寫追蹤會改寫時間線與伏筆，不建議交給小型本機模型。指定的執行者連不上時，流程會停在那一步。")));
+
+    const tabIllust = h("div", { class: "tab-pane" + (curTab === "illust" ? "" : " hidden"), "data-tp": "illust" }, illCard);
+    const panes = [tabGeneral, tabAi, tabWriting, tabIllust];
+    const tabBtns = TABS.map(([id, label]) => {
+      const btn = h("button", { class: "tab" + (curTab === id ? " active" : ""), "data-tid": id }, label);
+      btn.onclick = () => {
+        curTab = id;
+        FE.store.set("settings.tab", id);
+        tabBtns.forEach((b) => b.classList.toggle("active", b.dataset.tid === id));
+        panes.forEach((p) => p.classList.toggle("hidden", p.dataset.tp !== id));
+      };
+      return btn;
+    });
+
+    ctx.view(
+      h("div", { class: "page-head sticky-head" },
+        h("div", {}, h("h1", {}, "設定"), h("div", { class: "sub" }, `小說工作台 v${r.version || ""}`)),
+        h("div", { class: "row" }, saveBtn)),
+      h("div", { class: "tabs" }, tabBtns),
+      tabGeneral, tabAi, tabWriting, tabIllust);
 
     renderIllSettings(illCard).catch(FE.fail);
     attachPicker(libInput, { mode: "dir", title: "選擇書庫資料夾" });
@@ -165,8 +194,10 @@
 
     const provs = JSON.parse(JSON.stringify((c.providers || []).filter((p) => p.type !== "claude_code")));
     const keys = {};
+    const expandedProvs = new Set();
 
     function provCard(p, i) {
+      const open = expandedProvs.has(p.id);
       const field = (label, input) => h("label", { class: "f" }, h("span", {}, label), input);
       const keyHint = S.keyStatus && S.keyStatus[p.id] ? h("span", { class: "badge " + (S.keyStatus[p.id].startsWith("secrets.json") ? "b-warn" : "b-ok") }, S.keyStatus[p.id]) : null;
       const keyInput = h("input", {
@@ -177,13 +208,7 @@
       const cjkInput = h("input", { type: "number", step: "0.05", min: "0.2", max: "3", "data-k": "cjk_token_ratio", value: p.cjk_token_ratio || "", placeholder: "自動", style: "flex:1" });
       const calibBtn = h("button", { class: "sm", "data-a": "calib", title: "llama.cpp 用 /tokenize 實際算" }, "校正");
 
-      const card = h("div", { class: "prov-card", "data-i": String(i) },
-        h("div", { class: "row", style: "margin-bottom:8px" },
-          h("b", {}, p.name || p.id),
-          h("span", { class: "badge" }, p.id),
-          h("span", { class: "grow" }),
-          h("button", { class: "sm", "data-a": "test" }, "測試連線／抓模型清單"),
-          h("button", { class: "sm danger", "data-a": "del" }, "刪除")),
+      const body = h("div", { class: "prov-body" + (open ? "" : " hidden"), style: "margin-top:10px" },
         h("div", { class: "grid g2" },
           field("顯示名稱", h("input", { type: "text", "data-k": "name", value: p.name || "" })),
           field("網址（Base URL）", h("input", { type: "text", "data-k": "base_url", value: p.base_url || "", placeholder: "https://api.deepseek.com 或 http://127.0.0.1:8080/v1" })),
@@ -192,13 +217,13 @@
           field("或用環境變數名稱", h("input", { type: "text", "data-k": "key_env", value: p.key_env || "", placeholder: "例如 DEEPSEEK_API_KEY" })),
           field("上下文長度（tokens）", h("input", { type: "number", "data-k": "context_tokens", value: p.context_tokens == null ? "" : String(p.context_tokens) })),
           field("最大輸出（tokens）", h("input", { type: "number", "data-k": "max_output", value: p.max_output == null ? "" : String(p.max_output) })),
-          field("每個中文字約幾 token（估算上下文用；空白＝自動：DeepSeek 0.6、其他 1.2）", h("div", { class: "row" }, cjkInput, calibBtn)),
+          field("每個中文字約幾 token（估算上下文用；空白＝自動：DeepSeek 0.6、其他 1.2）", h("div", { class: "row" }, cjkInput, p.type === "gemini" ? null : calibBtn)),
           field("溫度", h("input", { type: "number", step: "0.1", "data-k": "temperature", value: p.temperature == null ? "" : String(p.temperature) })),
           field("輸入價格（每百萬 tokens，美元，選填）", h("input", { type: "number", step: "0.01", "data-k": "price_in", value: String(p.price_in || 0) })),
           field("輸出價格（每百萬 tokens，美元，選填）", h("input", { type: "number", step: "0.01", "data-k": "price_out", value: String(p.price_out || 0) }))));
 
       if (p.id !== "llamacpp") {
-        const modelsBox = h("div", { "data-mchips": "" === "" ? "" : "", class: "small", style: "margin-top:6px" });
+        const modelsBox = h("div", { "data-mchips": "", class: "small", style: "margin-top:6px" });
         const addmBtn = h("button", { class: "sm", "data-a": "addm" }, "新增模型");
         const rows = (p.models || []).map((m, j) => h("div", { class: "row", style: "gap:6px;margin-top:6px;flex-wrap:wrap" },
           h("input", { type: "text", "data-m": String(j), "data-mk": "id", value: m.id || "", placeholder: "模型代號", list: "ml-" + i, style: "width:190px" }),
@@ -209,7 +234,7 @@
           h("input", { type: "number", step: "0.01", "data-m": String(j), "data-mk": "price_out", value: m.price_out || "", placeholder: "輸出價格", style: "width:90px" }),
           h("input", { type: "number", step: "0.05", "data-m": String(j), "data-mk": "cjk_token_ratio", value: m.cjk_token_ratio || "", placeholder: "中文 token 比例", style: "width:120px" }),
           h("button", { class: "sm danger", "data-mdel": String(j), title: "移除這個模型" }, "✕")));
-        card.append(
+        body.append(
           h("div", { class: "reason-box" },
             h("div", { class: "row", style: "margin-bottom:4px" },
               h("b", { class: "small" }, "可用模型"),
@@ -231,8 +256,11 @@
             modelsBox));
       }
 
-      card.append(
+      body.append(
         h("label", { class: "cb" }, h("input", { type: "checkbox", "data-k": "json_mode", checked: p.json_mode !== false }), " 支援 JSON 模式（response_format）"),
+        p.type === "gemini"
+          ? h("label", { class: "cb" }, h("input", { type: "checkbox", "data-k": "safety_relax", checked: p.safety_relax !== false }), " 安全過濾調至最寬鬆（BLOCK_NONE，減少小說情節被誤擋）")
+          : null,
         h("div", { class: "reason-box" },
           h("div", { class: "row", style: "margin-bottom:6px" },
             h("b", { class: "small" }, "思考強度"),
@@ -246,8 +274,20 @@
                 (RM.efforts || []).map((e) => h("option", { value: e, selected: ((p.reasoning || {})[st] || "") === e }, EFFORT_LABEL[e]))))))),
         h("label", { class: "f" }, h("span", {}, "額外參數（JSON，會合併進請求，選填）"),
           h("textarea", { "data-k": "extra", rows: "2", placeholder: '例如 {"top_p": 0.95}' },
-            p.extra && Object.keys(p.extra).length ? JSON.stringify(p.extra) : "")),
-        h("div", { class: "small muted", "data-msg": "" }));
+            p.extra && Object.keys(p.extra).length ? JSON.stringify(p.extra) : "")));
+
+      const card = h("div", { class: "prov-card", "data-i": String(i) },
+        h("div", { class: "row prov-head", "data-a": "toggle-head" },
+          h("b", {}, p.name || p.id),
+          h("span", { class: "badge" }, p.id),
+          p.model ? h("span", { class: "badge" }, p.model) : null,
+          keyHint,
+          h("span", { class: "grow" }),
+          h("button", { class: "sm", "data-a": "test" }, "測試連線／抓模型清單"),
+          h("button", { class: "sm ghost", "data-a": "toggle" }, open ? "收起" : "展開設定"),
+          h("button", { class: "sm danger", "data-a": "del" }, "刪除")),
+        body,
+        h("div", { class: "small muted", "data-msg": "", style: "margin-top:4px" }));
 
       return card;
     }
@@ -290,7 +330,7 @@
           const left = models.filter((m) => !have.has(m));
           box.replaceChildren(...(left.length
             ? [h("span", { class: "muted" }, "點一下加入："),
-              left.map((m) => h("button", {
+              ...left.map((m) => h("button", {
                 class: "sm ghost", "data-addm": m,
                 onclick: () => { provs[i].models = provs[i].models || []; provs[i].models.push({ id: m }); renderProvs(); },
               }, "＋ " + m))]
@@ -302,7 +342,8 @@
             provs[i].reasoning = Object.assign({}, provs[i].reasoning || {}, { [sel.dataset.r]: sel.value });
           };
         });
-        card.querySelector('[data-a="calib"]').onclick = async () => {
+        const calibEl = card.querySelector('[data-a="calib"]');
+        if (calibEl) calibEl.onclick = async () => {
           const msg = card.querySelector("[data-msg]");
           msg.textContent = "校正中……";
           try {
@@ -315,6 +356,19 @@
           } catch (e) {
             msg.replaceChildren(h("span", { class: "badge b-bad" }, "無法校正"), " " + (e.message || String(e)));
           }
+        };
+        const toggleCard = () => {
+          const id = provs[i].id;
+          if (expandedProvs.has(id)) expandedProvs.delete(id);
+          else expandedProvs.add(id);
+          const nowOpen = expandedProvs.has(id);
+          card.querySelector(".prov-body").classList.toggle("hidden", !nowOpen);
+          card.querySelector('[data-a="toggle"]').textContent = FE.t(nowOpen ? "收起" : "展開設定");
+        };
+        card.querySelector('[data-a="toggle"]').onclick = (ev) => { ev.stopPropagation(); toggleCard(); };
+        card.querySelector('[data-a="toggle-head"]').onclick = (ev) => {
+          if (ev.target.closest("button")) return;
+          toggleCard();
         };
         card.querySelector('[data-a="del"]').onclick = async () => {
           if (await FE.confirm("刪除這個服務設定？")) { provs.splice(i, 1); renderProvs(); }
@@ -384,10 +438,12 @@
     provAddBtn.onclick = () => {
       let n = 1;
       while (provs.find((p) => p.id === "custom" + n)) n++;
+      const nid = "custom" + n;
       provs.push({
-        id: "custom" + n, type: "openai", name: `自訂服務 ${n}`, base_url: "", model: "", key_env: "",
+        id: nid, type: "openai", name: `自訂服務 ${n}`, base_url: "", model: "", key_env: "",
         context_tokens: 32768, max_output: 4096, temperature: 0.8, json_mode: true, price_in: 0, price_out: 0, extra: {},
       });
+      expandedProvs.add(nid);
       renderProvs();
     };
 

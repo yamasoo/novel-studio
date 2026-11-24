@@ -32,13 +32,13 @@ from studio import tables
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, setup_flow, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, volume, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, setup_flow, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, visual_card, volume, wb_check  # noqa: E402
 # vendor/fekit/py 不是 site-packages，先加進 sys.path；要在 from fekit 之前
 sys.path.insert(0, os.path.join(HERE, "vendor", "fekit", "py"))
 from fekit import install as fekit_install  # noqa: E402
 import ns_jobs  # noqa: E402  舊任務事件 → fekit 任務增量的轉接層（repo 根）
 
-VERSION = "3.0.0"
+VERSION = "3.1.0"
 PLUGIN_DIR = os.path.join(HERE, "plugin")
 CONFIG_PATH = os.path.join(HERE, "config.json")
 DEFAULT_CONFIG = {
@@ -88,8 +88,9 @@ def load_config():
         # 舊版預設 8192 對推理模型太小（思考過程也算輸出）
         if p.get("id") == "deepseek" and int(p.get("max_output") or 0) == 8192:
             p["max_output"] = 32768
-        if p.get("type") == "openai" and not p.get("reasoning"):
-            p["reasoning"] = dict(providers.DEFAULT_REASONING, adapter="deepseek" if p.get("id") == "deepseek" else "none")
+        if p.get("type") in ("openai", "gemini") and not p.get("reasoning"):
+            ad = "gemini_thinking" if p.get("type") == "gemini" else ("deepseek" if p.get("id") == "deepseek" else "none")
+            p["reasoning"] = dict(providers.DEFAULT_REASONING, adapter=ad)
     have = {p.get("id") for p in cfg.get("providers") or []}
     cfg["providers"] = list(cfg.get("providers") or []) + [dict(p) for p in providers.DEFAULT_PROVIDERS if p["id"] not in have]
     return cfg
@@ -275,9 +276,12 @@ async def set_providers(req: Request):
         pid = str(p.get("id") or "").strip()
         if not pid or pid in seen or p.get("type") == "claude_code":
             continue
-        clean = {"id": pid, "type": "openai", "name": str(p.get("name") or pid),
+        ptype = "gemini" if (p.get("type") == "gemini" or pid == "gemini") else "openai"
+        clean = {"id": pid, "type": ptype, "name": str(p.get("name") or pid),
                  "base_url": str(p.get("base_url") or "").strip(), "model": str(p.get("model") or "").strip(),
                  "key_env": str(p.get("key_env") or "").strip()}
+        if ptype == "gemini":
+            clean["safety_relax"] = bool(p.get("safety_relax", True))
         for k, f, d in (("context_tokens", int, 32768), ("max_output", int, 4096), ("temperature", float, 0.8),
                         ("price_in", float, 0.0), ("price_out", float, 0.0)):
             try:
@@ -1324,6 +1328,76 @@ async def book_card_save(book_id: str, req: Request):
     textguard.notify(note)
     project.write_atomic(p, card)
     return {"card": illust.read_card(project.read_text(p))}
+
+
+@app.get("/api/books/{book_id}/visual-cards")
+def book_visual_cards_list(book_id: str):
+    """列出本書所有結構化角色視覺卡（bible/visual-cards/*.md）。"""
+    d = book_dir(book_id)
+    return {"items": visual_card.list_cards(d)}
+
+
+@app.get("/api/books/{book_id}/visual-cards/by-file")
+def book_visual_card_by_file(book_id: str, file: str = "", outfit: str = "default"):
+    """依角色設定檔路徑取得對應的結構化視覺卡、檢查結果與 VN 提示詞組裝。"""
+    d = book_dir(book_id)
+    f = (file or "").replace("\\", "/")
+    if not f.startswith(layout.CHARACTERS + "/"):
+        return {"exists": False, "supported": False}
+    char_name, aliases = os.path.splitext(os.path.basename(f))[0], []
+    p = wrap(lambda: project.safe_path(d, f))
+    if os.path.isfile(p):
+        fm, _ = project.split_frontmatter(project.read_text(p))
+        if fm.get("name"):
+            char_name = str(fm.get("name")).strip()
+        if isinstance(fm.get("aliases"), list):
+            aliases = [str(a).strip() for a in fm.get("aliases") if str(a).strip()]
+    found = visual_card.find_by_source(d, f, char_name=char_name)
+    if not found:
+        stub = visual_card.normalize_card(
+            {}, name=char_name, aliases=aliases, source=f, fill_vn_defaults=True
+        )
+        return {"exists": False, "supported": True, "stub": stub}
+    c = found["card"]
+    return {
+        "exists": True,
+        "supported": True,
+        "file": found["file"],
+        "card": c,
+        "check": found["check"],
+        "vn": visual_card.compose_vn_prompts(c, outfit=outfit or "default"),
+        "comic_markdown": visual_card.render_card(c, include_vn=False),
+    }
+
+
+@app.post("/api/books/{book_id}/visual-cards")
+async def book_visual_card_save(book_id: str, req: Request):
+    """儲存結構化角色視覺卡（寫入 bible/visual-cards/<id>.md，並同步摘要至原角色檔）。"""
+    body = await req.json()
+    d = book_dir(book_id)
+    _guard_book(book_id)
+    raw = body.get("card") if isinstance(body.get("card"), dict) else body
+    source = str(raw.get("source") or body.get("file") or "").replace("\\", "/")
+    if source and not source.startswith(layout.CHARACTERS + "/"):
+        raise HTTPException(400, "結構化視覺卡目前僅支援角色設定檔")
+    vrel, card, chk = wrap(lambda: visual_card.save_card(d, raw, backup_tag="視覺卡"))
+    if source:
+        sp = wrap(lambda: project.safe_path(d, source))
+        if os.path.isfile(sp):
+            text = project.read_text(sp)
+            native.tracking.backup(d, sp, "視覺卡")
+            legacy = illust.sanitize_card(visual_card.to_legacy_card(card), "characters")
+            guarded, note = textguard.guard_text(d, illust.write_card(text, legacy))
+            textguard.notify(note)
+            project.write_atomic(sp, guarded)
+    outfit = str(body.get("outfit") or "default")
+    return {
+        "file": vrel,
+        "card": card,
+        "check": chk,
+        "vn": visual_card.compose_vn_prompts(card, outfit=outfit),
+        "comic_markdown": visual_card.render_card(card, include_vn=False),
+    }
 
 
 @app.post("/api/illust/zh")

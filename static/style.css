@@ -201,6 +201,27 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 .tab:hover { border-color: transparent; color: var(--ink); }
 .tab.active:hover { border-bottom-color: var(--accent); }
+.tab-pane.hidden { display: none; }
+.sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: var(--bg);
+  padding: 10px 0 12px;
+  margin-top: -10px;
+  border-bottom: 1px solid var(--line);
+}
+.prov-head { cursor: pointer; user-select: none; }
+.prov-body.hidden { display: none; }
+.ov-hero { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 14px; align-items: start; margin-bottom: 14px; }
+.ov-hero-main > .card:first-child { margin-top: 0 !important; }
+.ov-stats-2x2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ov-stats-2x2 > .card { margin-top: 0; padding: 12px 14px; }
+.ov-scroll { max-height: 340px; overflow: auto; padding-right: 4px; }
+.ch-sticky { position: sticky; top: 0; z-index: 12; background: var(--bg); padding: 8px 0 2px; margin-top: -8px; }
+.ch-sticky .page-head { margin-bottom: 10px; }
+.ch-sticky .tabs { margin-bottom: 10px; }
+@media (max-width: 960px) { .ov-hero { grid-template-columns: 1fr; } }
 
 /* ---------- 雙欄 ---------- */
 .split { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }

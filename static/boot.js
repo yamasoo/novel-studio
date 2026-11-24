@@ -57,37 +57,32 @@ function wrapNativeDialogs() {
   window.prompt = (message, value) => nativePrompt(FE.t(String(message)), value);
 }
 
-/* 導覽項目：有書時先一段「本書」，再一段「工作台」。
-   舊版把書架…關於放在側欄底部，改成 nav 項目之後 shell 會自己標 active，不用再手動比對 S.routeName。 */
+/* 導覽項目：依使用頻率由上到下分成「寫作 → 產出與工具 → 工作台」。
+   說明／關於／GitHub／回報問題收進左下角 nav_foot，讓主選單免捲動一覽無遺。 */
 function navItems() {
   const items = [];
   if (S.book) {
     const base = "#/b/" + enc(S.book);
     items.push(
-      { group: "本書" },
+      { group: "寫作" },
       { label: "總覽", icon: "◉", href: base, page: ["b/:book", "b/:book/overview"] },
       { label: "章節", icon: "☰", href: base + "/chapters", page: ["b/:book/chapters", "b/:book/ch/:no"] },
       { label: "大綱", icon: "⌘", href: base + "/outline", page: "b/:book/outline" },
       { label: "設定集", icon: "✦", href: base + "/bible", page: "b/:book/bible" },
       { label: "伏筆與時間線", icon: "⟲", href: base + "/tracking", page: "b/:book/tracking" },
-      { label: "任務紀錄", icon: "◷", href: base + "/jobs", page: "b/:book/jobs" },
+      { group: "產出與工具" },
       { label: "插圖", icon: "✎", href: base + "/illust", page: "b/:book/illust" },
       { label: "匯出", icon: "⇩", href: base + "/export", page: "b/:book/export" },
-      { group: "工具" },
-      { label: "搜尋前文", icon: "⌕", href: base + "/search", page: "b/:book/search" },
-      { label: "從正文建立設定", icon: "⇄", href: base + "/reverse", page: "b/:book/reverse" },
       { label: "卷末體檢", icon: "△", href: base + "/drift", page: "b/:book/drift" },
+      { label: "從正文建立設定", icon: "⇄", href: base + "/reverse", page: "b/:book/reverse" },
+      { label: "任務紀錄", icon: "◷", href: base + "/jobs", page: "b/:book/jobs" },
       { group: "工作台" });
   }
   items.push(
     { label: "書架", icon: "▤", href: "#/", page: "home" },
     { label: "共用庫", icon: "❖", href: "#/shared", page: "shared" },
     { label: "匯入舊稿", icon: "⇪", href: "#/import", page: "import" },
-    { label: "設定", icon: "⚙", href: "#/settings", page: "settings" },
-    { label: "說明", icon: "?", href: "#/guide", page: "guide" },
-    { label: "關於", icon: "ⓘ", href: "#/about", page: "about" },
-    { label: "GitHub 專案", href: "https://github.com/yamasoo/novel-studio", external: true },
-    { label: "回報問題", href: "https://github.com/yamasoo/novel-studio/issues/new", external: true });
+    { label: "設定", icon: "⚙", href: "#/settings", page: "settings" });
   return items;
 }
 
@@ -146,6 +141,11 @@ function navItems() {
       nav_head: FE.h("div", { class: "shell-nav-head" },
         FE.h("select", { id: "book-switch", title: "切換書" }),
         searchForm),
+      nav_foot: FE.h("div", { class: "nav-foot-links" },
+        FE.h("a", { href: "#/guide", title: "說明" }, "? ", FE.h("span", {}, "說明")),
+        FE.h("a", { href: "#/about", title: "關於" }, "ⓘ ", FE.h("span", {}, "關於")),
+        FE.h("a", { href: "https://github.com/yamasoo/novel-studio", target: "_blank", rel: "noopener", title: "GitHub 專案" }, "GitHub"),
+        FE.h("a", { href: "https://github.com/yamasoo/novel-studio/issues/new", target: "_blank", rel: "noopener", title: "回報問題" }, "回報問題")),
     },
     start: false,
   });

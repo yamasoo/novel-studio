@@ -248,6 +248,21 @@
       : h("div", { class: "md" }, h("span", { class: "muted" }, "還沒有狀態卡。寫完第一章後會自動產生。"));
     stateEl.setAttribute("lang", ov.lang || "zh-TW");
 
+    const statsCards = [
+      h("div", { class: "card stat" }, h("div", { class: "num" }, ov.written), h("div", { class: "lbl" }, "已寫章數")),
+      h("div", { class: "card stat" }, h("div", { class: "num" }, fmtNum(ov.chars)), h("div", { class: "lbl" }, ov.unit === "words" ? "正文詞數" : "正文字數")),
+      h("div", { class: "card stat" }, h("div", { class: "num" }, ov.chapters), h("div", { class: "lbl" }, "已規劃章數（含章綱）")),
+      h("div", { class: "card stat" }, h("div", { class: "num" }, next.no),
+        h("div", { class: "lbl" }, "下一章 ", next.has_card ? statusBadgeNode(next.card_status) : h("span", { class: "badge b-bad" }, "沒有章綱"))),
+    ];
+    const nextEl = showNext ? nextStepCard(ov.next_step, true, ov) : null;
+    const volEl = volumeCard(ov);
+    const topSection = (nextEl || volEl)
+      ? h("div", { class: "ov-hero" },
+        h("div", { class: "ov-hero-main" }, nextEl, volEl),
+        h("div", { class: "ov-stats-2x2" }, statsCards))
+      : h("div", { class: "grid g4" }, statsCards);
+
     ctx.view(
       h("div", { class: "page-head" },
         h("div", {},
@@ -265,15 +280,8 @@
           h("button", { onclick: () => pipeModal(next.no) }, "⚡ 整章自動"),
           h("button", { onclick: () => Panel.openForm("review", { from: Math.max(1, ov.latest - 4), to: Math.max(1, ov.latest) }) }, "審查最近章節"),
           h("button", { onclick: () => FE.go(bookPath("/drift")) }, "卷末體檢"))),
-      showNext ? nextStepCard(ov.next_step, true, ov) : null,
-      volumeCard(ov),
+      topSection,
       h("div", { class: "pipe-box" }),
-      h("div", { class: "grid g4" },
-        h("div", { class: "card stat" }, h("div", { class: "num" }, ov.written), h("div", { class: "lbl" }, "已寫章數")),
-        h("div", { class: "card stat" }, h("div", { class: "num" }, fmtNum(ov.chars)), h("div", { class: "lbl" }, ov.unit === "words" ? "正文詞數" : "正文字數")),
-        h("div", { class: "card stat" }, h("div", { class: "num" }, ov.chapters), h("div", { class: "lbl" }, "已規劃章數（含章綱）")),
-        h("div", { class: "card stat" }, h("div", { class: "num" }, next.no),
-          h("div", { class: "lbl" }, "下一章 ", next.has_card ? statusBadgeNode(next.card_status) : h("span", { class: "badge b-bad" }, "沒有章綱")))),
       h("div", { class: "card", style: "margin-top:14px" },
         h("div", { class: "card-title" },
           h("h2", {}, "章綱進度"),
@@ -290,12 +298,13 @@
           h("div", { class: "card-title" },
             h("h2", {}, "需要注意"),
             h("span", { class: "badge" }, String(ov.alerts.length))),
-          ov.alerts.length ? ov.alerts.map(alertNode) : h("div", { class: "muted" }, "一切正常。")),
+          h("div", { class: "ov-scroll" },
+            ov.alerts.length ? ov.alerts.map(alertNode) : h("div", { class: "muted" }, "一切正常。"))),
         h("div", { class: "card state" },
           h("div", { class: "card-title" },
             h("h2", {}, "狀態卡"),
             h("a", { href: bookPath("/tracking?t=state") }, "開啟 →")),
-          stateEl)),
+          h("div", { class: "ov-scroll" }, stateEl))),
       ov.recent.length
         ? h("div", { class: "card", style: "margin-top:14px" },
           h("div", { class: "card-title" }, h("h2", {}, "最近章節")),

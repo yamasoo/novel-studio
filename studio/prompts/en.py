@@ -540,6 +540,38 @@ Rules:
 {"tags": "English Danbooru tags for the appearance, comma-separated: count (1girl/1boy), hairstyle and hair colour, eye colour, build, signature outfit, accessories",
  "description": "one or two English sentences describing the appearance and the impression it gives (no name)"}
 Rules: use spaces, not underscores, in tags; write only the fixed appearance, with no action, expression or scene; you may reasonably fill in appearance the setting does not mention, but never contradict the setting.""",
+    "il_char_vcard_schema": """Output a single JSON object only (supports both comic character cards and Visual Novel avatar/sprite/expressions):
+{"id": "lowercase ASCII character id ([a-z0-9_-], e.g. romanized name)",
+ "sections": {
+   "head": ["age and gender (required, e.g. a 34-year-old woman)", "hairstyle and hair colour", "eye shape and colour", "skin tone and permanent facial traits (scars, moles)"],
+   "body": ["body build (e.g. average build, slim build)"],
+   "upper": ["permanent upper-body traits (tattoos, scars; empty array if none)"],
+   "lower": ["permanent lower-body traits (empty array if none)"],
+   "accessory": ["permanent accessories: glasses, earrings, necklace, hairpin, rings"]
+ },
+ "outfits": {
+   "default": {"top": ["upper garment"], "bottom": ["lower garment and footwear"], "set": ["full-set outfit such as uniform, apron, robe; empty array if none"], "notes": "short note on this everyday outfit"}
+ },
+ "vn": {
+   "avatar_accessories": ["head/neck accessories shown in the bust-up avatar (hairpins, earrings, necklace, glasses)"],
+   "sprite_pose": "default standing posture and hand pose for the VN sprite (English)",
+   "expressions": {
+     "neutral": "calm / neutral expression in English (default for avatar)",
+     "happy": "happy / smiling expression in English",
+     "angry": "angry / frowning expression in English",
+     "sad": "sad / melancholic expression in English",
+     "serious": "serious / focused expression in English",
+     "worried": "worried / concerned expression in English",
+     "surprised": "surprised / wide-eyed expression in English"
+   }
+ },
+ "notes": "one or two short sentences noting the visual basis and any details filled in"}
+Rules:
+- Write every appearance, accessory, outfit, pose and expression value in English.
+- sections.head must include age and gender, and must never contain clothing, expressions or actions (avatar base has no expression).
+- sections.body / upper / lower must never contain clothing, expressions or actions; outfit-specific items belong in outfits.
+- outfits.default must have at least one item and no expressions or actions; you may add another outfit key if the character has a second signature outfit.
+- You may reasonably fill in details not stated in the setting, but never contradict it.""",
     "il_obj_card_schema": """Output a single JSON object only:
 {"tags": "English Danbooru tags for the appearance, comma-separated: always start with no humans, then the kind (e.g. spacecraft, battleship, castle, city), shape, material, colour scheme and signature parts",
  "description": "one or two English sentences describing the look of the thing itself and the impression it gives (no name, no people)"}

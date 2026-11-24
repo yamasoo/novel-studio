@@ -117,8 +117,33 @@
         content = [fmRow, mdNode];
       }
 
+      const hasMergedSec = !editing && !(f.readonly || opts.readonly) && !opts.base
+        && /^(?:bible|outline)\//.test(f.path || "")
+        && !String(f.path || "").startsWith((LAYOUT.REVERSE_CARDS || "outline/chapters/_reverse") + "/")
+        && /^##\s*(?:併入：|Merged:|統合：|從正文反推（未併入|Derived from the text \(unmerged|本文から推定（未統合)/m.test(body || "");
+      const consolidateBar = hasMergedSec
+        ? h("div", { class: "alert warn", style: "margin:8px 0 12px" },
+          h("span", { class: "k" }, "待整理"),
+          h("span", { class: "t" }, "這份檔案尾端含有合併／未併入段落，可手動整理，或請 AI 融回上方標準欄位（覆蓋前會先備份）。"),
+          h("button", {
+            class: "sm primary",
+            onclick: async () => {
+              try {
+                const job = await FE.api(B("/jobs"), {
+                  method: "POST",
+                  body: { action: "consolidate_entry", params: { file: f.path }, provider: Panel.prov() },
+                });
+                Panel.attach(job);
+                const j = await waitJob(job.id);
+                if (j.status === "done") { FE.toast("AI 整併完成"); FE.route(); }
+                else FE.toast("AI 整併失敗，詳情看右側面板", "err");
+              } catch (e) { FE.fail(e); }
+            },
+          }, "✨ AI 整併重複段落"))
+        : null;
+
       el.replaceChildren(h("div", { class: "doc-wrap" + (findings ? " with-side" : "") },
-        h("div", { class: "card" }, bar, content),
+        h("div", { class: "card" }, bar, consolidateBar, content),
         findingsCard()));
 
       if (!prose && !editing) localizeLabels(el.querySelector(".md"));

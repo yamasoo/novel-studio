@@ -412,6 +412,8 @@ Pick severity and category from the listed options. Rules: every item needs grou
     "illust_scene_sys": "You are an illustration storyboard artist: turn the novel text (which may be in English) into a scene description for an anime-style image model (Anima, which takes Danbooru tags and English natural language). Output JSON only.",
     "illust_card_sys": "You are a character designer: turn the setting text (which may be in English) into a fixed appearance description for an anime-style image model. Output JSON only.",
     "illust_obj_card_sys": "You are a mecha and environment designer: turn the ship, weapon, building, place or faction emblem in the setting text (which may be in English) into a fixed appearance description for an anime-style image model. Depict the thing itself, never people. Output JSON only.",
+    "consolidate_sys": "You are a novel bible and outline editor. Your task is to fold any appended '## Merged: ...' or '## Derived from the text (unmerged, please review)' sections at the end of the document into the matching standard ## sections above. Rules: 1. Keep the opening YAML frontmatter (--- block), aliases and all fields intact; 2. Remove duplicate phrasing, but never drop any concrete detail, foreshadowing, number or author-written fact; 3. Remove the folded merged/unmerged tail section once integrated; 4. Write in English and output only the complete consolidated Markdown document, with no explanation or outer ``` code fences.",
+    "consolidate_user": "Please consolidate the appended merged/unmerged sections at the end of this file ({file}) into the standard sections above:\n\n{text}",
 })
 
 # ---------- 1.16.0: text that used to be hard-coded in the program (sent to the model or written into setting files) ----------

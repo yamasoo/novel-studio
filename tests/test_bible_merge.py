@@ -73,6 +73,34 @@ class BibleMergeCascadeTest(unittest.TestCase):
             self.assertEqual(found_vc["card"]["name"], "ルゥ")
             self.assertFalse(migrate.needs_migration(book))
 
+    def test_consolidate_entry_backs_up_preserves_frontmatter_and_blocks_reverse_cards(self):
+        from studio import native, prompts
+        prompts.set_lang("zh-TW")
+        with tempfile.TemporaryDirectory(prefix="ns-cons-") as book:
+            bookmeta.write(book, lang="zh-TW", title="zh_demo")
+            c1 = layout.CHARACTERS + "/甲.md"
+            _w(book, c1, "---\ntype: character\nname: 甲\naliases: [阿甲]\n---\n\n# 甲\n\n## 一句話\n原本的一句話。\n\n## 併入：乙（2026-11-24，待核對）\n\n### 一句話\n補充細節。\n")
+            sys_p, usr_p = native.consolidate_prompt(book, c1)
+            self.assertIn("frontmatter", sys_p)
+            self.assertIn("補充細節", usr_p)
+
+            # 模擬模型回傳包著 ```markdown 圍欄且漏寫 frontmatter：應自動去圍欄並補回原 frontmatter＋備份
+            fake_out = "```markdown\n# 甲\n\n## 一句話\n原本的一句話，並融合補充細節。\n```"
+            msg = native.save_consolidate_result(book, c1, fake_out)
+            self.assertIn("已完成 AI 整併", msg)
+            saved = project.read_text(project.safe_path(book, c1))
+            self.assertIn("aliases: [阿甲]", saved)
+            self.assertIn("融合補充細節", saved)
+            self.assertNotIn("```", saved)
+            bak_dir = layout.path(book, layout.STUDIO_BACKUP)
+            self.assertTrue(os.path.isdir(bak_dir) and any("AI整併前" in f for f in os.listdir(bak_dir)))
+
+            # 不允許對唯讀反推章綱或正文執行整併
+            with self.assertRaises(native.NativeError):
+                native.consolidate_prompt(book, layout.REVERSE_CARDS + "/ch-0001.md")
+            with self.assertRaises(native.NativeError):
+                native.consolidate_prompt(book, layout.MANUSCRIPT + "/ch-0001.md")
+
 
 if __name__ == "__main__":
     unittest.main()

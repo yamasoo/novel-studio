@@ -1527,9 +1527,29 @@ def claude_deslop_job(book_id, d, prov, params):
 
 CLAUDE_SPECIAL.update({"deslop": claude_deslop_job})
 CLAUDE_SPECIAL.update({"reader_init": claude_reader_job, "reader_reconcile": claude_reader_recon_job})
+def claude_consolidate_job(book_id, d, prov, params):
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
+    f = params.get("file") or ""
+    try:
+        system, user = native.consolidate_prompt(d, f)
+    except (native.NativeError, project.ProjectError) as e:
+        raise HTTPException(400, str(e))
+    prompt = system + "\n\n" + user
+    job = runner_mod.Job(book_id, d, "AI 整併重複段落", prompt, provider=prov,
+                         meta={"action": "consolidate_entry", "params": params})
+
+    def after(j):
+        j.result = native.save_consolidate_result(d, f, j.result or "")
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
 CLAUDE_SPECIAL.update({"goal_check": claude_goal_job, "review_notes": claude_review_job,
                        "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
-                       "illust_prompt": claude_illust_job, "visual_card": claude_card_job})
+                       "illust_prompt": claude_illust_job, "visual_card": claude_card_job,
+                       "consolidate_entry": claude_consolidate_job})
 
 
 @app.get("/api/actions")

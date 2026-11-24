@@ -40,6 +40,7 @@ WORLD = BIBLE + "/world"
 BIBLE_DRAFTS = BIBLE + "/drafts"
 BIBLE_MERGED = BIBLE + "/_merged"
 BIBLE_STRUCTURE = BIBLE + "/structure"
+VISUAL_CARDS = BIBLE + "/visual-cards"
 
 STORY_CORE = BIBLE + "/story-core.md"
 STYLE = BIBLE + "/style.md"

@@ -42,3 +42,37 @@
   box-shadow: var(--shadow-2);
 }
 .modal-backdrop .modal.modal-wide { width: min(52rem, 100%); }
+
+/* 左側選單群組分隔、選中左側強調條與底部精簡頁尾 */
+.shell-nav .nav-group {
+  margin-top: .45rem;
+  padding: .6rem .75rem .2rem;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+.shell-nav .nav-group:first-child {
+  margin-top: 0;
+  padding-top: .25rem;
+  border-top: none;
+}
+.shell-nav .nav-item.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.nav-foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .65rem;
+  align-items: center;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.nav-foot-links a {
+  color: var(--fg-muted);
+  text-decoration: none;
+  padding: 2px 3px;
+  border-radius: 4px;
+}
+.nav-foot-links a:hover {
+  color: var(--accent);
+  background: var(--bg-sunken);
+}

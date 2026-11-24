@@ -356,7 +356,8 @@ class PathTableTest(unittest.TestCase):
     def test_table_covers_every_layout_path(self):
         """layout 裡每一個 v2 路徑常數都要在對照表裡（漏了就會留在舊名稱）。"""
         skip = {"STUDIO", "BOOK_META", "PROJECT_RULES", "TEMPLATES_IN_SKILLS", "MIGRATE_DIR", "MIGRATE_BACKUP_PREFIX", "CHAPTER_STEM",
-                "OUTLINE_VOLUME_ONE", "VOLUME_REVISION_SUFFIX", "VOLUME_UPDATE_PREFIX", "VOLUME_STEM", "ACT_STEM"}   # 範本檔名（第七批）、卷綱檔名規則（卷綱步驟）
+                "OUTLINE_VOLUME_ONE", "VOLUME_REVISION_SUFFIX", "VOLUME_UPDATE_PREFIX", "VOLUME_STEM", "ACT_STEM",
+                "VISUAL_CARDS"}   # 範本檔名（第七批）、卷綱檔名規則（卷綱步驟）、v3 新增目錄
         names = set(migrate.PATHS) | set(migrate.NAMES) | set(migrate.SHARED_PATHS)
         for k, v in layout.all_constants().items():
             if not isinstance(v, str) or k in skip or k.startswith("TPL_"):

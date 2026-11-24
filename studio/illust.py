@@ -812,7 +812,7 @@ NO_HUMANS_NEG = "1girl, 1boy, 1other, humans, person, crowd"
 def sanitize_card(card, kind):
     """非角色的視覺卡：刪掉人數標籤（1girl、1other、solo……），第一個標籤固定是 no humans。"""
     card = dict(card or {})
-    if kind == "角色":
+    if kind in ("角色", "characters"):
         return card
     tags = [t for t in normalize_tags(card.get("tags", "")).split(", ") if t and not COUNT_TAGS.match(t.lower())
             and t.lower() != NO_HUMANS]
@@ -1079,12 +1079,16 @@ def ai_scene_prompt(book_dir, target, passage, char_entries, place_entries, kind
     return system, "\n\n".join(parts)
 
 
+_KIND_LABEL = {"characters": "角色", "factions": "勢力", "world": "世界觀"}
+
+
 def ai_card_prompt(entry_text, name, kind):
-    if kind == "角色":
-        system, schema = prompts.cur()["illust_card_sys"], _il("il_card_schema")
+    zh_kind = _KIND_LABEL.get(kind, kind)
+    if zh_kind == "角色":
+        system, schema = prompts.cur()["illust_card_sys"], _il("il_char_vcard_schema")
     else:
         system, schema = prompts.cur()["illust_obj_card_sys"], _il("il_obj_card_schema")
-    user = "%s\n%s\n\n%s" % (_il("il_card_head").format(kind=prompts.label(kind), name=name),
+    user = "%s\n%s\n\n%s" % (_il("il_card_head").format(kind=prompts.label(zh_kind), name=name),
                               project.split_frontmatter(entry_text)[1][:3000], schema)
     return system, user
 

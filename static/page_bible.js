@@ -61,21 +61,24 @@
     const out = [];
     if (t === "characters") {
       const c = countBy(list, (e) => e.role || "未設定");
+      if (f.role && f.role !== "全部" && !c[f.role]) f.role = "全部";
       out.push(selNode("role", "定位", withAll([...ROLE_ORDER, "未設定"].filter((k) => c[k]).map((k) => [k, k, c[k]])), f.role));
     }
     if (t === "world") {
       const c = countBy(list, (e) => e.category || "未分類");
+      if (f.cat && f.cat !== "全部" && !c[f.cat]) f.cat = "全部";
       const extra = Object.keys(c).filter((k) => !WORLD_CATS.includes(k) && k !== "未分類");
       const keys = [...WORLD_CATS, ...extra, "未分類"].filter((k) => WORLD_CATS.includes(k) || c[k]);
       out.push(selNode("cat", "分類", withAll(keys.map((k) => [k, k, c[k] || 0])), f.cat));
     }
     const sc = countBy(list, (e) => e.status || "未設定");
     const statusOpts = ["正式", "草稿", "未設定"].filter((k) => sc[k]);
-    // 已存的篩選值若已不存在（例如草稿全部轉正式後仍選「草稿」），退回「全部」，避免列表永遠是空的
+    // 已存的篩選值若已不存在（例如草稿全部轉正式、或舊書匯入後分類／標籤改變），退回「全部」，避免列表永遠是空的
     if (f.status && f.status !== "全部" && !sc[f.status]) f.status = "全部";
     if (statusOpts.length) out.push(selNode("status", "狀態", withAll(statusOpts.map((k) => [k, k, sc[k]])), f.status));
     const tc = {};
     list.forEach((e) => (e.tags || []).forEach((x) => { tc[x] = (tc[x] || 0) + 1; }));
+    if (f.tag && f.tag !== "全部" && !tc[f.tag]) f.tag = "全部";
     const tagKeys = Object.keys(tc).sort((a, b) => tc[b] - tc[a] || a.localeCompare(b));
     if (tagKeys.length) out.push(selNode("tag", "標籤", withAll(tagKeys.map((k) => [k, k, tc[k]])), f.tag));
     const grouping = t !== "factions"
@@ -87,7 +90,8 @@
         h("span", {}, "搜尋"),
         h("input", { type: "search", "data-ef": "q", placeholder: "名稱、別名、一句話", value: f.q || "" })),
       out,
-      grouping);
+      grouping,
+      h("button", { class: "sm ghost", type: "button", "data-ef-reset": "1", style: "display:none;align-self:flex-start" }, "重設篩選"));
   }
 
   function entityItemNode(t, e, file, pick) {
@@ -209,8 +213,17 @@
   }
 
   function bindEntryFilter(root, entList, t, list, file, f) {
+    const resetBtn = root.querySelector("[data-ef-reset]");
+    const hasFilter = () => Boolean(
+      (f.q || "").trim()
+      || (t === "characters" && f.role && f.role !== "全部")
+      || (t === "world" && f.cat && f.cat !== "全部")
+      || (f.status && f.status !== "全部")
+      || (f.tag && f.tag !== "全部")
+    );
     const paint = () => {
       entList.replaceChildren(entityListNode(t, list, f, file, () => FE.route()));
+      if (resetBtn) resetBtn.style.display = hasFilter() ? "" : "none";
       saveEntryFilter(S.book, t, f);
     };
     paint();
@@ -221,6 +234,16 @@
         paint();
       });
     });
+    if (resetBtn) {
+      resetBtn.onclick = () => {
+        f.q = ""; f.role = "全部"; f.cat = "全部"; f.status = "全部"; f.tag = "全部";
+        root.querySelectorAll("[data-ef]").forEach((el) => {
+          if (el.type === "search") el.value = "";
+          else if (el.tagName === "SELECT") el.value = "全部";
+        });
+        paint();
+      };
+    }
   }
 
   // ── 設定索引：疑似重複勾選合併 ──
@@ -484,9 +507,37 @@
           : h("div", { class: "muted" }, "這裡還是空的。"));
     }
 
+    let rightNode;
+    if (file && ENT_TABS.includes(t)) {
+      const SUB_TABS = [
+        ["doc", "設定本文"],
+        ["card", "視覺卡"],
+        ["illust", "插圖"],
+      ];
+      let subTab = FE.store.get("bible.subtab", "doc");
+      if (!SUB_TABS.some(([id]) => id === subTab)) subTab = "doc";
+      const paneDoc = h("div", { class: "tab-pane" + (subTab === "doc" ? "" : " hidden"), "data-sp": "doc" }, docEl, entMeta);
+      const paneCard = h("div", { class: "tab-pane" + (subTab === "card" ? "" : " hidden"), "data-sp": "card" }, entCard);
+      const paneIll = h("div", { class: "tab-pane" + (subTab === "illust" ? "" : " hidden"), "data-sp": "illust" }, entIll);
+      const panes = [paneDoc, paneCard, paneIll];
+      const subBtns = SUB_TABS.map(([id, lbl]) => {
+        const b = h("button", { class: "tab" + (subTab === id ? " active" : ""), "data-sid": id }, lbl);
+        b.onclick = () => {
+          subTab = id;
+          FE.store.set("bible.subtab", id);
+          subBtns.forEach((x) => x.classList.toggle("active", x.dataset.sid === id));
+          panes.forEach((p) => p.classList.toggle("hidden", p.dataset.sp !== id));
+        };
+        return b;
+      });
+      rightNode = h("div", {}, h("div", { class: "tabs", style: "margin-bottom:12px" }, subBtns), paneDoc, paneCard, paneIll);
+    } else {
+      rightNode = h("div", {}, docEl, entMeta, entCard, entIll);
+    }
+
     const splitNode = h("div", { class: "split" },
       h("div", { class: "list" }, dup, listNode),
-      h("div", {}, docEl, entMeta, entCard, entIll));
+      rightNode);
     ctx.view(head, tabsNode, splitNode);
 
     if (canDel) {

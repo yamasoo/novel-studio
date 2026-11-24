@@ -10,7 +10,7 @@ import shutil
 import time
 import urllib.parse
 
-from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, style_loop, tracking, wb_check
+from . import lang as lang_mod, prompts, context, fidelity, goals, illust, jsonkeys, native_files, textguard, project, providers, reader_ledger, recovery, reverse, revision, shared, style_design, style_loop, tracking, visual_card, wb_check
 from . import layout
 
 DELIM = "<<<匯報>>>"
@@ -892,14 +892,43 @@ def act_illust_prompt(c, p):
 
 
 def save_card_result(book, p, data):
-    f = p.get("file") or ""
+    f = (p.get("file") or "").replace("\\", "/")
     path = project.safe_path(book, f)
     text = project.read_text(path)
     tracking.backup(book, path, "視覺卡")
+    kind = f.split("/")[1] if f.count("/") >= 2 else ""
+
+    # 角色結構化視覺卡（含漫畫 sections/outfits 與 VN 頭像／立繪／7 表情）
+    if f.startswith(layout.CHARACTERS + "/") and isinstance(data, dict) and isinstance(data.get("sections"), dict):
+        fm, _ = project.split_frontmatter(text)
+        char_name = str(fm.get("name") or os.path.splitext(os.path.basename(f))[0]).strip()
+        aliases = fm.get("aliases") if isinstance(fm.get("aliases"), list) else []
+        notes = str(data.get("notes") or "").strip()
+        body_note = notes or ("由角色設定 %s 產生，請核對後將 status 改為 confirmed。" % f)
+        card = visual_card.normalize_card(
+            data, name=char_name, aliases=aliases, source=f, body=body_note, fill_vn_defaults=True
+        )
+        vrel, card, chk = visual_card.save_card(book, card, backup_tag="視覺卡")
+        # 同步摘要寫回原角色檔的「## 繪圖提示」，讓既有插圖流程自動吃到最新外觀
+        legacy = illust.sanitize_card(visual_card.to_legacy_card(card), kind)
+        body, note = textguard.guard_text(book, illust.write_card(text, legacy))
+        project.write_atomic(path, body)
+        lines = [
+            "**結構化視覺卡已寫入 %s**（並同步摘要至 %s）%s" % (vrel, f, ("（%s）" % note) if note else ""),
+            "- 角色 ID：`%s`｜狀態：`%s`" % (card["id"], card["status"]),
+            "- 頭部（head）：%s" % (", ".join(card["sections"]["head"]) or "（空）"),
+            "- 預設服裝：%s" % (visual_card.look_en(card, "default") or "（空）"),
+        ]
+        if chk["errors"]:
+            lines.append("- ⚠ 規格錯誤（請修正）：\n  - " + "\n  - ".join(chk["errors"]))
+        if chk["warnings"]:
+            lines.append("- 提醒：\n  - " + "\n  - ".join(chk["warnings"]))
+        return "\n".join(lines)
+
     card = {"tags": str((data or {}).get("tags") or ""), "description": str((data or {}).get("description") or "")}
     if not card["tags"] and not card["description"]:
         raise NativeError("模型沒有回傳視覺卡內容")
-    card = illust.sanitize_card(card, f.split("/")[1] if f.count("/") >= 2 else "")
+    card = illust.sanitize_card(card, kind)
     body, note = textguard.guard_text(book, illust.write_card(text, card))
     project.write_atomic(path, body)
     return "**視覺卡已寫入 %s**%s\n- 標籤：%s\n- 描述：%s" % (f, ("（%s）" % note) if note else "",

@@ -298,6 +298,23 @@ class ReverseAdoptTest(unittest.TestCase):
         with self.assertRaises(project.ProjectError):
             reverse.adopt(self.book, "大綱", mode="keep", files=["outline/不存在.md"])
 
+    def test_ja_book_merge_conflict_does_not_trigger_v3_migration(self):
+        """日文書反推採用 merge 產生衝突段時，標題應為日文，不會被書架誤判為需要再轉 v3。"""
+        from studio import bookmeta, migrate, sections
+        with tempfile.TemporaryDirectory(prefix="ns-rev-ja-") as ja_book:
+            bookmeta.write(ja_book, lang="ja", title="ja_test")
+            old_sc = "---\ntype: story-core\nstatus: draft\n---\n\n# 物語の核\n\n## 一行フック\n元のフック\n"
+            new_sc = "---\ntype: story-core\nstatus: draft\n---\n\n# 物語の核\n\n## 一行フック\n反推フック\n"
+            _write(ja_book, "bible/story-core.md", old_sc)
+            _draft(ja_book, "bible/story-core.md", new_sc)
+            r = reverse.adopt(ja_book, "bible", mode="merge", files=["bible/story-core.md"])
+            self.assertEqual(r["merged"], 1)
+            self.assertEqual(r["conflicts"], 1)
+            merged_txt = _read(ja_book, "bible/story-core.md")
+            self.assertNotIn("從正文反推（未併入，請核對）", merged_txt)
+            self.assertEqual(sections.localize_doc(merged_txt, "ja"), merged_txt)
+            self.assertFalse(migrate.needs_migration(ja_book))
+
 
 if __name__ == "__main__":
     unittest.main()

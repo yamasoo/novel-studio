@@ -119,7 +119,8 @@
       Panel.run("revise_notes", { chapter: no, ids, extra: extra.value });
     };
 
-    el.replaceChildren(h("details", { class: "card review-card", open: true, style: "margin-bottom:14px" },
+    const hasMust = (rec.items || []).some((x) => x.severity === "必須修");
+    el.replaceChildren(h("details", { class: "card review-card", open: hasMust, style: "margin-bottom:14px" },
       h("summary", { class: "row" },
         h("b", {}, "審查意見"),
         h("span", { class: "muted small" }, rec.summary || ""),
@@ -352,14 +353,15 @@
     const docEl = h("div", { id: "doc" });
 
     ctx.view(
-      h("div", { class: "page-head" },
-        h("div", {},
-          h("div", { class: "muted small" },
-            h("a", { href: "#/b/" + enc(S.book) + "/chapters" }, "章節"), ` ／ 第${no}章`),
-          h("h1", {}, `第${no}章　${c.title || ""}`)),
-        headRow),
+      h("div", { class: "ch-sticky" },
+        h("div", { class: "page-head" },
+          h("div", {},
+            h("div", { class: "muted small" },
+              h("a", { href: "#/b/" + enc(S.book) + "/chapters" }, "章節"), ` ／ 第${no}章`),
+            h("h1", {}, `第${no}章　${c.title || ""}`)),
+          headRow),
+        tabsNode),
       actions,
-      tabsNode,
       candidateAlert,
       recAlerts,
       rvAlert,

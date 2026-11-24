@@ -272,8 +272,9 @@ const tagAppend = (cur, add) => {
   return have.join(", ");
 };
 
-/* 視覺卡（角色、勢力、世界觀的「繪圖提示」） */
+/* 視覺卡（角色：結構化漫畫／VN 視覺卡；勢力、世界觀：「繪圖提示」） */
 async function renderCard(el, file, text) {
+  if ((file || "").startsWith("bible/characters/")) return renderCharVisualCard(el, file, text);
   const cfgR = await illCfg();
   const m = (text || "").match(/^## 繪圖提示[^\n]*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
   const sec = m ? m[1].replace(/<!--[\s\S]*?-->/g, "") : "";
@@ -334,6 +335,240 @@ async function renderCard(el, file, text) {
     $("#vc-save", el).onclick = async () => {
       try { await api("POST", B("/cards"), { file, tags: $("#vc-tags", el).value, description: $("#vc-desc", el).value }); toast("已儲存視覺卡"); refresh(); } catch (e) { fail(e); }
     };
+  };
+  render();
+}
+
+/* 角色結構化視覺卡（漫畫標準分區 ＋ VN 頭像／立繪／7 種表情預覽） */
+async function renderCharVisualCard(el, file) {
+  const cfgR = await illCfg();
+  const load = (outfit) => api("GET", B("/visual-cards/by-file?file=" + encodeURIComponent(file) + "&outfit=" + encodeURIComponent(outfit || "default")));
+  let state = await load("default");
+  let editing = false;
+  let selOutfit = "default";
+  let selExpr = "neutral";
+  const copyTxt = async (txt, msg) => {
+    try { await navigator.clipboard.writeText(txt || ""); toast(msg || "已複製"); }
+    catch { toast("無法存取剪貼簿", true); }
+  };
+  const linesOf = (arr) => (arr || []).join("\n");
+  const parseLines = (s) => String(s || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+
+  const render = () => {
+    const exists = !!state.exists;
+    const card = exists ? state.card : state.stub;
+    const chk = state.check || { ok: true, errors: [], warnings: [] };
+    const vn = state.vn || null;
+
+    const badges = [];
+    if (!exists) {
+      badges.push(FE.h("span", { class: "badge b-warn" }, "還沒有"));
+    } else {
+      badges.push(FE.h("span", { class: card.status === "confirmed" ? "badge b-ok" : "badge" },
+        card.status === "confirmed" ? "已確認" : "草稿"));
+      if (chk.errors && chk.errors.length) {
+        badges.push(FE.h("span", { class: "badge b-err" }, chk.errors.length + " 項規格錯誤"));
+      } else if (chk.warnings && chk.warnings.length) {
+        badges.push(FE.h("span", { class: "badge b-warn" }, chk.warnings.length + " 項提醒"));
+      } else {
+        badges.push(FE.h("span", { class: "badge b-ok" }, "規格通過"));
+      }
+    }
+
+    const headBtns = [
+      FE.h("select", { id: "vc-prov" }),
+      FE.h("button", { class: "sm", id: "vc-ai" }, "AI 從設定產生"),
+      FE.h("button", { class: "sm", id: "vc-edit" }, editing ? "取消" : "手動編輯"),
+    ];
+    if (exists && !editing) {
+      headBtns.push(FE.h("button", { class: "sm", id: "vc-copy-comic" }, "複製漫畫卡"));
+    }
+
+    const kids = [
+      FE.h("div", { class: "card-title" },
+        FE.h("h2", {}, "視覺卡（漫畫／VN） ", ...badges),
+        FE.h("div", { class: "row" }, ...headBtns)),
+      FE.h("div", { class: "muted small", style: "margin-bottom:8px" },
+        "存於 bible/visual-cards/，頭像不含表情（預設平靜），立繪與 7 種表情分層組裝，並自動同步摘要回角色設定的「繪圖提示」。"),
+    ];
+
+    if (exists && (chk.errors.length || chk.warnings.length)) {
+      const msgs = [];
+      chk.errors.forEach((m) => msgs.push(FE.h("div", { class: "err small" }, "✕ " + m)));
+      chk.warnings.forEach((m) => msgs.push(FE.h("div", { class: "muted small" }, "⚠ " + m)));
+      kids.push(FE.h("div", { style: "margin-bottom:8px;padding:6px 8px;border:1px solid var(--border);border-radius:6px" }, msgs));
+    }
+
+    if (editing) {
+      const sec = card.sections || {};
+      const defOut = (card.outfits && card.outfits.default) || { top: [], bottom: [], set: [], notes: "" };
+      const vnData = card.vn || { avatar_accessories: [], sprite_pose: "", expressions: {} };
+      const exprs = vnData.expressions || {};
+      const exprMeta = [
+        ["neutral", "平靜（預設）"], ["happy", "喜"], ["angry", "怒"],
+        ["sad", "哀"], ["serious", "認真"], ["worried", "擔心"], ["surprised", "驚訝"],
+      ];
+      kids.push(
+        FE.h("div", { class: "row", style: "gap:8px;margin-bottom:8px" },
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "角色 ID（英文小寫）"),
+            FE.h("input", { type: "text", id: "vc-id", value: card.id || "" })),
+          FE.h("label", { class: "f", style: "width:140px" }, FE.h("span", {}, "狀態"),
+            FE.h("select", { id: "vc-status" },
+              FE.h("option", { value: "draft", selected: card.status !== "confirmed" }, "草稿"),
+              FE.h("option", { value: "confirmed", selected: card.status === "confirmed" }, "已確認")))),
+        FE.h("label", { class: "f" }, FE.h("span", {}, "頭部（sections.head：年齡、性別、髮型髮色、眼型眼色、臉特徵；每行一項，不含衣服與表情）"),
+          FE.h("textarea", { id: "vc-head", rows: 4, value: linesOf(sec.head) })),
+        FE.h("div", { class: "row", style: "gap:8px" },
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "體型（sections.body）"),
+            FE.h("textarea", { id: "vc-body", rows: 2, value: linesOf(sec.body) })),
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "永久配件（sections.accessory）"),
+            FE.h("textarea", { id: "vc-acc", rows: 2, value: linesOf(sec.accessory) }))),
+        FE.h("div", { class: "row", style: "gap:8px" },
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "上半身永久特徵（sections.upper）"),
+            FE.h("textarea", { id: "vc-upper", rows: 2, value: linesOf(sec.upper) })),
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "下半身永久特徵（sections.lower）"),
+            FE.h("textarea", { id: "vc-lower", rows: 2, value: linesOf(sec.lower) }))),
+        FE.h("div", { class: "row", style: "gap:8px" },
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "預設上著（outfits.default.top）"),
+            FE.h("textarea", { id: "vc-top", rows: 2, value: linesOf(defOut.top) })),
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "預設下著（outfits.default.bottom）"),
+            FE.h("textarea", { id: "vc-bottom", rows: 2, value: linesOf(defOut.bottom) })),
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "預設整套（outfits.default.set）"),
+            FE.h("textarea", { id: "vc-set", rows: 2, value: linesOf(defOut.set) }))),
+        FE.h("label", { class: "f" }, FE.h("span", {}, "預設服裝說明（notes）"),
+          FE.h("input", { type: "text", id: "vc-onotes", value: defOut.notes || "" })),
+        FE.h("div", { class: "row", style: "gap:8px" },
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "VN 頭像配件（頭飾／耳環／項鍊，每行一項）"),
+            FE.h("textarea", { id: "vc-vn-acc", rows: 2, value: linesOf(vnData.avatar_accessories) })),
+          FE.h("label", { class: "f", style: "flex:1" }, FE.h("span", {}, "VN 立繪預設動作（sprite_pose）"),
+            FE.h("textarea", { id: "vc-vn-pose", rows: 2, value: vnData.sprite_pose || "" }))),
+        FE.h("div", { class: "small muted", style: "margin:6px 0 4px" }, "VN 表情差分（7 種，頭像預設平靜）"),
+        FE.h("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px" },
+          exprMeta.map(([k, lab]) => FE.h("label", { class: "f" },
+            FE.h("span", {}, lab),
+            FE.h("input", { type: "text", "data-vcexpr": k, value: exprs[k] || "" })))),
+        FE.h("label", { class: "f" }, FE.h("span", {}, "備註（給人看）"),
+          FE.h("textarea", { id: "vc-note", rows: 2, value: card.body || "" })),
+        FE.h("div", { class: "row" }, FE.h("span", { class: "grow" }),
+          FE.h("button", { class: "primary sm", id: "vc-save" }, "儲存視覺卡")),
+      );
+    } else if (exists) {
+      const sec = card.sections || {};
+      const outSummary = Object.entries(card.outfits || {}).map(([oid, ov]) => {
+        const ps = [...(ov.top || []), ...(ov.bottom || []), ...(ov.set || [])].join(", ");
+        return oid + (ov.notes ? "（" + ov.notes + "）" : "") + "：" + ps;
+      }).join(" ｜ ");
+      kids.push(FE.h("div", { class: "kv", style: "margin-bottom:10px" },
+        FE.h("span", { class: "k" }, "卡片檔案"), FE.h("span", {}, state.file + "（ID：" + card.id + "）"),
+        FE.h("span", { class: "k" }, "頭部（無表情）"), FE.h("span", {}, (sec.head || []).join(", ") || "—"),
+        FE.h("span", { class: "k" }, "體型與特徵"), FE.h("span", {}, [...(sec.body || []), ...(sec.upper || []), ...(sec.lower || [])].join(", ") || "—"),
+        FE.h("span", { class: "k" }, "永久配件"), FE.h("span", {}, (sec.accessory || []).join(", ") || "—"),
+        FE.h("span", { class: "k" }, "服裝"), FE.h("span", {}, outSummary || "—")));
+
+      if (vn) {
+        const avTxt = selExpr === "neutral" ? vn.avatar_default : (vn.avatar_by_expression[selExpr] || vn.avatar_default);
+        const spTxt = vn.sprite_by_expression[selExpr] || vn.sprite_body;
+        kids.push(
+          FE.h("div", { style: "border-top:1px solid var(--border);padding-top:8px;margin-top:6px" },
+            FE.h("div", { class: "row", style: "gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap" },
+              FE.h("strong", { class: "small" }, "VN 提示詞預覽"),
+              FE.h("select", { id: "vc-vn-outfit", style: "width:auto" },
+                (vn.outfits || []).map((o) => FE.h("option", { value: o.id, selected: o.id === selOutfit },
+                  o.id + (o.notes ? "（" + o.notes + "）" : "")))),
+              FE.h("div", { class: "row", style: "gap:4px;flex-wrap:wrap" },
+                (vn.expressions || []).map((ex) => FE.h("button", {
+                  class: "sm" + (ex.key === selExpr ? " primary" : ""),
+                  "data-sel-expr": ex.key,
+                }, ex.label)))),
+            FE.h("div", { class: "kv" },
+              FE.h("span", { class: "k" }, "頭像（頸部以上）"),
+              FE.h("div", { class: "row", style: "gap:6px;align-items:flex-start" },
+                FE.h("span", { class: "small", style: "flex:1" }, avTxt),
+                FE.h("button", { class: "sm", id: "vc-copy-av" }, "複製頭像"),
+                FE.h("button", { class: "sm", id: "vc-copy-av-base" }, "複製無表情基底")),
+              FE.h("span", { class: "k" }, "立繪（身體＋服裝＋動作）"),
+              FE.h("div", { class: "row", style: "gap:6px;align-items:flex-start" },
+                FE.h("span", { class: "small", style: "flex:1" }, spTxt),
+                FE.h("button", { class: "sm", id: "vc-copy-sp" }, "複製完整立繪"),
+                FE.h("button", { class: "sm", id: "vc-copy-sp-body" }, "複製頸部以下")))));
+      }
+    }
+
+    el.replaceChildren(FE.h("div", { class: "card ill-card" }, kids));
+    $("#vc-prov", el).replaceChildren(...provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true }));
+    $("#vc-edit", el).onclick = () => { editing = !editing; render(); };
+    $("#vc-ai", el).onclick = async () => {
+      try {
+        const job = await api("POST", B("/jobs"), { action: "visual_card", params: { file }, provider: $("#vc-prov", el).value });
+        Panel.attach(job);
+        const j = await waitJob(job.id);
+        if (j.status === "done") {
+          toast("結構化視覺卡已寫入");
+          state = await load(selOutfit);
+          editing = false;
+          render();
+          refresh();
+        } else toast("產生失敗，詳情看右側面板", true);
+      } catch (e) { fail(e); }
+    };
+
+    if (!editing && exists) {
+      const btnComic = $("#vc-copy-comic", el);
+      if (btnComic) btnComic.onclick = () => copyTxt(state.comic_markdown, "已複製漫畫角色卡 Markdown");
+      const outSel = $("#vc-vn-outfit", el);
+      if (outSel) outSel.onchange = async () => { selOutfit = outSel.value; state = await load(selOutfit); render(); };
+      el.querySelectorAll("[data-sel-expr]").forEach((b) => { b.onclick = () => { selExpr = b.dataset.selExpr; render(); }; });
+      if (vn) {
+        const avTxt = selExpr === "neutral" ? vn.avatar_default : (vn.avatar_by_expression[selExpr] || vn.avatar_default);
+        const spTxt = vn.sprite_by_expression[selExpr] || vn.sprite_body;
+        const bAv = $("#vc-copy-av", el); if (bAv) bAv.onclick = () => copyTxt(avTxt, "已複製頭像提示詞");
+        const bAvB = $("#vc-copy-av-base", el); if (bAvB) bAvB.onclick = () => copyTxt(vn.avatar_base, "已複製無表情頭像基底");
+        const bSp = $("#vc-copy-sp", el); if (bSp) bSp.onclick = () => copyTxt(spTxt, "已複製完整立繪提示詞");
+        const bSpB = $("#vc-copy-sp-body", el); if (bSpB) bSpB.onclick = () => copyTxt(vn.sprite_body, "已複製頸部以下立繪提示詞");
+      }
+    }
+
+    if (editing) {
+      $("#vc-save", el).onclick = async () => {
+        const exprObj = {};
+        el.querySelectorAll("[data-vcexpr]").forEach((inp) => { exprObj[inp.dataset.vcexpr] = inp.value.trim(); });
+        const outfits = Object.assign({}, card.outfits || {});
+        outfits.default = {
+          top: parseLines($("#vc-top", el).value),
+          bottom: parseLines($("#vc-bottom", el).value),
+          set: parseLines($("#vc-set", el).value),
+          notes: $("#vc-onotes", el).value.trim(),
+        };
+        const payload = {
+          id: $("#vc-id", el).value.trim(),
+          name: card.name,
+          aliases: card.aliases || [],
+          status: $("#vc-status", el).value,
+          source: file,
+          sections: {
+            head: parseLines($("#vc-head", el).value),
+            body: parseLines($("#vc-body", el).value),
+            upper: parseLines($("#vc-upper", el).value),
+            lower: parseLines($("#vc-lower", el).value),
+            accessory: parseLines($("#vc-acc", el).value),
+          },
+          outfits,
+          vn: {
+            avatar_accessories: parseLines($("#vc-vn-acc", el).value),
+            sprite_pose: $("#vc-vn-pose", el).value.trim(),
+            expressions: exprObj,
+          },
+          body: $("#vc-note", el).value.trim(),
+        };
+        try {
+          const r = await api("POST", B("/visual-cards"), { file, outfit: selOutfit, card: payload });
+          state = Object.assign({ exists: true, supported: true }, r);
+          editing = false;
+          toast("已儲存結構化視覺卡");
+          render();
+        } catch (e) { fail(e); }
+      };
+    }
   };
   render();
 }

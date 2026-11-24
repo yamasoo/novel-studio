@@ -1969,6 +1969,7 @@
    "body": {
     "adapters": {
      "deepseek": "DeepSeek（thinking 開關＋reasoning_effort）",
+     "gemini_thinking": "Google Gemini（thinkingConfig）",
      "none": "不控制（照模型預設）",
      "openai_effort": "OpenAI 類（reasoning_effort）",
      "qwen_template": "llama.cpp／Qwen3 類（chat_template_kwargs.enable_thinking）"

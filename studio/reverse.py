@@ -920,6 +920,7 @@ def adopt(book_dir, group, mode=None, files=None):
         raise project.ProjectError("「%s」不支援「%s」模式" % (group, mode))
     n_adopted = n_merged = n_kept = n_bak = n_conf = 0
     backups, targets = [], []
+    book_lang = lang_mod.book_lang(book_dir)
     for it in items:
         rel = it["rel"]
         m = _mode_for(group, rel, mode)
@@ -930,7 +931,7 @@ def adopt(book_dir, group, mode=None, files=None):
         if m == "keep":
             n_kept += 1
             continue
-        new_text = project.read_text(src)
+        new_text = sections.localize_doc(project.read_text(src), book_lang)
         has_old = os.path.isfile(dst)
         old_text = project.read_text(dst) if has_old else ""
         if has_old:
@@ -939,7 +940,7 @@ def adopt(book_dir, group, mode=None, files=None):
                 backups.append(os.path.basename(bak))
                 n_bak += 1
         if m == "merge" and has_old:
-            merged, conflicts = project.merge_entry(old_text, new_text)
+            merged, conflicts = project.merge_entry(old_text, new_text, lang=book_lang)
             project.write_atomic(dst, merged)
             n_conf += len(conflicts)
             n_merged += 1

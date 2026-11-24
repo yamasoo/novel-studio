@@ -1,6 +1,8 @@
 # 本機設定與金鑰（含個人路徑、API 金鑰，不要提交）
 config.json
 secrets.json
+.env
+.env.*
 
 # Python
 .venv/

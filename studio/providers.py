@@ -25,6 +25,16 @@ DEFAULT_PROVIDERS = [
      "context_tokens": 32768, "max_output": 4096, "temperature": 0.8,
      "json_mode": True, "price_in": 0.0, "price_out": 0.0, "extra": {},
      "reasoning": {"adapter": "none", "draft": "off", "plan": "low", "review": "low", "structured": "off"}},
+    {"id": "gemini", "type": "gemini", "name": "Google Gemini API",
+     "base_url": "https://generativelanguage.googleapis.com/v1beta",
+     "model": "gemini-3.8-flash", "key_env": "GEMINI_API_KEY",
+     "context_tokens": 1000000, "max_output": 65536, "temperature": 0.9, "cjk_token_ratio": 0.8,
+     "json_mode": True, "safety_relax": True, "price_in": 0.0, "price_out": 0.0, "extra": {},
+     "reasoning": {"adapter": "gemini_thinking", "draft": "low", "plan": "medium", "review": "medium", "structured": "off"},
+     "models": [
+         {"id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash"},
+         {"id": "gemini-4-neon", "name": "Gemini 4 Neon"},
+     ]},
 ]
 
 # ---------------------------------------------------------------------------
@@ -37,7 +47,7 @@ MODEL_FIELDS = (("context_tokens", int), ("max_output", int), ("price_in", float
 
 def _supports_models(p):
     """llama.cpp（本機）維持一個執行者一個模型。"""
-    return p.get("type") == "openai" and p.get("id") != "llamacpp"
+    return p.get("type") in ("openai", "gemini") and p.get("id") != "llamacpp"
 
 
 def choices(provs):
@@ -124,6 +134,7 @@ ADAPTERS = {
     "deepseek": "DeepSeek（thinking 開關＋reasoning_effort）",
     "openai_effort": "OpenAI 類（reasoning_effort）",
     "qwen_template": "llama.cpp／Qwen3 類（chat_template_kwargs.enable_thinking）",
+    "gemini_thinking": "Google Gemini（thinkingConfig）",
 }
 DEFAULT_REASONING = {"adapter": "none", "draft": "low", "plan": "high", "review": "high", "structured": "off"}
 
@@ -281,6 +292,39 @@ def pending_secrets(home):
     return len([k for k, v in load_secrets(home).items() if v]) if _keyring() else 0
 
 
+def _load_dotenv(home):
+    """讀取專案根目錄的 .env（只用標準函式庫，支援 KEY=VALUE、引號、export 與 # 註解）。"""
+    out = {}
+    if not home:
+        return out
+    p = os.path.join(home, ".env")
+    if not os.path.isfile(p):
+        return out
+    try:
+        with open(p, encoding="utf-8-sig") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("export "):
+                    line = line[7:].strip()
+                if "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip()
+                if not k:
+                    continue
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+                    v = v[1:-1]
+                elif " #" in v:
+                    v = v.split(" #", 1)[0].strip()
+                out[k] = v
+    except OSError:
+        return {}
+    return out
+
+
 def api_key(home, prov):
     kid = prov.get("key_id") or prov["id"]   # 同一個執行者底下的不同模型共用金鑰
     k = _kr_get(kid)
@@ -290,7 +334,11 @@ def api_key(home, prov):
     if s.get(kid):
         return s[kid]
     env = prov.get("key_env")
-    return os.environ.get(env, "") if env else ""
+    if not env:
+        return ""
+    if os.environ.get(env):
+        return os.environ.get(env, "")
+    return _load_dotenv(home).get(env, "")
 
 
 def _tail(k):
@@ -308,6 +356,10 @@ def key_status(home, prov):
     env = prov.get("key_env")
     if env and os.environ.get(env):
         return "環境變數 %s" % env
+    if env:
+        dv = _load_dotenv(home).get(env)
+        if dv:
+            return ".env (%s)%s" % (env, _tail(dv))
     return ""
 
 
@@ -402,7 +454,206 @@ def calibrate_cjk(home, prov, timeout=15):
     return round(len(toks) / float(len(CALIBRATE_TEXT)), 2)
 
 
+GEMINI_SAFETY_OFF = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_CIVIC_INTEGRITY", "threshold": "BLOCK_NONE"},
+]
+_GEMINI_THINK_BUDGET = {"off": 0, "low": 1024, "medium": 4096, "high": 8192, "max": 16384}
+
+
+def _gemini_headers(home, prov):
+    h = {"Content-Type": "application/json", "Accept": "text/event-stream, application/json"}
+    k = api_key(home, prov)
+    if k:
+        h["x-goog-api-key"] = k
+    return h
+
+
+def _gemini_build_body(prov, messages, json_mode=False, max_tokens=None, stage=None):
+    """將 OpenAI 格式 messages 轉為 Google Gemini 原生 generateContent 請求體。"""
+    sys_parts, contents = [], []
+    for m in messages or []:
+        role = (m.get("role") or "user").lower()
+        txt = m.get("content") or ""
+        if not isinstance(txt, str):
+            txt = json.dumps(txt, ensure_ascii=False)
+        if role == "system":
+            if txt.strip():
+                sys_parts.append({"text": txt})
+            continue
+        g_role = "model" if role == "assistant" else "user"
+        if contents and contents[-1]["role"] == g_role:
+            contents[-1]["parts"].append({"text": txt})
+        else:
+            contents.append({"role": g_role, "parts": [{"text": txt}]})
+    if not contents:
+        contents = [{"role": "user", "parts": [{"text": ""}]}]
+
+    gen_cfg = {"maxOutputTokens": int(max_tokens or prov.get("max_output") or 8192)}
+    if prov.get("temperature") not in (None, ""):
+        gen_cfg["temperature"] = float(prov["temperature"])
+    if json_mode and prov.get("json_mode", True):
+        gen_cfg["responseMimeType"] = "application/json"
+
+    adapter, effort = reasoning_for(prov, stage)
+    if adapter == "gemini_thinking" and stage:
+        budget = _GEMINI_THINK_BUDGET.get(effort, 0)
+        tcfg = {"thinkingBudget": budget}
+        if budget > 0:
+            tcfg["includeThoughts"] = True
+        gen_cfg["thinkingConfig"] = tcfg
+
+    body = {"contents": contents, "generationConfig": gen_cfg}
+    if sys_parts:
+        body["systemInstruction"] = {"parts": sys_parts}
+    if prov.get("safety_relax", True):
+        body["safetySettings"] = list(GEMINI_SAFETY_OFF)
+
+    extra = prov.get("extra") or {}
+    if isinstance(extra, dict):
+        for ek, ev in extra.items():
+            if ek == "generationConfig" and isinstance(ev, dict):
+                body["generationConfig"].update(ev)
+            else:
+                body[ek] = ev
+    return body
+
+
+def _gemini_list_models(home, prov, timeout=15):
+    req = urllib.request.Request(_endpoint(prov, "/models"), headers=_gemini_headers(home, prov))
+    try:
+        with _opener(req.full_url).open(req, timeout=timeout) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise _http_error(e)
+    except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
+        raise ProviderError("連不上 %s：%s" % (req.full_url, getattr(e, "reason", e)))
+    out = []
+    for m in data.get("models") or []:
+        methods = m.get("supportedGenerationMethods")
+        if methods and "generateContent" not in methods:
+            continue
+        mid = str(m.get("name") or m.get("id") or "").strip()
+        if mid.startswith("models/"):
+            mid = mid[7:]
+        if mid:
+            out.append(mid)
+    return out
+
+
+def _gemini_usage(um):
+    if not isinstance(um, dict):
+        return {}
+    out = {}
+    if um.get("promptTokenCount") is not None:
+        out["prompt_tokens"] = int(um["promptTokenCount"])
+    if um.get("candidatesTokenCount") is not None:
+        out["completion_tokens"] = int(um["candidatesTokenCount"])
+    if um.get("totalTokenCount") is not None:
+        out["total_tokens"] = int(um["totalTokenCount"])
+    return out
+
+
+def _gemini_chat(home, prov, messages, on_delta=None, on_thinking=None, json_mode=False,
+                 max_tokens=None, should_stop=None, timeout=600, stage=None):
+    """串流呼叫 Google Gemini 原生 streamGenerateContent?alt=sse。"""
+    model = (prov.get("model") or "gemini-3.8-flash").strip()
+    if model.startswith("models/"):
+        model = model[7:]
+    url = _endpoint(prov, "/models/%s:streamGenerateContent?alt=sse" % urllib.parse.quote(model, safe=""))
+    body = _gemini_build_body(prov, messages, json_mode=json_mode, max_tokens=max_tokens, stage=stage)
+    req = urllib.request.Request(
+        url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers=_gemini_headers(home, prov), method="POST",
+    )
+    text_parts, usage = [], {}
+    finish = None
+
+    def _consume(ev):
+        nonlocal usage, finish
+        if ev.get("error"):
+            err = ev["error"]
+            msg = err.get("message") if isinstance(err, dict) else str(err)
+            raise ProviderError(str(msg)[:400])
+        if ev.get("usageMetadata"):
+            usage = _gemini_usage(ev["usageMetadata"])
+        fb = ev.get("promptFeedback") or {}
+        if fb.get("blockReason"):
+            raise ProviderError("Gemini 安全過濾攔截了輸入（%s）" % fb["blockReason"])
+        for cand in ev.get("candidates") or []:
+            content = cand.get("content") or {}
+            for part in content.get("parts") or []:
+                txt = part.get("text")
+                if not txt:
+                    continue
+                if part.get("thought"):
+                    if on_thinking:
+                        on_thinking(txt)
+                else:
+                    text_parts.append(txt)
+                    if on_delta:
+                        on_delta(txt)
+            if cand.get("finishReason"):
+                finish = cand["finishReason"]
+
+    try:
+        resp = _opener(req.full_url).open(req, timeout=timeout)
+    except urllib.error.HTTPError as e:
+        raise _http_error(e)
+    except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
+        raise ProviderError("連不上 %s：%s" % (req.full_url, getattr(e, "reason", e)))
+    try:
+        ctype = resp.headers.get("Content-Type", "")
+        if "text/event-stream" not in ctype:
+            raw_json = json.loads(resp.read().decode("utf-8"))
+            for ev in (raw_json if isinstance(raw_json, list) else [raw_json]):
+                _consume(ev)
+        else:
+            try:
+                lines = iter(resp)
+            except Exception as e:
+                raise ProviderError("讀取回應失敗：%s" % e)
+            while True:
+                try:
+                    raw = next(lines)
+                except StopIteration:
+                    break
+                except Exception as e:
+                    raise ProviderError("串流中斷：%s" % e)
+                if should_stop and should_stop():
+                    raise Cancelled()
+                line = raw.decode("utf-8", "replace").strip()
+                if not line or line.startswith(":") or not line.startswith("data:"):
+                    continue
+                payload = line[5:].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    ev = json.loads(payload)
+                except ValueError:
+                    continue
+                _consume(ev)
+        if finish in ("SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII") and not text_parts:
+            raise ProviderError("Gemini 安全過濾中止了輸出（finishReason: %s）" % finish)
+        if not finish and not text_parts:
+            raise ProviderError("串流中斷：Gemini 沒有回傳任何內容")
+    finally:
+        try:
+            resp.close()
+        except Exception:
+            pass
+    usage = dict(usage or {})
+    if finish:
+        usage["finish_reason"] = {"STOP": "stop", "MAX_TOKENS": "length"}.get(finish, str(finish).lower())
+    return "".join(text_parts), usage
+
+
 def list_models(home, prov, timeout=15):
+    if prov.get("type") == "gemini":
+        return _gemini_list_models(home, prov, timeout=timeout)
     req = urllib.request.Request(_endpoint(prov, "/models"), headers=_headers(home, prov))
     try:
         with _opener(req.full_url).open(req, timeout=timeout) as r:
@@ -423,9 +674,13 @@ def list_models(home, prov, timeout=15):
 def chat(home, prov, messages, on_delta=None, on_thinking=None, json_mode=False,
          max_tokens=None, should_stop=None, timeout=600, stage=None):
     """
-    串流呼叫 /chat/completions。回傳 (完整文字, usage dict)。
-    on_delta(text)：正文片段；on_thinking(text)：推理過程片段（DeepSeek、llama.cpp 的 reasoning_content）。
+    串流呼叫 /chat/completions（或 Google Gemini 原生 streamGenerateContent）。回傳 (完整文字, usage dict)。
+    on_delta(text)：正文片段；on_thinking(text)：推理過程片段（DeepSeek、llama.cpp、Gemini）。
     """
+    if prov.get("type") == "gemini":
+        return _gemini_chat(home, prov, messages, on_delta=on_delta, on_thinking=on_thinking,
+                            json_mode=json_mode, max_tokens=max_tokens, should_stop=should_stop,
+                            timeout=timeout, stage=stage)
     body = {
         "model": prov.get("model") or "default",
         "messages": messages,

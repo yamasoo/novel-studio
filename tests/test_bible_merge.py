@@ -74,8 +74,10 @@ class BibleMergeCascadeTest(unittest.TestCase):
             self.assertFalse(migrate.needs_migration(book))
 
     def test_consolidate_entry_backs_up_preserves_frontmatter_and_blocks_reverse_cards(self):
-        from studio import native, prompts
+        from studio import actions, native, prompts
         prompts.set_lang("zh-TW")
+        title, _ = actions.build("consolidate_entry", {"file": "bible/characters/甲.md"}, "book")
+        self.assertIn("甲", title)
         with tempfile.TemporaryDirectory(prefix="ns-cons-") as book:
             bookmeta.write(book, lang="zh-TW", title="zh_demo")
             c1 = layout.CHARACTERS + "/甲.md"

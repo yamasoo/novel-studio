@@ -1849,6 +1849,14 @@
      "native": true
     },
     {
+     "fields": [],
+     "group": "專案",
+     "hidden": true,
+     "id": "consolidate_entry",
+     "label": "AI 整併重複段落",
+     "native": true
+    },
+    {
      "fields": [
       {
        "key": "chapter",

@@ -18,7 +18,7 @@ It splits "write a book" into pieces you can do separately: settings, outlines, 
 - **The AI** does one thing at a time — write this chapter, review this chapter, turn these notes into a table. It reads the real files in your folder.
 - **The workbench** keeps files and order. AI drafts always land in `candidates/` first; nothing enters your manuscript until you accept it, and everything is backed up before it is touched.
 
-The AI can be swapped: Claude Code (your Claude subscription), or DeepSeek, llama.cpp or any OpenAI-compatible service. Switch runners and the same book still reads.
+The AI can be swapped: Claude Code (your Claude subscription), or Google Gemini API (with `.env` key support, thinking mode and relaxed creative safety filters), DeepSeek, llama.cpp or any OpenAI-compatible service. Switch runners and the same book still reads.
 
 ## Install
 
@@ -39,7 +39,7 @@ The workbench runs only on your own machine (127.0.0.1) and is not exposed to th
 
 To look around first, press "Add the sample book": it drops in a three-chapter sample you can change or delete freely. The Chinese sample is [《退婚之後》](demo/退婚之後/); the English one is [*The Lantern Road*](demo/en_TheLanternRoad/); the Japanese one is [《辺境の薬師と竜の約束》](demo/ja_辺境の薬師と竜の約束/).
 
-For backend setup (DeepSeek keys, a llama.cpp endpoint), see **[Install and settings](docs/安裝與設定.md)**.
+For backend setup (Gemini / DeepSeek keys, a llama.cpp endpoint), see **[Install and settings](docs/安裝與設定.md)**.
 
 ## Start a new book
 
@@ -90,6 +90,7 @@ Every file is backed up to `.studio/backup/` before it is touched, keeping the n
 
 Full-chapter automation chains the steps: plan the card → write the chapter → check against the card → de-AI polish → style check → review → auto-tick the notes → revise → apply → accept and write tracking back. If any step fails it stops there; fix it and continue from that step without redoing the earlier ones.
 
+- **Turbo Draft Mode.** A simplified automation flow that picks only chapters in range with a chapter card and no draft yet, writing candidates back-to-back (no review, no auto-accept, never touches the manuscript) — ideal for fast drafting before polishing.
 - **Autopilot.** Every K chapters it pauses to check the must-fix issues and style drift, and refuses to keep writing when they fail.
 - **It will not wait forever.** A step that runs past 30 minutes, or produces no output for 10 minutes, is stopped and reported, so you can continue from that step.
 - **Interruptions are recoverable.** When a task is cut off or you press stop, the text already written is saved as a recovery draft.
@@ -111,9 +112,10 @@ To move machines, copy the folder. To keep versions, use git or any sync tool.
 ## Other everyday features
 
 - **Export.** EPUB 3 or plain text, optional chapter range, can include outlines, chapter cards, the story bible and tracking.
-- **Illustrations.** Connect Stable Diffusion WebUI Forge Neo or ComfyUI for covers, chapter and setting images, with style presets and prompt management.
+- **Illustrations and visual cards.** Connect Stable Diffusion WebUI Forge Neo or ComfyUI for covers, chapter and setting images, with style presets and prompt management; characters support **structured visual cards** (`bible/visual-cards/`, compatible with comic sections and visual novel avatar / sprite / 7 expressions), with both single and **batch sequential prompt generation** from selected bible entries.
 - **Import a manuscript.** TXT, Markdown or Word; encoding is detected and chapters are split, with optional Simplified-to-Traditional conversion.
 - **Build settings from the text.** For a finished book, the AI works backwards to characters, factions, world, outlines and tracking. Drafts wait for review: reverse-engineered chapter cards go to `outline/chapters/_reverse/` and never touch the real ones, every other file is kept, replaced or merged per file, and anything overwritten is backed up first. Adopted cards can be reviewed read-only from the “Reverse chapter cards” card on the Outline page.
+- **Bible merge and consolidation.** Select duplicate characters, factions or world entries to merge (preserving aliases and text while cascading updates to character states, relationships and visual cards), and use "AI consolidate sections" to fold appended merge/reverse sections back into the standard headings (backed up first).
 - **Shared library.** Build a style or a chapter structure once and apply it to every book.
 - **Reader knowledge ledger and relationship table.** What the reader knows so far and who relates to whom, fed into context when continuing.
 - **Drift check.** At the end of a volume, compare what the outline promised with what was written, and draft an outline update.

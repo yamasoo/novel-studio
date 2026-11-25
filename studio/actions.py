@@ -118,6 +118,7 @@ ACTIONS = {
     "reader_reconcile": {"group": "專案", "label": "比對讀者認知回收", "hidden": True, "fields": []},
     "reverse": {"group": "專案", "label": "從正文建立設定", "hidden": True, "fields": []},
     "glossary_org": {"group": "專案", "label": "整理名詞表進設定集", "hidden": True, "fields": []},
+    "consolidate_entry": {"group": "專案", "label": "AI 整併重複段落", "hidden": True, "fields": []},
     "goal_check": {
         "group": "品質", "label": "章綱核對",
         "fields": [{"key": "chapter", "label": "第幾章", "type": "number"},
@@ -246,6 +247,11 @@ def build(action, p, book_name, lang="zh-TW"):
         return ("比對讀者認知回收", "（由工作台組裝）")
     if action == "glossary_org":
         return ("整理名詞表進設定集", "（由工作台組裝）")
+    if action == "consolidate_entry":
+        stem = (p.get("file") or "").rsplit("/", 1)[-1]
+        if stem.endswith(".md"):
+            stem = stem[:-3]
+        return ("AI 整併重複段落：%s" % stem, "（由工作台組裝）")
     if action == "reverse":
         return ("從正文建立設定%s" % ("（到第%s章）" % p["upto"] if p.get("upto") else ""), "（由工作台組裝）")
 

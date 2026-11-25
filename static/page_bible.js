@@ -143,7 +143,8 @@
   }
 
   // 批次工具列的按鈕（每次重畫都重建，事件直接綁在節點上）
-  function bulkBar(t, refresh) {
+  function bulkBar(t, list, refresh) {
+    const byFile = Object.fromEntries((list || []).map((e) => [e.file, e]));
     const apply = async (kind) => {
       const files = [...pickSet];
       if (!files.length) { FE.toast("請先勾選要處理的項目。", "err"); return; }
@@ -189,6 +190,127 @@
           document.querySelector("#ef-n").textContent = `已選 ${pickSet.size} 項`;
         },
       }, "清除"),
+      h("button", {
+        id: "ef-merge",
+        onclick: () => {
+          const files = [...pickSet];
+          if (files.length < 2) { FE.toast("請先勾選至少 2 個要合併的項目", "err"); return; }
+          // 預設選第一個非草稿（正式）項目當保留主檔
+          let canon = files.find((f) => byFile[f] && byFile[f].status !== "草稿") || files[0];
+          const radios = files.map((f) => {
+            const e = byFile[f] || { name: f };
+            return h("label", {},
+              h("input", {
+                type: "radio", name: "ef-merge-canon", value: f, checked: f === canon,
+                onchange: () => { canon = f; },
+              }),
+              h("span", {},
+                h("b", {}, e.name || f),
+                h("small", {}, (e.status ? e.status + " · " : "") + (e.summary || f))));
+          });
+          FE.modal({
+            title: "合併勾選的設定項目",
+            body: [
+              h("p", { class: "small muted" }, "請選擇要保留哪一份當主檔。其餘項目的名稱會加入主檔別名、內容附在檔尾（不遺失），舊檔會移到 bible/_merged/；若為角色會同步更新角色狀態檔與關係表。"),
+              h("div", { class: "seg" }, radios),
+            ],
+            foot: (done) => [
+              h("button", { class: "btn", type: "button", onclick: () => done(false) }, "取消"),
+              h("button", {
+                class: "btn btn-primary", type: "button",
+                onclick: async () => {
+                  const duplicates = files.filter((x) => x !== canon);
+                  try {
+                    const rep = await FE.api(B("/bible/merge"), { method: "POST", body: { canonical: canon, duplicates } });
+                    pickSet = new Set();
+                    done(true);
+                    const extra = [];
+                    if (rep.state_merged && rep.state_merged.length) extra.push(`狀態檔 ${rep.state_merged.length} 份`);
+                    if (rep.relations_updated) extra.push(`關係表 ${rep.relations_updated} 處`);
+                    const note = (rep.visual_cards_note || []).join("；");
+                    FE.toast(`已合併 ${duplicates.length} 項` + (extra.length ? `（連動：${extra.join("、")}）` : "") + (note ? `。${note}` : ""));
+                    FE.go("#/b/" + enc(S.book) + "/bible?t=" + enc(t) + "&f=" + enc(canon));
+                  } catch (e) { FE.fail(e); }
+                },
+              }, "確認合併"),
+            ],
+          });
+        },
+      }, "合併…"),
+      h("button", {
+        id: "ef-gen-prompt",
+        onclick: async () => {
+          const files = [...pickSet];
+          if (!files.length) { FE.toast("請先勾選要生成 Prompt 的項目。", "err"); return; }
+          let cfgR = { config: {} };
+          try { cfgR = await illCfg(); } catch (e) { /* ignore */ }
+          const provSel = h("select", { id: "ef-gp-prov" });
+          provSel.replaceChildren(...provOptions((cfgR.config && cfgR.config.provider) || Panel.prov(), { claudeNote: true }));
+          const names = files.map((f) => (byFile[f] && byFile[f].name) || f);
+          const preview = names.slice(0, 12).join("、") + (names.length > 12 ? ` 等 ${names.length} 項` : "");
+          FE.modal({
+            title: "✨ 批次生成視覺卡 Prompt",
+            body: [
+              h("p", { class: "small muted" }, `將依序為勾選的 ${files.length} 個項目呼叫 AI 生成視覺卡／繪圖提示（角色會寫入結構化視覺卡並同步繪圖提示；世界觀與勢力會寫入繪圖提示）。`),
+              h("div", { class: "small", style: "margin-bottom:10px" }, preview),
+              h("label", { class: "f" }, h("span", {}, "執行者"), provSel),
+            ],
+            foot: (done) => [
+              h("button", { class: "btn", type: "button", onclick: () => done(false) }, "取消"),
+              h("button", {
+                class: "btn btn-primary", type: "button",
+                onclick: async () => {
+                  const provider = provSel.value;
+                  done(true);
+                  const host = document.querySelector("#ef-batch-status");
+                  let stopped = false, curJobId = null, ok = 0, bad = 0;
+                  const showProg = (idx, nm) => {
+                    if (!host) return;
+                    host.replaceChildren(h("div", { class: "alert info", style: "margin:6px 0" },
+                      h("span", { class: "k" }, `${idx}/${files.length}`),
+                      h("span", { class: "t" }, `正在生成 Prompt：${nm}…`),
+                      h("button", {
+                        class: "sm danger",
+                        onclick: async () => {
+                          stopped = true;
+                          if (curJobId) {
+                            try { await FE.api("/api/jobs/" + enc(curJobId) + "/cancel", { method: "POST" }); } catch (e) { /* ignore */ }
+                          }
+                        },
+                      }, "停止")));
+                  };
+                  for (let i = 0; i < files.length; i++) {
+                    if (stopped) break;
+                    const fpath = files[i];
+                    const nm = (byFile[fpath] && byFile[fpath].name) || fpath;
+                    showProg(i + 1, nm);
+                    try {
+                      const job = await FE.api(B("/jobs"), { method: "POST", body: { action: "visual_card", params: { file: fpath }, provider } });
+                      curJobId = job.id;
+                      Panel.attach(job);
+                      const j = await waitJob(job.id);
+                      curJobId = null;
+                      if (j.status === "done") ok++;
+                      else if (j.status === "cancelled") { stopped = true; break; }
+                      else bad++;
+                    } catch (e) {
+                      curJobId = null;
+                      bad++;
+                    }
+                  }
+                  if (host) host.replaceChildren();
+                  pickSet = new Set();
+                  const msg = stopped
+                    ? `已停止批次生成（已完成 ${ok} 項${bad ? `、失敗 ${bad} 項` : ""}）`
+                    : `批次生成 Prompt 完成：成功 ${ok} 項${bad ? `、失敗 ${bad} 項` : ""}`;
+                  FE.toast(msg, bad ? "err" : undefined);
+                  refresh();
+                },
+              }, "開始逐次生成"),
+            ],
+          });
+        },
+      }, "✨ 批次生成 Prompt"),
       h("button", { class: "primary", id: "ef-promote", onclick: () => apply("promote") }, "轉為正式"));
   }
 
@@ -196,7 +318,7 @@
     const shown = list.filter((e) => entryMatches(e, f, t));
     const pick = ENT_TABS.includes(t);
     const head = [h("div", { class: "muted small ef-count" }, `顯示 ${shown.length} / ${list.length}`)];
-    if (pick) head.push(bulkBar(t, refresh));
+    if (pick) head.push(bulkBar(t, list, refresh), h("div", { id: "ef-batch-status" }));
     if (!list.length) return h("div", {}, head, h("div", { class: "muted" }, "這裡還是空的。"));
     if (!shown.length) return h("div", {}, head, h("div", { class: "muted" }, "沒有符合條件的項目。"));
     if (f.group && t !== "factions") {

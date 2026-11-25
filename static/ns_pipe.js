@@ -70,11 +70,14 @@
       if (p.status === "paused") btns.push(h("button", { class: "sm primary", onclick: () => pipeResume() }, `繼續下一章（第${p.chapter}章）`));
       btns.push(h("button", { class: "sm ghost", onclick: () => pipeClear() }, "關閉"));
     }
+    const isTurbo = p.profile === "turbo";
     const head = h("div", { class: "row" },
-      h("b", {}, "⚡ 整章自動流程"),
+      h("b", {}, isTurbo ? "🚀 超速文本模式" : "⚡ 整章自動流程"),
       h("span", { class: "muted small" },
-        `${rng
-        + (p.status === "running" || p.status === "failed" || p.status === "stopped" ? `　·　目前第${p.chapter}章` : "")}　·　${p.mode === "continue" ? "連續寫" : "寫一章停一章"}　·　自動勾選：${(p.severities || []).join("、") || "無"}`),
+        isTurbo
+          ? `${rng + (p.status === "running" || p.status === "failed" || p.status === "stopped" ? `　·　目前第${p.chapter}章` : "")}　·　僅寫候選稿（有章綱且未寫）`
+          : `${rng
+            + (p.status === "running" || p.status === "failed" || p.status === "stopped" ? `　·　目前第${p.chapter}章` : "")}　·　${p.mode === "continue" ? "連續寫" : "寫一章停一章"}　·　自動勾選：${(p.severities || []).join("、") || "無"}`),
       h("span", { class: "badge " + cls }, label),
       h("span", { class: "grow" }),
       btns);
@@ -83,9 +86,9 @@
       ? h("div", { class: "muted small", style: "margin-top:6px" },
         p.message || "",
         (p.done_chapters && p.done_chapters.length)
-          ? ["　已定稿：", p.done_chapters.map((n, i) => [
+          ? [isTurbo ? "　已寫候選稿：" : "　已定稿：", p.done_chapters.map((n, i) => [
             i ? "、" : null,
-            h("a", { href: "#/b/" + enc(S.book) + "/ch/" + n + "?tab=text" }, `第${n}章`),
+            h("a", { href: "#/b/" + enc(S.book) + "/ch/" + n + (isTurbo ? "?tab=candidate" : "?tab=text") }, `第${n}章`),
           ])]
           : null)
       : null;
@@ -293,6 +296,82 @@
     });
   }
 
+  async function turboModal(no, to) {
+    const [r, chs] = await Promise.all([FE.api(B("/pipeline")), FE.api(B("/chapters"))]);
+    if (r.pipeline && r.pipeline.status === "running") return FE.toast("已經有整章自動流程在執行", "err");
+    const eligible = chs.filter((c) => c.card_file && !c.text_file && !c.candidate_file);
+    const defFrom = no || (eligible.length ? eligible[0].no : 1);
+    const defTo = to || (no ? no : (eligible.length ? eligible[eligible.length - 1].no : defFrom));
+    const lastCard = Math.max(defFrom, ...chs.filter((c) => c.card_file).map((c) => c.no));
+    const fromInput = h("input", { type: "number", id: "tb-from", class: "num-in", value: String(defFrom), min: "1" });
+    const toInput = h("input", { type: "number", id: "tb-to", class: "num-in", value: String(defTo), min: "1" });
+    const previewEl = h("div", { class: "muted small", style: "margin-top:8px" });
+    const noteArea = h("textarea", { id: "tb-note", rows: "2", placeholder: "例如：這幾章節奏要快；不要新增角色" });
+    const provSel = provSelect("tb-prov", Panel.prov());
+
+    const updatePreview = () => {
+      const a = parseInt(fromInput.value, 10) || 0;
+      const b = parseInt(toInput.value, 10) || a;
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      const picked = eligible.filter((c) => c.no >= lo && c.no <= hi).map((c) => c.no);
+      if (picked.length) {
+        const list = picked.slice(0, 12).map((n) => `第${n}章`).join("、") + (picked.length > 12 ? "…" : "");
+        previewEl.textContent = FE.t("將依序寫出 {0} 章候選稿：", picked.length) + list;
+      } else {
+        previewEl.textContent = FE.t("此範圍內沒有符合條件的章節（需有章綱，且尚未定稿或尚未有候選稿）。");
+      }
+    };
+    fromInput.oninput = updatePreview;
+    toInput.oninput = updatePreview;
+    updatePreview();
+
+    const close = FE.modal({
+      title: "🚀 超速文本模式",
+      body: [
+        h("p", { class: "muted small" },
+          "整章自動流程的簡化版：範圍內只挑「有章綱，且還沒定稿／還沒候選稿」的章節，連續逐章撰寫候選稿（不跑審查、不自動定稿，絕不改動正文）。"),
+        h("div", { class: "row" },
+          h("span", { class: "small muted" }, "從第"),
+          fromInput,
+          h("span", { class: "small muted" }, "章到第"),
+          toInput,
+          h("span", { class: "small muted" }, "章"),
+          h("span", { class: "muted small" }, `（章綱寫到第${lastCard}章）`)),
+        previewEl,
+        h("label", { class: "f", style: "margin-top:10px" },
+          h("span", {}, "對整個流程的要求（選填，每一步都會帶上）"), noteArea),
+        h("label", { class: "f" }, h("span", {}, "執行者"), provSel),
+      ],
+      foot: (done) => [
+        h("button", { class: "btn", type: "button", onclick: () => done(false) }, "取消"),
+        h("button", {
+          class: "btn btn-primary", type: "button", id: "tb-go",
+          onclick: async () => {
+            try {
+              const body = {
+                from: parseInt(fromInput.value, 10),
+                to: parseInt(toInput.value, 10) || parseInt(fromInput.value, 10),
+                profile: "turbo",
+                mode: "continue",
+                note: noteArea.value,
+                provider: provSel.value,
+              };
+              if (!body.from) return FE.toast("請輸入章號", "err");
+              const res = await FE.api(B("/pipeline"), { method: "POST", body });
+              close();
+              PIPE.data = res.pipeline;
+              PIPE.book = S.book;
+              PIPE.lastJob = null;
+              FE.toast("開始超速文本模式");
+              if (!document.querySelector(".pipe-box")) FE.go("#/b/" + enc(S.book) + "/ch/" + (res.pipeline.chapter || body.from));
+              else renderPipe();
+            } catch (e) { FE.fail(e); }
+          },
+        }, "開始超速寫稿"),
+      ],
+    });
+  }
+
   // 換頁後頁面上已經沒有 .pipe-box：把輪詢計時器收掉，不要讓它在背景跑
   // fe-route 在新頁畫面出現前就送出，所以等一輪再看畫面上還有沒有 .pipe-box
   window.addEventListener("fe-route", () => {
@@ -303,6 +382,7 @@
 
   window.renderPipe = renderPipe;
   window.pipeModal = pipeModal;
+  window.turboModal = turboModal;
   window.pipeStop = pipeStop;
   window.pipeResume = pipeResume;
   window.pipeClear = pipeClear;

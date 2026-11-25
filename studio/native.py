@@ -19,7 +19,7 @@ SYSTEM = prompts.pack("zh-TW")["native_system"]   # 相容舊程式碼；實際�
 
 NATIVE_ACTIONS = {"write", "reject", "revise", "deslop", "accept", "sync_tracking", "review", "free", "reply",
                   "setup_check", "review_all", "goal_check", "review_notes", "revise_notes",
-                  "recover_continue", "illust_prompt", "visual_card", "style_design", "reader_init", "reader_reconcile", "reverse", "glossary_org"} | set(native_files.SPECS)
+                  "recover_continue", "illust_prompt", "visual_card", "style_design", "reader_init", "reader_reconcile", "reverse", "glossary_org", "consolidate_entry"} | set(native_files.SPECS)
 
 
 class NativeError(Exception):
@@ -1106,6 +1106,53 @@ def act_glossary_org(c, p):
                     "這一頁也可以從「設定集」右上角的「從正文建立設定」進去。" % (summary, urllib.parse.quote(c.job.book_id)))
 
 
+def _strip_md_fence(text):
+    t = str(text or "").strip()
+    m = re.match(r"^```(?:markdown|md)?\s*\r?\n(.*?)\r?\n```\s*$", t, flags=re.S | re.I)
+    return m.group(1).strip() if m else t
+
+
+def consolidate_prompt(book, f):
+    rel = (f or "").replace("\\", "/")
+    allowed = (layout.BIBLE + "/", layout.OUTLINE + "/")
+    if not rel.startswith(allowed) or rel.startswith(layout.REVERSE_CARDS + "/") or not rel.endswith(".md"):
+        raise NativeError("只能對設定集或大綱的 .md 檔執行 AI 整併")
+    text = context.read(book, rel)
+    if not text:
+        raise NativeError("找不到 %s" % rel)
+    p = prompts.cur()
+    return p["consolidate_sys"], p["consolidate_user"].format(file=rel, text=text)
+
+
+def save_consolidate_result(book, f, raw_text):
+    from . import sections
+    rel = (f or "").replace("\\", "/")
+    path = project.safe_path(book, rel)
+    old_text = project.read_text(path)
+    cleaned = _strip_md_fence(raw_text)
+    if not cleaned:
+        raise NativeError("模型沒有回傳整併後的內容")
+    # 若原檔有 frontmatter 但模型漏掉，自動補回原 frontmatter
+    if old_text.lstrip("\ufeff").startswith("---\n") and not cleaned.startswith("---"):
+        m = re.match(r"^---\s*\r?\n.*?\r?\n---\s*\r?\n", old_text.lstrip("\ufeff"), flags=re.S)
+        if m:
+            cleaned = m.group(0).rstrip("\n") + "\n\n" + cleaned
+    tracking.backup(book, path, "AI整併前")
+    book_lang = lang_mod.book_lang(book)
+    localized = sections.localize_doc(cleaned, book_lang)
+    body, note = textguard.guard_text(book, localized)
+    project.write_atomic(path, body.rstrip("\n") + "\n")
+    return "**已完成 AI 整併：%s**%s（原檔已備份至 .studio/backup/）" % (rel, ("（%s）" % note) if note else "")
+
+
+def act_consolidate_entry(c, p):
+    f = p.get("file") or ""
+    system, user = consolidate_prompt(c.book, f)
+    out = c.call([{"role": "system", "content": system}, {"role": "user", "content": user}],
+                 max_tokens=_out_tokens(c), label="AI 整併重複段落", stage="plan")
+    c.job.result = save_consolidate_result(c.book, f, out)
+
+
 HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "deslop": act_deslop,
             "accept": act_accept, "sync_tracking": act_sync, "review": act_review, "free": act_free,
             "reply": act_reply, "setup_check": native_files.act_setup_check,
@@ -1120,7 +1167,8 @@ HANDLERS = {"write": act_write, "reject": act_reject, "revise": act_revise, "des
             "reader_init": lambda c, p: act_reader_init(c, p),
             "reader_reconcile": lambda c, p: act_reader_reconcile(c, p),
             "reverse": lambda c, p: act_reverse(c, p),
-            "glossary_org": lambda c, p: act_glossary_org(c, p)}
+            "glossary_org": lambda c, p: act_glossary_org(c, p),
+            "consolidate_entry": lambda c, p: act_consolidate_entry(c, p)}
 for _k, _spec in native_files.SPECS.items():
     if _k == "setup_new":
         continue          # 開書訪談要先把題目問完（面板 ask 迴圈），不是一次呼叫

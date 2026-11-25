@@ -662,7 +662,15 @@ def outline_files(book_dir):
                 if m:      # 顯示「第1卷」「第1幕」＋卷綱裡的卷名（前端只翻「第N卷」，卷名是書的內容）
                     name = ("第%d幕" if m.group(1).lower() == "act" else "第%d卷") % int(m.group(2))   # literal-ok: 顯示名稱
             else:
-                key = (2, 0)
+                try:
+                    fm = split_frontmatter(read_text(os.path.join(d, f)))[0]
+                except OSError:
+                    fm = {}
+                if f == layout.TPL_BOOK_OUTLINE or fmkeys.value_en("type", fm.get("type")) == "book-outline":
+                    key = (0, 1)
+                    name = "全書大綱"   # literal-ok: 顯示名稱（相容舊檔或範本檔名 book-outline.md）
+                else:
+                    key = (2, 0)
             row = {"file": sub + "/" + f, "name": name}
             if sub == layout.VOLUMES_SUBDIR:
                 try:

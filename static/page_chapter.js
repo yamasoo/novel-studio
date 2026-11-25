@@ -300,6 +300,9 @@
       (!c.text_file || c.candidate_file)
         ? h("button", { onclick: () => pipeModal(no) }, `⚡ 整章自動${c.candidate_file ? "（從核對開始）" : ""}`)
         : null,
+      (!c.text_file && !c.candidate_file && c.card_file)
+        ? h("button", { onclick: () => turboModal(no) }, "🚀 超速文本")
+        : null,
       c.text_file
         ? [
           h("button", { onclick: () => Panel.openForm("revise", { chapter: no }) }, "改稿"),

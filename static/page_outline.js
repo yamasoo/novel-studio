@@ -200,7 +200,7 @@
           ? docEl
           : h("div", { class: "card empty" }, h("div", { class: "big" }, "⌘"), "還沒有大綱。可以先做「故事核心診斷」，再規劃全書大綱。")));
 
-    if (file) await docView(docEl, file);
+    if (file) await docView(docEl, file, { onSaved: () => FE.route() });
   }
 
   nsPage("b/:book/outline", "outline", { book: true }, render);

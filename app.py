@@ -1527,9 +1527,29 @@ def claude_deslop_job(book_id, d, prov, params):
 
 CLAUDE_SPECIAL.update({"deslop": claude_deslop_job})
 CLAUDE_SPECIAL.update({"reader_init": claude_reader_job, "reader_reconcile": claude_reader_recon_job})
+def claude_consolidate_job(book_id, d, prov, params):
+    lang = lang_mod.book_lang(d)
+    prompts.set_lang(lang)
+    f = params.get("file") or ""
+    try:
+        system, user = native.consolidate_prompt(d, f)
+    except (native.NativeError, project.ProjectError) as e:
+        raise HTTPException(400, str(e))
+    prompt = system + "\n\n" + user
+    job = runner_mod.Job(book_id, d, "AI 整併重複段落", prompt, provider=prov,
+                         meta={"action": "consolidate_entry", "params": params})
+
+    def after(j):
+        j.result = native.save_consolidate_result(d, f, j.result or "")
+        j.emit("result", text=j.result)
+    job.after = after
+    return job
+
+
 CLAUDE_SPECIAL.update({"goal_check": claude_goal_job, "review_notes": claude_review_job,
                        "revise_notes": claude_revise_job, "recover_continue": claude_recover_job,
-                       "illust_prompt": claude_illust_job, "visual_card": claude_card_job})
+                       "illust_prompt": claude_illust_job, "visual_card": claude_card_job,
+                       "consolidate_entry": claude_consolidate_job})
 
 
 @app.get("/api/actions")
@@ -1993,7 +2013,7 @@ async def book_bible_delete(book_id: str, req: Request):
 
 @app.get("/api/books/{book_id}/outline")
 def book_outline(book_id: str):
-    return project.outline_files(book_dir(book_id))
+    return JSONResponse(project.outline_files(book_dir(book_id)), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/books/{book_id}/volumes")
@@ -2486,12 +2506,14 @@ async def pipeline_start(book_id: str, req: Request):
         raise HTTPException(400, "章號要從 1 開始")
     if b - a >= 50:
         raise HTTPException(400, "一次最多 50 章")
+    profile = "turbo" if body.get("profile") == "turbo" else "full"
     texts = project._scan_dir(layout.path(d, layout.MANUSCRIPT))
     cands = project._scan_dir(layout.path(d, layout.CANDIDATES))
-    done = [n for n in range(a, b + 1) if n in texts and n not in cands]
-    if done:
-        raise HTTPException(400, "這些章節已經定稿了：%s。整章自動流程只處理還沒定稿的章節（已有候選稿的會從核對開始）。"
-                            % "、".join("第%d章" % n for n in done))
+    if profile != "turbo":
+        done = [n for n in range(a, b + 1) if n in texts and n not in cands]
+        if done:
+            raise HTTPException(400, "這些章節已經定稿了：%s。整章自動流程只處理還沒定稿的章節（已有候選稿的會從核對開始）。"
+                                % "、".join("第%d章" % n for n in done))
     prov = get_provider(body.get("provider"))
     mode = body.get("mode") or CONFIG.get("pipeline_mode") or "stop"
     sev = body.get("severities")
@@ -2507,7 +2529,7 @@ async def pipeline_start(book_id: str, req: Request):
         raise HTTPException(400, "步驟指定的執行者不存在：%s，請到設定修改。" % "、".join(missing))
     try:
         p = pipeline.Pipeline.create(book_id, d, _pipe_hooks(book_id, d, prov["id"]), a, b, mode, sev, prov["id"], body.get("note"),
-                                     pipeline.clean_step_providers(sp, ids))
+                                     pipeline.clean_step_providers(sp, ids), profile=profile)
         PIPES.put(p)
     except pipeline.PipelineError as e:
         raise HTTPException(409, str(e))
@@ -2545,7 +2567,7 @@ def pipeline_rewind_check(book_id: str):
     p = PIPES.get(book_id)
     if not p:
         return {"steps": {}}
-    return {"steps": {k: dict(zip(("ok", "why"), p.can_rewind(k))) for k, _ in pipeline.STEPS},
+    return {"steps": {k: dict(zip(("ok", "why"), p.can_rewind(k))) for k, _ in pipeline.steps_for(p.s.get("profile") or "full")},
             "note_steps": list(pipeline.NOTE_STEPS)}
 
 

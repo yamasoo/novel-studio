@@ -278,6 +278,7 @@
             : h("button", { class: showNext ? null : "primary", onclick: () => Panel.openForm("chapter_cards", { from: next.no, to: next.no + 9 }) },
               `排第${next.no}–${next.no + 9}章的章綱`),
           h("button", { onclick: () => pipeModal(next.no) }, "⚡ 整章自動"),
+          h("button", { onclick: () => turboModal(next.no) }, "🚀 超速文本"),
           h("button", { onclick: () => Panel.openForm("review", { from: Math.max(1, ov.latest - 4), to: Math.max(1, ov.latest) }) }, "審查最近章節"),
           h("button", { onclick: () => FE.go(bookPath("/drift")) }, "卷末體檢"))),
       topSection,

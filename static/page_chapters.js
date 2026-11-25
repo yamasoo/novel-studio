@@ -39,6 +39,7 @@
         h("div", { class: "row" },
           h("button", { onclick: () => Panel.openForm("chapter_cards", { from: nextNo, to: nextNo + 9 }) }, "排接下來 10 章"),
           h("button", { onclick: () => pipeModal() }, "⚡ 整章自動"),
+          h("button", { onclick: () => turboModal() }, "🚀 超速文本"),
           h("button", { class: "primary", onclick: () => Panel.openForm("write", { from: nextNo, to: nextNo }) }, `寫第${nextNo}章`))),
       h("div", { class: "pipe-box" }),
       h("div", { class: "card" },

@@ -288,7 +288,7 @@ async function renderCard(el, file, text) {
         FE.h("h2", {}, "視覺卡 ", has ? null : FE.h("span", { class: "badge b-warn" }, "還沒有")),
         FE.h("div", { class: "row" },
           FE.h("select", { id: "vc-prov" }),
-          FE.h("button", { class: "sm", id: "vc-ai" }, "AI 從設定產生"),
+          FE.h("button", { class: "sm primary", id: "vc-ai", title: "AI 從設定產生視覺卡／繪圖提示" }, "✨ 生成 Prompt"),
           FE.h("button", { class: "sm", id: "vc-edit" }, editing ? "取消" : "手動編輯"))),
       FE.h("div", { class: "muted small", style: "margin-bottom:8px" },
         "固定不變的外觀（英文 Danbooru 標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。"),
@@ -377,7 +377,7 @@ async function renderCharVisualCard(el, file) {
 
     const headBtns = [
       FE.h("select", { id: "vc-prov" }),
-      FE.h("button", { class: "sm", id: "vc-ai" }, "AI 從設定產生"),
+      FE.h("button", { class: "sm primary", id: "vc-ai", title: "AI 從設定產生結構化視覺卡與繪圖提示" }, "✨ 生成 Prompt"),
       FE.h("button", { class: "sm", id: "vc-edit" }, editing ? "取消" : "手動編輯"),
     ];
     if (exists && !editing) {

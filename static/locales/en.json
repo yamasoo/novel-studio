@@ -2124,5 +2124,20 @@
  "這份檔案尾端含有合併／未併入段落，可手動整理，或請 AI 融回上方標準欄位（覆蓋前會先備份）。": "This file has appended merged/unmerged sections at the end. You can tidy them by hand or ask the AI to fold them into the standard sections above (backed up first).",
  "✨ AI 整併重複段落": "✨ AI consolidate sections",
  "AI 整併完成": "AI consolidation complete",
- "AI 整併失敗，詳情看右側面板": "AI consolidation failed; see the right panel for details"
+ "AI 整併失敗，詳情看右側面板": "AI consolidation failed; see the right panel for details",
+ "🚀 超速文本": "🚀 Turbo Draft",
+ "🚀 超速文本模式": "🚀 Turbo Draft Mode",
+ "開始超速文本模式": "Turbo Draft Mode started",
+ "開始超速寫稿": "Start Turbo Draft",
+ "整章自動流程的簡化版：範圍內只挑「有章綱，且還沒定稿／還沒候選稿」的章節，連續逐章撰寫候選稿（不跑審查、不自動定稿，絕不改動正文）。": "Simplified full-chapter pipeline: picks only chapters in range that have a chapter card and no final text or candidate yet, writing candidates continuously (no review, no auto-accept, never touches manuscript).",
+ "將依序寫出 {0} 章候選稿：": "Will write {0} candidate chapter(s) in order: ",
+ "此範圍內沒有符合條件的章節（需有章綱，且尚未定稿或尚未有候選稿）。": "No eligible chapters in this range (must have a chapter card and no final text or candidate yet).",
+ "範圍內沒有符合條件的章節（需有章綱，且尚未定稿或尚未有候選稿）。": "No eligible chapters in range (must have a chapter card and no final text or candidate yet).",
+ "✨ 生成 Prompt": "✨ Generate Prompt",
+ "✨ 批次生成 Prompt": "✨ Batch Generate Prompts",
+ "✨ 批次生成視覺卡 Prompt": "✨ Batch Generate Visual Card Prompts",
+ "請先勾選要生成 Prompt 的項目。": "Select at least one entry to generate prompts.",
+ "開始逐次生成": "Start Sequential Generation",
+ "AI 從設定產生視覺卡／繪圖提示": "Generate visual card / image prompt from entry via AI",
+ "AI 從設定產生結構化視覺卡與繪圖提示": "Generate structured visual card & image prompt from entry via AI"
 }

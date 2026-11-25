@@ -28,7 +28,14 @@ STEPS = [
     ("apply", "全部套用修訂"),
     ("accept", "定稿並回寫追蹤"),
 ]
+TURBO_STEPS = [
+    ("write", "寫章節（候選稿）"),
+]
 LABEL = dict(STEPS)
+
+
+def steps_for(profile="full"):
+    return TURBO_STEPS if profile == "turbo" else STEPS
 # 會呼叫 AI 的步驟（可以各自指定執行者），以及面板上對應的動作
 AI_STEPS = ["card", "write", "goal", "deslop", "review", "revise", "accept"]
 STEP_ACTION = {"card": "chapter_cards", "write": "write", "goal": "goal_check", "deslop": "deslop",
@@ -81,22 +88,24 @@ def load_state(book_dir):
         return None
 
 
-def new_steps():
+def new_steps(profile="full"):
     return [{"key": k, "label": v, "status": "pending", "note": "", "job": None, "started": None, "ended": None}
-            for k, v in STEPS]
+            for k, v in steps_for(profile)]
 
 
 def ensure_steps(state):
     """舊的流程狀態可能沒有新加的步驟（例如後來的「文風檢查」）：補上去，不要讓它壞掉。"""
+    target = steps_for(state.get("profile") or "full")
     steps = state.setdefault("steps", [])
     have = {s.get("key") for s in steps}
-    order = [k for k, _ in STEPS]
-    for k, label in STEPS:
+    order = [k for k, _ in target]
+    for k, label in target:
         if k in have:
             continue
         steps.append({"key": k, "label": label, "status": "pending", "note": "", "job": None,
                       "started": None, "ended": None})
-    steps.sort(key=lambda s: order.index(s["key"]) if s.get("key") in order else len(order))
+    steps[:] = [s for s in steps if s.get("key") in order]
+    steps.sort(key=lambda s: order.index(s["key"]))
     return state
 
 
@@ -113,10 +122,20 @@ class Pipeline:
 
     # ------------------------------------------------------------------ 狀態
     @classmethod
-    def create(cls, book_id, book_dir, hooks, start, end, mode, severities, provider, note="", step_providers=None):
+    def create(cls, book_id, book_dir, hooks, start, end, mode, severities, provider, note="", step_providers=None,
+               profile="full"):
+        profile = "turbo" if profile == "turbo" else "full"
+        chapters = None
+        if profile == "turbo":
+            texts = project._scan_dir(layout.path(book_dir, layout.MANUSCRIPT))
+            cands = project._scan_dir(layout.path(book_dir, layout.CANDIDATES))
+            chapters = [n for n in range(int(start), int(end) + 1)
+                        if context.card_text(book_dir, n)[1] and n not in texts and n not in cands]
+            if not chapters:
+                raise PipelineError("範圍內沒有符合條件的章節（需有章綱，且尚未定稿或尚未有候選稿）。")
         # 卷先行：有卷綱的書，只准寫在正式卷綱的章節範圍內。
         # 沒有卷綱的舊書不擋（不然整批書突然不能寫）；缺的是「使用者還沒建立卷綱」的情況。
-        if volume.has_volumes(book_dir):
+        elif volume.has_volumes(book_dir):
             missing = volume.cover(book_dir, start, end)
             if missing:
                 raise PipelineError(
@@ -134,12 +153,15 @@ class Pipeline:
                 raise PipelineError("章綱有劇透風險：%s；先修章綱再開流程（見 docs/卷先行.md）。"
                                     % upcheck.summary(hit))
         state = {"id": uuid.uuid4().hex[:10], "book": book_id, "from": int(start), "to": int(end),
-                 "mode": mode if mode in ("stop", "continue") else "stop",
+                 "profile": profile,
+                 "mode": "continue" if profile == "turbo" else (mode if mode in ("stop", "continue") else "stop"),
                  "severities": [s for s in (severities or DEFAULT_SEVERITIES) if s in revision.SEVERITIES],
                  "provider": provider, "note": (note or "").strip(),
                  "step_providers": dict(step_providers or {}),   # 開始時記下的分配，中途繼續也用同一套
-                 "chapter": int(start), "status": "running", "error": "", "message": "",
-                 "steps": new_steps(), "done_chapters": [], "created": time.time(), "updated": time.time()}
+                 "chapter": chapters[0] if chapters else int(start), "status": "running", "error": "", "message": "",
+                 "steps": new_steps(profile), "done_chapters": [], "created": time.time(), "updated": time.time()}
+        if chapters is not None:
+            state["chapters"] = chapters
         return cls(book_id, book_dir, state, hooks)
 
     def save(self):
@@ -188,6 +210,20 @@ class Pipeline:
                 no = self.s["chapter"]
                 self._run_chapter(no)
                 self.s["done_chapters"].append(no)
+                if self.s.get("profile") == "turbo":
+                    chs = self.s.get("chapters") or []
+                    nxt = next((x for x in chs if x > no), None)
+                    if nxt is None:
+                        self.s["status"] = "done"
+                        cost = autopilot.cost_line(self.s.get("usage"))
+                        self.s["message"] = ("超速文本模式完成，共寫出 %d 章候選稿（%s）。"
+                                             % (len(self.s["done_chapters"]), volume.brief(self.s["done_chapters"]))
+                                             + (cost if cost else ""))
+                        break
+                    self.s["chapter"] = nxt
+                    self.s["steps"] = new_steps("turbo")
+                    self.save()
+                    continue
                 # 自動駕駛的檢查點：每 K 章停下來驗一次必須修與文風，不及格就不往下寫
                 every = int(self.h.get("autopilot_every") or 0)
                 if every and self.s["mode"] != "stop" and len(self.s["done_chapters"]) % every == 0:
@@ -239,7 +275,7 @@ class Pipeline:
         self.save()
 
     def _run_chapter(self, no):
-        for key, _ in STEPS:
+        for key, _ in steps_for(self.s.get("profile") or "full"):
             st = self.step(key)
             if st["status"] in ("done", "skipped"):
                 continue
@@ -374,10 +410,11 @@ class Pipeline:
 
     def can_rewind(self, key):
         """回傳 (可以嗎, 原因)。"""
-        keys = [k for k, _ in STEPS]
+        keys = [k for k, _ in steps_for(self.s.get("profile") or "full")]
         if key not in keys:
             return False, "沒有這個步驟"
-        if self.s["status"] in ("done", "paused") or self.s.get("accepted_path") or self.step("accept")["status"] == "done":
+        if (self.s["status"] in ("done", "paused") or self.s.get("accepted_path")
+                or ("accept" in keys and self.step("accept")["status"] == "done")):
             return False, "這一章已經定稿（追蹤也回寫了），不能退回；請用「寫章節（候選稿）」重寫"
         if self.s["status"] not in ("failed", "stopped"):
             return False, "流程要先停止（或停在失敗的步驟）才能退回"
@@ -401,7 +438,7 @@ class Pipeline:
         if not ok:
             raise PipelineError(why)
         no = self.s["chapter"]
-        keys = [k for k, _ in STEPS]
+        keys = [k for k, _ in steps_for(self.s.get("profile") or "full")]
         idx = keys.index(key)
         later = set(keys[idx:])
         cand = self._cand(no)

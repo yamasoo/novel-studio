@@ -93,6 +93,10 @@ def load_config():
             p["reasoning"] = dict(providers.DEFAULT_REASONING, adapter=ad)
     have = {p.get("id") for p in cfg.get("providers") or []}
     cfg["providers"] = list(cfg.get("providers") or []) + [dict(p) for p in providers.DEFAULT_PROVIDERS if p["id"] not in have]
+    if not (cfg.get("library") or "").strip():
+        env_lib = os.environ.get("T2X_LIBRARY_DIR", "").strip()
+        if env_lib:
+            cfg["library"] = env_lib
     return cfg
 
 
@@ -906,7 +910,16 @@ async def import_commit(req: Request):
 # ---------------------------------------------------------------------------
 def illust_cfg():
     cfg = dict(illust.DEFAULTS)
-    cfg.update(CONFIG.get("illust") or {})
+    user = CONFIG.get("illust") or {}
+    cfg.update(user)
+    if not str(user.get("comfy_url") or "").strip():
+        env_comfy = os.environ.get("T2X_COMFYUI_URL", "").strip()
+        if env_comfy:
+            cfg["comfy_url"] = env_comfy
+    if not str(user.get("tag_csv") or "").strip():
+        env_csv = os.environ.get("T2X_TAGCOMPLETE_CSV", "").strip()
+        if env_csv:
+            cfg["tag_csv"] = env_csv
     return cfg
 
 

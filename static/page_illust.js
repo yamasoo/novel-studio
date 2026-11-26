@@ -139,7 +139,7 @@
     const isCh = target.startsWith("chapter:"), isEnt = target.startsWith("entity:"), isCover = target === "cover";
     const D = Object.assign({
       passage: "", chars: [], places: [], action_tags: "", scene_tags: "", composition: "", sentences: "",
-      extra: "", format: cfg.format, styles: bs.styles || [], artist: bs.artist || "", seed: -1, count: 1,
+      extra: "", safety: "", format: cfg.format, styles: bs.styles || [], artist: bs.artist || "", seed: -1, count: 1,
     }, info.draft || {});
     const isComfy = cfg.backend === "comfy";
     const profs = cfg.comfy_profiles || [];
@@ -214,12 +214,18 @@
         D.chars.length
           ? h("table", { class: "ill-chars" }, D.chars.map((c, i) => h("tr", {},
             h("td", { class: "nm" }, c.name),
-            h("td", {}, h("select", { "data-pos": String(i) },
+            h("td", {}, h("select", { "data-pos": String(i), title: "畫面位置" },
               [["", "自動"], ["left", "左"], ["right", "右"], ["center", "中"], ["back", "後方"]]
                 .map(([v, l]) => h("option", { value: v, selected: (c.position || "") === v }, l)))),
-            h("td", {}, h("input", { type: "text", "data-act": String(i), value: c.action || "", placeholder: "這張圖裡的動作、表情（英文標籤）" })),
-            h("td", { class: "small muted" }, c.tags
-              ? (c.tags.length > 60 ? c.tags.slice(0, 60) : c.tags)
+            h("td", {}, h("select", { "data-outfit": String(i), title: "是否帶入視覺卡的預設服裝" },
+              [["default", "預設服裝"], ["custom", "場景自訂（不帶預設服）"], ["nude", "無衣（NSFW）"]]
+                .map(([v, l]) => h("option", { value: v, selected: (c.outfit_mode || "default") === v }, l)))),
+            h("td", {}, h("input", { type: "text", "data-act": String(i), value: c.action || "", placeholder: "這張圖裡的動作、表情、當下衣著（英文標籤）" })),
+            h("td", { class: "small muted" }, (c.body_tags || c.tags)
+              ? (() => {
+                const raw = ((c.outfit_mode && c.outfit_mode !== "default" && c.body_tags) ? c.body_tags : (c.tags || c.body_tags));
+                return raw.length > 50 ? raw.slice(0, 50) + "…" : raw;
+              })()
               : h("a", { href: "#/b/" + enc(S.book) + "/bible?t=characters&f=" + enc(c.file || "") }, "先建立視覺卡")))))
           : null,
         places.length
@@ -291,10 +297,17 @@
               : null,
             (isComfy && curProf().kind === "moss")
               ? h("div", { class: "f" }, h("span", {}, "格式"), h("div", { class: "small muted" }, "MOSS-Image 用英文自然語言，不加品質、分級與畫師標籤"))
-              : h("label", { class: "f" }, h("span", {}, "格式"),
-                h("select", { "data-k": "format" },
-                  [["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]]
-                    .map(([v, l]) => h("option", { value: v, selected: D.format === v }, l)))),
+              : [
+                h("label", { class: "f" }, h("span", {}, "格式"),
+                  h("select", { "data-k": "format" },
+                    [["mixed", "標籤＋自然語言（Anima 建議）"], ["tags", "只有標籤"], ["natural", "自然語言為主"]]
+                      .map(([v, l]) => h("option", { value: v, selected: D.format === v }, l)))),
+                h("label", { class: "f" }, h("span", {}, "分級標籤（單張覆寫）"),
+                  h("select", { "data-k": "safety" },
+                    [["", `跟隨全域（${cfg.safety || "無"}）`], ["safe", "safe（全年齡）"], ["sensitive", "sensitive（微露／暗示）"],
+                      ["nsfw", "nsfw（成人）"], ["explicit", "explicit（露骨 NSFW）"], ["none", "不加分級標籤"]]
+                      .map(([v, l]) => h("option", { value: v, selected: (D.safety || "") === v }, l)))),
+              ],
             h("label", { class: "f" }, h("span", {}, "尺寸"),
               h("select", { id: "il-size" },
                 cfgR.sizes.map(([n, w, hh]) => h("option", { value: w + "x" + hh, selected: w === +D.width && hh === +D.height }, n + " " + w + "×" + hh)),
@@ -327,6 +340,7 @@
       if (ps) D.passage = ps.value;
       el.querySelectorAll("[data-act]").forEach((i) => { D.chars[+i.dataset.act].action = i.value; });
       el.querySelectorAll("[data-pos]").forEach((i) => { D.chars[+i.dataset.pos].position = i.value; });
+      el.querySelectorAll("[data-outfit]").forEach((i) => { D.chars[+i.dataset.outfit].outfit_mode = i.value; });
       el.querySelectorAll("[data-tx]").forEach((i) => { if (D.texts[+i.dataset.tx]) D.texts[+i.dataset.tx][i.dataset.tf] = i.value; });
       const sz = el.querySelector("#il-size");
       if (sz) { const [w, hh] = sz.value.split("x").map(Number); D.width = w; D.height = hh; }
@@ -343,7 +357,11 @@
       for (const e of r.entities) full[e.name] = e;
       ents.full = full;
       if (!D.chars.length && !info.draft.chars) {
-        D.chars = r.entities.filter((e) => e.kind === "角色").slice(0, 3).map((e) => ({ name: e.name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "", position: "", action: "" }));
+        D.chars = r.entities.filter((e) => e.kind === "角色").slice(0, 3).map((e) => ({
+          name: e.name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "",
+          body_tags: (e.card || {}).body_tags || "", outfit_tags: (e.card || {}).outfit_tags || "",
+          outfit_mode: "default", position: "", action: "",
+        }));
         D.places = r.entities.filter((e) => e.kind !== "角色").slice(0, 2).map((e) => ({ name: e.name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "" }));
       }
     };
@@ -403,7 +421,11 @@
           const name = cb.dataset.ch;
           if (cb.checked) {
             const e = await cardOf(name);
-            D.chars.push({ name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "", position: "", action: "" });
+            D.chars.push({
+              name, file: e.file, tags: (e.card || {}).tags || "", description: (e.card || {}).description || "",
+              body_tags: (e.card || {}).body_tags || "", outfit_tags: (e.card || {}).outfit_tags || "",
+              outfit_mode: "default", position: "", action: "",
+            });
           } else D.chars = D.chars.filter((c) => c.name !== name);
           final = null;
           render();

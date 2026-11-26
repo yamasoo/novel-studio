@@ -2139,5 +2139,17 @@
  "請先勾選要生成 Prompt 的項目。": "Select at least one entry to generate prompts.",
  "開始逐次生成": "Start Sequential Generation",
  "AI 從設定產生視覺卡／繪圖提示": "Generate visual card / image prompt from entry via AI",
- "AI 從設定產生結構化視覺卡與繪圖提示": "Generate structured visual card & image prompt from entry via AI"
+ "AI 從設定產生結構化視覺卡與繪圖提示": "Generate structured visual card & image prompt from entry via AI",
+ "畫面位置": "Position in frame",
+ "是否帶入視覺卡的預設服裝": "Whether to include default outfit from visual card",
+ "預設服裝": "Default outfit",
+ "場景自訂（不帶預設服）": "Scene custom (omit default outfit)",
+ "無衣（NSFW）": "Nude (NSFW)",
+ "這張圖裡的動作、表情、當下衣著（英文標籤）": "Pose, expression, and current clothing for this image (English tags)",
+ "分級標籤（單張覆寫）": "Rating tag (per-image override)",
+ "safe（全年齡）": "safe (all ages)",
+ "sensitive（微露／暗示）": "sensitive (suggestive)",
+ "nsfw（成人）": "nsfw (adult)",
+ "explicit（露骨 NSFW）": "explicit (explicit NSFW)",
+ "不加分級標籤": "No rating tag"
 }

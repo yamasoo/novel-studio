@@ -524,18 +524,20 @@ T.update({
     "sd_claude_tail": "書庫のファイルは一切読み書きしないでください。最後の返答は【出力形式】に従ってください。",
     # 挿絵（illust.py）
     "il_scene_schema": """JSON オブジェクトを一つだけ出力してください：
-{"characters": [{"name": "人物名（渡されたリストのとおり）", "position": "left|right|center", "action": "この人物のポーズ・表情・手の動作を英語の Danbooru タグでカンマ区切り"}],
+{"characters": [{"name": "人物名（渡されたリストのとおり）", "position": "left|right|center", "outfit_mode": "default|custom|nude", "action": "この人物のポーズ・表情・手の動作（outfit_mode が custom または nude の場合は現在の服装・着衣状態も含める）を英語の Danbooru タグでカンマ区切り"}],
+ "safety": "safe|sensitive|nsfw|explicit（場面のレーティングに合わせて選択）",
  "action_tags": "全体の動作とやりとりを表す英語の Danbooru タグ",
  "scene_tags": "場所・時間・天気・光・背景の物を表す英語の Danbooru タグ",
  "composition": "構図とカメラを表す英語の Danbooru タグ。例：cowboy shot, from side, dutch angle, close-up",
- "sentences": "画面を描写する英語の文を二～三文：誰が、何をしていて、どこにいて、どんな雰囲気か。人物は外見で呼び（例：the black-haired girl）、名前は使わない"}
+ "sentences": "画面を描写する英語の文を二～三文：左右に誰がいて、何をして、どこにいて、どんな雰囲気か。複数人の場合は位置と外見の違いをはっきり書き分ける（例：the silver-haired man on the left, the black-haired woman on the right）。名前は使わない"}
 ルール：
 - タグはアンダースコアではなくスペースを使い、画面に見えるものだけを書く（心理や筋の因果は書かない）。
-- 人物の外見（髪色・服装など）はビジュアルカードにあるので、action に繰り返さない。
+- outfit_mode のルール：普段着なら default（action に既定服を繰り返さない）。別の服・寝間着・バスローブ・着崩れ・半脱ぎなら custom にして現在の着衣状態を action に書く。全裸・入浴・露骨な場面なら nude（ワークベンチが既定服を自動で外す）。
+- 固定の顔立ちや髪色はビジュアルカードにあるので、action に繰り返さない。
 - 描くのは一瞬だけ。画面の人物は最大三人で、最も重要な人を選ぶ。
 - 登場人物が渡されていないとき（艦艇・建物・物の設定画など）は、画面に人物を入れない：characters は空配列、action_tags に no humans と書き、
   full body、cowboy shot、upper body のような人物向けの構図は使わず、sentences にも人を書かない。
-- 品質タグ、絵師、safe のようなレーティングタグは付けない。ワークベンチが自分で付ける。""",
+- 品質タグや絵師は付けない。ワークベンチが自分で付ける。""",
     "il_card_schema": """JSON オブジェクトを一つだけ出力してください：
 {"tags": "外見を表す英語の Danbooru タグ、カンマ区切り：人数（1girl／1boy）、髪型と髪色、瞳の色、体型、トレードマークの服装、アクセサリー",
  "description": "外見と与える印象を描写する英語の文を一～二文（名前は書かない）"}

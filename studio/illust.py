@@ -22,7 +22,7 @@ import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-from . import project, prompts
+from . import project, prompts, visual_card
 from . import layout, sections
 
 ROOT = layout.ILLUST
@@ -376,15 +376,63 @@ def write_card(text, card):
     return text.rstrip() + "\n\n" + sec
 
 
+def _card_parts_from_vcard(vc):
+    """從結構化視覺卡拆出：性別標籤、永駐外觀（不含服裝）、預設服裝。"""
+    c = visual_card.normalize_card(vc, fill_vn_defaults=False)
+    head_joined = " ".join(c["sections"].get("head") or []).lower()
+    gender = ""
+    if re.search(r"\b(?:woman|female|girl|lady)\b", head_joined):
+        gender = "1girl"
+    elif re.search(r"\b(?:man|male|boy|gentleman)\b", head_joined):
+        gender = "1boy"
+    body_parts = []
+    for k in ("head", "body", "upper", "lower", "accessory"):
+        body_parts.extend(c["sections"].get(k) or [])
+    ov = c["outfits"].get("default") or {}
+    outfit_parts = []
+    for pk in visual_card.OUTFIT_PARTS:
+        outfit_parts.extend(ov.get(pk) or [])
+    return {
+        "gender": gender,
+        "body_tags": normalize_tags(", ".join(p for p in body_parts if p)),
+        "outfit_tags": normalize_tags(", ".join(p for p in outfit_parts if p)),
+    }
+
+
+def _strip_clothing_tags(tags):
+    """沒有結構化視覺卡時，盡力從舊版標籤裡過濾掉常見服裝詞（供 custom／nude 模式用）。"""
+    out = []
+    for t in normalize_tags(tags).split(", "):
+        if not t:
+            continue
+        if visual_card._CLOTHING_RE.search(t):
+            continue
+        out.append(t)
+    return ", ".join(out)
+
+
 def entity_cards(book_dir):
     """所有角色、勢力、世界觀項目的名稱、別名與視覺卡。"""
     out = []
     for rel_dir, sub in ENTITY_DIRS:
         for e in project.list_entries(book_dir, rel_dir):
             text = project.read_text(os.path.join(book_dir, e["file"]))
+            card = read_card(text)
+            if sub == "角色":
+                vc = visual_card.find_by_source(book_dir, e["file"])
+                if vc:
+                    parts = _card_parts_from_vcard(vc)
+                    if not card:
+                        card = visual_card.to_legacy_card(vc)
+                    else:
+                        card = dict(card)
+                    card["body_tags"] = parts["body_tags"]
+                    card["outfit_tags"] = parts["outfit_tags"]
+                    card["gender"] = parts["gender"]
+                    card["structured"] = True
             out.append({"kind": sub, "name": e["name"], "file": e["file"],
                         "aliases": [str(a) for a in (e.get("aliases") or [])],
-                        "card": read_card(text), "appearance": _appearance(text)})
+                        "card": card, "appearance": _appearance(text)})
     return out
 
 
@@ -779,14 +827,21 @@ def apply_styles(core, natural_core, names, path, source="prompt", seed=0):
 # 組裝 Anima 提示詞
 # ---------------------------------------------------------------------------
 def _count_tags(chars):
-    """依角色視覺卡裡的 1girl／1boy 算人數標籤。"""
+    """依角色視覺卡裡的 1girl／1boy（或結構化卡性別）算人數標籤。"""
     g = b = 0
     for c in chars:
         tl = [x.lower() for x in normalize_tags(c.get("tags", "")).split(", ")]
-        if any(re.match(r"^\d*girls?$", x) for x in tl):
+        gen = str(c.get("gender") or "").lower()
+        if gen == "1girl" or any(re.match(r"^\d*girls?$", x) for x in tl):
             g += 1
-        elif any(re.match(r"^\d*boys?$", x) for x in tl):
+        elif gen == "1boy" or any(re.match(r"^\d*boys?$", x) for x in tl):
             b += 1
+        else:
+            bt = str(c.get("body_tags") or "").lower()
+            if re.search(r"\b(?:woman|female|girl|lady)\b", bt):
+                g += 1
+            elif re.search(r"\b(?:man|male|boy|gentleman)\b", bt):
+                b += 1
     parts = []
     if g:
         parts.append("1girl" if g == 1 else "%dgirls" % g)
@@ -884,16 +939,65 @@ def text_sentences(items):
     return " ".join(lines)
 
 
+_NUDE_WORDS = re.compile(r"\b(nude|naked|topless|bottomless|completely nude|undressed)\b", re.I)
+SAFETY_MODES = ("safe", "sensitive", "nsfw", "explicit")
+OUTFIT_MODES = ("default", "custom", "nude")
+
+
+def _char_tags_for_mode(c):
+    """依角色的 outfit_mode（default / custom / nude）取出該送給 Anima 的外觀標籤（已去除 1girl/1boy）。
+    回傳 (traits_str, outfit_str, is_structured)。"""
+    mode = str(c.get("outfit_mode") or "default").strip().lower()
+    if mode not in OUTFIT_MODES:
+        mode = "default"
+    body_tags = normalize_tags(c.get("body_tags") or "")
+    outfit_tags = normalize_tags(c.get("outfit_tags") or "")
+    if body_tags:
+        traits = _strip_count(body_tags)
+        outfit = outfit_tags if mode == "default" else ""
+        return traits, outfit, True
+    raw_tags = _strip_count(c.get("tags") or "")
+    if mode == "default":
+        return raw_tags, "", False
+    return _strip_clothing_tags(raw_tags), "", False
+
+
+def _is_redundant_desc(desc, traits, outfit):
+    """判斷 description 是否只是 tags／結構化卡的重複拼接（避免在 Anima 裡重複貼兩遍）。"""
+    d = re.sub(r"[^a-z0-9]+", " ", (desc or "").lower()).strip()
+    if not d:
+        return True
+    ref = re.sub(r"[^a-z0-9]+", " ", (traits + " " + outfit).lower()).strip()
+    if not ref:
+        return False
+    d_toks = set(d.split())
+    r_toks = set(ref.split())
+    if not d_toks:
+        return True
+    return len(d_toks - r_toks) <= max(2, int(len(d_toks) * 0.25))
+
+
+def _resolve_safety(spec, cfg):
+    """單張圖分級覆寫：''＝跟隨全域設定、'none'＝不加分級標籤、其餘直接套用。"""
+    raw = spec.get("safety")
+    if raw is None or raw == "":
+        return cfg.get("safety", "")
+    if str(raw).strip().lower() == "none":
+        return ""
+    return str(raw).strip()
+
+
 def assemble(spec, cfg, sheet_path=None):
-    """spec：{format, quality, safety, artist, chars:[{name, tags, description, position, action}],
+    """spec：{format, quality, safety, artist, chars:[{name, tags, description, body_tags, outfit_tags, outfit_mode, position, action}],
     scene_tags, action_tags, composition, sentences, extra, negative_extra, styles:[], style_source, seed}
     回傳 {positive, negative, styles_used}。"""
     fmt = spec.get("format") or cfg.get("format") or "mixed"
     quality = spec.get("quality", cfg.get("quality", ""))
-    safety = spec.get("safety", cfg.get("safety", ""))
+    safety = _resolve_safety(spec, cfg)
     artist = normalize_tags(spec.get("artist") or "")
     artist = ", ".join(a if a.startswith("@") else "@" + a for a in artist.split(", ") if a)
-    chars = [c for c in spec.get("chars") or [] if (c.get("tags") or c.get("description") or c.get("action"))]
+    chars = [c for c in spec.get("chars") or []
+             if (c.get("tags") or c.get("body_tags") or c.get("description") or c.get("action"))]
     head = normalize_tags(", ".join(x for x in [quality, safety] if x))
     count = _count_tags(chars)
     places = spec.get("places") or []
@@ -913,7 +1017,11 @@ def assemble(spec, cfg, sheet_path=None):
     if fmt == "tags":
         tags = [head, ", ".join(count)]
         for c in chars:
-            tags += [_strip_count(c.get("tags", "")), normalize_tags(c.get("action", ""))]
+            traits, outfit, _ = _char_tags_for_mode(c)
+            mode = str(c.get("outfit_mode") or "default").strip().lower()
+            act = normalize_tags(c.get("action", ""))
+            nude_tag = "nude" if (mode == "nude" and not _NUDE_WORDS.search(act + " " + scene)) else ""
+            tags += [traits, outfit, nude_tag, act]
         tags += [artist, scene]
         lines.append(normalize_tags(", ".join(t for t in tags if t)))
     else:
@@ -921,29 +1029,48 @@ def assemble(spec, cfg, sheet_path=None):
         if first:
             lines.append(first + ".")
         if len(chars) >= 2:
-            lines.append("The image depicts %d characters." % len(chars))
-            pos_names = {"left": "Left side of the image", "right": "Right side of the image", "center": "Center of the image",
-                         "back": "Background of the image"}
+            lines.append("The image depicts %d distinct characters." % len(chars))
+            pos_names = {"left": "On the left", "right": "On the right", "center": "In the center",
+                         "back": "In the background"}
             auto = ["left", "right", "center", "back"]
             for i, c in enumerate(chars):
                 p = (c.get("position") or "").lower() or auto[min(i, 3)]
-                seg = pos_names.get(p, "Center of the image") + ": "
-                bits = []
-                if fmt == "mixed":
-                    t = normalize_tags(", ".join(x for x in [c.get("tags", ""), c.get("action", "")] if x))
-                    if t:
-                        bits.append(t)
-                desc = _sentence(c.get("description", ""))
-                seg += ", ".join(bits) + ((". " if bits else "") + desc if desc else (". " if bits else ""))
+                traits, outfit, is_struct = _char_tags_for_mode(c)
+                mode = str(c.get("outfit_mode") or "default").strip().lower()
+                act = normalize_tags(c.get("action", ""))
+                seg_parts = []
+                if traits:
+                    seg_parts.append(traits)
+                if outfit:
+                    seg_parts.append("wearing " + outfit)
+                elif mode == "nude" and not _NUDE_WORDS.search(act):
+                    seg_parts.append("nude")
+                if act:
+                    seg_parts.append(act)
+                seg = pos_names.get(p, "In the center") + ": " + ", ".join(seg_parts)
+                desc = (c.get("description") or "").strip()
+                if desc and not is_struct and mode == "default" and not _is_redundant_desc(desc, traits, outfit):
+                    seg += ". " + _sentence(desc)
+                else:
+                    seg = _sentence(seg)
                 lines.append(seg.strip())
         elif chars:
             c = chars[0]
+            traits, outfit, is_struct = _char_tags_for_mode(c)
+            mode = str(c.get("outfit_mode") or "default").strip().lower()
+            act = normalize_tags(c.get("action", ""))
+            nude_tag = "nude" if (mode == "nude" and not _NUDE_WORDS.search(act + " " + scene)) else ""
             if fmt == "mixed":
-                t = normalize_tags(", ".join(x for x in [_strip_count(c.get("tags", "")), c.get("action", "")] if x))
+                t = normalize_tags(", ".join(x for x in [traits, outfit, nude_tag, act] if x))
                 if t:
                     lines.append(t + ".")
-            if c.get("description"):
-                lines.append(_sentence(c["description"]))
+            desc = (c.get("description") or "").strip()
+            if desc and not is_struct and mode == "default" and not _is_redundant_desc(desc, traits, outfit):
+                lines.append(_sentence(desc))
+            elif fmt == "natural":
+                t = ", ".join(x for x in [traits, ("wearing " + outfit) if outfit else "", nude_tag, act] if x)
+                if t:
+                    lines.append(_sentence(t))
         if fmt == "mixed" and scene:
             lines.append(scene + ".")
         if sentences:
@@ -1103,10 +1230,18 @@ def merge_scene(draft, data, char_entries):
         if not e:
             continue
         card = e.get("card") or {}
+        om = str(c.get("outfit_mode") or "default").strip().lower()
+        if om not in OUTFIT_MODES:
+            om = "default"
         chars.append({"name": e["name"], "file": e["file"], "tags": card.get("tags", ""), "description": card.get("description", ""),
+                      "body_tags": card.get("body_tags", ""), "outfit_tags": card.get("outfit_tags", ""),
+                      "outfit_mode": om,
                       "position": str(c.get("position") or "").lower(), "action": normalize_tags(str(c.get("action") or ""))})
     if chars:
         draft["chars"] = chars
+    safety = str((data or {}).get("safety") or "").strip().lower()
+    if safety in SAFETY_MODES:
+        draft["safety"] = safety
     for k in ("action_tags", "scene_tags", "composition"):
         if data.get(k):
             draft[k] = normalize_tags(str(data[k]))

@@ -1264,6 +1264,17 @@ async def book_illust_assemble(book_id: str, req: Request):
         spec["artist"] = bs.get("artist") or ""
     spec["extra"] = ", ".join(x for x in [spec.get("extra") or "", bs.get("extra") or ""] if x)
     spec["negative_extra"] = ", ".join(x for x in [spec.get("negative_extra") or "", bs.get("negative_extra") or ""] if x)
+    # 舊草稿若還沒帶結構化視覺卡的 body_tags/outfit_tags，組裝前即時補上，確保服裝模式切換立即可用
+    hydrated = []
+    for c in spec.get("chars") or []:
+        c2 = dict(c)
+        if not c2.get("body_tags") and c2.get("file"):
+            vc = visual_card.find_by_source(d, c2["file"])
+            if vc:
+                c2.update(illust._card_parts_from_vcard(vc))
+        hydrated.append(c2)
+    if hydrated:
+        spec["chars"] = hydrated
     cfg = _backend_cfg(cfg, spec, body.get("backend"), body.get("profile"))
     r = wrap(lambda: illust.assemble(spec, cfg, _sheet_path(cfg)))
     t, _ = illust.tag_dict_paths(cfg)
@@ -1398,6 +1409,13 @@ async def book_visual_card_save(book_id: str, req: Request):
         "vn": visual_card.compose_vn_prompts(card, outfit=outfit),
         "comic_markdown": visual_card.render_card(card, include_vn=False),
     }
+
+
+@app.get("/api/illust/tags/suggest")
+def illust_tags_suggest(q: str = "", limit: int = 15, mode: str = "all"):
+    """即時標籤補全（類 tagcomplete）：依設定的 tag_csv / tag_zh_csv 搜尋英文、別名或中文標籤。"""
+    t, z = illust.tag_dict_paths(illust_cfg())
+    return illust.suggest_tags(q, t, z, limit=limit, mode=mode)
 
 
 @app.post("/api/illust/zh")

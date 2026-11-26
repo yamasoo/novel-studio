@@ -22,7 +22,7 @@ import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-from . import project, prompts
+from . import project, prompts, visual_card
 from . import layout, sections
 
 ROOT = layout.ILLUST
@@ -376,15 +376,63 @@ def write_card(text, card):
     return text.rstrip() + "\n\n" + sec
 
 
+def _card_parts_from_vcard(vc):
+    """從結構化視覺卡拆出：性別標籤、永駐外觀（不含服裝）、預設服裝。"""
+    c = visual_card.normalize_card(vc, fill_vn_defaults=False)
+    head_joined = " ".join(c["sections"].get("head") or []).lower()
+    gender = ""
+    if re.search(r"\b(?:woman|female|girl|lady)\b", head_joined):
+        gender = "1girl"
+    elif re.search(r"\b(?:man|male|boy|gentleman)\b", head_joined):
+        gender = "1boy"
+    body_parts = []
+    for k in ("head", "body", "upper", "lower", "accessory"):
+        body_parts.extend(c["sections"].get(k) or [])
+    ov = c["outfits"].get("default") or {}
+    outfit_parts = []
+    for pk in visual_card.OUTFIT_PARTS:
+        outfit_parts.extend(ov.get(pk) or [])
+    return {
+        "gender": gender,
+        "body_tags": normalize_tags(", ".join(p for p in body_parts if p)),
+        "outfit_tags": normalize_tags(", ".join(p for p in outfit_parts if p)),
+    }
+
+
+def _strip_clothing_tags(tags):
+    """沒有結構化視覺卡時，盡力從舊版標籤裡過濾掉常見服裝詞（供 custom／nude 模式用）。"""
+    out = []
+    for t in normalize_tags(tags).split(", "):
+        if not t:
+            continue
+        if visual_card._CLOTHING_RE.search(t):
+            continue
+        out.append(t)
+    return ", ".join(out)
+
+
 def entity_cards(book_dir):
     """所有角色、勢力、世界觀項目的名稱、別名與視覺卡。"""
     out = []
     for rel_dir, sub in ENTITY_DIRS:
         for e in project.list_entries(book_dir, rel_dir):
             text = project.read_text(os.path.join(book_dir, e["file"]))
+            card = read_card(text)
+            if sub == "角色":
+                vc = visual_card.find_by_source(book_dir, e["file"])
+                if vc:
+                    parts = _card_parts_from_vcard(vc)
+                    if not card:
+                        card = visual_card.to_legacy_card(vc)
+                    else:
+                        card = dict(card)
+                    card["body_tags"] = parts["body_tags"]
+                    card["outfit_tags"] = parts["outfit_tags"]
+                    card["gender"] = parts["gender"]
+                    card["structured"] = True
             out.append({"kind": sub, "name": e["name"], "file": e["file"],
                         "aliases": [str(a) for a in (e.get("aliases") or [])],
-                        "card": read_card(text), "appearance": _appearance(text)})
+                        "card": card, "appearance": _appearance(text)})
     return out
 
 
@@ -489,8 +537,8 @@ def pick_passages(text, mode="highlight", hints="", top=3, window=(120, 420)):
 # ---------------------------------------------------------------------------
 # Danbooru 標籤：正規化、驗證、中文查表（用 tagcomplete 附的 csv）
 # ---------------------------------------------------------------------------
-_TAGS = {"path": None, "mtime": None, "tags": {}, "alias": {}}
-_ZH = {"path": None, "mtime": None, "pairs": []}
+_TAGS = {"path": None, "mtime": None, "tags": {}, "alias": {}, "sorted": []}
+_ZH = {"path": None, "mtime": None, "pairs": [], "en2zh": {}}
 COUNT_TAGS = re.compile(r"^(\d+|6\+)(girls?|boys?|others?)$|^(solo|multiple girls|multiple boys)$")
 
 
@@ -538,7 +586,8 @@ def _load_tags(path):
                     a = a.strip().replace("_", " ")
                     if a and not a.startswith("/"):
                         alias.setdefault(a, name)
-    _TAGS.update(path=path, mtime=mt, tags=tags, alias=alias)
+    sorted_tags = sorted(tags.items(), key=lambda x: -x[1][1])
+    _TAGS.update(path=path, mtime=mt, tags=tags, alias=alias, sorted=sorted_tags)
     return _TAGS
 
 
@@ -572,19 +621,24 @@ def _load_zh(path):
     mt = os.path.getmtime(path)
     if _ZH["path"] == path and _ZH["mtime"] == mt:
         return _ZH
-    pairs = []
+    pairs, en2zh = [], {}
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             parts = line.rstrip("\n").split(",", 2)
-            if len(parts) < 3 or parts[1] not in ("0",):   # 只用一般標籤
+            if len(parts) < 3:
                 continue
-            tag = parts[0].replace("_", " ")
+            tag = parts[0].replace("_", " ").strip()
+            cat = parts[1].strip()
             for zh in parts[2].split("|"):
                 zh = zh.strip()
-                if len(zh) >= 2 and re.search(r"[一-鿿]", zh):
+                if not zh or not re.search(r"[一-鿿]", zh):
+                    continue
+                if tag and tag not in en2zh:
+                    en2zh[tag] = zh
+                if cat in ("0",) and len(zh) >= 2:
                     pairs.append((zh, tag))
     pairs.sort(key=lambda x: -len(x[0]))
-    _ZH.update(path=path, mtime=mt, pairs=pairs)
+    _ZH.update(path=path, mtime=mt, pairs=pairs, en2zh=en2zh)
     return _ZH
 
 
@@ -622,18 +676,140 @@ def zh_lookup(text, zh_path, tag_path=None, limit=40):
 
 
 def tag_dict_paths(cfg):
-    """設定的路徑，沒填就從 Forge 資料夾找 tagcomplete 附的檔案。"""
-    t, z = cfg.get("tag_csv") or "", cfg.get("tag_zh_csv") or ""
-    fd = cfg.get("forge_dir") or ""
-    base = os.path.join(fd, "extensions", "a1111-sd-webui-tagcomplete", "tags") if fd else ""
-    if not t and base and os.path.isfile(os.path.join(base, "danbooru.csv")):
-        t = os.path.join(base, "danbooru.csv")
-    if not z and base:
-        for n in ("danbooru-0-zh.csv", "zh_cn.csv", "danbooru-zh.csv"):
-            if os.path.isfile(os.path.join(base, n)):
-                z = os.path.join(base, n)
+    """設定的路徑，沒填就從 Forge 資料夾找 tagcomplete／tagcomplete-neo 附的檔案。"""
+    t, z = str(cfg.get("tag_csv") or "").strip(), str(cfg.get("tag_zh_csv") or "").strip()
+    fd = str(cfg.get("forge_dir") or "").strip()
+    bases = []
+    if fd:
+        for ext in ("sd-webui-tagcomplete-neo", "a1111-sd-webui-tagcomplete"):
+            cand = os.path.join(fd, "extensions", ext, "tags")
+            if os.path.isdir(cand):
+                bases.append(cand)
+    if not t:
+        for base in bases:
+            for n in ("danbooru.csv", "danbooru_e621_merged.csv"):
+                if os.path.isfile(os.path.join(base, n)):
+                    t = os.path.join(base, n)
+                    break
+            if t:
+                break
+    if not z:
+        for base in bases:
+            for n in ("danbooru-0-zh.csv", "zh_cn.csv", "danbooru-zh.csv", "danbooru_zh.csv", "danbooru_zh_tw.csv"):
+                if os.path.isfile(os.path.join(base, n)):
+                    z = os.path.join(base, n)
+                    break
+            if z:
                 break
     return t if os.path.isfile(t) else "", z if os.path.isfile(z) else ""
+
+
+def suggest_tags(q, tag_path, zh_path=None, limit=15, mode="all"):
+    """即時標籤補全（類 tagcomplete）：支援英文前綴／子字串、別名、中文反查、畫師 @ 優先。"""
+    q_raw = str(q or "").strip()
+    if not q_raw:
+        return {"items": [], "has_dict": bool(tag_path or zh_path)}
+    limit = max(1, min(40, int(limit or 15)))
+    artist_only = (mode == "artist") or q_raw.startswith("@")
+    q_clean = q_raw.lstrip("@").strip().replace("_", " ").lower()
+    if not q_clean:
+        return {"items": [], "has_dict": bool(tag_path or zh_path)}
+
+    db = _load_tags(tag_path) if tag_path else None
+    zdb = _load_zh(zh_path) if zh_path else None
+    en2zh = zdb["en2zh"] if zdb else {}
+    has_dict = bool(db or zdb)
+    if not has_dict:
+        return {"items": [], "has_dict": False}
+
+    seen = set()
+    items = []
+
+    # 1. 中文查詢：從中文對照表找符合的項目
+    if re.search(r"[一-鿿]", q_clean) and zdb:
+        prefix_zh, sub_zh = [], []
+        for zh, tag in zdb["pairs"]:
+            if tag in seen:
+                continue
+            if zh.startswith(q_clean):
+                prefix_zh.append((zh, tag))
+            elif q_clean in zh:
+                sub_zh.append((zh, tag))
+        cand = prefix_zh + sub_zh
+        scored = []
+        for zh, tag in cand:
+            if tag in seen:
+                continue
+            seen.add(tag)
+            cat, cnt = db["tags"].get(tag, ("0", 0)) if db else ("0", 0)
+            if artist_only and cat != "1":
+                continue
+            exact = 1 if zh == q_clean else (0 if zh.startswith(q_clean) else -1)
+            scored.append((exact, cnt, tag, cat, zh))
+        scored.sort(key=lambda x: (-x[0], -x[1]))
+        for _, cnt, tag, cat, zh in scored[:limit]:
+            items.append({
+                "tag": tag,
+                "insert": ("@" + tag) if (artist_only or cat == "1") else tag,
+                "cat": cat,
+                "count": cnt,
+                "zh": zh,
+            })
+        return {"items": items, "has_dict": True}
+
+    # 2. 英文查詢：依熱門度掃描前綴命中 → 子字串命中 → 別名命中
+    if db:
+        prefix_hits, sub_hits = [], []
+        for name, (cat, cnt) in db["sorted"]:
+            if artist_only and cat != "1":
+                continue
+            low = name.lower()
+            if low.startswith(q_clean):
+                prefix_hits.append((name, cat, cnt))
+                if len(prefix_hits) >= limit:
+                    break
+            elif q_clean in low and len(sub_hits) < limit:
+                sub_hits.append((name, cat, cnt))
+        for name, cat, cnt in (prefix_hits + sub_hits):
+            if name in seen:
+                continue
+            seen.add(name)
+            items.append({
+                "tag": name,
+                "insert": ("@" + name) if (artist_only or (mode == "artist" and cat == "1")) else name,
+                "cat": cat,
+                "count": cnt,
+                "zh": en2zh.get(name, ""),
+            })
+            if len(items) >= limit:
+                break
+        # 不足時補別名命中
+        if len(items) < limit:
+            alias_hits = []
+            for al, canon in db["alias"].items():
+                if canon in seen:
+                    continue
+                if q_clean in al.lower():
+                    cat, cnt = db["tags"].get(canon, ("0", 0))
+                    if artist_only and cat != "1":
+                        continue
+                    alias_hits.append((al.lower().startswith(q_clean), cnt, al, canon, cat))
+            alias_hits.sort(key=lambda x: (-int(x[0]), -x[1]))
+            for _, cnt, al, canon, cat in alias_hits:
+                if canon in seen:
+                    continue
+                seen.add(canon)
+                items.append({
+                    "tag": canon,
+                    "insert": ("@" + canon) if (artist_only or (mode == "artist" and cat == "1")) else canon,
+                    "cat": cat,
+                    "count": cnt,
+                    "alias": al,
+                    "zh": en2zh.get(canon, ""),
+                })
+                if len(items) >= limit:
+                    break
+    return {"items": items, "has_dict": True}
 
 
 # ---------------------------------------------------------------------------
@@ -779,14 +955,21 @@ def apply_styles(core, natural_core, names, path, source="prompt", seed=0):
 # 組裝 Anima 提示詞
 # ---------------------------------------------------------------------------
 def _count_tags(chars):
-    """依角色視覺卡裡的 1girl／1boy 算人數標籤。"""
+    """依角色視覺卡裡的 1girl／1boy（或結構化卡性別）算人數標籤。"""
     g = b = 0
     for c in chars:
         tl = [x.lower() for x in normalize_tags(c.get("tags", "")).split(", ")]
-        if any(re.match(r"^\d*girls?$", x) for x in tl):
+        gen = str(c.get("gender") or "").lower()
+        if gen == "1girl" or any(re.match(r"^\d*girls?$", x) for x in tl):
             g += 1
-        elif any(re.match(r"^\d*boys?$", x) for x in tl):
+        elif gen == "1boy" or any(re.match(r"^\d*boys?$", x) for x in tl):
             b += 1
+        else:
+            bt = str(c.get("body_tags") or "").lower()
+            if re.search(r"\b(?:woman|female|girl|lady)\b", bt):
+                g += 1
+            elif re.search(r"\b(?:man|male|boy|gentleman)\b", bt):
+                b += 1
     parts = []
     if g:
         parts.append("1girl" if g == 1 else "%dgirls" % g)
@@ -884,16 +1067,65 @@ def text_sentences(items):
     return " ".join(lines)
 
 
+_NUDE_WORDS = re.compile(r"\b(nude|naked|topless|bottomless|completely nude|undressed)\b", re.I)
+SAFETY_MODES = ("safe", "sensitive", "nsfw", "explicit")
+OUTFIT_MODES = ("default", "custom", "nude")
+
+
+def _char_tags_for_mode(c):
+    """依角色的 outfit_mode（default / custom / nude）取出該送給 Anima 的外觀標籤（已去除 1girl/1boy）。
+    回傳 (traits_str, outfit_str, is_structured)。"""
+    mode = str(c.get("outfit_mode") or "default").strip().lower()
+    if mode not in OUTFIT_MODES:
+        mode = "default"
+    body_tags = normalize_tags(c.get("body_tags") or "")
+    outfit_tags = normalize_tags(c.get("outfit_tags") or "")
+    if body_tags:
+        traits = _strip_count(body_tags)
+        outfit = outfit_tags if mode == "default" else ""
+        return traits, outfit, True
+    raw_tags = _strip_count(c.get("tags") or "")
+    if mode == "default":
+        return raw_tags, "", False
+    return _strip_clothing_tags(raw_tags), "", False
+
+
+def _is_redundant_desc(desc, traits, outfit):
+    """判斷 description 是否只是 tags／結構化卡的重複拼接（避免在 Anima 裡重複貼兩遍）。"""
+    d = re.sub(r"[^a-z0-9]+", " ", (desc or "").lower()).strip()
+    if not d:
+        return True
+    ref = re.sub(r"[^a-z0-9]+", " ", (traits + " " + outfit).lower()).strip()
+    if not ref:
+        return False
+    d_toks = set(d.split())
+    r_toks = set(ref.split())
+    if not d_toks:
+        return True
+    return len(d_toks - r_toks) <= max(2, int(len(d_toks) * 0.25))
+
+
+def _resolve_safety(spec, cfg):
+    """單張圖分級覆寫：''＝跟隨全域設定、'none'＝不加分級標籤、其餘直接套用。"""
+    raw = spec.get("safety")
+    if raw is None or raw == "":
+        return cfg.get("safety", "")
+    if str(raw).strip().lower() == "none":
+        return ""
+    return str(raw).strip()
+
+
 def assemble(spec, cfg, sheet_path=None):
-    """spec：{format, quality, safety, artist, chars:[{name, tags, description, position, action}],
+    """spec：{format, quality, safety, artist, chars:[{name, tags, description, body_tags, outfit_tags, outfit_mode, position, action}],
     scene_tags, action_tags, composition, sentences, extra, negative_extra, styles:[], style_source, seed}
     回傳 {positive, negative, styles_used}。"""
     fmt = spec.get("format") or cfg.get("format") or "mixed"
     quality = spec.get("quality", cfg.get("quality", ""))
-    safety = spec.get("safety", cfg.get("safety", ""))
+    safety = _resolve_safety(spec, cfg)
     artist = normalize_tags(spec.get("artist") or "")
     artist = ", ".join(a if a.startswith("@") else "@" + a for a in artist.split(", ") if a)
-    chars = [c for c in spec.get("chars") or [] if (c.get("tags") or c.get("description") or c.get("action"))]
+    chars = [c for c in spec.get("chars") or []
+             if (c.get("tags") or c.get("body_tags") or c.get("description") or c.get("action"))]
     head = normalize_tags(", ".join(x for x in [quality, safety] if x))
     count = _count_tags(chars)
     places = spec.get("places") or []
@@ -913,7 +1145,11 @@ def assemble(spec, cfg, sheet_path=None):
     if fmt == "tags":
         tags = [head, ", ".join(count)]
         for c in chars:
-            tags += [_strip_count(c.get("tags", "")), normalize_tags(c.get("action", ""))]
+            traits, outfit, _ = _char_tags_for_mode(c)
+            mode = str(c.get("outfit_mode") or "default").strip().lower()
+            act = normalize_tags(c.get("action", ""))
+            nude_tag = "nude" if (mode == "nude" and not _NUDE_WORDS.search(act + " " + scene)) else ""
+            tags += [traits, outfit, nude_tag, act]
         tags += [artist, scene]
         lines.append(normalize_tags(", ".join(t for t in tags if t)))
     else:
@@ -921,29 +1157,48 @@ def assemble(spec, cfg, sheet_path=None):
         if first:
             lines.append(first + ".")
         if len(chars) >= 2:
-            lines.append("The image depicts %d characters." % len(chars))
-            pos_names = {"left": "Left side of the image", "right": "Right side of the image", "center": "Center of the image",
-                         "back": "Background of the image"}
+            lines.append("The image depicts %d distinct characters." % len(chars))
+            pos_names = {"left": "On the left", "right": "On the right", "center": "In the center",
+                         "back": "In the background"}
             auto = ["left", "right", "center", "back"]
             for i, c in enumerate(chars):
                 p = (c.get("position") or "").lower() or auto[min(i, 3)]
-                seg = pos_names.get(p, "Center of the image") + ": "
-                bits = []
-                if fmt == "mixed":
-                    t = normalize_tags(", ".join(x for x in [c.get("tags", ""), c.get("action", "")] if x))
-                    if t:
-                        bits.append(t)
-                desc = _sentence(c.get("description", ""))
-                seg += ", ".join(bits) + ((". " if bits else "") + desc if desc else (". " if bits else ""))
+                traits, outfit, is_struct = _char_tags_for_mode(c)
+                mode = str(c.get("outfit_mode") or "default").strip().lower()
+                act = normalize_tags(c.get("action", ""))
+                seg_parts = []
+                if traits:
+                    seg_parts.append(traits)
+                if outfit:
+                    seg_parts.append("wearing " + outfit)
+                elif mode == "nude" and not _NUDE_WORDS.search(act):
+                    seg_parts.append("nude")
+                if act:
+                    seg_parts.append(act)
+                seg = pos_names.get(p, "In the center") + ": " + ", ".join(seg_parts)
+                desc = (c.get("description") or "").strip()
+                if desc and not is_struct and mode == "default" and not _is_redundant_desc(desc, traits, outfit):
+                    seg += ". " + _sentence(desc)
+                else:
+                    seg = _sentence(seg)
                 lines.append(seg.strip())
         elif chars:
             c = chars[0]
+            traits, outfit, is_struct = _char_tags_for_mode(c)
+            mode = str(c.get("outfit_mode") or "default").strip().lower()
+            act = normalize_tags(c.get("action", ""))
+            nude_tag = "nude" if (mode == "nude" and not _NUDE_WORDS.search(act + " " + scene)) else ""
             if fmt == "mixed":
-                t = normalize_tags(", ".join(x for x in [_strip_count(c.get("tags", "")), c.get("action", "")] if x))
+                t = normalize_tags(", ".join(x for x in [traits, outfit, nude_tag, act] if x))
                 if t:
                     lines.append(t + ".")
-            if c.get("description"):
-                lines.append(_sentence(c["description"]))
+            desc = (c.get("description") or "").strip()
+            if desc and not is_struct and mode == "default" and not _is_redundant_desc(desc, traits, outfit):
+                lines.append(_sentence(desc))
+            elif fmt == "natural":
+                t = ", ".join(x for x in [traits, ("wearing " + outfit) if outfit else "", nude_tag, act] if x)
+                if t:
+                    lines.append(_sentence(t))
         if fmt == "mixed" and scene:
             lines.append(scene + ".")
         if sentences:
@@ -1103,10 +1358,18 @@ def merge_scene(draft, data, char_entries):
         if not e:
             continue
         card = e.get("card") or {}
+        om = str(c.get("outfit_mode") or "default").strip().lower()
+        if om not in OUTFIT_MODES:
+            om = "default"
         chars.append({"name": e["name"], "file": e["file"], "tags": card.get("tags", ""), "description": card.get("description", ""),
+                      "body_tags": card.get("body_tags", ""), "outfit_tags": card.get("outfit_tags", ""),
+                      "outfit_mode": om,
                       "position": str(c.get("position") or "").lower(), "action": normalize_tags(str(c.get("action") or ""))})
     if chars:
         draft["chars"] = chars
+    safety = str((data or {}).get("safety") or "").strip().lower()
+    if safety in SAFETY_MODES:
+        draft["safety"] = safety
     for k in ("action_tags", "scene_tags", "composition"):
         if data.get(k):
             draft[k] = normalize_tags(str(data[k]))

@@ -526,18 +526,20 @@ Write every free-text value in English.""",
     "sd_claude_tail": "Do not read or write any file in the library; your last reply follows the [Output format].",
     # Illustration (illust.py)
     "il_scene_schema": """Output a single JSON object only:
-{"characters": [{"name": "character name (as in the list provided)", "position": "left|right|center", "action": "this character's pose, expression and hand action as English Danbooru tags, comma-separated"}],
+{"characters": [{"name": "character name (as in the list provided)", "position": "left|right|center", "outfit_mode": "default|custom|nude", "action": "this character's pose, expression and hand action (if outfit_mode is custom or nude, include their current clothing or undress state here) as English Danbooru tags, comma-separated"}],
+ "safety": "safe|sensitive|nsfw|explicit (choose according to the scene's rating)",
  "action_tags": "English Danbooru tags for the overall action and interaction",
  "scene_tags": "English Danbooru tags for place, time, weather, lighting and background objects",
  "composition": "English Danbooru tags for composition and camera, e.g. cowboy shot, from side, dutch angle, close-up",
- "sentences": "two or three English sentences describing the picture: who, doing what, where, and the mood. Refer to characters by their appearance (e.g. the black-haired girl), not by name"}
+ "sentences": "two or three English sentences describing the picture: who is on the left/right, doing what, where, and the mood. With multiple characters, clearly distinguish each by position and appearance (e.g. the silver-haired man on the left, the black-haired woman on the right), never by name"}
 Rules:
 - Use spaces, not underscores, in tags; write only what can be seen in the picture (no thoughts, no plot causes).
-- Character appearance (hair colour, clothes, etc.) is already in the visual cards; do not repeat it in action.
+- outfit_mode rules: use default when wearing their usual visual-card outfit (do not repeat default clothes in action); use custom when wearing different clothes, sleepwear, robes, or partially undressed/disheveled and put the current clothing state in action; use nude for completely undressed, bathing, or explicit nude scenes (the studio will omit default clothes).
+- Fixed face and hair traits are already in the visual cards; do not repeat them in action.
 - Draw a single moment; at most three characters in the picture, the most important ones.
 - When no characters are provided (e.g. a design sheet of a ship, building or object), there must be no people in the picture: give characters as an empty array, write no humans in action_tags,
   do not use person framings such as full body, cowboy shot or upper body, and do not mention people in sentences either.
-- Do not add quality tags, artists, or rating tags such as safe; the studio adds those itself.""",
+- Do not add quality tags or artists; the studio adds those itself.""",
     "il_card_schema": """Output a single JSON object only:
 {"tags": "English Danbooru tags for the appearance, comma-separated: count (1girl/1boy), hairstyle and hair colour, eye colour, build, signature outfit, accessories",
  "description": "one or two English sentences describing the appearance and the impression it gives (no name)"}

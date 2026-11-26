@@ -327,6 +327,7 @@ async function renderCard(el, file, text) {
       } catch (e) { fail(e); }
     };
     if (!editing) return;
+    if (window.attachTagComplete) attachTagComplete($("#vc-tags", el));
     $("#vc-zh", el).onclick = async () => {
       card.tags = $("#vc-tags", el).value; card.description = $("#vc-desc", el).value;
       try { const r = await api("POST", "/api/illust/zh", { text: $("#vc-zh-in", el).value }); if (!r.has_dict) return toast("找不到中文對照表：到「設定 → 插畫」填 Forge 資料夾", true); zh = r.tags; render(); } catch (e) { fail(e); }
@@ -529,6 +530,12 @@ async function renderCharVisualCard(el, file) {
     }
 
     if (editing) {
+      if (window.attachTagComplete) {
+        ["#vc-head", "#vc-body", "#vc-acc", "#vc-upper", "#vc-lower", "#vc-top", "#vc-bottom", "#vc-set", "#vc-vn-acc"]
+          .forEach((sel) => attachTagComplete($(sel, el), { sep: "" }));
+        attachTagComplete($("#vc-vn-pose", el));
+        el.querySelectorAll("[data-vcexpr]").forEach((inp) => attachTagComplete(inp));
+      }
       $("#vc-save", el).onclick = async () => {
         const exprObj = {};
         el.querySelectorAll("[data-vcexpr]").forEach((inp) => { exprObj[inp.dataset.vcexpr] = inp.value.trim(); });
@@ -693,9 +700,13 @@ async function renderIllSettings(el) {
         FE.h("select", { id: "il-prov" },
           FE.h("option", { value: "" }, "面板目前的執行者"),
           r.providers.map((pc) => FE.h("option", { value: pc.id, selected: c.provider === pc.id }, pc.name)))),
-      FE.h("div", { class: "f" }, FE.h("span", {}, "標籤對照表"),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "Danbooru 標籤 CSV（TagComplete 補全用，留空＝自動找）"),
+        FE.h("input", { type: "text", id: "il-tagcsv", value: c.tag_csv || "", placeholder: "例如 D:\\sd-webui-tagcomplete-neo\\tags\\danbooru.csv" })),
+      FE.h("label", { class: "f" }, FE.h("span", {}, "中文標籤對照表 CSV（打中文補全英文用，留空＝自動找）"),
+        FE.h("input", { type: "text", id: "il-tagzhcsv", value: c.tag_zh_csv || "", placeholder: "例如 D:\\sd-webui-tagcomplete-neo\\tags\\danbooru-0-zh.csv" })),
+      FE.h("div", { class: "f" }, FE.h("span", {}, "標籤對照表狀態"),
         FE.h("div", { class: "small" },
-          r.tag_csv ? "✓ " + r.tag_csv : FE.h("span", { class: "muted" }, "沒有（填 Forge 資料夾會自動找 tagcomplete 的 danbooru.csv）"),
+          r.tag_csv ? "✓ " + r.tag_csv : FE.h("span", { class: "muted" }, "尚未載入（填上方路徑或 Forge 資料夾會自動找 tagcomplete / tagcomplete-neo 的 danbooru.csv）"),
           FE.h("br"),
           r.tag_zh_csv ? "✓ " + r.tag_zh_csv : FE.h("span", { class: "muted" }, "沒有中文對照表")))),
     FE.h("div", { class: "small muted", style: "margin:-4px 0 8px" },
@@ -708,6 +719,10 @@ async function renderIllSettings(el) {
     FE.h("div", { class: "row" }, FE.h("span", { class: "grow" }),
       FE.h("button", { class: "primary", id: "il-savecfg" }, "儲存插畫設定")));
   const forgeLoras = JSON.parse(JSON.stringify(c.forge_loras || []));
+  if (window.attachTagComplete) {
+    attachTagComplete($("#il-q", el));
+    attachTagComplete($("#il-neg", el));
+  }
   let fst = null;   // Forge 測試連線結果
   const renderForgeLoras = () => {
     $("#il-loras", el).replaceChildren(loraRowsEl(forgeLoras, fst && fst.ok ? fst.loras || [] : null, "f",
@@ -803,10 +818,12 @@ async function renderIllSettings(el) {
       forge_url: $("#il-url", el).value.trim(), forge_dir: $("#il-dir", el).value.trim(), params: $("#il-params", el).value.trim(),
       width: parseInt($("#il-w", el).value), height: parseInt($("#il-h", el).value), safety: $("#il-safe", el).value, format: $("#il-fmt", el).value,
       quality: $("#il-q", el).value.trim(), negative: $("#il-neg", el).value.trim(), style_sheet: $("#il-sheet", el).value.trim(),
+      tag_csv: $("#il-tagcsv", el).value.trim(), tag_zh_csv: $("#il-tagzhcsv", el).value.trim(),
       style_source: $("#il-src", el).value, provider: $("#il-prov", el).value, show_nsfw_styles: $("#il-nsfw", el).checked, save_in_forge: $("#il-save", el).checked,
       comfy_url: $("#cf-url", el).value.trim(), comfy_profiles: profs, comfy_profile: c.comfy_profile, comfy_keep_output: $("#cf-keep", el).checked,
       comfy_lora_dir: $("#cf-loradir", el).value.trim(), forge_loras: forgeLoras };
     ILL.cfg = await api("POST", "/api/illust/config", body);
+    if (window.clearTagCompleteCache) window.clearTagCompleteCache();
     const saved = ILL.cfg.config.comfy_profiles;
     profs.splice(0, profs.length, ...JSON.parse(JSON.stringify(saved)));
   };

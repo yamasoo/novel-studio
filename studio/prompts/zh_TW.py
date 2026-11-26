@@ -550,18 +550,20 @@ T.update({
     "sd_claude_tail": "不要讀寫書庫裡的任何檔案；最後一則回覆照【輸出格式】輸出。",
     # 插圖（illust.py）
     "il_scene_schema": """只輸出一個 JSON 物件：
-{"characters": [{"name": "角色名（照提供的名單）", "position": "left|right|center", "action": "這個角色的姿勢、表情、手上動作，英文 Danbooru 標籤，逗號分隔"}],
+{"characters": [{"name": "角色名（照提供的名單）", "position": "left|right|center", "outfit_mode": "default|custom|nude", "action": "這個角色的姿勢、表情、手上動作（若 outfit_mode 為 custom／nude，請一併寫出當下穿著或脫衣狀態），英文 Danbooru 標籤，逗號分隔"}],
+ "safety": "safe|sensitive|nsfw|explicit（依這段畫面的尺度選一個）",
  "action_tags": "整體動作與互動的英文 Danbooru 標籤",
  "scene_tags": "地點、時間、天氣、光線、背景物件的英文 Danbooru 標籤",
  "composition": "構圖與鏡頭的英文 Danbooru 標籤，例如 cowboy shot, from side, dutch angle, close-up",
- "sentences": "兩到三句英文，描述畫面：誰、在做什麼、在哪裡、氣氛。角色用外觀稱呼（例如 the black-haired girl），不要用中文名字"}
+ "sentences": "兩到三句英文，描述畫面：誰在左／右、在做什麼、在哪裡、氣氛。複數角色務必用清楚的位置與外觀差異區分（例如 the silver-haired man on the left, the black-haired woman on the right），不要用中文名字"}
 規則：
 - 標籤用空格不用底線，只寫畫面看得到的東西（不寫心理、不寫劇情因果）。
-- 角色外觀（髮色、服裝等）已經在視覺卡裡，不要重複寫在 action 裡。
+- outfit_mode 規則：穿平時服裝填 default（不要在 action 重複寫視覺卡的日常服）；換穿別的衣服／睡衣／浴袍／衣衫不整／半脫填 custom，並在 action 寫出當下衣著狀態；全裸／入浴／露骨親密場景填 nude（工作台會自動拿掉日常服）。
+- 角色固定臉部與髮色已在視覺卡裡，不要重複寫在 action 裡。
 - 只畫一個瞬間；畫面裡最多三個角色，挑最重要的。
 - 沒有提供出場角色時（例如艦艇、建築、物件的設定圖），畫面裡不要有任何人物：characters 給空陣列，action_tags 寫 no humans，
   構圖不要用 full body、cowboy shot、upper body 這類人物取景，sentences 也不要寫到人。
-- 不要加品質標籤、畫師、safe 之類的分級標籤，工作台會自己加。""",
+- 不要加品質標籤或畫師，工作台會自己加。""",
     "il_card_schema": """只輸出一個 JSON 物件：
 {"tags": "外觀的英文 Danbooru 標籤，逗號分隔：人數（1girl／1boy）、髮型髮色、瞳色、體型、招牌服裝、配件",
  "description": "一兩句英文，描述外觀與給人的感覺（不寫名字）"}

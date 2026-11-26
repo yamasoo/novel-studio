@@ -104,6 +104,7 @@ function navItems() {
     ]);
     S.config = cfg.config;
     S.claudeFound = cfg.claude_found;
+    S.suite = cfg.suite || {};
     S.actions = acts;
     S.books = books.books;
   } catch (e) {
@@ -133,6 +134,20 @@ function navItems() {
     sizes: { panel: { min: 340, max: 900, width: 420 } },
     slots: {
       top: FE.h("div", { class: "row" },
+        FE.h("a", {
+          id: "suite-portal-link", class: "btn sm",
+          href: (S.suite && S.suite.suite_url) ? (S.suite.suite_url + "/") : "#",
+          target: "t2x_portal", rel: "noopener",
+          hidden: !(S.suite && S.suite.suite_url),
+          "data-i18n-skip": "",
+        }, "Portal ↗"),
+        FE.h("a", {
+          id: "suite-t2vn-link", class: "btn sm",
+          href: (S.suite && S.suite.t2vn_url) ? (S.suite.t2vn_url + "/") : "#",
+          target: "t2vn_studio", rel: "noopener",
+          hidden: !(S.suite && S.suite.t2vn_url),
+          "data-i18n-skip": "",
+        }, "T2VN / T2C ↗"),
         FE.i18n.select({
           id: "lang-select", class: "lang-select",
           title: "Language / 言語 / 語言", "aria-label": "Language", "data-i18n-skip": "",

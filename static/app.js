@@ -90,6 +90,13 @@ function renderNav() {
     const ctx = FE.current();
     q.value = ctx && ctx.page === "b/:book/search" ? ((ctx.query || {}).q || "") : "";
   }
+  // 若由 t2x-suite 啟動，依目前開啟的書更新 T2VN 深連結
+  const t2vnLink = document.querySelector("#suite-t2vn-link");
+  if (t2vnLink && S.suite && S.suite.t2vn_url) {
+    t2vnLink.href = S.book
+      ? (S.suite.t2vn_url + "/#/?source=" + enc(S.book))
+      : (S.suite.t2vn_url + "/");
+  }
   shell.refresh_nav();
 }
 

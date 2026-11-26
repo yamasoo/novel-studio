@@ -231,7 +231,11 @@ def get_config():
             "port": int(CONFIG.get("port", 8765)), "running_port": RUNNING_PORT, "can_restart": SERVER is not None,
             "library_exists": os.path.isdir(CONFIG.get("library") or ""),
             "key_status": {p["id"]: providers.key_status(HERE, p) for p in CONFIG.get("providers") or []},
-            "key_store": providers.store_name(), "secrets_pending": providers.pending_secrets(HERE)}
+            "key_store": providers.store_name(), "secrets_pending": providers.pending_secrets(HERE),
+            "suite": {
+                "t2vn_url": os.environ.get("T2VN_URL", "").strip().rstrip("/"),
+                "suite_url": os.environ.get("SUITE_URL", "").strip().rstrip("/"),
+            }}
 
 
 @app.post("/api/config")

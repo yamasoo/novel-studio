@@ -523,6 +523,13 @@
         c.onclick = () => { collect(); D.scene_tags = tagAppend(D.scene_tags, c.dataset.tag); render(); };
       });
       q("#il-styles").onclick = () => { collect(); pickStyles(D.styles, (sel) => { D.styles = sel; render(); }); };
+      if (window.attachTagComplete) {
+        el.querySelectorAll("[data-act]").forEach((inp) => attachTagComplete(inp));
+        ["action_tags", "scene_tags", "composition", "extra"].forEach((k) => attachTagComplete(q(`[data-k="${k}"]`)));
+        attachTagComplete(q('[data-k="artist"]'), { mode: "artist" });
+        attachTagComplete(q("#il-pos"));
+        attachTagComplete(q("#il-neg"));
+      }
       q("#il-ai").onclick = async () => {
         collect();
         if (isCh && !D.passage.trim()) return FE.toast("請先挑一段要畫的片段", "err");

@@ -409,3 +409,26 @@ mark { background: #f6d98b; color: inherit; border-radius: 2px; padding: 0 1px; 
 .ef-bulk select {max-width:100%}
 .pick-cell {display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin:-5px 2px -5px -5px;flex:none;cursor:pointer}
 .pick-cell input.pick {width:16px;height:16px;margin:0;cursor:pointer}
+
+/* ---------- 繪圖 Prompt TagComplete 補全選單 ---------- */
+.tc-pop {
+  position: fixed; z-index: 9999; max-height: 280px; overflow-y: auto;
+  background: var(--paper, #fff); border: 1px solid var(--line-2, #ccc);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+  padding: 4px; font-size: 12.5px;
+}
+.tc-item {
+  display: flex; align-items: center; gap: 6px; padding: 5px 8px;
+  border-radius: 5px; cursor: pointer; line-height: 1.35;
+}
+.tc-item.tc-active { background: var(--accent-soft, rgba(138, 59, 46, .12)); }
+.tc-tag { font-weight: 500; white-space: nowrap; }
+.tc-cat-0 { color: var(--ink, #222); }
+.tc-cat-1 { color: #c0392b; }
+.tc-cat-3 { color: #7d3c98; }
+.tc-cat-4 { color: #1e8449; }
+.tc-cat-5 { color: #d35400; }
+.tc-alias { font-size: 11px; color: var(--ink-2, #777); white-space: nowrap; }
+.tc-zh { font-size: 11.5px; color: var(--ink-2, #666); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-grow { flex: 1; }
+.tc-cnt { font-size: 11px; color: var(--ink-2, #888); font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -1411,6 +1411,13 @@ async def book_visual_card_save(book_id: str, req: Request):
     }
 
 
+@app.get("/api/illust/tags/suggest")
+def illust_tags_suggest(q: str = "", limit: int = 15, mode: str = "all"):
+    """即時標籤補全（類 tagcomplete）：依設定的 tag_csv / tag_zh_csv 搜尋英文、別名或中文標籤。"""
+    t, z = illust.tag_dict_paths(illust_cfg())
+    return illust.suggest_tags(q, t, z, limit=limit, mode=mode)
+
+
 @app.post("/api/illust/zh")
 async def illust_zh(req: Request):
     """中文→Danbooru 標籤查表（本機）。"""

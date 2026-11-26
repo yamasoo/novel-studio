@@ -537,8 +537,8 @@ def pick_passages(text, mode="highlight", hints="", top=3, window=(120, 420)):
 # ---------------------------------------------------------------------------
 # Danbooru 標籤：正規化、驗證、中文查表（用 tagcomplete 附的 csv）
 # ---------------------------------------------------------------------------
-_TAGS = {"path": None, "mtime": None, "tags": {}, "alias": {}}
-_ZH = {"path": None, "mtime": None, "pairs": []}
+_TAGS = {"path": None, "mtime": None, "tags": {}, "alias": {}, "sorted": []}
+_ZH = {"path": None, "mtime": None, "pairs": [], "en2zh": {}}
 COUNT_TAGS = re.compile(r"^(\d+|6\+)(girls?|boys?|others?)$|^(solo|multiple girls|multiple boys)$")
 
 
@@ -586,7 +586,8 @@ def _load_tags(path):
                     a = a.strip().replace("_", " ")
                     if a and not a.startswith("/"):
                         alias.setdefault(a, name)
-    _TAGS.update(path=path, mtime=mt, tags=tags, alias=alias)
+    sorted_tags = sorted(tags.items(), key=lambda x: -x[1][1])
+    _TAGS.update(path=path, mtime=mt, tags=tags, alias=alias, sorted=sorted_tags)
     return _TAGS
 
 
@@ -620,19 +621,24 @@ def _load_zh(path):
     mt = os.path.getmtime(path)
     if _ZH["path"] == path and _ZH["mtime"] == mt:
         return _ZH
-    pairs = []
+    pairs, en2zh = [], {}
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             parts = line.rstrip("\n").split(",", 2)
-            if len(parts) < 3 or parts[1] not in ("0",):   # 只用一般標籤
+            if len(parts) < 3:
                 continue
-            tag = parts[0].replace("_", " ")
+            tag = parts[0].replace("_", " ").strip()
+            cat = parts[1].strip()
             for zh in parts[2].split("|"):
                 zh = zh.strip()
-                if len(zh) >= 2 and re.search(r"[一-鿿]", zh):
+                if not zh or not re.search(r"[一-鿿]", zh):
+                    continue
+                if tag and tag not in en2zh:
+                    en2zh[tag] = zh
+                if cat in ("0",) and len(zh) >= 2:
                     pairs.append((zh, tag))
     pairs.sort(key=lambda x: -len(x[0]))
-    _ZH.update(path=path, mtime=mt, pairs=pairs)
+    _ZH.update(path=path, mtime=mt, pairs=pairs, en2zh=en2zh)
     return _ZH
 
 
@@ -670,18 +676,140 @@ def zh_lookup(text, zh_path, tag_path=None, limit=40):
 
 
 def tag_dict_paths(cfg):
-    """設定的路徑，沒填就從 Forge 資料夾找 tagcomplete 附的檔案。"""
-    t, z = cfg.get("tag_csv") or "", cfg.get("tag_zh_csv") or ""
-    fd = cfg.get("forge_dir") or ""
-    base = os.path.join(fd, "extensions", "a1111-sd-webui-tagcomplete", "tags") if fd else ""
-    if not t and base and os.path.isfile(os.path.join(base, "danbooru.csv")):
-        t = os.path.join(base, "danbooru.csv")
-    if not z and base:
-        for n in ("danbooru-0-zh.csv", "zh_cn.csv", "danbooru-zh.csv"):
-            if os.path.isfile(os.path.join(base, n)):
-                z = os.path.join(base, n)
+    """設定的路徑，沒填就從 Forge 資料夾找 tagcomplete／tagcomplete-neo 附的檔案。"""
+    t, z = str(cfg.get("tag_csv") or "").strip(), str(cfg.get("tag_zh_csv") or "").strip()
+    fd = str(cfg.get("forge_dir") or "").strip()
+    bases = []
+    if fd:
+        for ext in ("sd-webui-tagcomplete-neo", "a1111-sd-webui-tagcomplete"):
+            cand = os.path.join(fd, "extensions", ext, "tags")
+            if os.path.isdir(cand):
+                bases.append(cand)
+    if not t:
+        for base in bases:
+            for n in ("danbooru.csv", "danbooru_e621_merged.csv"):
+                if os.path.isfile(os.path.join(base, n)):
+                    t = os.path.join(base, n)
+                    break
+            if t:
+                break
+    if not z:
+        for base in bases:
+            for n in ("danbooru-0-zh.csv", "zh_cn.csv", "danbooru-zh.csv", "danbooru_zh.csv", "danbooru_zh_tw.csv"):
+                if os.path.isfile(os.path.join(base, n)):
+                    z = os.path.join(base, n)
+                    break
+            if z:
                 break
     return t if os.path.isfile(t) else "", z if os.path.isfile(z) else ""
+
+
+def suggest_tags(q, tag_path, zh_path=None, limit=15, mode="all"):
+    """即時標籤補全（類 tagcomplete）：支援英文前綴／子字串、別名、中文反查、畫師 @ 優先。"""
+    q_raw = str(q or "").strip()
+    if not q_raw:
+        return {"items": [], "has_dict": bool(tag_path or zh_path)}
+    limit = max(1, min(40, int(limit or 15)))
+    artist_only = (mode == "artist") or q_raw.startswith("@")
+    q_clean = q_raw.lstrip("@").strip().replace("_", " ").lower()
+    if not q_clean:
+        return {"items": [], "has_dict": bool(tag_path or zh_path)}
+
+    db = _load_tags(tag_path) if tag_path else None
+    zdb = _load_zh(zh_path) if zh_path else None
+    en2zh = zdb["en2zh"] if zdb else {}
+    has_dict = bool(db or zdb)
+    if not has_dict:
+        return {"items": [], "has_dict": False}
+
+    seen = set()
+    items = []
+
+    # 1. 中文查詢：從中文對照表找符合的項目
+    if re.search(r"[一-鿿]", q_clean) and zdb:
+        prefix_zh, sub_zh = [], []
+        for zh, tag in zdb["pairs"]:
+            if tag in seen:
+                continue
+            if zh.startswith(q_clean):
+                prefix_zh.append((zh, tag))
+            elif q_clean in zh:
+                sub_zh.append((zh, tag))
+        cand = prefix_zh + sub_zh
+        scored = []
+        for zh, tag in cand:
+            if tag in seen:
+                continue
+            seen.add(tag)
+            cat, cnt = db["tags"].get(tag, ("0", 0)) if db else ("0", 0)
+            if artist_only and cat != "1":
+                continue
+            exact = 1 if zh == q_clean else (0 if zh.startswith(q_clean) else -1)
+            scored.append((exact, cnt, tag, cat, zh))
+        scored.sort(key=lambda x: (-x[0], -x[1]))
+        for _, cnt, tag, cat, zh in scored[:limit]:
+            items.append({
+                "tag": tag,
+                "insert": ("@" + tag) if (artist_only or cat == "1") else tag,
+                "cat": cat,
+                "count": cnt,
+                "zh": zh,
+            })
+        return {"items": items, "has_dict": True}
+
+    # 2. 英文查詢：依熱門度掃描前綴命中 → 子字串命中 → 別名命中
+    if db:
+        prefix_hits, sub_hits = [], []
+        for name, (cat, cnt) in db["sorted"]:
+            if artist_only and cat != "1":
+                continue
+            low = name.lower()
+            if low.startswith(q_clean):
+                prefix_hits.append((name, cat, cnt))
+                if len(prefix_hits) >= limit:
+                    break
+            elif q_clean in low and len(sub_hits) < limit:
+                sub_hits.append((name, cat, cnt))
+        for name, cat, cnt in (prefix_hits + sub_hits):
+            if name in seen:
+                continue
+            seen.add(name)
+            items.append({
+                "tag": name,
+                "insert": ("@" + name) if (artist_only or (mode == "artist" and cat == "1")) else name,
+                "cat": cat,
+                "count": cnt,
+                "zh": en2zh.get(name, ""),
+            })
+            if len(items) >= limit:
+                break
+        # 不足時補別名命中
+        if len(items) < limit:
+            alias_hits = []
+            for al, canon in db["alias"].items():
+                if canon in seen:
+                    continue
+                if q_clean in al.lower():
+                    cat, cnt = db["tags"].get(canon, ("0", 0))
+                    if artist_only and cat != "1":
+                        continue
+                    alias_hits.append((al.lower().startswith(q_clean), cnt, al, canon, cat))
+            alias_hits.sort(key=lambda x: (-int(x[0]), -x[1]))
+            for _, cnt, al, canon, cat in alias_hits:
+                if canon in seen:
+                    continue
+                seen.add(canon)
+                items.append({
+                    "tag": canon,
+                    "insert": ("@" + canon) if (artist_only or (mode == "artist" and cat == "1")) else canon,
+                    "cat": cat,
+                    "count": cnt,
+                    "alias": al,
+                    "zh": en2zh.get(canon, ""),
+                })
+                if len(items) >= limit:
+                    break
+    return {"items": items, "has_dict": True}
 
 
 # ---------------------------------------------------------------------------

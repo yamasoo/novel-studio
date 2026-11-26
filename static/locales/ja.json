@@ -2151,5 +2151,9 @@
  "sensitive（微露／暗示）": "sensitive（セクシー・示唆）",
  "nsfw（成人）": "nsfw（成人向け）",
  "explicit（露骨 NSFW）": "explicit（露骨な NSFW）",
- "不加分級標籤": "レーティングタグなし"
+ "不加分級標籤": "レーティングタグなし",
+ "Danbooru 標籤 CSV（TagComplete 補全用，留空＝自動找）": "Danbooru タグ CSV（TagComplete 補完用、空欄＝自動検出）",
+ "中文標籤對照表 CSV（打中文補全英文用，留空＝自動找）": "中国語タグ対照 CSV（中国語入力で英語タグ補完、空欄＝自動検出）",
+ "標籤對照表狀態": "タグ辞書の読み込み状態",
+ "尚未載入（填上方路徑或 Forge 資料夾會自動找 tagcomplete / tagcomplete-neo 的 danbooru.csv）": "未読み込み（上のパスまたは Forge フォルダ指定で tagcomplete / tagcomplete-neo の danbooru.csv を自動検出）"
 }

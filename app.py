@@ -93,6 +93,10 @@ def load_config():
             p["reasoning"] = dict(providers.DEFAULT_REASONING, adapter=ad)
     have = {p.get("id") for p in cfg.get("providers") or []}
     cfg["providers"] = list(cfg.get("providers") or []) + [dict(p) for p in providers.DEFAULT_PROVIDERS if p["id"] not in have]
+    if not (cfg.get("library") or "").strip():
+        env_lib = os.environ.get("T2X_LIBRARY_DIR", "").strip()
+        if env_lib:
+            cfg["library"] = env_lib
     return cfg
 
 
@@ -231,7 +235,11 @@ def get_config():
             "port": int(CONFIG.get("port", 8765)), "running_port": RUNNING_PORT, "can_restart": SERVER is not None,
             "library_exists": os.path.isdir(CONFIG.get("library") or ""),
             "key_status": {p["id"]: providers.key_status(HERE, p) for p in CONFIG.get("providers") or []},
-            "key_store": providers.store_name(), "secrets_pending": providers.pending_secrets(HERE)}
+            "key_store": providers.store_name(), "secrets_pending": providers.pending_secrets(HERE),
+            "suite": {
+                "t2vn_url": os.environ.get("T2VN_URL", "").strip().rstrip("/"),
+                "suite_url": os.environ.get("SUITE_URL", "").strip().rstrip("/"),
+            }}
 
 
 @app.post("/api/config")
@@ -902,7 +910,16 @@ async def import_commit(req: Request):
 # ---------------------------------------------------------------------------
 def illust_cfg():
     cfg = dict(illust.DEFAULTS)
-    cfg.update(CONFIG.get("illust") or {})
+    user = CONFIG.get("illust") or {}
+    cfg.update(user)
+    if not str(user.get("comfy_url") or "").strip():
+        env_comfy = os.environ.get("T2X_COMFYUI_URL", "").strip()
+        if env_comfy:
+            cfg["comfy_url"] = env_comfy
+    if not str(user.get("tag_csv") or "").strip():
+        env_csv = os.environ.get("T2X_TAGCOMPLETE_CSV", "").strip()
+        if env_csv:
+            cfg["tag_csv"] = env_csv
     return cfg
 
 

@@ -88,6 +88,7 @@ function navItems() {
 
 (async function boot() {
   migrateStore();
+  if (window.NSThemes) NSThemes.init();
 
   // 語言檔是 fetch（非同步）；一定要在 FE.start() 之前 await，否則第一次路由會先以中文出現。
   await FE.i18n.init({
@@ -134,6 +135,7 @@ function navItems() {
     sizes: { panel: { min: 340, max: 900, width: 420 } },
     slots: {
       top: FE.h("div", { class: "row" },
+        window.NSThemes ? NSThemes.button("btn sm") : null,
         FE.h("a", {
           id: "suite-portal-link", class: "btn sm",
           href: (S.suite && S.suite.suite_url) ? (S.suite.suite_url + "/") : "#",

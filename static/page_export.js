@@ -17,7 +17,7 @@
     const signal = ctx.signal;
     const [m, stMeta] = await Promise.all([
       FE.api(B("/export"), { signal }),
-      FE.api(B("/export/sillytavern"), { signal }),
+      FE.api(B("/export/sillytavern"), { signal }).catch(() => null),
     ]);
     const p = m.prefs;
     const chs = m.chapters;
@@ -84,18 +84,22 @@
         h("input", { type: "checkbox", "data-st-sec": k, checked: true }), " " + label)));
 
     const stResultBox = h("div", { id: "st-result" });
-    const stGoBtn = h("button", { class: "primary", id: "st-go" }, "匯出酒館檔");
+    const stGoBtn = h("button", { class: "primary", id: "st-go", disabled: !stMeta }, "匯出酒館檔");
 
     const stCard = h("div", { class: "card", style: "margin-top:14px" },
       h("div", { class: "card-title" },
         h("h2", {}, "匯出至 SillyTavern（酒館）"),
         h("span", { class: "muted small" }, "將設定集與角色卡轉成酒館格式（Character Card V2 PNG ＋ World Info JSON），方便角色試聊或 TRPG 跑團")),
-      h("div", { class: "grid g2" },
-        h("label", { class: "f" }, h("span", {}, "匯出內容"), stModeSel),
-        stCharWrap),
-      stSecWrap,
-      h("div", { class: "row", style: "margin-top:12px" }, h("span", { class: "grow" }), stGoBtn),
-      stResultBox);
+      !stMeta
+        ? h("div", { class: "alert warn" }, "後端尚未載入酒館匯出端點，請重新啟動 Novel Studio（關閉舊視窗後重新執行 start.bat）。")
+        : [
+            h("div", { class: "grid g2" },
+              h("label", { class: "f" }, h("span", {}, "匯出內容"), stModeSel),
+              stCharWrap),
+            stSecWrap,
+            h("div", { class: "row", style: "margin-top:12px" }, h("span", { class: "grow" }), stGoBtn),
+            stResultBox,
+          ]);
 
     ctx.view(
       h("div", { class: "page-head" },

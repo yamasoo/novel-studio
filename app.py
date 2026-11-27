@@ -32,7 +32,7 @@ from studio import tables
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, setup_flow, shared, spawn, spinoff, style_design, textguard, tracking, upcheck, visual_card, volume, wb_check  # noqa: E402
+from studio import actions, bible_index, comfy, context, contract, drift, export, fidelity, fingerprint, forge, goals, illust, importer, jsonkeys, lang as lang_mod, native, native_files, project, prompts, providers, pipeline, reader_ledger, recovery, relations, reverse, revision, runner as runner_mod, sdna, search, setup_flow, shared, sillytavern, spawn, spinoff, style_design, textguard, tracking, upcheck, visual_card, volume, wb_check  # noqa: E402
 # vendor/fekit/py 不是 site-packages，先加進 sys.path；要在 from fekit 之前
 sys.path.insert(0, os.path.join(HERE, "vendor", "fekit", "py"))
 from fekit import install as fekit_install  # noqa: E402
@@ -559,10 +559,28 @@ async def export_run(book_id: str, req: Request):
     return wrap(lambda: export.export(d, opts))
 
 
+@app.get("/api/books/{book_id}/export/sillytavern")
+def export_sillytavern_meta(book_id: str):
+    return sillytavern.meta(book_dir(book_id))
+
+
+@app.post("/api/books/{book_id}/export/sillytavern")
+async def export_sillytavern_run(book_id: str, req: Request):
+    d = book_dir(book_id)
+    opts = await req.json()
+    return wrap(lambda: sillytavern.export_sillytavern(d, opts))
+
+
 @app.get("/api/books/{book_id}/exports/{name}")
 def export_download(book_id: str, name: str):
     p = wrap(lambda: export.export_path(book_dir(book_id), name))
-    mt = "application/epub+zip" if name.endswith(".epub") else "text/plain; charset=utf-8"
+    ext = os.path.splitext(name)[1].lower()
+    mt = {
+        ".epub": "application/epub+zip",
+        ".json": "application/json; charset=utf-8",
+        ".png": "image/png",
+        ".zip": "application/zip",
+    }.get(ext, "text/plain; charset=utf-8")
     return FileResponse(p, media_type=mt,
                         headers={"Content-Disposition": "attachment; filename=\"novel%s\"; filename*=UTF-8''%s"
                                  % (os.path.splitext(name)[1], quote(name))})

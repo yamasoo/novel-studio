@@ -15,7 +15,10 @@
 
   async function render(ctx) {
     const signal = ctx.signal;
-    const m = await FE.api(B("/export"), { signal });
+    const [m, stMeta] = await Promise.all([
+      FE.api(B("/export"), { signal }),
+      FE.api(B("/export/sillytavern"), { signal }),
+    ]);
     const p = m.prefs;
     const chs = m.chapters;
     const first = chs.length ? chs[0].no : "";
@@ -52,6 +55,48 @@
     const listBox = h("div", { id: "x-list" });
     const goBtn = h("button", { class: "primary", id: "x-go" }, "匯出");
 
+    // ── SillyTavern（酒館）匯出卡片 ──
+    const stChars = (stMeta && stMeta.characters) || [];
+    const stCounts = (stMeta && stMeta.counts) || {};
+    const stModeSel = h("select", { id: "st-mode" },
+      h("option", { value: "bundle", selected: true }, "一鍵整合包（ZIP：世界書＋GM 卡＋全部角色卡）"),
+      h("option", { value: "lorebook" }, "僅世界書（World Info JSON）"),
+      h("option", { value: "gm" }, "世界觀 GM 跑團主持卡（PNG V2）"),
+      h("option", { value: "character", disabled: !stChars.length },
+        stChars.length ? "指定角色卡（PNG V2）" : "指定角色卡（尚無正式角色）"));
+    const stCharSel = h("select", { id: "st-char", disabled: !stChars.length },
+      stChars.length
+        ? stChars.map((c) => h("option", { value: c.stem }, c.name + (c.role ? "（" + c.role + "）" : "")))
+        : [h("option", { value: "" }, "尚無正式角色")]);
+    const stCharWrap = h("label", { class: "f", id: "st-char-wrap", hidden: true },
+      h("span", {}, "選擇角色"), stCharSel);
+
+    const stSecItems = [
+      ["core", "故事核心（常駐）"],
+      ["characters", `角色（${stCounts.characters || 0}）`],
+      ["factions", `勢力（${stCounts.factions || 0}）`],
+      ["world", `世界觀（${stCounts.world || 0}）`],
+      ["glossary", `名詞表（${stCounts.glossary || 0}）`],
+      ["tracking", "追蹤資料（時間線／關係／狀態卡）"],
+    ];
+    const stSecWrap = h("div", { class: "row", id: "st-sec-wrap", style: "margin-top:8px;gap:12px" },
+      stSecItems.map(([k, label]) => h("label", { class: "cb", style: "margin-bottom:0" },
+        h("input", { type: "checkbox", "data-st-sec": k, checked: true }), " " + label)));
+
+    const stResultBox = h("div", { id: "st-result" });
+    const stGoBtn = h("button", { class: "primary", id: "st-go" }, "匯出酒館檔");
+
+    const stCard = h("div", { class: "card", style: "margin-top:14px" },
+      h("div", { class: "card-title" },
+        h("h2", {}, "匯出至 SillyTavern（酒館）"),
+        h("span", { class: "muted small" }, "將設定集與角色卡轉成酒館格式（Character Card V2 PNG ＋ World Info JSON），方便角色試聊或 TRPG 跑團")),
+      h("div", { class: "grid g2" },
+        h("label", { class: "f" }, h("span", {}, "匯出內容"), stModeSel),
+        stCharWrap),
+      stSecWrap,
+      h("div", { class: "row", style: "margin-top:12px" }, h("span", { class: "grow" }), stGoBtn),
+      stResultBox);
+
     ctx.view(
       h("div", { class: "page-head" },
         h("div", {},
@@ -85,6 +130,7 @@
           epubBlock,
           h("div", { class: "row", style: "margin-top:12px" }, h("span", { class: "grow" }), goBtn),
           resultBox)),
+      stCard,
       h("div", { class: "card", style: "margin-top:14px" },
         h("div", { class: "card-title" },
           h("h2", {}, "匯出紀錄"),
@@ -161,6 +207,35 @@
           downloadLink(r.file, "btn sm primary")));
         renderList((await FE.api(B("/export"), { signal })).exports);
       } catch (e) { FE.fail(e); } finally { goBtn.disabled = false; goBtn.textContent = "匯出"; }
+    };
+
+    const syncSt = () => {
+      const mode = stModeSel.value;
+      stCharWrap.hidden = mode !== "character";
+      stSecWrap.hidden = mode !== "bundle" && mode !== "lorebook";
+    };
+    stModeSel.onchange = syncSt;
+    syncSt();
+
+    stGoBtn.onclick = async () => {
+      const mode = stModeSel.value;
+      const sections = Array.from(stCard.querySelectorAll("[data-st-sec]:checked")).map((el) => el.dataset.stSec);
+      if ((mode === "bundle" || mode === "lorebook") && !sections.length) {
+        return FE.toast("請至少勾選一項世界書內容", "err");
+      }
+      const body = { mode, sections, character: stCharSel.value };
+      stGoBtn.disabled = true; stGoBtn.textContent = "匯出中……";
+      try {
+        const r = await FE.api(B("/export/sillytavern"), { method: "POST", body, signal });
+        const parts = [];
+        if (r.entries) parts.push(`${r.entries} 條世界書`);
+        if (r.cards) parts.push(`${r.cards} 張角色卡`);
+        stResultBox.replaceChildren(h("div", { class: "alert ok", style: "margin-top:12px" },
+          h("span", { class: "k" }, "完成"),
+          h("span", { class: "t" }, r.file + "（" + (parts.length ? parts.join("，") + "，" : "") + fmtSize(r.size) + "）"),
+          downloadLink(r.file, "btn sm primary")));
+        renderList((await FE.api(B("/export"), { signal })).exports);
+      } catch (e) { FE.fail(e); } finally { stGoBtn.disabled = false; stGoBtn.textContent = "匯出酒館檔"; }
     };
   }
 

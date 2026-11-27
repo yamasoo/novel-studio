@@ -643,14 +643,14 @@ def list_exports(book_dir):
     if os.path.isdir(d):
         for f in os.listdir(d):
             p = os.path.join(d, f)
-            if os.path.isfile(p) and f.endswith((".txt", ".epub")):
+            if os.path.isfile(p) and f.endswith((".txt", ".epub", ".json", ".png", ".zip")):
                 out.append({"file": f, "size": os.path.getsize(p), "mtime": os.path.getmtime(p)})
     out.sort(key=lambda x: -x["mtime"])
     return out
 
 
 def export_path(book_dir, name):
-    if not name or "/" in name or "\\" in name or name.startswith(".") or not name.endswith((".txt", ".epub")):
+    if not name or "/" in name or "\\" in name or name.startswith(".") or not name.endswith((".txt", ".epub", ".json", ".png", ".zip")):
         raise ExportError("檔名不合法")
     p = os.path.join(book_dir, OUT_DIR, name)
     if not os.path.isfile(p):

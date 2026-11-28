@@ -2155,5 +2155,10 @@
  "Danbooru 標籤 CSV（TagComplete 補全用，留空＝自動找）": "Danbooru tag CSV (for TagComplete autocomplete; blank = auto-detect)",
  "中文標籤對照表 CSV（打中文補全英文用，留空＝自動找）": "Chinese tag translation CSV (type Chinese to insert English tags; blank = auto-detect)",
  "標籤對照表狀態": "Tag dictionary status",
- "尚未載入（填上方路徑或 Forge 資料夾會自動找 tagcomplete / tagcomplete-neo 的 danbooru.csv）": "Not loaded (fill path above or Forge folder to auto-detect tagcomplete / tagcomplete-neo danbooru.csv)"
+ "尚未載入（填上方路徑或 Forge 資料夾會自動找 tagcomplete / tagcomplete-neo 的 danbooru.csv）": "Not loaded (fill path above or Forge folder to auto-detect tagcomplete / tagcomplete-neo danbooru.csv)",
+ "🎨 去出圖 →": "🎨 Generate Image →",
+ "ComfyUI 預設模型／設定": "Default ComfyUI profile",
+ "設為預設": "Set as default",
+ "畫師標籤（會自動加 @，逗號分隔可疊加）": "Artist tags (@ added automatically, comma-separated to stack)",
+ "中英文搜尋畫師，可逗號疊加多位": "Search artists in EN/ZH, comma-separated to stack"
 }

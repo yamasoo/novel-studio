@@ -280,13 +280,13 @@ const tagAppend = (cur, add) => {
 };
 
 /* 視覺卡（角色：結構化漫畫／VN 視覺卡；勢力、世界觀：「繪圖提示」） */
-async function renderCard(el, file, text) {
-  if ((file || "").startsWith("bible/characters/")) return renderCharVisualCard(el, file, text);
+async function renderCard(el, file, text, opts = {}) {
+  if ((file || "").startsWith("bible/characters/")) return renderCharVisualCard(el, file, opts);
   const cfgR = await illCfg();
-  const m = (text || "").match(/^## 繪圖提示[^\n]*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
+  const m = (text || "").match(/^## (?:繪圖提示|Illustration prompt|作画プロンプト)[^\n]*\n([\s\S]*?)(?=^## |$(?![\s\S]))/mi);
   const sec = m ? m[1].replace(/<!--[\s\S]*?-->/g, "") : "";
-  const get = (k) => ((sec.match(new RegExp("^-\\s*" + k + "\\s*[:：]\\s*(.*)$", "m")) || [])[1] || "").trim();
-  const card = { tags: get("標籤"), description: get("描述") };
+  const get = (ks) => ((sec.match(new RegExp("^-\\s*(?:" + ks.join("|") + ")\\s*[:：]\\s*(.*)$", "mi")) || [])[1] || "").trim();
+  const card = { tags: get(["標籤", "Tags", "タグ"]), description: get(["描述", "Description", "説明"]) };
   const has = card.tags || card.description;
   let editing = false, zh = null;
   const render = () => {
@@ -296,7 +296,8 @@ async function renderCard(el, file, text) {
         FE.h("div", { class: "row" },
           FE.h("select", { id: "vc-prov" }),
           FE.h("button", { class: "sm primary", id: "vc-ai", title: "AI 從設定產生視覺卡／繪圖提示" }, "✨ 生成 Prompt"),
-          FE.h("button", { class: "sm", id: "vc-edit" }, editing ? "取消" : "手動編輯"))),
+          FE.h("button", { class: "sm", id: "vc-edit" }, editing ? "取消" : "手動編輯"),
+          opts && opts.onGoIllust ? FE.h("button", { class: "sm", id: "vc-go-illust" }, "🎨 去出圖 →") : null)),
       FE.h("div", { class: "muted small", style: "margin-bottom:8px" },
         "固定不變的外觀（英文 Danbooru 標籤＋一兩句描述）。每張插圖都會自動帶入，是同一角色每次長得一樣的關鍵。"),
     ];
@@ -325,6 +326,8 @@ async function renderCard(el, file, text) {
     el.replaceChildren(FE.h("div", { class: "card ill-card" }, kids));
     $("#vc-prov", el).replaceChildren(...provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true }));
     $("#vc-edit", el).onclick = () => { editing = !editing; render(); };
+    const goIll = $("#vc-go-illust", el);
+    if (goIll && opts && opts.onGoIllust) goIll.onclick = () => opts.onGoIllust();
     $("#vc-ai", el).onclick = async () => {
       try {
         const job = await api("POST", B("/jobs"), { action: "visual_card", params: { file }, provider: $("#vc-prov", el).value });
@@ -348,7 +351,7 @@ async function renderCard(el, file, text) {
 }
 
 /* 角色結構化視覺卡（漫畫標準分區 ＋ VN 頭像／立繪／7 種表情預覽） */
-async function renderCharVisualCard(el, file) {
+async function renderCharVisualCard(el, file, opts = {}) {
   const cfgR = await illCfg();
   const load = (outfit) => api("GET", B("/visual-cards/by-file?file=" + encodeURIComponent(file) + "&outfit=" + encodeURIComponent(outfit || "default")));
   let state = await load("default");
@@ -390,6 +393,9 @@ async function renderCharVisualCard(el, file) {
     ];
     if (exists && !editing) {
       headBtns.push(FE.h("button", { class: "sm", id: "vc-copy-comic" }, "複製漫畫卡"));
+    }
+    if (opts && opts.onGoIllust) {
+      headBtns.push(FE.h("button", { class: "sm", id: "vc-go-illust" }, "🎨 去出圖 →"));
     }
 
     const kids = [
@@ -505,6 +511,8 @@ async function renderCharVisualCard(el, file) {
     el.replaceChildren(FE.h("div", { class: "card ill-card" }, kids));
     $("#vc-prov", el).replaceChildren(...provOptions(cfgR.config.provider || Panel.prov(), { claudeNote: true }));
     $("#vc-edit", el).onclick = () => { editing = !editing; render(); };
+    const goIll = $("#vc-go-illust", el);
+    if (goIll && opts && opts.onGoIllust) goIll.onclick = () => opts.onGoIllust();
     $("#vc-ai", el).onclick = async () => {
       try {
         const job = await api("POST", B("/jobs"), { action: "visual_card", params: { file }, provider: $("#vc-prov", el).value });
@@ -644,9 +652,13 @@ async function renderIllSettings(el) {
   el.replaceChildren(
     FE.h("h2", { style: "margin-bottom:4px" }, "插畫（Forge Neo／ComfyUI）"),
     FE.h("div", { class: "f" }, FE.h("span", {}, "出圖後端")),
-    FE.h("div", { class: "seg compact", id: "il-be", style: "margin-bottom:12px" },
-      FE.h("label", {}, FE.h("input", { type: "radio", name: "il-be", value: "forge", checked: be === "forge" }), FE.h("span", {}, "Forge Neo")),
-      FE.h("label", {}, FE.h("input", { type: "radio", name: "il-be", value: "comfy", checked: be === "comfy" }), FE.h("span", {}, "ComfyUI"))),
+    FE.h("div", { class: "row", style: "margin-bottom:12px;gap:12px;align-items:center;flex-wrap:wrap" },
+      FE.h("div", { class: "seg compact", id: "il-be" },
+        FE.h("label", {}, FE.h("input", { type: "radio", name: "il-be", value: "forge", checked: be === "forge" }), FE.h("span", {}, "Forge Neo")),
+        FE.h("label", {}, FE.h("input", { type: "radio", name: "il-be", value: "comfy", checked: be === "comfy" }), FE.h("span", {}, "ComfyUI"))),
+      FE.h("label", { "data-be": "comfy", class: "f", style: "margin:0;flex-direction:row;align-items:center;gap:6px" },
+        FE.h("span", {}, "ComfyUI 預設模型／設定"),
+        FE.h("select", { id: "cf-def" }))),
     FE.h("div", { "data-be": "forge" },
       FE.h("div", { class: "muted small", style: "margin-bottom:12px" },
         "Forge 要用 ", FE.h("code", {}, "--api"),
@@ -680,9 +692,7 @@ async function renderIllSettings(el) {
       FE.h("div", { class: "small", id: "cf-status", style: "margin:-4px 0 10px" }),
       FE.h("div", { id: "cf-profs" }),
       FE.h("div", { class: "row", style: "margin:6px 0 10px" },
-        FE.h("button", { class: "sm", id: "cf-add" }, "＋ 新增出圖設定"),
-        FE.h("label", { class: "f", style: "margin:0 0 0 auto;flex-direction:row;align-items:center;gap:6px" },
-          FE.h("span", {}, "預設使用"), FE.h("select", { id: "cf-def" }))),
+        FE.h("button", { class: "sm", id: "cf-add" }, "＋ 新增出圖設定")),
       FE.h("label", { class: "cb" },
         FE.h("input", { type: "checkbox", id: "cf-keep", checked: !!c.comfy_keep_output }),
         " 也在 ComfyUI 的 output 資料夾存一份（不勾就只放 ComfyUI 的暫存）"),
@@ -772,8 +782,12 @@ async function renderIllSettings(el) {
           " " + (sm.missing.length ? `缺：${sm.missing.join("、")}　` : ""),
           FE.h("span", { class: "muted" },
             `正向：${sm.positive.join("、")}　負向：${sm.negative.join("、") || "無"}　尺寸：${sm.latent.join("、") || "無"}${sm.removed.length ? `　略過：${sm.removed.join("、")}` : ""}`)]) : null;
+      const isDef = p.id === (c.comfy_profile || (profs[0] && profs[0].id));
       return FE.h("div", { class: "prov-box", style: "margin-bottom:10px" },
-        FE.h("div", { class: "row" }, FE.h("b", {}, p.name || "未命名"), FE.h("span", { class: "grow" }),
+        FE.h("div", { class: "row" },
+          FE.h("b", {}, p.name || "未命名"),
+          isDef ? FE.h("span", { class: "badge b-ok" }, "預設") : FE.h("button", { class: "sm", "data-setdef": p.id }, "設為預設"),
+          FE.h("span", { class: "grow" }),
           profs.length > 1 ? FE.h("button", { class: "sm danger", "data-del": i }, "刪除") : null),
         FE.h("div", { class: "grid g3" },
           FE.h("label", { class: "f" }, FE.h("span", {}, "名稱"),
@@ -794,12 +808,19 @@ async function renderIllSettings(el) {
         loraRows(p, i),
         FE.h("div", { class: "small", style: "margin-top:6px" }, status));
     }));
-    $("#cf-def", el).replaceChildren(...profs.map((p) => FE.h("option", { value: p.id, selected: p.id === (c.comfy_profile || profs[0].id) }, p.name)));
+    if (!profs.some((p) => p.id === c.comfy_profile) && profs.length) c.comfy_profile = profs[0].id;
+    const defSel = $("#cf-def", el);
+    defSel.replaceChildren(...profs.map((p) => FE.h("option", { value: p.id, selected: p.id === c.comfy_profile },
+      `${p.name || p.id}（${p.kind === "moss" ? "MOSS-Image" : "Anima"}）`)));
+    defSel.onchange = () => { c.comfy_profile = defSel.value; renderProfs(); };
+    el.querySelectorAll("[data-setdef]").forEach((b) => {
+      b.onclick = () => { c.comfy_profile = b.dataset.setdef; renderProfs(); };
+    });
     el.querySelectorAll("[data-pf]").forEach((x) => {
       x.onchange = () => {
         const p = profs[+x.dataset.pf];
         p[x.dataset.key] = x.type === "checkbox" ? x.checked : x.value.trim();
-        if (["kind", "upsampler"].includes(x.dataset.key)) renderProfs();
+        if (["name", "kind", "upsampler"].includes(x.dataset.key)) renderProfs();
       };
     });
     el.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => { profs.splice(+b.dataset.del, 1); renderProfs(); });

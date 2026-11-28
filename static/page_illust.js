@@ -128,6 +128,8 @@
     };
   }
 
+  const OPEN_TARGETS = new Set();
+
   // 插圖區塊：target = cover | chapter:N | entity:bible/characters/X.md
   async function renderIllust(el, target, opts = {}) {
     const cfgR = await illCfg();
@@ -149,7 +151,7 @@
     if (!info.draft || !info.draft.styles) D.styles = bs.styles || [];
     if (!info.draft || info.draft.artist === undefined) D.artist = bs.artist || "";
     let ents = null, picks = null, zh = null, final = null;
-    let open = opts.open || (isCh && !info.images.length);
+    let open = Boolean(opts.open || OPEN_TARGETS.has(target) || (isCh && !info.images.length));
     const sizeW = D.width || (isCover ? bs.cover_width : bs.width) || cfg.width;
     const sizeH = D.height || (isCover ? bs.cover_height : bs.height) || cfg.height;
     D.width = sizeW; D.height = sizeH;
@@ -288,7 +290,8 @@
               h("div", { class: "row" },
                 h("span", { class: "small" }, D.styles.length ? D.styles.join("　＋　") : h("span", { class: "muted" }, "不套用")),
                 h("button", { class: "sm", id: "il-styles" }, "選畫風…"))),
-            h("label", { class: "f" }, h("span", {}, "畫師標籤（會自動加 @）"), h("input", { type: "text", "data-k": "artist", value: D.artist || "" })),
+            h("label", { class: "f" }, h("span", {}, "畫師標籤（會自動加 @，逗號分隔可疊加）"),
+              h("input", { type: "text", "data-k": "artist", value: D.artist || "", placeholder: "中英文搜尋畫師，可逗號疊加多位" })),
             isComfy
               ? h("label", { class: "f" }, h("span", {}, "ComfyUI 出圖設定"),
                 h("select", { "data-k": "profile", id: "il-prof" }, profs.map((p) => h("option", {
@@ -383,7 +386,7 @@
         const q = el.querySelector("#il-q");
         if (!q) return;
         const others = list.filter((x) => x.target !== target && (x.status === "queued" || x.status === "running")).length;
-        q.replaceChildren(
+        const qNodes = [
           ...active.map((x) => (x.status === "running"
             ? (x.backend === "comfy"
               ? h("div", { class: "ill-prog" },
@@ -396,8 +399,10 @@
                 h("button", { class: "sm", "data-cancel": String(x.id) }, "停止")))
             : h("div", {}, `排隊中（seed ${x.seed}）`, h("button", { class: "sm", "data-cancel": String(x.id) }, "取消")))),
           others ? h("div", { class: "muted" }, `另外還有 ${others} 張在排隊`) : null,
-          mine.filter((x) => x.status === "error" && Date.now() / 1000 - x.created < 600).slice(-1)
-            .map((x) => h("div", { class: "err" }, `出圖失敗：${x.error}`)));
+          ...mine.filter((x) => x.status === "error" && Date.now() / 1000 - x.created < 600).slice(-1)
+            .map((x) => h("div", { class: "err" }, `出圖失敗：${x.error}`)),
+        ].filter(Boolean);
+        q.replaceChildren(...qNodes);
         q.querySelectorAll("[data-cancel]").forEach((b) => {
           b.onclick = () => FE.api("/api/illust/queue/" + b.dataset.cancel + "/cancel", { method: "POST" });
         });
@@ -464,6 +469,7 @@
       el.querySelectorAll(".ill-thumb").forEach((node) => {
         node.onclick = () => imageModal(target, info.images[+node.dataset.i], reload, (img) => {
           open = true;
+          OPEN_TARGETS.add(target);
           final = { positive: img.prompt, negative: img.negative || "", notes: [] };
           D.seed = img.seed || -1;
           render();
@@ -477,12 +483,23 @@
           reload();
         } catch (e) { FE.fail(e); }
       };
-      q("#il-toggle").onclick = async () => { collect(); open = !open; if (open && !ents) await loadEnts(); render(); };
+      q("#il-toggle").onclick = async () => {
+        collect();
+        open = !open;
+        if (open) OPEN_TARGETS.add(target);
+        else OPEN_TARGETS.delete(target);
+        if (open && !ents) await loadEnts();
+        render();
+      };
       if (!open) return;
       if (!ents) {
         loadEnts().then(() => {
           const c = q("#il-chars");
-          if (c) { c.replaceChildren(charRows()); bindChars(); }
+          if (c) {
+            const rows = charRows();
+            c.replaceChildren(...(Array.isArray(rows) ? rows.flat().filter(Boolean) : [rows].filter(Boolean)));
+            bindChars();
+          }
         }).catch(FE.fail);
       }
       bindChars();
@@ -607,7 +624,7 @@
       const bs = (await FE.api(B("/illust/overview"), { signal })).style;
       let styles = bs.styles || [];
       const draw = () => {
-        const artistInput = h("input", { type: "text", id: "bs-artist", value: bs.artist || "" });
+        const artistInput = h("input", { type: "text", id: "bs-artist", value: bs.artist || "", placeholder: "中英文搜尋畫師，可逗號疊加多位" });
         const extraInput = h("input", { type: "text", id: "bs-extra", value: bs.extra || "" });
         const negInput = h("input", { type: "text", id: "bs-neg", value: bs.negative_extra || "" });
         const sizeSel = h("select", { id: "bs-size" },
@@ -624,12 +641,17 @@
           h("p", { class: "muted small" }, "這本書所有插圖的預設值；每張圖出圖時還可以再改。品質、分級、負面提示詞的全域預設在「設定 → 插畫」。"),
           h("div", { class: "f" }, h("span", {}, "畫風"), stylesLine),
           h("div", { class: "grid g2" },
-            h("label", { class: "f" }, h("span", {}, "畫師標籤（會自動加 @）"), artistInput),
+            h("label", { class: "f" }, h("span", {}, "畫師標籤（會自動加 @，逗號分隔可疊加）"), artistInput),
             h("label", { class: "f" }, h("span", {}, "每張都加的標籤"), extraInput),
             h("label", { class: "f" }, h("span", {}, "每張都加的負面提示詞"), negInput),
             h("label", { class: "f" }, h("span", {}, "插圖尺寸"), sizeSel),
             h("label", { class: "f" }, h("span", {}, "封面尺寸"), csizeSel)),
           h("div", { class: "row" }, h("span", { class: "grow" }), saveBtn)));
+        if (window.attachTagComplete) {
+          attachTagComplete(artistInput, { mode: "artist" });
+          attachTagComplete(extraInput);
+          attachTagComplete(negInput);
+        }
         pickBtn.onclick = () => pickStyles(styles, (sel) => { styles = sel; draw(); });
         saveBtn.onclick = async () => {
           const [w, hh] = (sizeSel.value || "x").split("x").map((x) => parseInt(x, 10) || null);

@@ -31,3 +31,7 @@ eval/fixtures.local.json
 
 # 書架統計快取（純本機，刪掉會自動重建）
 .cache/
+
+# 本機 AI 輔助與對話指引（個人或環境專用）
+GEMINI.md
+

@@ -27,6 +27,7 @@ class TagCompleteTests(unittest.TestCase):
             f.write(
                 "long_hair,0,長髮|长发\n"
                 "silver_hair,0,銀髮|银发\n"
+                "wlop,1,王凌|鬼刀畫師\n"
             )
 
     def tearDown(self):
@@ -60,6 +61,22 @@ class TagCompleteTests(unittest.TestCase):
         self.assertEqual(res["items"][0]["tag"], "wlop")
         self.assertEqual(res["items"][0]["insert"], "@wlop")
         self.assertEqual(res["items"][0]["cat"], "1")
+
+    def test_chinese_artist_lookup_and_stacking(self):
+        res = illust.suggest_tags("王凌", self.tag_csv, self.zh_csv, limit=10)
+        self.assertEqual(res["items"][0]["tag"], "wlop")
+        self.assertEqual(res["items"][0]["insert"], "@wlop")
+        self.assertEqual(res["items"][0]["cat"], "1")
+
+        res_at = illust.suggest_tags("@鬼刀", self.tag_csv, self.zh_csv, limit=10)
+        self.assertEqual(res_at["items"][0]["insert"], "@wlop")
+
+        res_mode = illust.suggest_tags("鬼刀", self.tag_csv, self.zh_csv, limit=10, mode="artist")
+        self.assertEqual(res_mode["items"][0]["insert"], "@wlop")
+
+        # 確認多畫師與權重疊加不會多加 @
+        asm = illust.assemble({"artist": "wlop, @ask (askzy), (@wlop:1.2)", "scene_tags": "sky"}, dict(illust.DEFAULTS))
+        self.assertIn("@wlop, @ask (askzy), (@wlop:1.2)", asm["positive"])
 
 
 if __name__ == "__main__":

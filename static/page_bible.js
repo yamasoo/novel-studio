@@ -629,7 +629,7 @@
           : h("div", { class: "muted" }, "這裡還是空的。"));
     }
 
-    let rightNode;
+    let rightNode, goIllust = null;
     if (file && ENT_TABS.includes(t)) {
       const SUB_TABS = [
         ["doc", "設定本文"],
@@ -642,16 +642,22 @@
       const paneCard = h("div", { class: "tab-pane" + (subTab === "card" ? "" : " hidden"), "data-sp": "card" }, entCard);
       const paneIll = h("div", { class: "tab-pane" + (subTab === "illust" ? "" : " hidden"), "data-sp": "illust" }, entIll);
       const panes = [paneDoc, paneCard, paneIll];
+      const setSubTab = (id) => {
+        subTab = id;
+        FE.store.set("bible.subtab", id);
+        subBtns.forEach((x) => x.classList.toggle("active", x.dataset.sid === id));
+        panes.forEach((p) => p.classList.toggle("hidden", p.dataset.sp !== id));
+      };
       const subBtns = SUB_TABS.map(([id, lbl]) => {
         const b = h("button", { class: "tab" + (subTab === id ? " active" : ""), "data-sid": id }, lbl);
-        b.onclick = () => {
-          subTab = id;
-          FE.store.set("bible.subtab", id);
-          subBtns.forEach((x) => x.classList.toggle("active", x.dataset.sid === id));
-          panes.forEach((p) => p.classList.toggle("hidden", p.dataset.sp !== id));
-        };
+        b.onclick = () => setSubTab(id);
         return b;
       });
+      goIllust = () => {
+        setSubTab("illust");
+        const tog = paneIll.querySelector("#il-toggle");
+        if (tog && !paneIll.querySelector(".ill-editor")) tog.click();
+      };
       rightNode = h("div", {}, h("div", { class: "tabs", style: "margin-bottom:12px" }, subBtns), paneDoc, paneCard, paneIll);
     } else {
       rightNode = h("div", {}, docEl, entMeta, entCard, entIll);
@@ -683,7 +689,7 @@
     if (file && ENT_TABS.includes(t)) {
       try {
         const f = await FE.api(B("/file?path=" + enc(file)), { signal });
-        await renderCard(entCard, file, f.text);
+        await renderCard(entCard, file, f.text, { onGoIllust: goIllust });
         await renderIllust(entIll, "entity:" + file, { entityText: f.text });
       } catch (e) { /* ignore */ }
     }

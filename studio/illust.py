@@ -635,8 +635,8 @@ def _load_zh(path):
                     continue
                 if tag and tag not in en2zh:
                     en2zh[tag] = zh
-                if cat in ("0",) and len(zh) >= 2:
-                    pairs.append((zh, tag))
+                if cat in ("0", "1") and len(zh) >= 2:
+                    pairs.append((zh, tag, cat))
     pairs.sort(key=lambda x: -len(x[0]))
     _ZH.update(path=path, mtime=mt, pairs=pairs, en2zh=en2zh)
     return _ZH
@@ -650,7 +650,9 @@ def zh_lookup(text, zh_path, tag_path=None, limit=40):
     pop = _load_tags(tag_path) if tag_path else None
     used = [False] * len(text)
     hits = {}
-    for zh, tag in db["pairs"]:
+    for zh, tag, cat in db["pairs"]:
+        if cat != "0":
+            continue
         start = 0
         while True:
             i = text.find(zh, start)
@@ -725,23 +727,23 @@ def suggest_tags(q, tag_path, zh_path=None, limit=15, mode="all"):
     seen = set()
     items = []
 
-    # 1. 中文查詢：從中文對照表找符合的項目
+    # 1. 中文查詢：從中文對照表找符合的項目（含一般標籤 0 與畫師 1）
     if re.search(r"[一-鿿]", q_clean) and zdb:
         prefix_zh, sub_zh = [], []
-        for zh, tag in zdb["pairs"]:
+        for zh, tag, zcat in zdb["pairs"]:
             if tag in seen:
                 continue
             if zh.startswith(q_clean):
-                prefix_zh.append((zh, tag))
+                prefix_zh.append((zh, tag, zcat))
             elif q_clean in zh:
-                sub_zh.append((zh, tag))
+                sub_zh.append((zh, tag, zcat))
         cand = prefix_zh + sub_zh
         scored = []
-        for zh, tag in cand:
+        for zh, tag, zcat in cand:
             if tag in seen:
                 continue
             seen.add(tag)
-            cat, cnt = db["tags"].get(tag, ("0", 0)) if db else ("0", 0)
+            cat, cnt = db["tags"].get(tag, (zcat or "0", 0)) if db else (zcat or "0", 0)
             if artist_only and cat != "1":
                 continue
             exact = 1 if zh == q_clean else (0 if zh.startswith(q_clean) else -1)
@@ -1123,7 +1125,7 @@ def assemble(spec, cfg, sheet_path=None):
     quality = spec.get("quality", cfg.get("quality", ""))
     safety = _resolve_safety(spec, cfg)
     artist = normalize_tags(spec.get("artist") or "")
-    artist = ", ".join(a if a.startswith("@") else "@" + a for a in artist.split(", ") if a)
+    artist = ", ".join(a if a.startswith(("@", "(")) else "@" + a for a in artist.split(", ") if a)
     chars = [c for c in spec.get("chars") or []
              if (c.get("tags") or c.get("body_tags") or c.get("description") or c.get("action"))]
     head = normalize_tags(", ".join(x for x in [quality, safety] if x))
